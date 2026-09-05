@@ -469,3 +469,30 @@ select{background-color:#fff} textarea{resize:vertical}
 .sa-access-column small{color:#64748b;text-align:right}
 .workspace-switcher optgroup{font-weight:800}
 @media(max-width:760px){.sa-account-access-map{grid-template-columns:1fr}.sa-access-column>span{align-items:flex-start;flex-direction:column}.sa-access-column small{text-align:left}}
+
+
+/* V42.23 — barre d’onglets mobile stabilisée */
+@media(max-width:650px){
+  .app{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+  .tabs{
+    left:0;right:0;bottom:0;transform:none;width:100%;max-width:none;
+    display:flex;align-items:stretch;justify-content:flex-start;gap:4px;
+    overflow-x:auto;overflow-y:hidden;white-space:nowrap;
+    border-radius:16px 16px 0 0;
+    padding:6px max(7px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));
+    scroll-snap-type:x mandatory;scroll-padding-inline:7px;
+    -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+  }
+  .tabs button{
+    flex:0 0 64px;min-width:64px;max-width:64px;min-height:54px;
+    padding:5px 3px;font-size:9px;line-height:1.05;gap:2px;
+    scroll-snap-align:start;overflow:hidden;text-overflow:ellipsis;
+  }
+  .tabs button:before{font-size:18px}
+  .tabs button.active{flex-basis:68px;min-width:68px;max-width:68px}
+}
+@media(max-width:360px){
+  .tabs{gap:2px;padding-left:5px;padding-right:5px}
+  .tabs button{flex-basis:59px;min-width:59px;max-width:59px;font-size:8.5px}
+  .tabs button.active{flex-basis:62px;min-width:62px;max-width:62px}
+}
