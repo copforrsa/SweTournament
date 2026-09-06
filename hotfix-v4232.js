@@ -1,0 +1,64 @@
+(()=>{
+'use strict';
+const VERSION='42.32';
+const esc32=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function hash32(s){let h=0;for(const c of String(s||''))h=((h<<5)-h+c.charCodeAt(0))|0;return Math.abs(h)}
+function teamGuestCount(team){if(typeof S==='undefined')return 0;const ids=(S.teamPlayers||[]).filter(x=>String(x.team_id)===String(team.id)).map(x=>String(x.player_id));return (S.players||[]).filter(p=>ids.includes(String(p.id))&&p.is_group_member===false).length}
+function teamStyleLabel(team,score){
+  const n=Number(score||0), choices=n>=4.25?['Dream team','Très complète','Tournée vers l’attaque']:n>=3.7?['Équilibrée','Tournée vers l’attaque','Équipe qui peut surprendre']:n>=3.15?['Équilibrée','Défensive','Équipe qui peut surprendre']:['Défensive','À surveiller','Équipe qui peut surprendre'];
+  return choices[hash32(team?.name)%choices.length];
+}
+function playerAcademyComment(pl){
+  if(pl?.is_group_member===false){const a=['Guest à jauger — joueur à surveiller.','Profil encore mystérieux : méfiance sur le terrain.','Guest à évaluer : possible bonne surprise.'];return '🐶 Chien Boul Academy : '+a[hash32(pl?.name)%a.length];}
+  let r=null;try{const a=typeof playerSkillAggregate==='function'?playerSkillAggregate(pl.id):null;r=a&&Number(a.voter_count)>0?Number(a.avg_rating):null}catch(_){r=null}
+  const choices=r==null?['Encore à jauger sur le terrain.','Profil à confirmer en match.','Peut surprendre selon le contexte.']:r>=4.2?['Très fiable dans son registre.','Peut faire basculer un match.','Référence à surveiller.']:r>=3.5?['Profil équilibré, à suivre.','Apporte de la stabilité.','Peut faire la différence.']:['Évolution à suivre.','Peut surprendre dans un bon jour.','Profil encore irrégulier.'];
+  return '🐶 Chien Boul Academy : '+choices[hash32((pl?.name||'')+String(r))%choices.length];
+}
+function enhanceTeams(){
+  if(typeof S==='undefined')return;
+  const cards=[...document.querySelectorAll('#teams .swe-team-card, #teamList .swe-team-card, #view-teams .swe-team-card')];
+  cards.forEach((card,i)=>{
+    const team=(S.teams||[])[i];if(!team)return;
+    const guests=teamGuestCount(team);
+    const score=(S.teamBalanceScores||[]).find(x=>String(x.team_id)===String(team.id));
+    const badge=card.querySelector('.chien-boul-badge');
+    const mention=card.querySelector('.team-mention');
+    if(guests>2){if(badge)badge.textContent='🐶⚽ Note équipe évaluée par Chien Boul Academy : ??';if(mention)mention.textContent='Trop de Guests pour une note fiable';}
+    else if(mention)mention.textContent=teamStyleLabel(team,score?.team_score);
+    const members=(S.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(team.id)).map(tp=>(S.players||[]).find(p=>String(p.id)===String(tp.player_id))).filter(Boolean);
+    members.forEach(pl=>{
+      const candidates=[...card.querySelectorAll('.player, .team-player, li, .row')];
+      const row=candidates.find(el=>el.textContent?.includes(pl.name)&&!el.querySelector('.chien-player-comment'));
+      if(row){const c=document.createElement('div');c.className='chien-player-comment';c.style.cssText='font-size:11px;color:#64748b;margin-top:3px;line-height:1.35';c.textContent=playerAcademyComment(pl);const holder=row.querySelector('span:first-child,div:first-child')||row;holder.appendChild(c);}
+    });
+  });
+}
+function printTeamsNoPopup(){
+  const t=typeof currentTour==='function'?currentTour():null;if(!t||typeof S==='undefined')return typeof toast==='function'&&toast('Choisis d’abord un tournoi.');
+  if(!(S.teams||[]).length)return toast('Aucune équipe à exporter.');
+  const sections=(S.teams||[]).map(team=>{const bg=typeof sweTeamColor==='function'?sweTeamColor(team):(team.color||'#64748b');const fg=typeof sweTeamTextColor==='function'?sweTeamTextColor(bg):'#fff';const guests=teamGuestCount(team);const score=(S.teamBalanceScores||[]).find(x=>String(x.team_id)===String(team.id));const note=guests>2?'??':(score?Number(score.team_score||0).toFixed(1)+'/5':'—');const label=guests>2?'Trop de Guests pour une note fiable':teamStyleLabel(team,score?.team_score);const members=(S.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(team.id)).map(tp=>(S.players||[]).find(p=>String(p.id)===String(tp.player_id))).filter(Boolean);return '<section class="team"><header style="background:'+esc32(bg)+';color:'+esc32(fg)+'"><strong>'+esc32(team.name)+'</strong><span>'+esc32(typeof sweTeamColorLabel==='function'?sweTeamColorLabel(team):'')+'</span></header><div class="academy">🐶⚽ Note équipe évaluée par Chien Boul Academy : '+note+' • '+esc32(label)+'</div><ol>'+members.map(pl=>'<li><b>'+esc32(pl.name)+'</b>'+(pl.is_group_member===false?' <small>Guest</small>':'')+'<div class="comment">'+esc32(playerAcademyComment(pl))+'</div></li>').join('')+'</ol></section>'}).join('');
+  let subs=[];try{subs=typeof tournamentCommonSubstitutes==='function'?tournamentCommonSubstitutes():[]}catch(_){}
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Équipes SWÉ</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251f}h1{font-size:24px;margin:0 0 5px}.meta{color:#68756f;margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.team{border:1px solid #dbe3df;border-radius:12px;overflow:hidden;break-inside:avoid}.team header{padding:11px 13px;display:flex;justify-content:space-between;gap:10px}.academy{padding:8px 12px;background:#fff8df;font-size:12px;font-weight:700}.team ol{margin:9px 0 12px;padding-left:34px}.team li{padding:4px 0}.comment{font-size:10px;color:#66756e;margin-top:2px}.subs{margin-top:13px;border:2px dashed #f59e0b;border-radius:12px;padding:10px}.subs span{display:inline-block;margin:3px;padding:5px 8px;border:1px solid #f6c65b;border-radius:999px}</style></head><body><h1>⚽ SWÉ TOURNAMENT — Équipes</h1><div class="meta">'+esc32(t.name||'')+' • '+esc32(t.tournament_date||'')+'</div><div class="grid">'+sections+'</div>'+(subs.length?'<div class="subs"><b>🟠 Remplaçants communs</b><div>'+subs.map(p=>'<span>'+esc32(p.name)+'</span>').join('')+'</div></div>':'')+'</body></html>';
+  const old=document.getElementById('swePrintFrame');old?.remove();const iframe=document.createElement('iframe');iframe.id='swePrintFrame';iframe.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';document.body.appendChild(iframe);const d=iframe.contentDocument;d.open();d.write(html);d.close();setTimeout(()=>{try{iframe.contentWindow.focus();iframe.contentWindow.print()}catch(e){toast('Impossible d’ouvrir l’impression PDF.')}setTimeout(()=>iframe.remove(),3000)},300);
+}
+function bindPdf(){const b=document.getElementById('exportTeamsPdf');if(!b||b.dataset.v4232)return;b.dataset.v4232='1';b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();printTeamsNoPopup()},true)}
+function ensureLateAdminAdd(){
+  if(typeof S==='undefined'||typeof currentTour!=='function'||typeof isAdmin!=='function'||!isAdmin())return;
+  const t=currentTour(),view=document.getElementById('view-tournaments');if(!t||!view)return;let box=document.getElementById('sweLateAddPlayer');
+  if(t.status==='finished'){box?.remove();return}
+  if(!box){box=document.createElement('div');box.id='sweLateAddPlayer';box.className='card';box.style.marginBottom='12px';const links=document.getElementById('sweTournamentLinksCard');(links||view.firstElementChild)?.insertAdjacentElement('afterend',box)}
+  const present=new Set((S.tPlayers||[]).filter(x=>x.present&&x.registration_status!=='cancelled').map(x=>String(x.player_id)));const choices=(S.players||[]).filter(p=>p.active!==false&&!present.has(String(p.id))).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  box.innerHTML='<b>➕ Ajouter un joueur jusqu’à la fin du tournoi</b><div class="muted" style="margin:4px 0 8px">L’admin peut encore ajouter un membre même si les inscriptions publiques sont fermées. Si les équipes sont déjà faites, il sera ajouté comme remplaçant commun.</div><div class="row" style="gap:8px;flex-wrap:wrap"><select id="sweLatePlayerSelect" style="flex:1;min-width:220px"><option value="">Choisir un joueur…</option>'+choices.map(p=>'<option value="'+esc32(p.id)+'">'+esc32(p.name)+(p.is_group_member===false?' • Guest':'')+'</option>').join('')+'</select><button id="sweLatePlayerAdd" class="primary" '+(!choices.length?'disabled':'')+'>Ajouter</button></div>';
+  box.querySelector('#sweLatePlayerAdd')?.addEventListener('click',async()=>{const id=box.querySelector('#sweLatePlayerSelect')?.value;if(!id)return;const generated=(S.teams||[]).length>0;const payload={tournament_id:t.id,player_id:id,present:true,registration_status:'confirmed',registered_at:new Date().toISOString(),is_substitute:generated};const r=await sb.from('tournament_players').upsert(payload,{onConflict:'tournament_id,player_id'});if(r.error)return toast(r.error.message);toast(generated?'Joueur ajouté comme remplaçant ✅':'Joueur ajouté au tournoi ✅');await loadTournament();renderAll();});
+}
+function ensurePlayerProfileDetails(){
+  if(typeof S==='undefined'||!S.playerDashboard?.profile||!S.session?.user)return;const dash=document.getElementById('myPlayerDashboard');if(!dash)return;let box=document.getElementById('swePlayerPersonalDetails');const p=S.playerDashboard.profile;if(!box){box=document.createElement('div');box.id='swePlayerPersonalDetails';box.className='player';box.style.cssText='margin-top:12px;background:#f8fbff';dash.prepend(box)}
+  if(box.dataset.uid===String(S.session.user.id)&&box.dataset.age===String(p.age??'')&&box.dataset.avatar===String(p.avatar_url??''))return;box.dataset.uid=String(S.session.user.id);box.dataset.age=String(p.age??'');box.dataset.avatar=String(p.avatar_url??'');
+  box.innerHTML='<div class="row" style="gap:12px;align-items:center;flex-wrap:wrap"><div id="sweAvatarPreview" style="width:72px;height:72px;border-radius:50%;overflow:hidden;background:#e8eef5;display:grid;place-items:center;font-size:28px">'+(p.avatar_url?'<img src="'+esc32(p.avatar_url)+'" alt="Photo profil" style="width:100%;height:100%;object-fit:cover">':'👤')+'</div><div style="flex:1;min-width:220px"><b>👤 Mon profil joueur</b><div class="muted">Ajoute ton âge et une photo pour être plus facilement identifié dans tes groupes.</div></div></div><div class="grid g2" style="margin-top:10px"><label><span class="muted">Âge</span><input id="swePlayerAge" type="number" min="5" max="100" inputmode="numeric" value="'+esc32(p.age??'')+'" placeholder="Ex. 32"></label><label><span class="muted">Photo de profil</span><input id="swePlayerAvatarFile" type="file" accept="image/jpeg,image/png,image/webp"></label></div><div class="row" style="margin-top:10px"><button id="sweSavePlayerDetails" class="primary">Enregistrer mon profil</button></div>';
+  box.querySelector('#sweSavePlayerDetails').onclick=async()=>{const btn=box.querySelector('#sweSavePlayerDetails');btn.disabled=true;try{let avatar=p.avatar_url||null;const file=box.querySelector('#swePlayerAvatarFile')?.files?.[0];if(file){if(file.size>5*1024*1024)throw new Error('Photo trop lourde (5 Mo maximum).');const ext=(file.name.split('.').pop()||'jpg').toLowerCase();const path=S.session.user.id+'/avatar-'+Date.now()+'.'+ext;const up=await sb.storage.from('player-avatars').upload(path,file,{upsert:true,cacheControl:'3600'});if(up.error)throw up.error;avatar=sb.storage.from('player-avatars').getPublicUrl(path).data.publicUrl;}const ageRaw=box.querySelector('#swePlayerAge')?.value;const age=ageRaw?Number(ageRaw):null;const r=await sb.rpc('update_my_player_profile_details',{p_age:age,p_avatar_url:avatar});if(r.error)throw r.error;await loadMyPlayerDashboard();toast('Profil joueur mis à jour ✅')}catch(e){toast(e.message||String(e))}finally{btn.disabled=false}};
+}
+function fixOpenButtons(){document.querySelectorAll('#sweTournamentLinksCard a.button').forEach(a=>{a.style.cssText='display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;background:#fff;color:#17251f;font-weight:800;min-height:42px'});}
+function forceVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+let busy=false;function tick(){if(busy)return;busy=true;requestAnimationFrame(()=>{busy=false;forceVersion();enhanceTeams();bindPdf();ensureLateAdminAdd();ensurePlayerProfileDetails();fixOpenButtons()})}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick,{once:true});else tick();new MutationObserver(tick).observe(document.documentElement,{childList:true,subtree:true});setInterval(tick,1800);
+})();
