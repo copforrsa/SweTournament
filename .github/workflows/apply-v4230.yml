@@ -1,0 +1,82 @@
+name: Apply SWÉ V42.30
+on:
+  push:
+    paths:
+      - 'trigger-v4230.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch payment desk and version
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('app.js')
+          s=p.read_text()
+
+          old="const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='waitlist'&&!r.is_substitute);"
+          new="const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='waitlist');"
+          assert old in s, 'currentReport filter not found'
+          s=s.replace(old,new,1)
+
+          old="const wait=r.registration_status==='waitlist'||r.is_substitute;"
+          new="const wait=r.registration_status==='waitlist';\n        const substitute=!!r.is_substitute;"
+          assert old in s, 'payment row wait expression not found'
+          s=s.replace(old,new,1)
+
+          old="(wait?'🟠 Remplaçant':'✅ Inscrit confirmé')"
+          new="(substitute?'🟠 Remplaçant':(wait?'⏳ Liste d’attente':'✅ Inscrit confirmé'))"
+          assert old in s, 'payment row label not found'
+          s=s.replace(old,new,1)
+
+          old="(paid?'PAYÉ':(wait?'REMPLAÇANT':'NON PAYÉ'))"
+          new="(paid?'PAYÉ':'NON PAYÉ')"
+          assert old in s, 'payment status label not found'
+          s=s.replace(old,new,1)
+
+          old='<button id="paymentDeskPrint">🖨️ Imprimer / Enregistrer PDF</button><button id="paymentDeskReset" class="danger">🧪 Réinitialiser après test</button>'
+          new='<button id="paymentDeskPrint">🖨️ Imprimer / Enregistrer PDF</button>'
+          assert old in s, 'public reset button not found'
+          s=s.replace(old,new,1)
+
+          old="    $('#paymentDeskReset').onclick=async()=>{const collector=ensureCollector();if(!collector)return;if(!confirm('Réinitialiser toute la feuille après ton test ? Tous les statuts PAYÉ repasseront à NON PAYÉ et les joueurs ajoutés sur place seront supprimés.'))return;const {error}=await sb.rpc('payment_desk_reset_test',{p_token:token,p_collector_name:collector});if(error)return toast(error.message);await loadDesk();toast('Feuille réinitialisée ✅');};\n"
+          assert old in s, 'public reset handler not found'
+          s=s.replace(old,'',1)
+
+          p.write_text(s)
+
+          p=Path('index.html')
+          s=p.read_text()
+          s=s.replace('V42.29','V42.30').replace('MAJ 42.29','MAJ 42.30')
+          s=s.replace('./styles.css?v=4229','./styles.css?v=4230').replace('./app.js?v=4229','./app.js?v=4230')
+          tag='<script src="./hotfix-v4230.js?v=4230" defer></script>'
+          if tag not in s:
+              s=s.replace('</body>',tag+'</body>')
+          p.write_text(s)
+
+          p=Path('sw.js')
+          s=p.read_text()
+          s=re.sub(r"const CACHE='swe-tournament-5v5-v42-[^']+';","const CACHE='swe-tournament-5v5-v42-30';",s)
+          if "'./hotfix-v4230.js'" not in s:
+              s=s.replace("const STATIC_ASSETS=[", "const STATIC_ASSETS=['./hotfix-v4230.js',")
+          p.write_text(s)
+          PY
+      - name: Validate JavaScript
+        run: |
+          node --check app.js
+          node --check hotfix-v4230.js
+          node --check live.js
+      - name: Commit V42.30
+        run: |
+          git config user.name "SWÉ Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js index.html sw.js hotfix-v4230.js
+          git diff --cached --quiet && exit 0
+          git commit -m "V42.30 — liens regroupés et paiements remplaçants"
+          git push
