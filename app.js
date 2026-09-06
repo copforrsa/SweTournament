@@ -3189,7 +3189,7 @@ function tournamentCommonSubstitutes(){
   return S.tPlayers.filter(r=>r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!assigned.has(String(r.player_id)))
     .map(r=>p(r.player_id)).filter(Boolean);
 }
-function chienBoulLabel(score){return '🐶⚽ Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
+function chienBoulLabel(score){return '🐶⚽ Note équipe évaluée par Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
 
 function renderTeams(){
   const t=S.teamCompetitionId?S.tournaments.find(x=>String(x.id)===String(S.teamCompetitionId))||null:null,att=$('#attendanceList'),box=$('#teamList');
@@ -4937,7 +4937,7 @@ async function bootPublic(token){
   const consultationOnly=!requestedTournament&&!requestedView&&!requestedMode&&!publicParams.get('league')&&!publicParams.get('history');
   let regTour=null;
   if(requestedTournament){
-    regTour=openTours.find(t=>t.id===requestedTournament&&modeMatches(t))||null;
+    regTour=tournaments.find(t=>t.id===requestedTournament&&modeMatches(t))||null;
   }else if(!consultationOnly&&(wantsLeagueSession||wantsTournament)){
     regTour=openTours.find(modeMatches)||null;
   }
@@ -6089,7 +6089,7 @@ async function bootPublic(token){
             const playersHtml=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>{const pl=pmap.get(tp.player_id);return pl?'<div class="public-team-player">'+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('');
       const crown=team.id===championTeamId?'👑 ':'';
       const champ=team.id===championTeamId?'<div class="public-team-shirt">🏆 Équipe victorieuse</div>':'';
-      const avg=Number(team.team_score||0)>0?'<div class="public-team-average">🐶⚽ <b>Chien Boul Academy : '+Number(team.team_score).toFixed(1)+'/5</b>'+(team.mention?' • '+esc(team.mention):'')+'</div>':'';return '<div class="public-team-card"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+'<div class="public-team-shirt">👕 Maillots : '+esc(label)+'</div></div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
+      const avg=Number(team.team_score||0)>0?'<div class="public-team-average">🐶⚽ <b>Note équipe évaluée par Chien Boul Academy : '+Number(team.team_score).toFixed(1)+'/5</b>'+(team.mention?' • '+esc(team.mention):'')+'</div>':'';return '<div class="public-team-card"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+'<div class="public-team-shirt">👕 Maillots : '+esc(label)+'</div></div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
     }).join('')||(publicTeamReviewEnabled&&['pending','redraw_requested'].includes(publicTeamReviewStates.find(x=>String(x.tournament_id)===String(latest.id))?.status)?'<div class="public-review-wait"><b>🗳️ Composition en validation</b><div>Les co-gestionnaires présents disposent de 2 heures pour donner leur avis. Les équipes seront publiées dès validation.</div></div>':'<p class="muted">Aucune équipe.</p>');
     const publicAssigned=new Set(teamPlayers.map(x=>String(x.player_id)));
     const publicSubs=(regs||[]).filter(r=>r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!publicAssigned.has(String(r.player_id))).map(r=>pmap.get(r.player_id)).filter(Boolean);

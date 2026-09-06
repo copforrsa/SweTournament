@@ -1,5 +1,5 @@
-const CACHE='swe-tournament-5v5-v42-28b';
-const STATIC_ASSETS=['./','./index.html','./styles.css','./app.js','./hotfix-v4228.js','./hotfix-v4228-live.js','./hotfix-v4227.js','./hotfix-v4224.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
+const CACHE='swe-tournament-5v5-v42-29';
+const STATIC_ASSETS=['./live.html','./live.js','./hotfix-v4229.js','./','./index.html','./styles.css','./app.js','./hotfix-v4228.js','./hotfix-v4228-live.js','./hotfix-v4227.js','./hotfix-v4224.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -21,6 +21,7 @@ self.addEventListener('fetch',event=>{
   const sameOrigin=url.origin===self.location.origin;
   if(!sameOrigin){event.respondWith(fetch(req,{cache:'no-store'}));return;}
   if(req.mode==='navigate'){
+    if(url.pathname.endsWith('/live.html')){event.respondWith(fetch(req,{cache:'no-store'}).catch(()=>caches.match('./live.html')));return;}
     event.respondWith((async()=>{
       try{
         const resp=await fetch(req,{cache:'no-store'});
