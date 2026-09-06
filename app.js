@@ -295,6 +295,16 @@ function leagueRegistrationLink(l){
   if(!l||!S.workspace?.public_token)return '';
   return APP_URL+'?public='+encodeURIComponent(S.workspace.public_token)+'&view=league&league='+encodeURIComponent(l.id);
 }
+function seasonPublicRankingLink(){
+  if(!S.workspace?.public_token)return '';
+  const season=S.seasons.find(x=>x.is_active)||S.seasons[0];
+  const linked=S.tournaments.find(x=>x.season_id===season?.id&&x.format!=='league'&&x.short_code);
+  const q=new URLSearchParams();
+  if(linked?.short_code)q.set('s',String(linked.short_code).toUpperCase());
+  else q.set('public',S.workspace.public_token);
+  if(season?.id)q.set('season',season.id);
+  return APP_URL+'season.html?'+q.toString();
+}
 function canEditCurrentMatches(){const t=currentTour();return !!t && t.status!=='finished' && (hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores))}
 function canManageMatchStructure(){const t=currentTour();return !!t && t.status!=='finished' && hasAdminOps()}
 function makeDisabledActionButton(label,title){
@@ -4122,6 +4132,9 @@ function competitionRanks(arr,key){let prev=null,rank=0;return arr.map((x,i)=>{i
 
 async function renderRanking(){
   const ds=await rankingDataset(),goals=ds.goals,matches=ds.matches,tournaments=ds.tournaments;
+  const seasonShareCard=$('#seasonPublicShareCard'),seasonShareInput=$('#seasonPublicShareLink');
+  if(seasonShareCard)seasonShareCard.classList.toggle('hidden',!isAdmin());
+  if(seasonShareInput)seasonShareInput.value=seasonPublicRankingLink();
   const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,guest_of_player_id:x.guest_of_player_id,g:0,a:0,matchIds:new Set(),tournamentIds:new Set()}]));
   const matchMap=new Map(matches.map(m=>[m.id,m]));
   goals.forEach(g=>{
@@ -4267,6 +4280,9 @@ async function renderRanking(){
 function renderTeamRanking(){const r=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(r.map(x=>[x.id,x]));S.matches.forEach(m=>{const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});r.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);$('#teamRank').innerHTML=r.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune équipe</p>'}
 document.querySelectorAll('.rankMode').forEach(b=>b.onclick=()=>{S.rankMode=b.dataset.mode;document.querySelectorAll('.rankMode').forEach(x=>x.classList.toggle('primary',x===b));renderRanking()});
 $('#shareWhatsapp').onclick=async()=>{const text=$('#shareText').value;if(navigator.share){try{await navigator.share({title:'Classement du tournoi',text});return}catch{}}await navigator.clipboard.writeText(text);toast('Résumé copié')};
+if($('#copySeasonPublicShareLink'))$('#copySeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');try{await navigator.clipboard.writeText(link);toast('Lien de la saison copié ✅')}catch(e){$('#seasonPublicShareLink').select();document.execCommand('copy');toast('Lien de la saison copié ✅')}};
+if($('#shareSeasonPublicShareLink'))$('#shareSeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');if(navigator.share){try{await navigator.share({title:'Classements de la saison SWÉ',text:'Retrouve les classements de la saison : buteurs, passeurs et Top Players.',url:link});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(link);toast('Lien de la saison copié ✅')}catch(e){toast('Partage indisponible')}};
+if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{const link=$('#seasonPublicShareLink').value;if(link)window.open(link,'_blank','noopener')};
 
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
