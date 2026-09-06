@@ -299,9 +299,8 @@ function seasonPublicRankingLink(){
   if(!S.workspace?.public_token)return '';
   const season=S.seasons.find(x=>x.is_active)||S.seasons[0];
   const linked=S.tournaments.find(x=>x.season_id===season?.id&&x.format!=='league'&&x.short_code);
-  const q=new URLSearchParams();
-  if(linked?.short_code)q.set('s',String(linked.short_code).toUpperCase());
-  else q.set('public',S.workspace.public_token);
+  if(linked?.short_code)return APP_URL+'saison/?s='+encodeURIComponent(String(linked.short_code).toUpperCase());
+  const q=new URLSearchParams({public:S.workspace.public_token});
   if(season?.id)q.set('season',season.id);
   return APP_URL+'season.html?'+q.toString();
 }
@@ -4281,7 +4280,7 @@ function renderTeamRanking(){const r=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v
 document.querySelectorAll('.rankMode').forEach(b=>b.onclick=()=>{S.rankMode=b.dataset.mode;document.querySelectorAll('.rankMode').forEach(x=>x.classList.toggle('primary',x===b));renderRanking()});
 $('#shareWhatsapp').onclick=async()=>{const text=$('#shareText').value;if(navigator.share){try{await navigator.share({title:'Classement du tournoi',text});return}catch{}}await navigator.clipboard.writeText(text);toast('Résumé copié')};
 if($('#copySeasonPublicShareLink'))$('#copySeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');try{await navigator.clipboard.writeText(link);toast('Lien de la saison copié ✅')}catch(e){$('#seasonPublicShareLink').select();document.execCommand('copy');toast('Lien de la saison copié ✅')}};
-if($('#shareSeasonPublicShareLink'))$('#shareSeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');if(navigator.share){try{await navigator.share({title:'Classements de la saison SWÉ',text:'Retrouve les classements de la saison : buteurs, passeurs et Top Players.',url:link});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(link);toast('Lien de la saison copié ✅')}catch(e){toast('Partage indisponible')}};
+if($('#shareSeasonPublicShareLink'))$('#shareSeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');const season=S.seasons.find(x=>x.is_active)||S.seasons[0],message='Voici les résultats de la saison '+(season?.name||'en cours');if(navigator.share){try{await navigator.share({title:'Résultats de la saison SWÉ',text:message,url:link});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(message+'\n'+link);toast('Message et lien copiés ✅')}catch(e){toast('Partage indisponible')}};
 if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{const link=$('#seasonPublicShareLink').value;if(link)window.open(link,'_blank','noopener')};
 
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
