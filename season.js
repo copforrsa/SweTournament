@@ -19,7 +19,7 @@ function render(data){
   if(!seasonId&&tournamentId)seasonId=tournaments.find(t=>String(t.id)===String(tournamentId))?.season_id||null;
   const season=seasons.find(s=>String(s.id)===String(seasonId))||seasons.find(s=>s.is_active)||seasons[0];
   if(!season)throw new Error('Aucune saison n’est disponible.');seasonId=season.id;
-  shareSeasonName=season.name||'la saison en cours';
+  shareSeasonName=String(season.name||'en cours').replace(/^saison\s+/i,'');
   const seasonTours=tournaments.filter(t=>String(t.season_id)===String(season.id)&&t.format!=='league');
   const latestTour=[...seasonTours].sort((a,b)=>String(b.tournament_date||'').localeCompare(String(a.tournament_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')))[0]||null;
   const tournamentIds=new Set(seasonTours.map(t=>String(t.id))),candidateMatches=allMatches.filter(m=>tournamentIds.has(String(m.tournament_id)));
