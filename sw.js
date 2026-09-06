@@ -1,4 +1,4 @@
-const CACHE='swe-tournament-5v5-v42-37';
+const CACHE='swe-tournament-5v5-v42-38';
 const STATIC_ASSETS=['./','./index.html','./styles.css','./app.js','./hotfix-v4227.js','./hotfix-v4228.js','./hotfix-v4229.js','./hotfix-v4230.js','./hotfix-v4231.js','./hotfix-v4232.js','./ui-stability-v4234.js','./hotfix-v4235.js','./hotfix-v4236.js','./hotfix-v4237.js','./live.html','./live.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC_ASSETS)))});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k!==CACHE&&(k.startsWith('tournoi-foot-')||k.startsWith('swe-tournament-5v5-'))).map(k=>caches.delete(k)));await self.clients.claim()})())});

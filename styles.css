@@ -481,3 +481,24 @@ select{background-color:#fff} textarea{resize:vertical}
 .swe-substitutes-card{border:2px dashed #f4ad2f!important;background:#fff9e9!important;padding:0!important;overflow:hidden}.swe-substitutes-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 14px;background:#fff0c2;color:#805000}.swe-substitutes-head span{font-size:12px;font-weight:700}.swe-substitutes-list{display:flex;gap:8px;flex-wrap:wrap;padding:12px}.swe-substitutes-list>span,.public-common-subs span{background:white;border:1px solid #efc66d;border-radius:999px;padding:7px 10px;font-weight:750}.swe-substitutes-list em{font-size:10px;color:#777;font-style:normal}
 .public-common-subs{margin-top:12px;padding:13px;border:2px dashed #f4ad2f;border-radius:16px;background:#fff9e9}.public-common-subs>div:last-child{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.public-team-shirt{font-weight:800!important;opacity:1!important}
 @media(max-width:640px){.team-export-row button{width:100%}.swe-substitutes-head{align-items:flex-start;flex-direction:column;gap:3px}.swe-team-card-head{align-items:flex-start!important;gap:8px}.swe-team-card-head .danger{flex:0 0 auto}}
+
+
+/* V42.38 — terrain mobile : composition compacte + barre d'onglets stable */
+.match-player-details{margin-top:8px;border:1px solid #dce7e0;border-radius:12px;background:#fff;overflow:hidden}
+.match-player-details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;min-height:42px}
+.match-player-details>summary::-webkit-details-marker{display:none}
+.match-player-details>summary:after{content:'⌄';font-size:16px;font-weight:900;color:#64748b;margin-left:5px}
+.match-player-details[open]>summary:after{content:'⌃'}
+.match-player-list{padding:0 10px 8px}
+.match-player-team-select{max-width:190px}
+@media(max-width:650px){
+  .tabs{align-items:stretch!important;padding-left:8px!important;padding-right:8px!important;gap:4px!important;scroll-padding:0 8px}
+  .tabs button,.tabs button.active{flex:0 0 76px!important;width:76px!important;min-width:76px!important;max-width:76px!important;min-height:54px!important;height:54px!important;padding:4px 3px!important;margin:0!important;line-height:1.05!important;text-align:center!important;white-space:normal!important;overflow:hidden}
+  .tabs button:before{flex:0 0 auto;margin:0!important;line-height:20px!important}
+  .match-player-manager{padding:10px!important}
+  .match-player-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(118px,145px)!important;gap:6px!important;align-items:center!important}
+  .match-player-row>span{min-width:0!important;overflow-wrap:anywhere}
+  .match-player-team-select{max-width:none!important;min-height:40px!important;padding:7px!important}
+  .match-future-label{grid-column:1/2!important;margin:0!important}
+  .match-player-row>button{grid-column:2/3!important;min-height:38px!important;padding:6px 8px!important}
+}

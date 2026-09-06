@@ -3470,55 +3470,50 @@ $('#smartAutoTeams').onclick=()=>runSmartTeamGeneration(false);
 function matchOptions(){return '<option value="">Choisir</option>'+S.teams.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')}
 function buildMatchPlayerManager(match,home,away){
   const wrap=document.createElement('div');
-  wrap.className='player';
+  wrap.className='player match-player-manager';
   wrap.style.marginTop='12px';
   wrap.style.background='#f8fbf9';
   const canMove=canEditCurrentMatches();
   const rows=S.matchAssignments.filter(a=>String(a.match_id)===String(match.id));
   const assignedMap=new Map(rows.map(a=>[a.player_id,a.team_id||'']));
+  const homeBase=new Set(teamPlayerIds(home.id).map(String));
+  const awayBase=new Set(teamPlayerIds(away.id).map(String));
   const tournamentPlayers=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist')
     .map(tp=>({tp,pl:p(tp.player_id)})).filter(x=>x.pl)
     .sort((a,b)=>String(a.pl.name).localeCompare(String(b.pl.name)));
+  const starters=tournamentPlayers.filter(({pl})=>homeBase.has(String(pl.id))||awayBase.has(String(pl.id))||[home.id,away.id].map(String).includes(String(assignedMap.get(pl.id)||'')));
+  const substitutes=tournamentPlayers.filter(({pl})=>!starters.some(x=>String(x.pl.id)===String(pl.id)));
 
-  wrap.innerHTML='<div class="row" style="justify-content:space-between"><div><b>🔄 Joueurs de ce match</b><div class="muted">Déplace rapidement un titulaire ou un remplaçant entre les deux équipes. Le changement peut s’appliquer uniquement à ce match ou être conservé pour les matchs suivants.</div></div></div>';
-  const formula=document.createElement('div');
-  formula.className='muted';
-  formula.style.marginTop='6px';
+  wrap.innerHTML='<div class="row" style="justify-content:space-between"><div><b>🔄 Composition du match</b><div class="muted">Les listes sont repliées pour garder la page lisible pendant la saisie des scores.</div></div></div>';
+  const formula=document.createElement('div');formula.className='muted';formula.style.marginTop='6px';
   if(S.workspaceFeatures.player_ratings_enabled)formula.innerHTML='⭐ Note automatique : victoire 6 • nul 5 • défaite 4 • +1/but • +0,5/passe • maximum 10.';
   wrap.appendChild(formula);
 
-  const list=document.createElement('div');
-  list.style.marginTop='8px';
-  tournamentPlayers.forEach(({tp,pl})=>{
-    const currentTeam=assignedMap.has(pl.id)?assignedMap.get(pl.id):(teamPlayerIds(home.id).includes(pl.id)?home.id:(teamPlayerIds(away.id).includes(pl.id)?away.id:''));
-    const row=document.createElement('div');row.className='row small';row.style.padding='7px 0';row.style.borderBottom='1px solid #edf2ef';
+  const makePlayerRow=({tp,pl})=>{
+    const currentTeam=assignedMap.has(pl.id)?assignedMap.get(pl.id):(homeBase.has(String(pl.id))?home.id:(awayBase.has(String(pl.id))?away.id:''));
+    const row=document.createElement('div');row.className='row small match-player-row';row.style.padding='7px 0';row.style.borderBottom='1px solid #edf2ef';
     const name=document.createElement('span');name.style.flex='1';name.innerHTML='<b>'+esc(pl.name)+'</b>'+(tp.is_substitute?' <span class="guest-badge">Remplaçant commun</span>':'');
-    const sel=document.createElement('select');sel.style.maxWidth='190px';sel.disabled=!canMove;
+    const sel=document.createElement('select');sel.className='match-player-team-select';sel.disabled=!canMove;
     sel.innerHTML='<option value="">Hors match / remplaçant</option><option value="'+home.id+'">'+esc(home.name)+'</option><option value="'+away.id+'">'+esc(away.name)+'</option>';
     sel.value=currentTeam||'';
-    const future=document.createElement('label');future.className='row';future.style.justifyContent='flex-start';future.style.gap='4px';future.style.fontSize='11px';
-    const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.disabled=!canMove;
-    future.append(cb,document.createTextNode(' matchs suivants'));
+    const future=document.createElement('label');future.className='row match-future-label';future.style.justifyContent='flex-start';future.style.gap='4px';future.style.fontSize='11px';
+    const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.disabled=!canMove;future.append(cb,document.createTextNode(' matchs suivants'));
     const save=document.createElement('button');save.textContent='Déplacer';save.className='smallbtn';save.disabled=!canMove;
-    save.onclick=async()=>{
-      save.disabled=true;
-      const {error}=await sb.rpc('set_match_player_assignment',{p_match_id:match.id,p_player_id:pl.id,p_team_id:sel.value||null,p_apply_future:cb.checked});
-      if(error){save.disabled=false;return toast(error.message)}
-      await loadTournament();renderMatches();toast(cb.checked?'Joueur déplacé pour ce match et les suivants ✅':'Joueur déplacé pour ce match ✅');
-    };
-    row.append(name,sel,future,save);list.appendChild(row);
-  });
-  wrap.appendChild(list);
+    save.onclick=async()=>{save.disabled=true;const {error}=await sb.rpc('set_match_player_assignment',{p_match_id:match.id,p_player_id:pl.id,p_team_id:sel.value||null,p_apply_future:cb.checked});if(error){save.disabled=false;return toast(error.message)}await loadTournament();renderMatches();toast(cb.checked?'Joueur déplacé pour ce match et les suivants ✅':'Joueur déplacé pour ce match ✅');};
+    row.append(name,sel,future,save);return row;
+  };
+  const makeDetails=(title,items,cls)=>{
+    const det=document.createElement('details');det.className='match-player-details '+cls;
+    const sum=document.createElement('summary');sum.innerHTML='<b>'+title+'</b><span class="muted">'+items.length+' joueur'+(items.length>1?'s':'')+'</span>';det.appendChild(sum);
+    const list=document.createElement('div');list.className='match-player-list';items.forEach(x=>list.appendChild(makePlayerRow(x)));det.appendChild(list);return det;
+  };
+  wrap.appendChild(makeDetails('👥 Joueurs des 2 équipes',starters,'match-starters-details'));
+  if(substitutes.length)wrap.appendChild(makeDetails('🟠 Remplaçants du tournoi',substitutes,'match-subs-details'));
 
   if(S.workspaceFeatures.player_ratings_enabled){
-    const notes=document.createElement('div');notes.style.marginTop='10px';
-    const rated=S.matchAssignments.filter(a=>a.match_id===match.id&&a.team_id).map(a=>{
-      const pl=p(a.player_id),rr=ratingForMatchPlayer(match,a.player_id,a.team_id,S.goals);
-      return pl&&rr?{pl,rr,team:a.team_id}:null;
-    }).filter(Boolean).sort((a,b)=>b.rr.rating-a.rr.rating||a.pl.name.localeCompare(b.pl.name));
-    notes.innerHTML='<b>⭐ Notes des joueurs</b><div class="muted" style="margin-top:5px">'+
-      (rated.length?rated.map(x=>esc(x.pl.name)+' <b>'+x.rr.rating.toFixed(1)+'/10</b> ('+x.rr.result+' • ⚽ '+x.rr.goals+' • 🎯 '+x.rr.assists+')').join('<br>'):'Aucune note calculable pour le moment.')+
-      '</div>';
+    const notes=document.createElement('details');notes.className='match-player-details match-notes-details';
+    const rated=S.matchAssignments.filter(a=>a.match_id===match.id&&a.team_id).map(a=>{const pl=p(a.player_id),rr=ratingForMatchPlayer(match,a.player_id,a.team_id,S.goals);return pl&&rr?{pl,rr,team:a.team_id}:null;}).filter(Boolean).sort((a,b)=>b.rr.rating-a.rr.rating||a.pl.name.localeCompare(b.pl.name));
+    notes.innerHTML='<summary><b>⭐ Notes des joueurs</b><span class="muted">'+rated.length+' évalué'+(rated.length>1?'s':'')+'</span></summary><div class="muted" style="padding:8px 2px">'+(rated.length?rated.map(x=>esc(x.pl.name)+' <b>'+x.rr.rating.toFixed(1)+'/10</b> ('+x.rr.result+' • ⚽ '+x.rr.goals+' • 🎯 '+x.rr.assists+')').join('<br>'):'Aucune note calculable pour le moment.')+'</div>';
     wrap.appendChild(notes);
   }
   return wrap;
