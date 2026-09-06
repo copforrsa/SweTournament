@@ -1,0 +1,40 @@
+name: Apply SWÉ V42.39
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'hotfix-v4239.js'
+      - '.github/workflows/apply-v4239.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply V42.39
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html'); s=p.read_text()
+          s=s.replace('V42.38','V42.39').replace('v=4238','v=4239')
+          if 'hotfix-v4239.js' not in s:
+              s=s.replace('</body></html>','<script src="./hotfix-v4239.js?v=4239" defer></script></body></html>')
+          p.write_text(s)
+          p=Path('sw.js'); s=p.read_text()
+          s=s.replace("swe-tournament-5v5-v42-38","swe-tournament-5v5-v42-39")
+          if "'./hotfix-v4239.js'" not in s:
+              s=s.replace("'./hotfix-v4237.js'","'./hotfix-v4237.js','./hotfix-v4239.js'")
+          p.write_text(s)
+          PY
+          node --check hotfix-v4239.js
+          grep -q 'V42.39' index.html
+          grep -q 'hotfix-v4239.js?v=4239' index.html
+          grep -q 'swe-tournament-5v5-v42-39' sw.js
+      - name: Commit
+        run: |
+          git config user.name "SWÉ Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html sw.js
+          git diff --cached --quiet || git commit -m "Deploy V42.39 match scoring reliability"
+          git push
