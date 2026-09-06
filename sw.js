@@ -1,4 +1,4 @@
-const CACHE='swe-tournament-5v5-v42-32';
+const CACHE='swe-tournament-5v5-v42-33';
 const STATIC_ASSETS=['./hotfix-v4232.js','./hotfix-v4231.js','./hotfix-v4230.js','./live.html','./live.js','./hotfix-v4229.js','./','./index.html','./styles.css','./app.js','./hotfix-v4228.js','./hotfix-v4228-live.js','./hotfix-v4227.js','./hotfix-v4224.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{

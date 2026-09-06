@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'self'">
   <title>SWÉ LIVE • Tournoi en direct</title>
-  <link rel="stylesheet" href="./styles.css?v=4229">
+  <link rel="stylesheet" href="./styles.css?v=4233">
   <style>
     body{background:#f4f8ff}.live-shell{max-width:980px;margin:0 auto;padding:14px}.live-hero{background:linear-gradient(135deg,#071b12,#123f2b);color:#fff;border-radius:20px;padding:18px;margin-bottom:12px;box-shadow:0 12px 28px rgba(7,27,18,.18)}.live-hero h1{margin:0 0 5px;font-size:1.45rem}.live-meta{opacity:.86;font-size:.9rem}.live-status{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.12);font-weight:800;font-size:.78rem}.live-dot{width:9px;height:9px;border-radius:50%;background:#4ade80}.live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.live-team{background:#fff;border:1px solid #dbe7f5;border-radius:16px;overflow:hidden}.live-team-head{padding:12px 14px;font-weight:900}.live-team-body{padding:12px 14px}.live-note{padding:9px 11px;border-radius:12px;background:#fff7d7;border:1px solid #ead28b;font-size:.88rem;margin-bottom:9px}.live-player{padding:6px 0;border-top:1px solid #edf2f7}.live-player:first-child{border-top:0}.live-match{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid #edf2f7}.live-match:first-child{border-top:0}.live-score{font-size:1.35rem;font-weight:900;white-space:nowrap}.live-table{width:100%;border-collapse:collapse}.live-table th,.live-table td{padding:8px 6px;border-bottom:1px solid #edf2f7;text-align:center;font-size:.82rem}.live-table th:nth-child(2),.live-table td:nth-child(2){text-align:left}.live-subs summary{cursor:pointer;font-weight:900}.live-error{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239;padding:14px;border-radius:14px}.guest-tag{display:inline-block;padding:2px 6px;border-radius:999px;background:#fff2cc;font-size:.7rem;font-weight:800;margin-left:5px}@media(max-width:700px){.live-shell{padding:8px}.live-grid{grid-template-columns:1fr}.live-hero{border-radius:15px}.live-table{font-size:.76rem}.live-table th,.live-table td{padding:7px 3px}.live-match{grid-template-columns:minmax(0,1fr) auto}}
   </style>
@@ -20,11 +20,11 @@
       <div class="live-status"><span class="live-dot"></span><span id="liveStatus">Connexion au terrain…</span></div>
     </section>
     <div id="liveError" class="live-error hidden"></div>
-    <section class="card"><h2 class="sectiontitle">👥 Équipes</h2><div id="liveTeams" class="live-grid"></div><div id="liveSubs"></div></section>
+    <section class="card live-primary"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 class="sectiontitle">⚽ Matchs & résultats</h2><span id="liveUpdated" class="muted"></span></div><div id="liveMatches"></div></section>
     <section class="card"><h2 class="sectiontitle">📊 Classement en direct</h2><div id="liveRanking"></div></section>
-    <section class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 class="sectiontitle">⚽ Matchs & résultats</h2><span id="liveUpdated" class="muted"></span></div><div id="liveMatches"></div></section>
+    <section class="card"><h2 class="sectiontitle">👥 Équipes</h2><div id="liveTeams" class="live-grid"></div><div id="liveSubs"></div></section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="./live.js?v=4231" defer></script>
+  <script src="./live.js?v=4233" defer></script>
 </body>
 </html>

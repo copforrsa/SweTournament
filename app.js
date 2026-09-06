@@ -33,11 +33,19 @@ const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],wo
 
 let safeSyncTimer=null;
 let safeSyncBusy=false;
-
+let lastUserInteractionAt=0;
+function markUserInteraction(){lastUserInteractionAt=Date.now();}
+['input','change','keydown','pointerdown','touchstart'].forEach(evt=>document.addEventListener(evt,e=>{
+  if(e.target?.closest?.('#main')) markUserInteraction();
+},{capture:true,passive:true}));
+function userIsEditing(){
+  const a=document.activeElement;
+  if(a&&a.closest?.('#main')&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable))return true;
+  return Date.now()-lastUserInteractionAt<30000;
+}
 async function safeAppSync(){
-  // Ne jamais rafraîchir/reconstruire l'interface pendant la modification d'un tournoi.
-  // Les sélecteurs natifs de date/heure sur mobile peuvent aussi déclencher visibilitychange.
-  if(safeSyncBusy || S.editingTournamentId || S.publicMode || !S.session || !S.workspace || document.visibilityState==='hidden' || document.querySelector('#view-permissions.active')) return;
+  // Ne jamais reconstruire l'interface pendant une saisie terrain.
+  if(safeSyncBusy || userIsEditing() || S.editingTournamentId || S.publicMode || !S.session || !S.workspace || document.visibilityState==='hidden' || document.querySelector('#view-permissions.active')) return;
   safeSyncBusy=true;
   try{ await loadAll(); }
   catch(e){ console.warn('safeAppSync',e); }
@@ -45,12 +53,13 @@ async function safeAppSync(){
 }
 function startSafeAppSync(){
   if(safeSyncTimer) clearInterval(safeSyncTimer);
-  safeSyncTimer=setInterval(safeAppSync,20000);
+  // Rafraîchissement de sécurité moins agressif : le temps réel reste prioritaire.
+  safeSyncTimer=setInterval(safeAppSync,60000);
 }
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible') setTimeout(safeAppSync,300);
+  if(document.visibilityState==='visible'&&!userIsEditing()) setTimeout(safeAppSync,800);
 });
-window.addEventListener('pageshow',()=>setTimeout(safeAppSync,300));
+window.addEventListener('pageshow',()=>{if(!userIsEditing())setTimeout(safeAppSync,800)});
 
 const $=s=>document.querySelector(s);
 const toast=t=>{const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)};

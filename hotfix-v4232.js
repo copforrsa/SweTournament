@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.32';
+const VERSION='42.33';
 const esc32=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function hash32(s){let h=0;for(const c of String(s||''))h=((h<<5)-h+c.charCodeAt(0))|0;return Math.abs(h)}
 function teamGuestCount(team){if(typeof S==='undefined')return 0;const ids=(S.teamPlayers||[]).filter(x=>String(x.team_id)===String(team.id)).map(x=>String(x.player_id));return (S.players||[]).filter(p=>ids.includes(String(p.id))&&p.is_group_member===false).length}
