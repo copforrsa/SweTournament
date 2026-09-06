@@ -1725,6 +1725,8 @@ async function renderRegisteredPlayersAdmin(){
   const registeredIds=new Set(rows.filter(r=>r.present).map(r=>r.player_id));
   const available=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&!registeredIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name));
   if(sel)sel.innerHTML='<option value="">Ajouter un membre inscrit manuellement</option>'+available.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+  const guestHost=$('#managerGuestHost');
+  if(guestHost){const keep=guestHost.value;const members=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false).sort((a,b)=>a.name.localeCompare(b.name));guestHost.innerHTML='<option value="">Rattacher l’invité à un membre…</option>'+members.map(p=>'<option value="'+p.id+'">Guest de '+esc(p.name)+'</option>').join('');if(members.some(p=>p.id===keep))guestHost.value=keep;}
   if(!rows.length){box.innerHTML='<p class="muted">Aucun joueur inscrit pour le moment.</p>';return}
   box.innerHTML='';
   rows.filter(r=>r.present).forEach((r,i)=>{
@@ -1948,11 +1950,11 @@ document.addEventListener('click',async e=>{
   }
   if(e.target?.id==='managerAddGuest'){
     if(!isAdmin())return toast('Action réservée à l’administrateur.');
-    const t=currentTour(),name=$('#managerGuestName')?.value.trim();
+    const t=currentTour(),name=$('#managerGuestName')?.value.trim(),hostId=$('#managerGuestHost')?.value||null;
     if(!t)return toast('Aucune compétition sélectionnée.');
     if(!name)return toast('Indique le nom de l’invité.');
     const b=e.target;b.disabled=true;
-    const {data,error}=await sb.rpc('manager_register_tournament_guest',{p_tournament_id:t.id,p_guest_name:name});
+    const {data,error}=await sb.rpc('manager_register_tournament_guest',{p_tournament_id:t.id,p_guest_name:name,p_guest_of_player_id:hostId});
     b.disabled=false;if(error)return toast(error.message);
     $('#managerGuestName').value='';
     await loadTournament();renderRegisteredPlayersAdmin();renderHome();renderTeams();
@@ -3394,13 +3396,14 @@ function renderTeams(){
 
     if(canFullEdit){
       const sel=document.createElement('select');
-      sel.innerHTML='<option value="">Ajouter un joueur inscrit...</option>'+S.players.filter(x=>prs.has(x.id)&&!S.teamPlayers.some(tp=>tp.player_id===x.id)).map(x=>{
+      sel.innerHTML='<option value="">Ajouter ou déplacer un joueur inscrit...</option>'+S.players.filter(x=>prs.has(x.id)&&!S.teamPlayers.some(tp=>tp.team_id===team.id&&tp.player_id===x.id)).map(x=>{
         const first=(x.temporary_league_member&&x.league_origin_id===t.league_id)||x.is_group_member===false;
-        return '<option value="'+x.id+'">'+esc(playerDisplayName(x))+(first?' • 1ère fois':'')+'</option>';
+        const currentAssignment=S.teamPlayers.find(tp=>tp.player_id===x.id),currentTeam=currentAssignment?S.teams.find(tm=>tm.id===currentAssignment.team_id):null;
+        return '<option value="'+x.id+'">'+esc(playerDisplayName(x))+(currentTeam?' • déplacer depuis '+esc(currentTeam.name):'')+(first?' • 1ère fois':'')+'</option>';
       }).join('');
       sel.onchange=async()=>{
         if(!sel.value)return;
-        const {error}=await sb.from('team_players').insert({team_id:team.id,player_id:sel.value});
+        const {error}=await sb.rpc('manager_assign_tournament_player_to_team',{p_team_id:team.id,p_player_id:sel.value});
         if(error)return toast(error.message);
         await loadTournament();renderTeams();
       };
@@ -3427,7 +3430,7 @@ $('#addTeam').onclick=async()=>{
   const t=currentTour(),name=$('#teamName').value.trim(),color=$('#teamColor').value;
   if(!t)return toast('Choisis d’abord le tournoi ou le Swé de Ligue concerné.');
   if(!name)return toast('Indique le nom de l’équipe.');
-  const {error}=await sb.from('teams').insert({tournament_id:t.id,name,color});
+  const {error}=await sb.rpc('manager_create_tournament_team',{p_tournament_id:t.id,p_team_name:name,p_team_color:color});
   if(error)return toast(error.message);
   $('#teamName').value='';
   await loadTournament();renderTeams();toast('Équipe créée pour « '+(t.name||t.tournament_date)+' » ✅');
