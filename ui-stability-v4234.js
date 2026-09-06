@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
+const VERSION='42.47';
 let renderDispatchQueued=false;
 function setVersion(){
   const wanted='V'+VERSION;
@@ -28,7 +28,7 @@ function wrapRenderAll(){
 function loadV4246(){
   if(document.querySelector('script[data-v4246]'))return;
   const s=document.createElement('script');
-  s.src='./hotfix-v4246.js?v=4246';
+  s.src='./hotfix-v4246.js?v=4247';
   s.dataset.v4246='1';
   document.body.appendChild(s);
 }
