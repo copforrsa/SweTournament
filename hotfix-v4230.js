@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.33';
+const VERSION='42.34';
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function appBase(){return new URL('./',location.href)}
 function makeUrls(t){
@@ -48,5 +48,5 @@ document.addEventListener('click',async e=>{
 },true);
 function setVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
 function tick(){setVersion();renderLinks();document.getElementById('paymentDeskReset')?.remove()}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick,{once:true});else tick();setInterval(tick,1200);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick,{once:true});else tick();document.addEventListener('swe:rendered',tick);
 })();

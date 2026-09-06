@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.33';
+const VERSION='42.34';
 function setVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
 function liveUrl(){try{const t=typeof currentTour==='function'?currentTour():null;if(!t)return '';const u=new URL('./live.html',location.href);if(t.short_code)u.searchParams.set('s',String(t.short_code).toUpperCase());else{if(!S?.workspace?.public_token)return '';u.searchParams.set('public',S.workspace.public_token);u.searchParams.set('tournament',t.id)}return u.toString()}catch(_){return ''}}
 function ensureLiveCard(){
@@ -18,5 +18,5 @@ function ensureLiveCard(){
 }
 function relabelAcademy(){document.querySelectorAll('#publicView *').forEach(el=>{if(el.children.length)return;const txt=el.textContent||'';if(txt.includes('Chien Boul Academy :')&&!txt.includes('Note équipe évaluée par Chien Boul Academy :'))el.textContent=txt.replace('Chien Boul Academy :','Note équipe évaluée par Chien Boul Academy :')})}
 let scheduled=false;function apply(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;setVersion();ensureLiveCard();relabelAcademy()})}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();document.addEventListener('swe:rendered',apply);
 })();

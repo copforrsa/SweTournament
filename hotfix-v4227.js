@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const VERSION='42.33';
+  const VERSION='42.34';
   const STYLE_ID='swe-v4227-hotfix-style';
   const QUEUE_KEY='swe_offline_queue_v1';
   const SNAP_KEY='swe_offline_snapshot_v1';
@@ -67,5 +67,5 @@
 
   let scheduled=false;function apply(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;installStyle();setVersion();foldSubstitutes();moveScoringFirst();formatRatings();enhancePublicTeams();enhancePlayers();renderOfflineBanner()})}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{apply();setTimeout(()=>{loadActivity().then(enhancePlayers);syncQueue()},600)},{once:true});else{apply();setTimeout(()=>{loadActivity().then(enhancePlayers);syncQueue()},600)}
-  new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('swe:rendered',apply);
 })();
