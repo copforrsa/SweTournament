@@ -1,0 +1,99 @@
+name: Apply SWÉ V42.34
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v4234.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stabiliser UI et cache
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Versions + refs dans index
+          p=Path('index.html'); s=p.read_text()
+          s=re.sub(r'V42\.\d+','V42.34',s)
+          s=re.sub(r'MAJ 42\.\d+','MAJ 42.34',s)
+          s=re.sub(r'styles\.css\?v=\d+','styles.css?v=4234',s)
+          s=re.sub(r'app\.js\?v=\d+','app.js?v=4234',s)
+          for n in ['4227','4228','4229','4230','4231','4232']:
+              s=s.replace(f'hotfix-v{n}.js?v={n}',f'hotfix-v{n}.js?v=4234')
+          if 'ui-stability-v4234.js' not in s:
+              s=s.replace('</body>','<script src="./ui-stability-v4234.js?v=4234" defer></script></body>')
+          p.write_text(s)
+
+          # Tous les hotfix affichent exactement la même version
+          for name in ['hotfix-v4227.js','hotfix-v4228.js','hotfix-v4229.js','hotfix-v4230.js','hotfix-v4231.js','hotfix-v4232.js']:
+              p=Path(name); s=p.read_text()
+              s=re.sub(r"const VERSION='42\.\d+'", "const VERSION='42.34'", s)
+              p.write_text(s)
+
+          # Supprimer les observateurs/polling agressifs qui reconstruisaient le DOM et relançaient des RPC.
+          replacements={
+          'hotfix-v4227.js':[
+            ("new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});","document.addEventListener('swe:rendered',apply);")],
+          'hotfix-v4228.js':[
+            ("new MutationObserver(()=>{clearTimeout(window.__swe4228t);window.__swe4228t=setTimeout(enhance,180)}).observe(document.documentElement,{childList:true,subtree:true});setInterval(enhance,5000);","document.addEventListener('swe:rendered',()=>setTimeout(enhance,250));window.addEventListener('pageshow',()=>setTimeout(enhance,900));")],
+          'hotfix-v4229.js':[
+            ("new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});","document.addEventListener('swe:rendered',apply);")],
+          'hotfix-v4230.js':[
+            ("setInterval(tick,1200);","document.addEventListener('swe:rendered',tick);")],
+          'hotfix-v4231.js':[
+            ("setInterval(tick31,1300);","document.addEventListener('swe:rendered',tick31);")],
+          'hotfix-v4232.js':[
+            ("new MutationObserver(tick).observe(document.documentElement,{childList:true,subtree:true});setInterval(tick,1800);","document.addEventListener('swe:rendered',tick);")]
+          }
+          for name,repls in replacements.items():
+              p=Path(name); s=p.read_text()
+              for a,b in repls:
+                  if a not in s:
+                      print('WARN pattern absent',name,a[:60])
+                  s=s.replace(a,b)
+              p.write_text(s)
+
+          # Les cartes profil réellement personnelles ne chargent leurs RPC que lorsque l'onglet profil est affiché.
+          p=Path('hotfix-v4231.js'); s=p.read_text()
+          s=s.replace("async function ensureInjuryCard(){const dash=document.getElementById('myPlayerDashboard');if(!dash||dash.classList.contains('hidden')||injuryBusy)return;",
+                      "async function ensureInjuryCard(){const dash=document.getElementById('myPlayerDashboard'),view=document.getElementById('view-myplayer');if(!dash||dash.classList.contains('hidden')||!view?.classList.contains('active')||injuryBusy)return;")
+          p.write_text(s)
+          p=Path('hotfix-v4232.js'); s=p.read_text()
+          s=s.replace("function ensurePlayerProfileDetails(){\n  if(typeof S==='undefined'||!S.playerDashboard?.profile||!S.session?.user)return;const dash=document.getElementById('myPlayerDashboard');if(!dash)return;",
+                      "function ensurePlayerProfileDetails(){\n  if(typeof S==='undefined'||!S.playerDashboard?.profile||!S.session?.user)return;const dash=document.getElementById('myPlayerDashboard'),view=document.getElementById('view-myplayer');if(!dash||!view?.classList.contains('active'))return;")
+          p.write_text(s)
+
+          # Service worker : plus aucune injection d'anciens hotfix dans le HTML.
+          sw=Path('sw.js').read_text()
+          sw="""const CACHE='swe-tournament-5v5-v42-34';
+const STATIC_ASSETS=['./','./index.html','./styles.css','./app.js','./hotfix-v4227.js','./hotfix-v4228.js','./hotfix-v4229.js','./hotfix-v4230.js','./hotfix-v4231.js','./hotfix-v4232.js','./ui-stability-v4234.js','./live.html','./live.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
+self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC_ASSETS)))});
+self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k!==CACHE&&(k.startsWith('tournoi-foot-')||k.startsWith('swe-tournament-5v5-'))).map(k=>caches.delete(k)));await self.clients.claim()})())});
+self.addEventListener('fetch',event=>{const req=event.request;if(req.method!=='GET')return;const url=new URL(req.url);if(url.origin!==self.location.origin){event.respondWith(fetch(req,{cache:'no-store'}));return}if(req.mode==='navigate'||url.pathname.endsWith('/index.html')||url.pathname.endsWith('/sw.js')){event.respondWith(fetch(req,{cache:'no-store'}).then(resp=>{if(req.mode==='navigate'&&resp.ok){const copy=resp.clone();caches.open(CACHE).then(c=>c.put('./index.html',copy))}return resp}).catch(()=>caches.match('./index.html')));return}event.respondWith(caches.match(req).then(cached=>cached||fetch(req).then(resp=>{if(resp&&resp.ok){const copy=resp.clone();caches.open(CACHE).then(c=>c.put(req,copy))}return resp})))})
+"""
+          Path('sw.js').write_text(sw)
+          PY
+      - name: Vérifier JavaScript
+        run: |
+          node --check app.js
+          node --check hotfix-v4227.js
+          node --check hotfix-v4228.js
+          node --check hotfix-v4229.js
+          node --check hotfix-v4230.js
+          node --check hotfix-v4231.js
+          node --check hotfix-v4232.js
+          node --check ui-stability-v4234.js
+          node --check live.js
+          node --check sw.js
+      - name: Commit V42.34
+        run: |
+          git config user.name "SWÉ Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html sw.js hotfix-v4227.js hotfix-v4228.js hotfix-v4229.js hotfix-v4230.js hotfix-v4231.js hotfix-v4232.js ui-stability-v4234.js
+          git commit -m "V42.34 — stabilité UI et chargement profil" || exit 0
+          git push
