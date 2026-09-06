@@ -1,0 +1,72 @@
+name: Apply SWÉ V42.32
+on:
+  push:
+    paths:
+      - 'trigger-v4232.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch V42.32
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Version + load latest hotfix
+          p=Path('index.html'); s=p.read_text()
+          s=re.sub(r'V42\.\d+','V42.32',s)
+          s=re.sub(r'MAJ 42\.\d+','MAJ 42.32',s)
+          s=re.sub(r'./styles\.css\?v=\d+','./styles.css?v=4232',s)
+          s=re.sub(r'./app\.js\?v=\d+','./app.js?v=4232',s)
+          tag='<script src="./hotfix-v4232.js?v=4232" defer></script>'
+          if tag not in s: s=s.replace('</body>',tag+'</body>')
+          p.write_text(s)
+
+          # Old hotfixes must not reset version backwards
+          for fn in ['hotfix-v4229.js','hotfix-v4230.js','hotfix-v4231.js']:
+              p=Path(fn)
+              if p.exists():
+                  s=p.read_text()
+                  s=re.sub(r"const VERSION='42\.\d+';","const VERSION='42.32';",s)
+                  p.write_text(s)
+
+          # Team headers: remove jersey icon in the core render too
+          p=Path('app.js'); s=p.read_text()
+          s=s.replace("title.innerHTML='👕 '+esc(team.name)+' <span class=\"team-color-name\">• '+esc(colorLabel)+'</span>';","title.innerHTML=esc(team.name)+' <span class=\"team-color-name\">• '+esc(colorLabel)+'</span>';")
+          # Don't keep generic Solide wording where it exists
+          s=s.replace("score.mention||'Équilibrée'","score.mention||'Équipe qui peut surprendre'")
+          p.write_text(s)
+
+          # Live page: >2 guests => ?? and varied team labels
+          p=Path('live.js'); s=p.read_text()
+          old="const bg=teamColor(t),members=teamPlayers.filter(tp=>String(tp.team_id)===String(t.id)).map(tp=>players.get(String(tp.player_id))).filter(Boolean),guests=members.filter(p=>p.is_group_member===false).length,note=teamNote(t);return '<article class=\"live-team\"><div class=\"live-team-head\" style=\"background:'+bg+';color:'+teamFg(bg)+'\">👕 '+esc(t.name)+'</div><div class=\"live-team-body\">'+(note?'<div class=\"live-note\">🐶⚽ <b>Note équipe évaluée par Chien Boul Academy : '+note.toFixed(1)+'/5</b>'+(t.mention?' • '+esc(t.mention):'')+'</div>':'')"
+          new="const bg=teamColor(t),members=teamPlayers.filter(tp=>String(tp.team_id)===String(t.id)).map(tp=>players.get(String(tp.player_id))).filter(Boolean),guests=members.filter(p=>p.is_group_member===false).length,note=teamNote(t);const labels=['Équilibrée','Défensive','Tournée vers l’attaque','Dream team','Équipe qui peut surprendre'];const mention=guests>2?'Trop de Guests pour une note fiable':labels[Math.abs(String(t.name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0))%labels.length];return '<article class=\"live-team\"><div class=\"live-team-head\" style=\"background:'+bg+';color:'+teamFg(bg)+'\">'+esc(t.name)+'</div><div class=\"live-team-body\">'+((note||guests>2)?'<div class=\"live-note\">🐶⚽ <b>Note équipe évaluée par Chien Boul Academy : '+(guests>2?'??':note.toFixed(1)+'/5')+'</b> • '+esc(mention)+'</div>':'')"
+          if old in s: s=s.replace(old,new)
+          s=s.replace("./styles.css?v=4229","./styles.css?v=4232")
+          p.write_text(s)
+
+          # Service worker cache
+          p=Path('sw.js'); s=p.read_text()
+          s=re.sub(r"const CACHE='swe-tournament-5v5-v42-[^']+';","const CACHE='swe-tournament-5v5-v42-32';",s)
+          if "'./hotfix-v4232.js'" not in s:
+              s=s.replace('const STATIC_ASSETS=[',"const STATIC_ASSETS=['./hotfix-v4232.js',")
+          p.write_text(s)
+          PY
+      - name: Validate JavaScript
+        run: |
+          node --check app.js
+          node --check hotfix-v4232.js
+          node --check live.js
+      - name: Commit V42.32
+        run: |
+          git config user.name "SWÉ Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js index.html sw.js live.js hotfix-v4229.js hotfix-v4230.js hotfix-v4231.js hotfix-v4232.js
+          git diff --cached --quiet && exit 0
+          git commit -m "V42.32 — commentaires joueurs, PDF, profils et couleurs"
+          git push
