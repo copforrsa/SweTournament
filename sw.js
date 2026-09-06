@@ -1,5 +1,5 @@
-const CACHE='swe-tournament-5v5-v42-20';
-const STATIC_ASSETS=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
+const CACHE='swe-tournament-5v5-v42-24';
+const STATIC_ASSETS=['./','./index.html','./styles.css','./app.js','./hotfix-v4224.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -29,16 +29,25 @@ self.addEventListener('fetch',event=>{
   }
 
   // Les navigations prennent toujours la version réseau d'abord.
+  // V42.24 : on injecte le hotfix UI sans toucher au flux Supabase.
   if(req.mode==='navigate'){
-    event.respondWith(
-      fetch(req,{cache:'no-store'})
-        .then(resp=>{
-          const copy=resp.clone();
-          caches.open(CACHE).then(cache=>cache.put('./index.html',copy));
-          return resp;
-        })
-        .catch(()=>caches.match('./index.html'))
-    );
+    event.respondWith((async()=>{
+      try{
+        const resp=await fetch(req,{cache:'no-store'});
+        const type=resp.headers.get('content-type')||'';
+        if(!type.includes('text/html')) return resp;
+        let html=await resp.text();
+        if(!html.includes('hotfix-v4224.js')) html=html.replace('</body>','<script src="./hotfix-v4224.js?v=4224" defer></script></body>');
+        const headers=new Headers(resp.headers);
+        headers.delete('content-length');
+        const out=new Response(html,{status:resp.status,statusText:resp.statusText,headers});
+        const copy=out.clone();
+        caches.open(CACHE).then(cache=>cache.put('./index.html',copy));
+        return out;
+      }catch(e){
+        return caches.match('./index.html');
+      }
+    })());
     return;
   }
 
