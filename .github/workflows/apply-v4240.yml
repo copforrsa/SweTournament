@@ -1,0 +1,74 @@
+name: Apply SWÉ V42.40
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v4240.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch V42.40
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('hotfix-v4235.js')
+          s=p.read_text()
+          old="reliabilityCache.rows.forEach(x=>{const cards=[...box.querySelectorAll('.player')];const card=cards.find(c=>c.textContent?.includes(x.player_name));if(!card)return;let tag=card.querySelector('[data-reliability=\"'+x.player_id+'\"]');"
+          new="reliabilityCache.rows.forEach(x=>{const player=(S.players||[]).find(p=>String(p.id)===String(x.player_id));if(!player)return;const cards=[...box.children].filter(c=>c.classList?.contains('player'));const card=cards.find(c=>{const b=c.querySelector(':scope > .row > span:first-child > b');return b&&b.textContent.trim()===String(player.name||'').trim()});if(!card)return;let tag=card.querySelector('[data-reliability=\"'+x.player_id+'\"]');"
+          if old not in s: raise SystemExit('reliability target not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          p=Path('app.js'); s=p.read_text()
+          old="toast('Informations de '+x.name+' mises à jour ✅');\n      };"
+          new="await loadAll();\n        toast('Informations de '+x.name+' mises à jour ✅');\n      };"
+          if old not in s: raise SystemExit('admin save target not found')
+          s=s.replace(old,new,1)
+          old2="toast('Informations mises à jour ✅');};"
+          new2="await loadAll();toast('Informations mises à jour ✅');};"
+          if old2 not in s: raise SystemExit('coorg save target not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+
+          p=Path('index.html'); s=p.read_text()
+          s=s.replace('V42.39','V42.40').replace('v=4239','v=4240').replace('MAJ 42.39','MAJ 42.40')
+          marker='<script src="./hotfix-v4237.js?v=4240" defer></script>'
+          s=s.replace(marker,marker+'<script src="./hotfix-v4240.js?v=4240" defer></script>')
+          p.write_text(s)
+
+          Path('hotfix-v4240.js').write_text(r'''(()=>{
+          'use strict';
+          const VERSION='42.40';
+          const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+          function setVersion(){document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+          function decoratePlayers(){
+            if(typeof S==='undefined'||!document.getElementById('view-players')?.classList.contains('active'))return;
+            const box=document.getElementById('playersList');if(!box)return;
+            let legend=document.getElementById('sweGuestLegend40');
+            if(!legend){legend=document.createElement('div');legend.id='sweGuestLegend40';legend.className='readonly-note';legend.style.marginBottom='10px';legend.innerHTML='👥 <b>Lecture de la liste :</b> les fiches grisées sont des <b>invités</b> et ne font pas partie du groupe. Les membres du groupe restent affichés normalement.';box.insertAdjacentElement('beforebegin',legend)}
+            const cards=[...box.children].filter(c=>c.classList?.contains('player'));
+            (S.players||[]).forEach(pl=>{const card=cards.find(c=>c.querySelector(':scope > .row > span:first-child > b')?.textContent.trim()===String(pl.name||'').trim());if(!card)return;card.style.opacity=pl.is_group_member===false?'.58':'1';card.style.background=pl.is_group_member===false?'#f1f3f2':'';let badge=card.querySelector('[data-group-state40]');if(!badge){badge=document.createElement('div');badge.dataset.groupState40='1';badge.style.cssText='margin-top:4px;font-size:11px;font-weight:800';card.querySelector(':scope > .row > span:first-child')?.appendChild(badge)}badge.textContent=pl.is_group_member===false?'Invité • ne fait pas partie du groupe':'Membre du groupe';badge.style.color=pl.is_group_member===false?'#6b7280':'#15803d';});
+          }
+          function joinedNewcomers(){
+            if(typeof S==='undefined')return;
+            const ids=new Set((S.players||[]).filter(p=>p.is_group_member!==false).map(p=>String(p.id)));
+            document.querySelectorAll('[id*="new" i],[class*="new" i]').forEach(root=>{if(!/nouve/i.test(root.textContent||''))return;root.querySelectorAll('.player,.rank,li').forEach(row=>{const pl=(S.players||[]).find(p=>ids.has(String(p.id))&&row.textContent?.includes(p.name));if(!pl||row.querySelector('[data-joined40]'))return;row.style.opacity='.58';const tag=document.createElement('span');tag.dataset.joined40='1';tag.textContent=' • A rejoint le groupe';tag.style.cssText='font-size:11px;font-weight:800;color:#15803d';row.appendChild(tag)});});
+          }
+          function apply(){setVersion();decoratePlayers();joinedNewcomers()}
+          if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();document.addEventListener('swe:rendered',apply);document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="players"],.tab'))setTimeout(apply,150)},true);
+          })();''')
+
+          p=Path('sw.js'); s=p.read_text().replace("const CACHE='swe-tournament-5v5-v42-39';","const CACHE='swe-tournament-5v5-v42-40';")
+          s=s.replace("'./hotfix-v4237.js'","'./hotfix-v4237.js','./hotfix-v4240.js'")
+          p.write_text(s)
+      - name: Commit
+        run: |
+          git config user.name "SWÉ Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js index.html sw.js hotfix-v4235.js hotfix-v4240.js
+          git commit -m "Fix player reliability and membership UI V42.40" || exit 0
+          git push
