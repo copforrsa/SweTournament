@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.35';
+const VERSION='42.36';
 const STYLE_ID='swe-v4228-style';
 const RATE_REASONS=[['progression','Progression constatée'],['different_day','Performance différente aujourd’hui'],['better_known','Je connais maintenant mieux le joueur'],['correction','Première évaluation à corriger'],['role_change','Changement de rôle / profil de jeu'],['return','Retour après une longue absence'],['other','Autre raison']];
 const css=`

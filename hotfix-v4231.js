@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.35';
+const VERSION='42.36';
 const COLOR_OPTS=[['#111827','Noir'],['#2563eb','Bleu'],['#f8fafc','Blanc'],['#dc2626','Rouge'],['#16a34a','Vert'],['#eab308','Jaune'],['#f97316','Orange'],['#7c3aed','Violet'],['#ec4899','Rose'],['#78350f','Marron'],['#64748b','Gris']];
 const esc31=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function setVersion31(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
