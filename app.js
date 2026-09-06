@@ -4582,8 +4582,8 @@ async function bootPaymentDesk(token){
   }
   function renderDesk(){
     const content=$('#paymentDeskContent');if(!content||!snapshot)return;
-    const all=(snapshot.players||[]).filter(r=>r.present);
-    const confirmed=all.filter(r=>r.registration_status!=='waitlist'&&!r.is_substitute);
+    const all=(snapshot.players||[]).filter(r=>r.present||r.registration_status==='late_withdrawal');
+    const confirmed=all.filter(r=>r.registration_status!=='waitlist'&&r.registration_status!=='late_withdrawal'&&!r.is_substitute);
     const walkins=snapshot.walkins||[];
     const paidCount=confirmed.filter(r=>!!r.manual_paid_at).length+walkins.length;
     const unpaidCount=Math.max(0,confirmed.filter(r=>!r.manual_paid_at).length);
@@ -4605,12 +4605,13 @@ async function bootPaymentDesk(token){
       if(!rows.length){rowsBox.innerHTML='<p class="muted">Aucun joueur correspondant.</p>';return;}
       rows.forEach(r=>{
         const wait=r.registration_status==='waitlist';
+        const withdrawn=r.registration_status==='late_withdrawal';
         const substitute=!!r.is_substitute;
         const paid=!!r.manual_paid_at;
-        const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';
+        const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';if(withdrawn){d.style.opacity='.58';d.style.background='#f3f4f6'}
         const audit=paid&&r.manual_paid_collector_name?'<div class="muted" style="margin-top:3px">Saisi par '+esc(r.manual_paid_collector_name)+' • '+esc(fmtDateTime(r.manual_paid_at))+'</div>':'';
-        d.innerHTML='<span style="flex:1;min-width:170px"><b>'+esc(r.player_name||'Joueur')+'</b><div class="muted" style="margin-top:3px">'+(substitute?'🟠 Remplaçant':(wait?'⏳ Liste d’attente':'✅ Inscrit confirmé'))+' • '+esc(paymentMoney(price))+'</div>'+audit+'</span><span class="guest-badge" style="background:'+(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7'))+';color:'+(paid?'#176a36':(wait?'#9a5b00':'#b3261e'))+'">'+(paid?'PAYÉ':'NON PAYÉ')+'</span>';
-        if(!wait){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'↩ Marquer non payé':'✅ Marquer payé';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);}
+        const statusText=withdrawn?'⚠️ Désistement de dernière minute':(substitute?'🟠 Remplaçant':(wait?'⏳ Liste d’attente':'✅ Inscrit confirmé'));const withdrawalInfo=withdrawn?'<div class="muted" style="margin-top:3px">Retiré de la feuille active'+(r.withdrawal_note?' • '+esc(r.withdrawal_note):'')+'</div>':'';d.innerHTML='<span style="flex:1;min-width:170px"><b>'+esc(r.player_name||'Joueur')+'</b><div class="muted" style="margin-top:3px">'+statusText+(withdrawn?'':' • '+esc(paymentMoney(price)))+'</div>'+withdrawalInfo+audit+'</span><span class="guest-badge" style="background:'+(withdrawn?'#e5e7eb':(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7')))+';color:'+(withdrawn?'#4b5563':(paid?'#176a36':(wait?'#9a5b00':'#b3261e')))+'">'+(withdrawn?'DÉSISTEMENT':(paid?'PAYÉ':'NON PAYÉ'))+'</span>';
+        if(!wait&&!withdrawn){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'↩ Marquer non payé':'✅ Marquer payé';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);}
         rowsBox.appendChild(d);
       });
     };
@@ -5297,7 +5298,7 @@ async function bootPublic(token){
           return;
         }
         if(choice.payment_preference==='onsite'){
-          const html='<b>🏟️ Paiement sur place choisi</b><div style="margin-top:7px">Tarif public sur place : <b style="font-size:1.05rem">'+publicMoney(onsiteStandardPriceCents(regTour))+'</b></div><div class="muted" style="margin-top:5px">Ton inscription est enregistrée. Le complexe confirmera ton paiement lorsqu’il le recevra.</div><button id="publicSwitchOnline" style="width:100%;margin-top:10px">💳 Finalement payer en ligne</button>';
+          const html='<b>🏟️ Paiement sur place choisi</b><div style="margin-top:7px">Tarif public sur place : <b style="font-size:1.05rem">'+publicMoney(Number(regTour.onsite_entry_fee_cents??onsiteStandardPriceCents(regTour)))+'</b></div><div class="muted" style="margin-top:5px">Ton inscription est enregistrée. Le complexe confirmera ton paiement lorsqu’il le recevra.</div><button id="publicSwitchOnline" style="width:100%;margin-top:10px">💳 Finalement payer en ligne</button>';
           publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
           $('#publicSwitchOnline').onclick=async()=>{await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'online'});publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};await renderPublicPaymentBox({skipStripeReconcile:true});};
           return;
@@ -5316,7 +5317,7 @@ async function bootPublic(token){
         const html='<div><b style="font-size:1.02rem">💶 Comment veux-tu payer ?</b><div class="muted" style="margin-top:5px">Choisis ton mode de paiement pour cette inscription.</div></div>'+ 
           '<div class="grid g2" style="gap:9px;margin-top:12px">'+
             '<button id="publicPayEntry" class="primary" style="min-height:64px"><span style="font-size:1.05rem">💳 Payer en ligne</span><br><span style="font-size:.76rem;font-weight:700">Gagner du temps • sécurisé par Stripe</span></button>'+ 
-            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">🏟️ Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicMoney(onsiteStandardPriceCents(regTour))+' tarif public</span></button>'+ 
+            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">🏟️ Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicMoney(Number(regTour.onsite_entry_fee_cents??onsiteStandardPriceCents(regTour)))+' tarif public</span></button>'+ 
           '</div>'+ 
           '<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e4e8ee"><div style="font-weight:850;font-size:.88rem">Paiement en ligne accepté</div><div class="muted" style="font-size:.70rem;line-height:1.35;margin:3px 0 8px">Selon ton appareil, ton navigateur et les moyens de paiement disponibles sur Stripe.</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">'+
             '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="display:flex;align-items:center;justify-content:center;gap:6px;height:28px"><span style="font-weight:950;font-size:.72rem;background:#1434CB;color:#fff;border-radius:4px;padding:3px 5px;font-style:italic">VISA</span><span aria-label="Mastercard" style="display:inline-flex;align-items:center"><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#EB001B;margin-right:-5px"></i><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#F79E1B;opacity:.92"></i></span></div><div class="muted" style="font-size:.67rem">Carte bancaire</div></div>'+

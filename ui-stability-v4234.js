@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.34';
+const VERSION='42.35';
 let renderDispatchQueued=false;
 function setVersion(){
   const wanted='V'+VERSION;

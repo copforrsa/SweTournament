@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.34';
+const VERSION='42.35';
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function appBase(){return new URL('./',location.href)}
 function makeUrls(t){
