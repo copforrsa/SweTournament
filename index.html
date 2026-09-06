@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Tournoi Foot">
   <link rel="apple-touch-icon" href="./icon-192.png?v=4112">
   <link rel="manifest" href="./manifest.webmanifest">
-  <title>SWÉ TOURNAMENT 5/5 • V42.39</title>
+  <title>SWÉ TOURNAMENT 5/5 • V42.40</title>
 <link rel="icon" type="image/png" href="./favicon.png?v=4208">
 <link rel="apple-touch-icon" href="./icon-192.png?v=4112">
   <link rel="stylesheet" href="./styles.css?v=4239">
@@ -30,7 +30,7 @@
 </div>
 <div class="app">
   <section id="auth" class="auth">
-    <div class="top"><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:600">V42.39</span></h1><p class="muted">Gestion partagée des tournois.</p></div>
+    <div class="top"><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:600">V42.40</span></h1><p class="muted">Gestion partagée des tournois.</p></div>
     <div id="inviteLandingCard" class="card hidden">
       <h2 class="sectiontitle">🤝 Invitation co-organisateur</h2>
       <p id="inviteLandingText" class="muted">Tu as reçu une invitation pour rejoindre l’organisation du tournoi.</p>
@@ -76,7 +76,7 @@
   <section id="main" class="hidden">
     <header class="top">
       <div class="row" style="justify-content:space-between">
-        <div><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:700">V42.39</span></h1><div class="workspace-head-line"><div id="workspaceName" class="muted"></div><select id="workspaceSwitcher" class="workspace-switcher hidden" aria-label="Changer d’espace"></select></div><div class="build-badge" title="Version installée">MAJ 42.38</div></div>
+        <div><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:700">V42.40</span></h1><div class="workspace-head-line"><div id="workspaceName" class="muted"></div><select id="workspaceSwitcher" class="workspace-switcher hidden" aria-label="Changer d’espace"></select></div><div class="build-badge" title="Version installée">MAJ 42.40</div></div>
         <button id="logout">Déconnexion</button>
       </div>
     </header>
@@ -699,6 +699,21 @@
     </div>
 
     <div id="view-ranking" class="view">
+      <div class="card hidden" id="seasonPublicShareCard">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <h2 class="sectiontitle">📲 Partager les classements de la saison</h2>
+            <p class="muted">Lien public en lecture seule : podium, Top Players, meilleures moyennes, nouveaux joueurs, buteurs et passeurs.</p>
+          </div>
+          <span class="guest-badge">ADMIN</span>
+        </div>
+        <input id="seasonPublicShareLink" type="text" readonly aria-label="Lien public des classements de la saison">
+        <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+          <button id="copySeasonPublicShareLink" type="button" class="primary">📋 Copier le lien</button>
+          <button id="shareSeasonPublicShareLink" type="button">📲 Partager</button>
+          <button id="openSeasonPublicShareLink" type="button">↗ Ouvrir</button>
+        </div>
+      </div>
       <div class="card"><div class="row"><button class="rankMode" data-mode="day">Tournoi</button><button class="rankMode primary" data-mode="season">Saison</button></div><p class="muted">Le classement Saison cumule uniquement les statistiques des tournois rattachés à la saison sélectionnée. Un tournoi « Hors saison » conserve ses buts et ses passes décisives dans son propre historique, sans les ajouter au classement de saison.</p></div>
       <div class="grid g2">
         <div class="card"><h2 class="sectiontitle">⚽ Buteurs</h2><div id="scorerRank"></div></div>
@@ -870,7 +885,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="./app.js?v=4239" defer></script>
+<script src="./app.js?v=4240" defer></script>
 <script src="./hotfix-v4227.js?v=4239" defer></script>
 <script src="./hotfix-v4228.js?v=4239" defer></script>
 
