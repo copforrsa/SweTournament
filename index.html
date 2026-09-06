@@ -14,7 +14,7 @@
   <title>SWÉ TOURNAMENT 5/5 • V42.8</title>
 <link rel="icon" type="image/png" href="./favicon.png?v=4208">
 <link rel="apple-touch-icon" href="./icon-192.png?v=4112">
-  <link rel="stylesheet" href="./styles.css?v=4226">
+  <link rel="stylesheet" href="./styles.css?v=4223">
 </head>
 <body>
 <div id="toast" class="toast"></div>
@@ -30,7 +30,7 @@
 </div>
 <div class="app">
   <section id="auth" class="auth">
-    <div class="top"><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:600">V42.26</span></h1><p class="muted">Gestion partagée des tournois.</p></div>
+    <div class="top"><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:600">V42.23</span></h1><p class="muted">Gestion partagée des tournois.</p></div>
     <div id="inviteLandingCard" class="card hidden">
       <h2 class="sectiontitle">🤝 Invitation co-organisateur</h2>
       <p id="inviteLandingText" class="muted">Tu as reçu une invitation pour rejoindre l’organisation du tournoi.</p>
@@ -76,7 +76,7 @@
   <section id="main" class="hidden">
     <header class="top">
       <div class="row" style="justify-content:space-between">
-        <div><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:700">V42.26</span></h1><div class="workspace-head-line"><div id="workspaceName" class="muted"></div><select id="workspaceSwitcher" class="workspace-switcher hidden" aria-label="Changer d’espace"></select></div><div class="build-badge" title="Version installée">MAJ 42.26</div></div>
+        <div><h1><img src="./favicon.png?v=4208" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:700">V42.23</span></h1><div class="workspace-head-line"><div id="workspaceName" class="muted"></div><select id="workspaceSwitcher" class="workspace-switcher hidden" aria-label="Changer d’espace"></select></div><div class="build-badge" title="Version installée">MAJ 42.23</div></div>
         <button id="logout">Déconnexion</button>
       </div>
     </header>
@@ -263,11 +263,6 @@
         <h2 class="sectiontitle">📊 Vue d’ensemble</h2>
         <div id="homeWorkspaceStats" class="grid g2" style="margin-top:12px"></div>
         <div id="homeCoorgQuotaRequest" style="margin-top:12px"></div>
-      </div>
-      <div class="card hidden" id="homeTeamReviewCard">
-        <h2 class="sectiontitle">🗳️ Équipes à valider</h2>
-        <div class="muted">Les sollicitations de validation et les votes en cours apparaissent ici.</div>
-        <div id="homeTeamReviews" style="margin-top:12px"></div>
       </div>
       <div class="card" id="homeEcosystemCard" style="border:2px solid #d9eadf;background:linear-gradient(180deg,#fbfffc 0%,#f7fbf8 100%)">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
@@ -516,21 +511,10 @@
           <div id="teamBalanceInfo" class="muted" style="margin-top:8px"></div>
         </div>
         <div id="teamReviewPanel" class="team-review-panel hidden"></div>
+        <div class="team-export-row"><button id="exportTeamsPdf" type="button" class="secondary">📄 Extraire la liste des équipes en PDF</button><span class="muted small">Inclut les couleurs de maillot et les remplaçants communs.</span></div>
         <div id="teamList" style="margin-top:10px"></div>
       </div>
       <div class="card" id="attendanceAdminCard"><h2 class="sectiontitle">Présents / inscrits de la compétition sélectionnée</h2><div id="attendanceList"></div></div>
-      <div class="card hidden" id="registeredPlayersAdminCard">
-        <h2 class="sectiontitle">➕ Ajouts administrateur après clôture</h2>
-        <div id="registeredPlayersCompetitionLabel" class="muted"></div>
-        <div id="registrationClosedAdminNotice" class="readonly-note" style="margin-top:10px"></div>
-        <div class="grid g2" style="margin-top:12px">
-          <div class="row"><select id="manualRegisteredPlayerSelect" style="flex:1"><option value="">Ajouter un membre du groupe</option></select><button id="manualRegisterPlayer" class="primary">Ajouter</button></div>
-          <div><div class="row"><input id="managerGuestName" placeholder="Nom de l’invité" style="flex:1"><button id="managerAddGuest" class="primary">Ajouter l’invité</button></div><select id="managerGuestHost" style="margin-top:8px"><option value="">Rattacher l’invité à un membre…</option></select></div>
-        </div>
-        <div class="muted" style="margin-top:9px">L’administrateur peut continuer à ajouter un membre, un invité ou une équipe même lorsque le lien public d’inscription est fermé. Les équipes se créent dans le bloc situé au-dessus.</div>
-        <div class="row" style="margin-top:10px"><button id="refreshRegisteredPlayers">Actualiser la liste</button></div>
-        <div id="registeredPlayersAdminList" style="margin-top:12px"></div>
-      </div>
     </div>
 
     <div id="view-matches" class="view">
@@ -745,7 +729,6 @@
           <button id="visualResults">📋 Résultats</button>
           <button id="visualScorers">⚽ Buteurs</button>
         </div>
-        <button id="exportTeamsPdf" class="primary" style="margin-top:10px">📄 Extraire les équipes en PDF</button>
         <div id="visualPreviewBox" class="hidden" style="margin-top:14px">
           <canvas id="visualCanvas" width="1080" height="1350" style="width:100%;max-width:520px;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.14);background:#0d2b1f"></canvas>
           <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
@@ -759,15 +742,15 @@
 
     <nav class="tabs">
       <button class="tab active" data-view="home">Accueil</button>
-      <button class="tab" data-view="myplayer">Profil</button>
+      <button class="tab" data-view="myplayer">Mon profil joueur</button>
       <button class="tab" data-view="players" id="playersTabLabel">Joueurs</button>
-      <button class="tab admin-permissions-tab hidden" data-view="permissions">Accès</button>
+      <button class="tab admin-permissions-tab hidden" data-view="permissions">Autorisations</button>
       <button class="tab" data-view="tournaments">Tournois</button>
       <button class="tab" data-view="teams">Équipes</button>
       <button class="tab" data-view="matches">Matchs</button>
       <button class="tab" data-view="league">Ligue</button>
       <button class="tab hidden" data-view="cooler" id="coolerTab">Glacière</button>
-      <button class="tab" data-view="ranking">Stats</button>
+      <button class="tab" data-view="ranking">Classement</button>
     </nav>
   </section>
 
@@ -887,5 +870,5 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="./app.js?v=4226" defer></script>
+<script src="./app.js?v=4223" defer></script>
 <footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer></body></html>

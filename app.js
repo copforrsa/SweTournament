@@ -29,7 +29,7 @@ window.addEventListener('error', (e) => {
   if(t){t.textContent='Erreur de chargement de l’application. Recharge la page.';t.style.display='block';}
 });
 
-const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],teamCoorgScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],teamReviewState:null,teamReviewNotifications:[],onboardingStatus:null,memberships:[],organizerAccess:null};
+const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
 
 let safeSyncTimer=null;
 let safeSyncBusy=false;
@@ -1336,17 +1336,13 @@ async function loadAll(){
   }else S.leaguePlayers=[];
   if(!S.activeLeague){const al=S.leagues.find(l=>l.status==='active')||S.leagues[0];S.activeLeague=al?.id||null;}
   r=await sb.from('tournaments').select('*').eq('workspace_id',w).order('tournament_date',{ascending:false});S.tournaments=r.data||[];
-  if(S.workspaceFeatures.team_review_enabled){
-    r=await sb.rpc('get_home_team_review_notifications',{p_workspace_id:w});
-    S.teamReviewNotifications=r.error?[]:(Array.isArray(r.data)?r.data:[]);
-  }else S.teamReviewNotifications=[];
   if(!S.activeTour){const next=S.tournaments.find(t=>t.status!=='finished');S.activeTour=next?next.id:null;}
   await loadTournament();
   const editingReview=document.activeElement?.closest?.('.player-skill-review');
   if(!editingReview)renderAll();
 }
 async function loadTournament(){
-  const t=currentTour();if(!t){S.tPlayers=[];S.teams=[];S.teamPlayers=[];S.matchAssignments=[];S.matches=[];S.goals=[];S.teamBalanceScores=[];S.teamCoorgScores=[];S.teamReviewState=null;return}let r;
+  const t=currentTour();if(!t){S.tPlayers=[];S.teams=[];S.teamPlayers=[];S.matchAssignments=[];S.matches=[];S.goals=[];S.teamBalanceScores=[];S.teamReviewState=null;return}let r;
   r=await sb.from('tournament_players').select('*').eq('tournament_id',t.id);S.tPlayers=r.data||[];
   r=await sb.from('teams').select('*').eq('tournament_id',t.id).order('created_at');S.teams=r.data||[];
   const tids=S.teams.map(x=>x.id);if(tids.length){r=await sb.from('team_players').select('*').in('team_id',tids);S.teamPlayers=r.data||[]}else S.teamPlayers=[];
@@ -1358,8 +1354,6 @@ async function loadTournament(){
   }else{S.goals=[];S.matchAssignments=[];}
   const scoreRes=await sb.rpc('get_tournament_team_balance_scores',{p_tournament_id:t.id});
   S.teamBalanceScores=scoreRes.error?[]:(scoreRes.data||[]);
-  const coorgScoreRes=await sb.rpc('get_tournament_team_coorganizer_scores',{p_tournament_id:t.id});
-  S.teamCoorgScores=coorgScoreRes.error?[]:(coorgScoreRes.data||[]);
   S.teamReviewState=null;
   if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled){
     const reviewRes=await sb.rpc('get_tournament_team_review_state',{p_tournament_id:t.id});
@@ -1712,14 +1706,10 @@ function renderAll(){
 async function renderRegisteredPlayersAdmin(){
   const card=$('#registeredPlayersAdminCard');if(!card)return;
   const t=currentTour();
-  card.classList.toggle('hidden',!t||!isAdmin());
-  if(!t||!isAdmin())return;
+  card.classList.toggle('hidden',!t);
+  if(!t)return;
   const label=$('#registeredPlayersCompetitionLabel');
   if(label)label.textContent=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+(t.name||t.tournament_date)+' • '+t.tournament_date;
-  const closed=$('#registrationClosedAdminNotice');
-  if(closed)closed.innerHTML=t.registration_open
-    ?'<b>🟢 Inscriptions publiques ouvertes.</b> Tu peux aussi ajouter directement des participants depuis ton espace.'
-    :'<b>🔒 Inscriptions publiques terminées.</b> Ton accès administrateur reste ouvert : ajoute ici des membres ou des invités, puis affecte-les à une équipe.';
   const {data,error}=await sb.rpc('get_registered_players_for_tournament',{p_tournament_id:t.id});
   const box=$('#registeredPlayersAdminList'),sel=$('#manualRegisteredPlayerSelect');
   if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
@@ -1727,8 +1717,6 @@ async function renderRegisteredPlayersAdmin(){
   const registeredIds=new Set(rows.filter(r=>r.present).map(r=>r.player_id));
   const available=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&!registeredIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name));
   if(sel)sel.innerHTML='<option value="">Ajouter un membre inscrit manuellement</option>'+available.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-  const guestHost=$('#managerGuestHost');
-  if(guestHost){const keep=guestHost.value;const members=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false).sort((a,b)=>a.name.localeCompare(b.name));guestHost.innerHTML='<option value="">Rattacher l’invité à un membre…</option>'+members.map(p=>'<option value="'+p.id+'">Guest de '+esc(p.name)+'</option>').join('');if(members.some(p=>p.id===keep))guestHost.value=keep;}
   if(!rows.length){box.innerHTML='<p class="muted">Aucun joueur inscrit pour le moment.</p>';return}
   box.innerHTML='';
   rows.filter(r=>r.present).forEach((r,i)=>{
@@ -1788,38 +1776,6 @@ function renderHomeCoorgVotes(){
     const count=(target.querySelectorAll('.guest-badge')||[]).length;
     btn.textContent=opening?'🙈 Masquer la liste':'👁️ Voir les joueurs notés ('+count+')';
   }));
-}
-
-function teamReviewDurationLabel(minutes){
-  const n=Math.max(1,Number(minutes||30));
-  if(n<60)return n+' minute'+(n>1?'s':'');
-  if(n%60===0){const h=n/60;return h+' heure'+(h>1?'s':'');}
-  return Math.floor(n/60)+' h '+(n%60)+' min';
-}
-function teamReviewDeadlineLabel(value){
-  if(!value)return '—';
-  const d=new Date(value);return Number.isNaN(d.getTime())?'—':d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-}
-function renderHomeTeamReviews(){
-  const card=$('#homeTeamReviewCard'),box=$('#homeTeamReviews');if(!card||!box)return;
-  const rows=Array.isArray(S.teamReviewNotifications)?S.teamReviewNotifications:[];
-  card.classList.toggle('hidden',!rows.length);
-  if(!rows.length){box.innerHTML='';return;}
-  box.innerHTML=rows.map(r=>{
-    const pending=r.status==='pending',redraw=r.status==='redraw_requested';
-    const title=esc(r.tournament_name||r.tournament_date||'Tournoi');
-    const deadline=teamReviewDeadlineLabel(r.deadline);
-    const stats='<div class="team-review-stats"><span>👥 '+Number(r.eligible_count||0)+' sollicité(s)</span><span>✅ '+Number(r.validate_votes||0)+' valider</span><span>🔄 '+Number(r.redraw_votes||0)+' refaire</span></div>';
-    const teams=Array.isArray(r.teams)?r.teams:[];
-    const preview=teams.length?'<div class="home-team-preview">'+teams.map(team=>'<div class="home-team-preview-item"><b>'+esc(team.name||'Équipe')+'</b><div>'+((Array.isArray(team.players)?team.players:[]).map(esc).join(' • ')||'<span class="muted">Aucun joueur</span>')+'</div></div>').join('')+'</div>':'';
-    let actions='';
-    if(r.is_admin){
-      actions='<div class="row" style="margin-top:10px"><button class="primary" data-open-team-review="'+esc(r.tournament_id)+'">Voir les équipes et décider →</button></div>';
-    }else if(pending&&r.my_eligible){
-      actions='<div class="team-review-vote"><b>Ton avis est demandé</b><div class="muted" style="margin:4px 0 9px">Vote avant le '+esc(deadline)+'. Tu peux modifier ton choix jusqu’à la fin du délai.</div><div class="row"><button data-home-team-vote="validate" data-tournament-id="'+esc(r.tournament_id)+'" class="'+(r.my_vote==='validate'?'primary':'')+'">✅ Valider</button><button data-home-team-vote="redraw" data-tournament-id="'+esc(r.tournament_id)+'" class="'+(r.my_vote==='redraw'?'danger':'')+'">🔄 Refaire le tirage</button></div></div>';
-    }
-    return '<div class="player home-team-review-notice '+(redraw?'redraw':'')+'"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>🗳️ '+title+'</b><div class="muted">'+esc(r.tournament_date||'')+(pending?' • avis ouverts pendant '+esc(teamReviewDurationLabel(r.duration_minutes)):'')+'</div></div><span class="team-review-status '+esc(String(r.status||'').replace(/_/g,'-'))+'">'+esc(teamReviewStatusLabel(r.status))+'</span></div>'+stats+preview+(pending?'<div class="team-review-deadline">⏳ Fin du vote : <b>'+esc(deadline)+'</b></div>':'')+actions+'</div>';
-  }).join('');
 }
 
 
@@ -1908,26 +1864,10 @@ function renderHome(){
     if(isAdmin()) quotaBox.innerHTML='<div class="muted" style="font-size:12px">🤝 Capacité actuelle : <b>'+activeCoorg+' / '+allowedCoorg+'</b>. Pour ajouter des accès, utilise la section <b>Mon abonnement & options SWÉ</b>.</div>';
   }
   renderHomeCoorgVotes();
-  renderHomeTeamReviews();
 }
 
 document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
 document.addEventListener('click',async e=>{
-  const openReview=e.target.closest?.('[data-open-team-review]');
-  if(openReview){
-    const id=openReview.dataset.openTeamReview;S.activeTour=id;S.teamCompetitionId=id;
-    await loadTournament();renderAll();setView('teams');return;
-  }
-  const homeVote=e.target.closest?.('[data-home-team-vote]');
-  if(homeVote){
-    const decision=homeVote.dataset.homeTeamVote,id=homeVote.dataset.tournamentId;
-    homeVote.disabled=true;
-    const {error}=await sb.rpc('vote_tournament_team_review',{p_tournament_id:id,p_decision:decision});
-    homeVote.disabled=false;if(error)return toast(error.message);
-    const n=await sb.rpc('get_home_team_review_notifications',{p_workspace_id:S.workspace.id});
-    S.teamReviewNotifications=n.error?[]:(Array.isArray(n.data)?n.data:[]);renderHomeTeamReviews();
-    toast(decision==='validate'?'Avis enregistré : valider ✅':'Avis enregistré : refaire le tirage 🔄');return;
-  }
   if(e.target?.id==='homeRequestMoreCoorg'){
     const n=Number($('#homeRequestedCoorgLimit')?.value||0);
     const current=Number(S.workspaceFeatures.max_coorganizers||0);
@@ -1940,7 +1880,6 @@ document.addEventListener('click',async e=>{
   }
   if(e.target?.id==='refreshRegisteredPlayers')await renderRegisteredPlayersAdmin();
   if(e.target?.id==='manualRegisterPlayer'){
-    if(!isAdmin())return toast('Action réservée à l’administrateur.');
     const t=currentTour();const pid=$('#manualRegisteredPlayerSelect')?.value;
     if(!t)return toast('Aucune compétition sélectionnée.');
     if(!pid)return toast('Choisis un membre du groupe.');
@@ -1951,12 +1890,11 @@ document.addEventListener('click',async e=>{
     toast(data==='waitlist'?'Joueur ajouté comme remplaçant.':'Joueur ajouté aux inscrits ✅');
   }
   if(e.target?.id==='managerAddGuest'){
-    if(!isAdmin())return toast('Action réservée à l’administrateur.');
-    const t=currentTour(),name=$('#managerGuestName')?.value.trim(),hostId=$('#managerGuestHost')?.value||null;
+    const t=currentTour(),name=$('#managerGuestName')?.value.trim();
     if(!t)return toast('Aucune compétition sélectionnée.');
     if(!name)return toast('Indique le nom de l’invité.');
     const b=e.target;b.disabled=true;
-    const {data,error}=await sb.rpc('manager_register_tournament_guest',{p_tournament_id:t.id,p_guest_name:name,p_guest_of_player_id:hostId});
+    const {data,error}=await sb.rpc('manager_register_tournament_guest',{p_tournament_id:t.id,p_guest_name:name});
     b.disabled=false;if(error)return toast(error.message);
     $('#managerGuestName').value='';
     await loadTournament();renderRegisteredPlayersAdmin();renderHome();renderTeams();
@@ -2488,11 +2426,6 @@ function tournamentDeadlineMs(t){
   const ms=new Date(t.registration_deadline).getTime();
   return Number.isFinite(ms)?ms:null;
 }
-function tournamentRegistrationClosed(t){
-  if(!t||t.registration_open===false)return true;
-  const deadline=tournamentDeadlineMs(t);
-  return deadline!==null&&Date.now()>=deadline;
-}
 function formatCountdown(ms){
   if(ms<=0)return 'Inscriptions terminées';
   const total=Math.floor(ms/1000);
@@ -2504,7 +2437,6 @@ function formatCountdown(ms){
 }
 function updateTournamentCountdowns(){
   document.querySelectorAll('[data-registration-deadline]').forEach(el=>{
-    if(el.dataset.registrationClosed==='true'){el.textContent='⛔ Inscriptions terminées';return}
     const deadline=new Date(el.dataset.registrationDeadline).getTime();
     if(!Number.isFinite(deadline)){el.textContent='⚠️ Date de clôture invalide';return}
     const ms=deadline-Date.now();
@@ -2591,8 +2523,7 @@ function registrationSummaryHtml(tournamentId){
       }).join('')
     : '<p class="muted">Aucune équipe composée.</p>';
 
-  const capacityText=tournamentRegistrationClosed(tournament)?'<b>🔒 Inscriptions publiques terminées.</b> La capacité était fixée à '+maxPlayers+' joueurs.':'<b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant d’atteindre le nombre maximum défini pour ce tournoi.';
-  return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>📊 '+regs.length+' inscrit'+(regs.length>1?'s':'')+'</b><div class="muted" style="margin-top:4px">'+capacityText+'</div></div>'+
+  return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>📊 '+regs.length+'/'+maxPlayers+' inscrits</b><div class="muted" style="margin-top:4px"><b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant d’atteindre le nombre maximum défini pour ce tournoi.</div></div>'+
          '<div class="player" style="margin-top:10px;background:#f8fbf9"><b>👤 Joueurs en équipe aléatoire</b>'+freeHtml+'</div>'+
          '<div class="player" style="margin-top:10px;background:#f8fbff"><b>👥 Équipes déjà composées</b>'+teamsHtml+'</div>';
 }
@@ -2669,7 +2600,7 @@ function renderTournaments(){
         '<div class="tournament-info-item"><span class="tournament-info-label">Organisation</span><span class="tournament-info-value">⚙️ '+esc(generatedInfo)+'</span></div>'+
         '<div class="tournament-info-item"><span class="tournament-info-label">Réservation</span><span class="tournament-info-value">'+esc(t.reservation_reference||'Non renseignée')+'</span></div>'+
       '</div>'+
-      (t.registration_deadline?'<div class="tournament-info-item" style="margin-top:8px"><span class="tournament-info-label">Clôture des inscriptions</span><div data-registration-deadline="'+esc(t.registration_deadline)+'" data-registration-closed="'+(tournamentRegistrationClosed(t)?'true':'false')+'"></div><span class="tournament-info-value">'+(tournamentRegistrationClosed(t)?'Le compte à rebours est arrêté.':'Prévue la veille à 17h'+(Number(t.registration_extension_hours||0)===3?' • prolongation +3h':''))+'</span></div>':'')+
+      (t.registration_deadline?'<div class="tournament-info-item" style="margin-top:8px"><span class="tournament-info-label">Clôture des inscriptions</span><div data-registration-deadline="'+esc(t.registration_deadline)+'"></div><span class="tournament-info-value">Prévue la veille à 17h'+(Number(t.registration_extension_hours||0)===3?' • prolongation +3h':'')+'</span></div>':'')+
       '</div>';
     const open=document.createElement('button');open.textContent=t.id===S.activeTour?'Actif':'Ouvrir';if(t.id===S.activeTour)open.className='green';
     open.onclick=async()=>{S.activeTour=t.id;await loadTournament();renderAll();toast('Tournoi sélectionné')};
@@ -3205,33 +3136,25 @@ function presentIds(){return new Set(S.tPlayers.filter(x=>x.present&&x.registrat
 function teamReviewStatusLabel(status){
   return ({not_started:'Pas démarrée',pending:'Avis en cours',redraw_requested:'Nouveau tirage demandé',approved:'Composition validée',cancelled:'Création annulée'})[status]||status||'—';
 }
-function coorgTeamPhrase(score,count){
-  const n=Number(score||0),votes=Number(count||0);
-  if(!votes)return 'Les co-gestionnaires n’ont pas encore assez noté les joueurs de cette équipe.';
-  if(n>=4.25)return 'Les co-gestionnaires voient une équipe redoutable, prête à mettre le feu au terrain 🔥';
-  if(n>=3.5)return 'Selon les co-gestionnaires, cette équipe a de solides arguments pour faire la différence 💪';
-  if(n>=2.75)return 'Les co-gestionnaires voient un collectif bien équilibré, capable de surprendre ⚖️';
-  return 'Les co-gestionnaires pensent que cette équipe peut créer la surprise sur le terrain ⚽';
-}
 function renderTeamReviewPanel(t){
   const box=$('#teamReviewPanel');if(!box)return;
   if(!t||t.format==='league'||!S.workspaceFeatures.team_review_enabled){box.classList.add('hidden');box.innerHTML='';return;}
-  const r=S.teamReviewState||{status:t.team_review_status||'not_started',requested:!!t.team_review_requested,duration_minutes:Number(t.team_review_duration_minutes||30),max_redraws:Number(t.max_team_redraws||1),redraws_used:Number(t.team_redraws_used||0),eligible_count:0,validate_votes:0,redraw_votes:0};
+  const r=S.teamReviewState||{status:t.team_review_status||'not_started',max_redraws:Number(t.max_team_redraws||1),redraws_used:Number(t.team_redraws_used||0),eligible_count:0,validate_votes:0,redraw_votes:0};
   const deadline=r.deadline?new Date(r.deadline):null;
   const deadlineText=deadline&&!Number.isNaN(deadline.getTime())?deadline.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
   const remaining=Math.max(0,Number(r.redraws_remaining ?? (Number(r.max_redraws||0)-Number(r.redraws_used||0))));
   const statusClass=String(r.status||'not_started').replace(/_/g,'-');
-  let html='<div class="team-review-head"><div><b>🗳️ Validation collaborative du tirage</b><div class="muted">L’administrateur choisit s’il sollicite les co-gestionnaires présents. Le délai est de 30 minutes par défaut et reste personnalisable.</div></div><span class="team-review-status '+statusClass+'">'+esc(teamReviewStatusLabel(r.status))+'</span></div>'+
+  let html='<div class="team-review-head"><div><b>🗳️ Validation collaborative du tirage</b><div class="muted">Les co-gestionnaires inscrits à ce Swé disposent de 2 heures pour donner leur avis. Les équipes restent masquées sur le lien public jusqu’à validation.</div></div><span class="team-review-status '+statusClass+'">'+esc(teamReviewStatusLabel(r.status))+'</span></div>'+
     '<div class="team-review-stats"><span>👥 '+Number(r.eligible_count||0)+' co-gestionnaire(s) concerné(s)</span><span>✅ '+Number(r.validate_votes||0)+' valider</span><span>🔄 '+Number(r.redraw_votes||0)+' refaire</span><span>♻️ '+Number(r.redraws_used||0)+' / '+Number(r.max_redraws||0)+' nouveau(x) tirage(s)</span></div>';
   if(r.status==='pending')html+='<div class="team-review-deadline">⏳ Avis possibles jusqu’au <b>'+esc(deadlineText)+'</b>.</div>';
   if(isAdmin()){
-    html+='<div class="team-review-admin"><label class="player row" style="justify-content:flex-start;margin:0"><input id="teamReviewRequested" type="checkbox" style="width:auto" '+(r.requested?'checked':'')+'><span><b>Solliciter les co-gestionnaires présents</b><small>Si cette option reste décochée, l’administrateur valide seul les équipes.</small></span></label><label><span>Temps accordé pour voter (minutes)</span><input id="teamReviewDuration" type="number" min="5" max="1440" value="'+Number(r.duration_minutes ?? t.team_review_duration_minutes ?? 30)+'"></label><label><span>Nombre maximum de nouveaux tirages</span><input id="teamReviewMaxRedraws" type="number" min="0" max="10" value="'+Number(r.max_redraws ?? t.max_team_redraws ?? 1)+'"></label><button id="saveTeamReviewLimit">💾 Enregistrer</button>'+
+    html+='<div class="team-review-admin"><label><span>Nombre maximum de nouveaux tirages</span><input id="teamReviewMaxRedraws" type="number" min="0" max="10" value="'+Number(r.max_redraws ?? t.max_team_redraws ?? 1)+'"></label><button id="saveTeamReviewLimit">💾 Enregistrer la limite</button>'+
       (r.status==='pending'?'<button id="approveTeamsNow" class="primary">✅ Valider maintenant</button>':'')+
       (r.status==='redraw_requested'&&remaining>0?'<button id="applyTeamRedraw" class="primary">🔄 Refaire le tirage ('+remaining+' restant'+(remaining>1?'s':'')+')</button>':'')+
       ((S.teams||[]).length?'<button id="cancelTeamGeneration" class="danger">↩ Annuler la création des équipes</button>':'')+'</div>';
   }else if(isCoorg()){
     if(r.status==='pending'&&r.my_eligible){
-      html+='<div class="team-review-vote"><b>Ton avis</b><div class="row"><button id="voteValidateTeams" class="'+(r.my_vote==='validate'?'primary':'')+'">✅ Valider</button><button id="voteRedrawTeams" class="'+(r.my_vote==='redraw'?'danger':'')+'">🔄 Refaire le tirage</button></div>'+(r.my_vote?'<div class="muted">Ton choix actuel : <b>'+(r.my_vote==='validate'?'Valider':'Refaire le tirage')+'</b>. Tu peux le modifier jusqu’à la fin du délai fixé par l’administrateur.</div>':'')+'</div>';
+      html+='<div class="team-review-vote"><b>Ton avis</b><div class="row"><button id="voteValidateTeams" class="'+(r.my_vote==='validate'?'primary':'')+'">✅ Valider</button><button id="voteRedrawTeams" class="'+(r.my_vote==='redraw'?'danger':'')+'">🔄 Refaire le tirage</button></div>'+(r.my_vote?'<div class="muted">Ton choix actuel : <b>'+(r.my_vote==='validate'?'Valider':'Refaire le tirage')+'</b>. Tu peux le modifier tant que les 2 heures ne sont pas écoulées.</div>':'')+'</div>';
     }else if(r.status==='pending'&&!r.my_eligible){
       html+='<div class="readonly-note">Le vote est réservé aux co-gestionnaires qui sont eux-mêmes inscrits à ce Swé.</div>';
     }
@@ -3239,7 +3162,7 @@ function renderTeamReviewPanel(t){
   if(r.status==='redraw_requested')html+='<div class="readonly-note"><b>🔄 La majorité demande un nouveau tirage.</b> L’administrateur peut appliquer le prochain tirage dans la limite autorisée.</div>';
   if(r.status==='approved')html+='<div class="readonly-note success-note"><b>✅ Composition validée.</b> Les équipes peuvent maintenant apparaître sur le lien d’invitation.</div>';
   box.innerHTML=html;box.classList.remove('hidden');
-  const save=$('#saveTeamReviewLimit');if(save)save.onclick=async()=>{const max=Math.max(0,Math.min(10,Number($('#teamReviewMaxRedraws').value)||0)),duration=Math.max(5,Math.min(1440,Number($('#teamReviewDuration').value)||30)),requested=!!$('#teamReviewRequested').checked;save.disabled=true;const {error}=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:t.id,p_max_redraws:max,p_requested:requested,p_duration_minutes:duration});if(!error&&requested&&(S.teams||[]).length&&!['pending','redraw_requested'].includes(String(r.status||''))){const started=await sb.rpc('start_tournament_team_review',{p_tournament_id:t.id,p_is_redraw:false});if(started.error){save.disabled=false;return toast(started.error.message);}}save.disabled=false;if(error)return toast(error.message);await loadAll();S.activeTour=t.id;S.teamCompetitionId=t.id;await loadTournament();renderAll();toast(requested?'Co-gestionnaires sollicités pendant '+teamReviewDurationLabel(duration)+' ✅':'Validation par l’administrateur uniquement ✅');};
+  const save=$('#saveTeamReviewLimit');if(save)save.onclick=async()=>{const max=Math.max(0,Math.min(10,Number($('#teamReviewMaxRedraws').value)||0));save.disabled=true;const {error}=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:t.id,p_max_redraws:max});save.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Limite de nouveaux tirages enregistrée ✅');};
   const approve=$('#approveTeamsNow');if(approve)approve.onclick=async()=>{if(!confirm('Valider cette composition maintenant ? Elle deviendra visible sur le lien public.'))return;approve.disabled=true;const {error}=await sb.rpc('admin_approve_tournament_team_review',{p_tournament_id:t.id});approve.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Composition validée ✅');};
   const redraw=$('#applyTeamRedraw');if(redraw)redraw.onclick=()=>runSmartTeamGeneration(true);
   const cancel=$('#cancelTeamGeneration');if(cancel)cancel.onclick=async()=>{if(!confirm('Annuler la création des équipes ?\n\nLes équipes générées, les matchs associés et la phase de validation seront supprimés. Les équipes préformées restent conservées.'))return;cancel.disabled=true;const {error}=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});cancel.disabled=false;if(error)return toast(error.message);await loadAll();S.activeTour=t.id;await loadTournament();renderAll();toast('Création des équipes annulée.');};
@@ -3247,6 +3170,26 @@ function renderTeamReviewPanel(t){
   const vb=$('#voteValidateTeams');if(vb)vb.onclick=()=>vote('validate');
   const rb=$('#voteRedrawTeams');if(rb)rb.onclick=()=>vote('redraw');
 }
+
+const SWE_TEAM_COLOR_META={
+  '#111827':'Noir','#2563eb':'Bleu','#f8fafc':'Blanc','#dc2626':'Rouge','#16a34a':'Vert',
+  '#eab308':'Jaune','#f97316':'Orange','#7c3aed':'Violet','#ec4899':'Rose','#78350f':'Marron','#64748b':'Gris'
+};
+function sweTeamColor(team){
+  const raw=String(team?.color||'').trim().toLowerCase();
+  if(raw)return raw;
+  const name=String(team?.name||'').trim().toLowerCase();
+  const aliases={noir:'#111827',noirs:'#111827',bleu:'#2563eb',bleus:'#2563eb',blanc:'#f8fafc',blancs:'#f8fafc',rouge:'#dc2626',rouges:'#dc2626',vert:'#16a34a',verts:'#16a34a',jaune:'#eab308',jaunes:'#eab308',orange:'#f97316',oranges:'#f97316',violet:'#7c3aed',violets:'#7c3aed',rose:'#ec4899',roses:'#ec4899',marron:'#78350f',marrons:'#78350f',gris:'#64748b'};
+  return aliases[name]||'#64748b';
+}
+function sweTeamColorLabel(team){return SWE_TEAM_COLOR_META[sweTeamColor(team)]||'Couleur personnalisée';}
+function sweTeamTextColor(hex){return ['#f8fafc','#eab308'].includes(String(hex).toLowerCase())?'#111827':'#ffffff';}
+function tournamentCommonSubstitutes(){
+  const assigned=new Set(S.teamPlayers.map(x=>String(x.player_id)));
+  return S.tPlayers.filter(r=>r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!assigned.has(String(r.player_id)))
+    .map(r=>p(r.player_id)).filter(Boolean);
+}
+function chienBoulLabel(score){return '🐶⚽ Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
 
 function renderTeams(){
   const t=S.teamCompetitionId?S.tournaments.find(x=>String(x.id)===String(S.teamCompetitionId))||null:null,att=$('#attendanceList'),box=$('#teamList');
@@ -3382,20 +3325,18 @@ function renderTeams(){
   const prs=presentIds();
 
   S.teams.forEach(team=>{
-    const d=document.createElement('div');d.className='team football-team-card';d.style.setProperty('--team-color',team.color||'#16a34a');
-    const head=document.createElement('div');head.className='row football-team-head';head.style.justifyContent='space-between';
-    const titleWrap=document.createElement('div');titleWrap.className='football-team-title';
-    const crest=document.createElement('span');crest.className='football-team-crest';crest.textContent='👕';titleWrap.appendChild(crest);
-    const title=document.createElement('b');title.textContent=team.name;titleWrap.appendChild(title);
+    const d=document.createElement('div');d.className='team swe-team-card';
+    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg),colorLabel=sweTeamColorLabel(team);
+    d.style.setProperty('--team-color',bg);
+    const head=document.createElement('div');head.className='row swe-team-card-head';head.style.justifyContent='space-between';head.style.background=bg;head.style.color=fg;
+    const titleWrap=document.createElement('div');
+    const title=document.createElement('b');title.innerHTML='👕 '+esc(team.name)+' <span class="team-color-name">• '+esc(colorLabel)+'</span>';titleWrap.appendChild(title);
     const score=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
     if(score){
       const meta=document.createElement('div');meta.className='team-balance-badges';
-      meta.innerHTML='<span>⚖️ '+Number(score.team_score||0).toFixed(1)+'/5</span><span class="team-mention">'+esc(score.mention||'Équilibrée')+'</span>'+(Number(score.free_slots||0)>0?'<span class="team-free">'+Number(score.free_slots)+' place'+(Number(score.free_slots)>1?'s':'')+' libre'+(Number(score.free_slots)>1?'s':'')+'</span>':'<span class="team-locked">Équipe complète</span>');
+      meta.innerHTML='<span class="chien-boul-badge">'+esc(chienBoulLabel(score.team_score))+'</span><span class="team-mention">'+esc(score.mention||'Équilibrée')+'</span>'+(Number(score.free_slots||0)>0?'<span class="team-free">'+Number(score.free_slots)+' place'+(Number(score.free_slots)>1?'s':'')+' libre'+(Number(score.free_slots)>1?'s':'')+'</span>':'<span class="team-locked">Équipe complète</span>');
       titleWrap.appendChild(meta);
     }
-    const coorgScore=S.teamCoorgScores.find(x=>String(x.team_id)===String(team.id));
-    const coorg=document.createElement('div');coorg.className='team-coorg-verdict';
-    coorg.innerHTML=Number(coorgScore?.rating_count||0)>0?'<b>⭐ '+Number(coorgScore.team_score||0).toFixed(1)+'/5 selon les co-gestionnaires.</b> '+esc(coorgTeamPhrase(coorgScore.team_score,coorgScore.rating_count)):'<b>⭐ Avis des co-gestionnaires :</b> '+esc(coorgTeamPhrase(0,0));
     head.appendChild(titleWrap);
 
     if(canFullEdit){
@@ -3414,29 +3355,27 @@ function renderTeams(){
       head.appendChild(del);
     }
     d.appendChild(head);
-    d.appendChild(coorg);
 
     if(canFullEdit){
       const sel=document.createElement('select');
-      sel.innerHTML='<option value="">Ajouter ou déplacer un joueur inscrit...</option>'+S.players.filter(x=>prs.has(x.id)&&!S.teamPlayers.some(tp=>tp.team_id===team.id&&tp.player_id===x.id)).map(x=>{
+      sel.innerHTML='<option value="">Ajouter un joueur inscrit...</option>'+S.players.filter(x=>prs.has(x.id)&&!S.teamPlayers.some(tp=>tp.player_id===x.id)).map(x=>{
         const first=(x.temporary_league_member&&x.league_origin_id===t.league_id)||x.is_group_member===false;
-        const currentAssignment=S.teamPlayers.find(tp=>tp.player_id===x.id),currentTeam=currentAssignment?S.teams.find(tm=>tm.id===currentAssignment.team_id):null;
-        return '<option value="'+x.id+'">'+esc(playerDisplayName(x))+(currentTeam?' • déplacer depuis '+esc(currentTeam.name):'')+(first?' • 1ère fois':'')+'</option>';
+        return '<option value="'+x.id+'">'+esc(playerDisplayName(x))+(first?' • 1ère fois':'')+'</option>';
       }).join('');
       sel.onchange=async()=>{
         if(!sel.value)return;
-        const {error}=await sb.rpc('manager_assign_tournament_player_to_team',{p_team_id:team.id,p_player_id:sel.value});
+        const {error}=await sb.from('team_players').insert({team_id:team.id,player_id:sel.value});
         if(error)return toast(error.message);
         await loadTournament();renderTeams();
       };
       d.appendChild(sel);
     }
 
-    teamPlayerIds(team.id).forEach((id,index)=>{
+    teamPlayerIds(team.id).forEach(id=>{
       const pl=p(id);if(!pl)return;
       const r=document.createElement('div');
-      r.className='row small football-player-row '+(pl.is_group_member===false?'guest-row':'');
-      r.innerHTML='<span class="football-shirt-number">'+(index+1)+'</span><span style="flex:1">'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span>';
+      r.className='row small '+(pl.is_group_member===false?'guest-row':'');
+      r.innerHTML='<span style="flex:1">'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span>';
       if(canFullEdit){
         const b=document.createElement('button');b.textContent='×';
         b.onclick=async()=>{const {error}=await sb.from('team_players').delete().eq('team_id',team.id).eq('player_id',id);if(error)return toast(error.message);await loadTournament();renderTeams();};
@@ -3446,13 +3385,42 @@ function renderTeams(){
     });
     box.appendChild(d);
   });
+
+  const commonSubs=tournamentCommonSubstitutes();
+  if(commonSubs.length){
+    const sub=document.createElement('div');sub.className='team swe-substitutes-card';
+    sub.innerHTML='<div class="swe-substitutes-head"><b>🟠 Remplaçants communs</b><span>Peuvent entrer dans n’importe quelle équipe</span></div><div class="swe-substitutes-list">'+commonSubs.map(pl=>'<span>↪ '+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <em>Guest</em>':'')+'</span>').join('')+'</div>';
+    box.appendChild(sub);
+  }
 }
+
+function exportTeamsToPdf(){
+  const t=currentTour();
+  if(!t)return toast('Choisis d’abord une compétition.');
+  if(!S.teams.length)return toast('Aucune équipe à exporter.');
+  const subs=tournamentCommonSubstitutes();
+  const cards=S.teams.map(team=>{
+    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg),label=sweTeamColorLabel(team);
+    const score=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
+    const names=teamPlayerIds(team.id).map(id=>p(id)).filter(Boolean).map(pl=>'<li>'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <small>Guest</small>':'')+'</li>').join('');
+    return '<section class="team"><header style="background:'+bg+';color:'+fg+'"><strong>👕 '+esc(team.name)+'</strong><span>'+esc(label)+'</span></header>'+(score?'<div class="academy">'+esc(chienBoulLabel(score.team_score))+(score.mention?' • '+esc(score.mention):'')+'</div>':'')+'<ol>'+(names||'<li>Aucun joueur</li>')+'</ol></section>';
+  }).join('');
+  const subHtml=subs.length?'<section class="subs"><h2>🟠 Remplaçants communs</h2><p>Peuvent jouer pour n’importe quelle équipe.</p><div>'+subs.map(pl=>'<span>'+esc(playerDisplayName(pl))+'</span>').join('')+'</div></section>':'';
+  const w=window.open('','_blank','noopener,noreferrer');
+  if(!w)return toast('Autorise les fenêtres pop-up pour générer le PDF.');
+  const title='Équipes - '+esc(t.name||t.tournament_date||'SWÉ');
+  w.document.open();
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>'+title+'</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251f;margin:0}h1{margin:0;font-size:25px}.meta{color:#66756e;margin:5px 0 18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.team{border:1px solid #d9e2dd;border-radius:12px;overflow:hidden;break-inside:avoid}.team header{padding:12px 14px;display:flex;justify-content:space-between;gap:12px;font-size:17px}.team header span{font-weight:700}.academy{padding:8px 14px;background:#fff8df;font-weight:700;font-size:13px}.team ol{margin:10px 0 12px;padding:0 14px 0 36px}.team li{padding:4px 0}.team small{color:#777}.subs{margin-top:14px;padding:12px 14px;border:2px dashed #f59e0b;border-radius:12px;background:#fff8eb;break-inside:avoid}.subs h2{font-size:17px;margin:0 0 3px}.subs p{margin:0 0 8px;color:#8a5a00}.subs div{display:flex;flex-wrap:wrap;gap:7px}.subs span{background:#fff;border:1px solid #f6c65b;border-radius:999px;padding:6px 10px;font-weight:700}.foot{margin-top:18px;border-top:1px solid #ddd;padding-top:8px;color:#777;font-size:11px}@media print{button{display:none}}@media(max-width:650px){.grid{grid-template-columns:1fr}}</style></head><body><h1>⚽ SWÉ TOURNAMENT - Équipes</h1><div class="meta">'+esc(t.name||'')+' • '+esc(t.tournament_date||'')+'</div><div class="grid">'+cards+'</div>'+subHtml+'<div class="foot">🐶⚽ Équilibre selon Chien Boul Academy • Généré par SWÉ Tournament</div><script>setTimeout(()=>window.print(),250)<\/script></body></html>');
+  w.document.close();
+}
+const exportTeamsPdfBtn=$('#exportTeamsPdf');if(exportTeamsPdfBtn)exportTeamsPdfBtn.onclick=exportTeamsToPdf;
+
 $('#addTeam').onclick=async()=>{
   if(!(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams)))return toast('Tu n’as pas l’autorisation de créer une équipe.');
   const t=currentTour(),name=$('#teamName').value.trim(),color=$('#teamColor').value;
   if(!t)return toast('Choisis d’abord le tournoi ou le Swé de Ligue concerné.');
   if(!name)return toast('Indique le nom de l’équipe.');
-  const {error}=await sb.rpc('manager_create_tournament_team',{p_tournament_id:t.id,p_team_name:name,p_team_color:color});
+  const {error}=await sb.from('teams').insert({tournament_id:t.id,name,color});
   if(error)return toast(error.message);
   $('#teamName').value='';
   await loadTournament();renderTeams();toast('Équipe créée pour « '+(t.name||t.tournament_date)+' » ✅');
@@ -3467,8 +3435,7 @@ async function runSmartTeamGeneration(isRedraw=false){
   if(t.format!=='league'&&confirmed<10)return toast('Il faut au moins 10 joueurs confirmés pour créer 2 équipes.');
   if(t.format==='league'&&confirmed<4)return toast('Il faut au moins 4 joueurs confirmés.');
   const perTeam=Math.max(2,Math.min(11,Number($('#playersPerTeam').value)||5));
-  const reviewDuration=teamReviewDurationLabel(S.teamReviewState?.duration_minutes||t.team_review_duration_minutes||30);
-  const message=isRedraw?'Appliquer un nouveau tirage ?\n\nCe tirage consommera 1 des nouveaux tirages autorisés et relancera la sollicitation pendant '+reviewDuration+'.':'Générer les équipes ?\n\n• Les équipes préformées complètes restent intactes.\n• Les joueurs ayant déjà accepté leur équipe restent verrouillés.\n• Les invitations non confirmées et les inscrits en équipe aléatoire sont redistribués.\n• Les places libres sont complétées en recherchant le meilleur équilibre.\n• Les anciens matchs/buts liés à une ancienne répartition seront supprimés.\n\n'+(S.teamReviewState?.requested?'Les co-gestionnaires présents seront sollicités pendant '+reviewDuration+'.':'Les co-gestionnaires ne seront pas sollicités : l’administrateur validera seul.') ;
+  const message=isRedraw?'Appliquer un nouveau tirage ?\n\nCe tirage consommera 1 des nouveaux tirages autorisés pour ce tournoi et relancera une fenêtre d’avis de 2 heures.':'Générer les équipes ?\n\n• Les équipes préformées complètes restent intactes.\n• Les joueurs ayant déjà accepté leur équipe restent verrouillés.\n• Les invitations non confirmées et les inscrits en équipe aléatoire sont redistribués.\n• Les places libres sont complétées en recherchant le meilleur équilibre.\n• Les anciens matchs/buts liés à une ancienne répartition seront supprimés.';
   if((isRedraw||S.matches.length||S.teams.length)&&!confirm(message))return;
   const btn=isRedraw?$('#applyTeamRedraw'):$('#smartAutoTeams');if(btn){btn.disabled=true;btn.textContent=isRedraw?'Nouveau tirage…':'Génération…';}
   try{
@@ -3485,7 +3452,7 @@ async function runSmartTeamGeneration(isRedraw=false){
       const subs=Number(data?.substitute_count||0),pitches=Number(data?.pitch_count||1),scores=(data?.team_scores||[]).map(x=>x.team_name+' '+Number(x.score||0).toFixed(1)+'/5 • '+x.mention).join(' · ');
       $('#teamBalanceInfo').innerHTML='<b>'+n+' équipes • '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' • '+subs+' remplaçant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>🔒 Les équipes complètes et les joueurs ayant accepté leur place ont été conservés. Les autres joueurs ont été répartis dans les places libres pour équilibrer les niveaux.'+(scores?'<br><b>⚖️ Note moyenne équipes :</b> '+esc(scores):'')+'<br>Règle automatique : '+(data?.odd_team_rule?'2 buts d’écart = l’équipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(S.workspaceFeatures.team_review_enabled?'<br><b>🗳️ Validation :</b> les équipes restent masquées du lien public pendant la fenêtre d’avis des co-gestionnaires présents.':'');
     }
-    toast(isRedraw?'Nouveau tirage créé. Nouvelle fenêtre d’avis ouverte pendant '+reviewDuration+' ✅':n+' équipes générées ✅');
+    toast(isRedraw?'Nouveau tirage créé. Nouvelle fenêtre d’avis de 2 heures ouverte ✅':n+' équipes générées ✅');
   }catch(e){toast(e.message||'Impossible de générer les équipes')}
   finally{if(btn){btn.disabled=false;btn.textContent=isRedraw?'🔄 Refaire le tirage':'⚡ Générer équipes équilibrées';}}
 }
@@ -3833,7 +3800,7 @@ async function renderLeague(){
     d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(t.name||('Swé Ligue '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' • '+(t.status==='finished'?'Terminé':'À jouer')+'</div>'+
       '<div class="muted" style="margin-top:3px">📍 '+esc(pitchLabels.length?(complexLabel(t.complex_id)+' • '+pitchLabels.join(', ')):(t.venue||'Terrain non renseigné'))+(t.start_time?' • 🕘 '+esc(String(t.start_time).slice(0,5)):'')+' • 💶 '+(Number(t.entry_fee_cents||0)/100).toLocaleString('fr-FR')+' €</div>'+
       (t.reservation_reference?'<div class="muted">Réservation : '+esc(t.reservation_reference)+'</div>':'')+
-      (t.registration_deadline?'<div data-registration-deadline="'+esc(t.registration_deadline)+'" data-registration-closed="'+(tournamentRegistrationClosed(t)?'true':'false')+'" style="margin-top:6px"></div><div class="muted">'+(tournamentRegistrationClosed(t)?'Le compte à rebours est arrêté.':'Fin des inscriptions : '+new Date(t.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'}))+'</div>':'')+
+      (t.registration_deadline?'<div data-registration-deadline="'+esc(t.registration_deadline)+'" style="margin-top:6px"></div><div class="muted">Fin des inscriptions : '+new Date(t.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div>':'')+
       '</span></div>';
     const row=document.createElement('div');row.className='row';row.style.marginTop='8px';row.style.flexWrap='wrap';
     const open=document.createElement('button');open.textContent=t.id===S.activeTour?'Swé sélectionné':'Ouvrir';open.onclick=async()=>{S.activeTour=t.id;await loadTournament();renderAll();toast('Swé de Ligue sélectionné')};row.appendChild(open);
@@ -4373,26 +4340,36 @@ function visualFooter(ctx,t){
 
 function makeVisualTeams(ctx,t){
   visualTheme(ctx,'ÉQUIPES',t);
+  let y=320;
   const cards=S.teams.slice(0,8);
   cards.forEach((team,idx)=>{
-    const col=idx%2,row=Math.floor(idx/2),x=70+col*480,y=305+row*220;
     const ids=teamPlayerIds(team.id);
     const names=ids.map(id=>playerDisplayName(p(id))).filter(Boolean);
-    vRoundRect(ctx,x,y,455,200,22,'#ffffff');
-    ctx.fillStyle=team.color||'#16a34a';ctx.beginPath();ctx.arc(x+43,y+42,26,0,Math.PI*2);ctx.fill();
-    vText(ctx,String(idx+1),x+43,y+50,34,'900 21px Arial','#ffffff','center');
-    vText(ctx,team.name,x+82,y+48,230,'800 23px Arial','#0c3b25');
-    const coorg=S.teamCoorgScores.find(x=>String(x.team_id)===String(team.id));
-    const ratingCount=Number(coorg?.rating_count||0);
-    vText(ctx,ratingCount?Number(coorg.team_score||0).toFixed(1)+'/5':'—',x+425,y+46,90,'800 19px Arial',ratingCount?'#0c6b3d':'#718079','right');
-    vDrawWrapped(ctx,coorgTeamPhrase(coorg?.team_score,ratingCount),x+24,y+74,407,18,'600 13px Arial','#587064',2);
-    const ty=y+127;
+    const cardH=Math.max(118,78+Math.ceil(names.length/2)*38);
+    vRoundRect(ctx,70,y,940,cardH,24,'#ffffff');
+    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg);
+    vRoundRect(ctx,90,y+22,185,52,15,bg);
+    vText(ctx,'👕 '+team.name,182,y+57,165,'800 23px Arial',fg,'center');
+    vText(ctx,sweTeamColorLabel(team),295,y+57,120,'700 18px Arial','#66756e');
+    const balance=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
+    if(balance){
+      vText(ctx,'🐶 Chien Boul Academy '+Number(balance.team_score||0).toFixed(1)+'/5',930,y+58,310,'700 19px Arial','#0c6b3d','right');
+    }
+    let tx=285,ty=y+50;
     names.forEach((name,i)=>{
-      const playerCol=i%2,playerRow=Math.floor(i/2);
-      vText(ctx,'⚽ '+name,x+24+playerCol*205,ty+playerRow*29,195,'600 17px Arial','#183428');
+      const col=i%2,row=Math.floor(i/2);
+      vText(ctx,'• '+name,tx+col*345,ty+row*38,320,'600 24px Arial','#183428');
     });
+    y+=cardH+20;
   });
   if(!cards.length)vText(ctx,'Aucune équipe créée',70,390,940,'600 34px Arial','#ffffff');
+  const subs=tournamentCommonSubstitutes();
+  if(subs.length && y<1195){
+    const h=Math.max(74,54+Math.ceil(subs.length/3)*30);
+    vRoundRect(ctx,70,y,940,h,20,'#fff4d6');
+    vText(ctx,'🟠 REMPLAÇANTS COMMUNS',95,y+38,300,'800 21px Arial','#9a5a00');
+    subs.forEach((pl,i)=>{const col=i%3,row=Math.floor(i/3);vText(ctx,playerDisplayName(pl),405+col*195,y+36+row*30,180,'600 18px Arial','#5b4a2e');});
+  }
   visualFooter(ctx,t);
 }
 
@@ -4480,34 +4457,6 @@ $('#visualScorers').onclick=()=>generateVisual('scorers');
 $('#downloadVisual').onclick=saveCurrentVisual;
 $('#shareVisual').onclick=shareCurrentVisual;
 $('#closeVisual').onclick=()=>$('#visualPreviewBox').classList.add('hidden');
-
-function bytesConcat(parts){
-  const size=parts.reduce((n,p)=>n+p.length,0),out=new Uint8Array(size);let offset=0;
-  parts.forEach(p=>{out.set(p,offset);offset+=p.length});return out;
-}
-async function canvasPdfBlob(canvas){
-  const jpegBlob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Image PDF indisponible')),'image/jpeg',.94));
-  const jpeg=new Uint8Array(await jpegBlob.arrayBuffer()),enc=new TextEncoder(),parts=[],offsets=[0];let length=0;
-  const add=part=>{const bytes=typeof part==='string'?enc.encode(part):part;parts.push(bytes);length+=bytes.length};
-  const object=(number,body)=>{offsets[number]=length;add(number+' 0 obj\n');add(body);add('\nendobj\n')};
-  add('%PDF-1.4\n%SWET\n');
-  object(1,'<< /Type /Catalog /Pages 2 0 R >>');
-  object(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-  object(3,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>');
-  offsets[4]=length;add('4 0 obj\n<< /Type /XObject /Subtype /Image /Width '+canvas.width+' /Height '+canvas.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jpeg.length+' >>\nstream\n');add(jpeg);add('\nendstream\nendobj\n');
-  const draw='q\n535.28 0 0 669.10 30 86.40 cm\n/Im0 Do\nQ\n';
-  object(5,'<< /Length '+enc.encode(draw).length+' >>\nstream\n'+draw+'endstream');
-  const xref=length;add('xref\n0 6\n0000000000 65535 f \n');for(let i=1;i<=5;i++)add(String(offsets[i]).padStart(10,'0')+' 00000 n \n');
-  add('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n');
-  return new Blob([bytesConcat(parts)],{type:'application/pdf'});
-}
-async function exportTeamsPdf(){
-  const t=latestTournamentForVisual();if(!t)return toast('Aucun tournoi disponible.');
-  if(!S.teams.length)return toast('Aucune équipe à exporter.');
-  const canvas=$('#visualCanvas'),ctx=canvas.getContext('2d');canvas.width=VISUAL_W;canvas.height=VISUAL_H;makeVisualTeams(ctx,t);
-  try{const blob=await canvasPdfBlob(canvas),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='equipes-swe-'+(t.tournament_date||'tournoi').replaceAll('-','')+'.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('PDF des équipes généré ✅');}catch(e){toast(e.message||'Impossible de générer le PDF.');}
-}
-$('#exportTeamsPdf').onclick=exportTeamsPdf;
 
 function publicHistoryReturnUrl(token){
   const q=swePublicParams();
@@ -5018,7 +4967,7 @@ async function bootPublic(token){
     const item=(icon,label,value,extra='')=>'<div class="player" style="margin:0;background:#fbfaf6;border:1px solid #eadfca;min-height:74px"><div class="muted" style="font-size:.78rem">'+icon+' '+label+'</div><div style="font-size:1.08rem;font-weight:900;margin-top:3px">'+value+'</div>'+(extra?'<div class="muted" style="font-size:.75rem;margin-top:2px">'+extra+'</div>':'')+'</div>';
     box.innerHTML=
       item('👥','Inscrits',activeRegs.length+' / '+maxPlayers,(substitutes?substitutes+' remplaçant'+(substitutes>1?'s':''):'')+(waiting?(substitutes?' • ':'')+waiting+' en attente':''))+
-      (tournamentRegistrationClosed(regTour)?item('🔒','Inscriptions','Terminées',activeRegs.length+' inscrit'+(activeRegs.length>1?'s':'')+' enregistrés'):item('🎟️','Places restantes',Math.max(0,maxPlayers-activeRegs.length),activeRegs.length>=maxPlayers?'Complet — liste d’attente':''))+
+      item('🎟️','Places restantes',Math.max(0,maxPlayers-activeRegs.length),activeRegs.length>=maxPlayers?'Complet — liste d’attente':'')+
       (()=>{
         const gl=tournamentGroupLevels.find(x=>String(x.tournament_id)===String(regTour.id));
         const score=gl&&Number.isFinite(Number(gl.avg_rating))?Number(gl.avg_rating):null;
@@ -5102,17 +5051,14 @@ async function bootPublic(token){
                 return '<div style="margin-top:4px">⏳ '+esc(pl?.name||'Joueur')+' <span class="muted">• en attente d’accord</span></div>';
               }).join('')
             : '<div class="muted" style="margin-top:5px">Aucun joueur</div>';
-          const coorgCount=Number(team.coorg_rating_count||0),coorgScore=Number(team.coorg_team_score||0);
-          const coorgText=coorgCount?'<div class="public-team-average"><b>⭐ '+coorgScore.toFixed(1)+'/5 selon les co-gestionnaires.</b> '+esc(coorgTeamPhrase(coorgScore,coorgCount))+'</div>':'<div class="public-team-average"><b>⭐ Avis des co-gestionnaires :</b> '+esc(coorgTeamPhrase(0,0))+'</div>';
-          return '<div class="player football-public-registration-team" style="margin-top:8px;--team-color:'+esc(color.hex)+'"><div class="row">'+
+          return '<div class="player" style="margin-top:8px"><div class="row">'+
             '<span style="width:18px;height:18px;border-radius:50%;background:'+esc(color.hex)+';border:1px solid #cbd5e1;flex:0 0 auto"></span>'+
             '<b style="flex:1">'+esc(team.name||'Équipe')+'</b><span class="muted">'+rows.length+'/5 confirmé'+(rows.length>1?'s':'')+(pendingRows.length?' • '+pendingRows.length+' en attente':'')+'</span></div>'+
-            '<div class="muted" style="margin-top:4px">Couleur : <b>'+esc(color.label)+'</b></div>'+coorgText+'<div class="football-registration-roster">'+membersHtml+'</div></div>';
+            '<div class="muted" style="margin-top:4px">Couleur : <b>'+esc(color.label)+'</b></div>'+membersHtml+'</div>';
         }).join('')
       : '<p class="muted">Aucune équipe composée.</p>';
 
-    const capacityText=tournamentRegistrationClosed(regTour)?'<b>🔒 Inscriptions terminées.</b> '+regs.length+' joueur'+(regs.length>1?'s sont':' est')+' enregistré'+(regs.length>1?'s':'')+'.':'<b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant d’atteindre la limite d’inscrits.';
-    return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>📊 '+regs.length+' inscrit'+(regs.length>1?'s':'')+'</b><div class="muted" style="margin-top:4px">'+capacityText+'</div></div>'+
+    return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>📊 '+regs.length+'/'+maxPlayers+' inscrits</b><div class="muted" style="margin-top:4px"><b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant d’atteindre la limite d’inscrits.</div></div>'+
            '<div class="player" style="margin-top:10px;background:#f8fbf9"><b>👤 Joueurs en équipe aléatoire</b>'+freeHtml+'</div>'+
            '<div class="player" style="margin-top:10px;background:#f8fbff"><b>👥 Équipes déjà composées</b>'+teamsHtml+'</div>';
   }
@@ -5150,13 +5096,12 @@ async function bootPublic(token){
     const activePublic=regs.filter(r=>r.present);
     const subsPublic=confirmed.filter(r=>r.is_substitute);
     const remainingPublic=Math.max(0,maxPublic-activePublic.length);
-    const count=$('#publicRegCount');if(count)count.textContent=activePublic.length+'/'+maxPublic+' inscrits'+(tournamentRegistrationClosed(regTour)?' • inscriptions terminées':' • '+remainingPublic+' place'+(remainingPublic>1?'s':'')+' restante'+(remainingPublic>1?'s':''))+(subsPublic.length?' • '+subsPublic.length+' remplaçant'+(subsPublic.length>1?'s':''):'')+(waiting.length?' • '+waiting.length+' en attente':'');
+    const count=$('#publicRegCount');if(count)count.textContent=activePublic.length+'/'+maxPublic+' inscrits • '+remainingPublic+' place'+(remainingPublic>1?'s':'')+' restante'+(remainingPublic>1?'s':'')+(subsPublic.length?' • '+subsPublic.length+' remplaçant'+(subsPublic.length>1?'s':''):'')+(waiting.length?' • '+waiting.length+' en attente':'');
     const list=$('#publicRegisteredList');if(list)list.innerHTML=publicRegistrationSummaryHtml();
     const wlist=$('#publicWaitList');if(wlist){wlist.innerHTML=waitRows;wlist.parentElement.classList.toggle('hidden',!waiting.length)}
   }
 
   if(regTour){
-    const publicRegistrationExpired=tournamentRegistrationClosed(regTour);
     const linkedLeague=regTour.format==='league'?leagues.find(l=>l.id===regTour.league_id):null;
     $('#publicWorkspaceName').textContent=regTour.format==='league'
       ?(regTour.name||('Swé de '+(linkedLeague?.name||'Ligue')))
@@ -5174,7 +5119,7 @@ async function bootPublic(token){
     regBox.innerHTML=
       '<div class="player"><b>'+esc(regTour.name||('Tournoi du '+regTour.tournament_date))+'</b><div id="publicRegCount" class="muted">'+confirmed+'/'+(regTour.max_players||35)+' inscrits'+(substitutes?' • '+substitutes+' remplaçant'+(substitutes>1?'s':''):'')+(waiting?' • '+waiting+' en attente':'')+'</div>'+
       (regTour.format!=='league'?(()=>{const plan=tournamentAutoPlan(confirmed);return '<div style="margin-top:7px;font-weight:800">⚙️ Scénario actuel : '+(plan.teams?plan.teams+' équipe'+(plan.teams>1?'s':'')+' • '+plan.pitches+' terrain'+(plan.pitches>1?'s':'')+(plan.subs?' • '+plan.subs+' remplaçant'+(plan.subs>1?'s':'')+' commun'+(plan.subs>1?'s':''):''):'moins de 10 joueurs — équipes non générables')+'</div>'})():'')+
-      (regTour.registration_deadline&&!publicRegistrationExpired?'<div style="margin-top:8px;padding:9px 11px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0"><b>⏱️ Compte à rebours des inscriptions</b><div data-registration-deadline="'+esc(regTour.registration_deadline)+'" style="margin-top:4px"></div><div class="muted">Fin des inscriptions : '+new Date(regTour.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div></div>':'')+'</div>'+
+      (regTour.registration_deadline?'<div style="margin-top:8px;padding:9px 11px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0"><b>⏱️ Compte à rebours des inscriptions</b><div data-registration-deadline="'+esc(regTour.registration_deadline)+'" style="margin-top:4px"></div><div class="muted">Fin des inscriptions : '+new Date(regTour.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div></div>':'')+'</div>'+
       (regTour.format!=='league'
         ? '<div class="player" style="margin-top:12px;background:#eef8f2;border:1px solid #b7dfc4"><b>📍 Infos pratiques</b><div class="muted" style="margin-top:6px;line-height:1.7">Complexe / terrains : <b>'+esc(publicTerrainLabel)+'</b><br>Heure de réservation : <b>'+esc(publicTime)+'</b><br>Prix : <b>'+esc(publicFee)+' € / participant</b>'+(regTour.reservation_reference?'<br>Réservation : <b>'+esc(regTour.reservation_reference)+'</b>':'')+'</div><div class="muted" style="margin-top:8px;line-height:1.7"><b>Programme :</b><br>8h45 : arrivée, paiement + échauffement<br>9h00 : début du tournoi — les premières équipes arrivées commencent'+(regTour.third_half_active?'<br>11h00 : 3e mi-temps':'')+'</div></div>'
         : '')+
@@ -5197,6 +5142,8 @@ async function bootPublic(token){
       '<div id="publicWaitWrap" class="'+(waiting?'':'hidden')+'"><h3 style="margin-top:14px">⏳ Liste d’attente</h3><div id="publicWaitList"></div></div>';
     renderPublicRegistrationList();
     updateTournamentCountdowns();
+    const publicDeadline=tournamentDeadlineMs(regTour);
+    const publicRegistrationExpired=regTour.format!=='league'&&publicDeadline!==null&&Date.now()>=publicDeadline;
     if(publicRegistrationExpired){
       const st=$('#publicRegStatus');
       if(st)st.innerHTML='<b>⛔ Inscriptions terminées.</b> La clôture était fixée la veille du tournoi à 17h.';
@@ -6139,13 +6086,14 @@ async function bootPublic(token){
     const championTeamId=trs.length?trs[0].id:null;
     $('#publicTeams').innerHTML=lteams.map(team=>{
       const bg=inferredTeamColor(team),fg=teamTextColor(bg),label=teamColorLabel(team);
-      const colorNamed=Object.values(TEAM_COLOR_META).flat().some(n=>n.toLowerCase()===String(team.name||'').trim().toLowerCase());
-      const playersHtml=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>{const pl=pmap.get(tp.player_id);return pl?'<div class="public-team-player">'+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('');
+            const playersHtml=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>{const pl=pmap.get(tp.player_id);return pl?'<div class="public-team-player">'+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('');
       const crown=team.id===championTeamId?'👑 ':'';
       const champ=team.id===championTeamId?'<div class="public-team-shirt">🏆 Équipe victorieuse</div>':'';
-      const coorgCount=Number(team.coorg_rating_count||0),coorgScore=Number(team.coorg_team_score||0);
-      const avg=coorgCount?'<div class="public-team-average"><b>⭐ '+coorgScore.toFixed(1)+'/5 selon les co-gestionnaires.</b><div>'+esc(coorgTeamPhrase(coorgScore,coorgCount))+'</div></div>':'<div class="public-team-average"><b>⭐ Avis des co-gestionnaires :</b><div>'+esc(coorgTeamPhrase(0,0))+'</div></div>';return '<div class="public-team-card" style="--team-color:'+bg+'"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+(!colorNamed?'<div class="public-team-shirt">👕 Maillots : '+esc(label)+'</div>':'')+'</div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
-    }).join('')||(publicTeamReviewEnabled&&['pending','redraw_requested'].includes(publicTeamReviewStates.find(x=>String(x.tournament_id)===String(latest.id))?.status)?'<div class="public-review-wait"><b>🗳️ Composition en validation</b><div>Les co-gestionnaires présents ont été sollicités par l’administrateur. Les équipes seront publiées dès la fin de la validation.</div></div>':'<p class="muted">Aucune équipe.</p>');
+      const avg=Number(team.team_score||0)>0?'<div class="public-team-average">🐶⚽ <b>Chien Boul Academy : '+Number(team.team_score).toFixed(1)+'/5</b>'+(team.mention?' • '+esc(team.mention):'')+'</div>':'';return '<div class="public-team-card"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+'<div class="public-team-shirt">👕 Maillots : '+esc(label)+'</div></div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
+    }).join('')||(publicTeamReviewEnabled&&['pending','redraw_requested'].includes(publicTeamReviewStates.find(x=>String(x.tournament_id)===String(latest.id))?.status)?'<div class="public-review-wait"><b>🗳️ Composition en validation</b><div>Les co-gestionnaires présents disposent de 2 heures pour donner leur avis. Les équipes seront publiées dès validation.</div></div>':'<p class="muted">Aucune équipe.</p>');
+    const publicAssigned=new Set(teamPlayers.map(x=>String(x.player_id)));
+    const publicSubs=(regs||[]).filter(r=>r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!publicAssigned.has(String(r.player_id))).map(r=>pmap.get(r.player_id)).filter(Boolean);
+    if(publicSubs.length)$('#publicTeams').insertAdjacentHTML('beforeend','<div class="public-common-subs"><b>🟠 Remplaçants communs</b><div class="muted">Ils peuvent jouer pour n’importe quelle équipe.</div><div>'+publicSubs.map(pl=>'<span>'+esc(pl.name)+'</span>').join('')+'</div></div>');
     $('#publicResults').innerHTML=lm.map((m,i)=>{
       const mg=goals.filter(g=>g.match_id===m.id);
       const goalBlock=(teamId)=>{
