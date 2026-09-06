@@ -1,5 +1,5 @@
-const CACHE='swe-tournament-5v5-v42-28';
-const STATIC_ASSETS=['./','./index.html','./styles.css','./app.js','./hotfix-v4228.js','./hotfix-v4227.js','./hotfix-v4224.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
+const CACHE='swe-tournament-5v5-v42-28b';
+const STATIC_ASSETS=['./','./index.html','./styles.css','./app.js','./hotfix-v4228.js','./hotfix-v4228-live.js','./hotfix-v4227.js','./hotfix-v4224.js','./manifest.webmanifest','./favicon.png','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -28,6 +28,7 @@ self.addEventListener('fetch',event=>{
         if(!type.includes('text/html')) return resp;
         let html=await resp.text();
         if(!html.includes('hotfix-v4228.js')) html=html.replace('</body>','<script src="./hotfix-v4228.js?v=4228" defer></script></body>');
+        if(!html.includes('hotfix-v4228-live.js')) html=html.replace('</body>','<script src="./hotfix-v4228-live.js?v=4228b" defer></script></body>');
         if(!html.includes('hotfix-v4224.js')) html=html.replace('</body>','<script src="./hotfix-v4224.js?v=4224" defer></script></body>');
         const headers=new Headers(resp.headers);headers.delete('content-length');
         const out=new Response(html,{status:resp.status,statusText:resp.statusText,headers});
