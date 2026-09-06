@@ -5,7 +5,7 @@ const sb=createClient('https://fbppesfxkvledwjemwsn.supabase.co','sb_publishable
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const params=new URLSearchParams(location.search);
-let token=params.get('public')||null,seasonId=params.get('season')||null,tournamentId=null;
+let token=params.get('public')||null,seasonId=params.get('season')||null,tournamentId=null,shareSeasonName='la saison en cours';
 function competitionRanks(rows,value){let previous=null,rank=0;return rows.map((row,index)=>{const current=value(row);if(current!==previous){rank=index+1;previous=current}return {...row,rank}})}
 function plural(n,one,many){return n+' '+(n>1?many:one)}
 function playedMatch(m,goalMatchIds){return !!(m.finished_at||m.started_at||m.status==='finished'||m.status==='started'||Number(m.home_score)||Number(m.away_score)||goalMatchIds.has(String(m.id)))}
@@ -19,6 +19,7 @@ function render(data){
   if(!seasonId&&tournamentId)seasonId=tournaments.find(t=>String(t.id)===String(tournamentId))?.season_id||null;
   const season=seasons.find(s=>String(s.id)===String(seasonId))||seasons.find(s=>s.is_active)||seasons[0];
   if(!season)throw new Error('Aucune saison n’est disponible.');seasonId=season.id;
+  shareSeasonName=season.name||'la saison en cours';
   const seasonTours=tournaments.filter(t=>String(t.season_id)===String(season.id)&&t.format!=='league');
   const latestTour=[...seasonTours].sort((a,b)=>String(b.tournament_date||'').localeCompare(String(a.tournament_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')))[0]||null;
   const tournamentIds=new Set(seasonTours.map(t=>String(t.id))),candidateMatches=allMatches.filter(m=>tournamentIds.has(String(m.tournament_id)));
@@ -43,8 +44,9 @@ function render(data){
   expandable('#seasonNewPlayers','#toggleSeasonNewPlayers',newcomers.map(x=>({...x,score:x.avg.toFixed(1)})),'score','point');
   $('#seasonUpdated').textContent='Données actualisées le '+new Date().toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
   $('#seasonError').classList.add('hidden');
+  return season.id;
 }
-async function load(){try{await resolveShortLink();if(!token)throw new Error('Paramètres du lien de saison incomplets.');const r=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(r.error)throw r.error;render(r.data||{})}catch(e){$('#seasonError').textContent=e.message||'Impossible de charger les classements.';$('#seasonError').classList.remove('hidden');$('#seasonStatus').textContent='Lien indisponible'}}
-$('#shareSeason').onclick=async()=>{const url=location.href,title='Classements de la saison SWÉ';if(navigator.share){try{await navigator.share({title,url});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(url);$('#shareSeason').textContent='✅ Lien copié'}catch(e){$('#shareSeason').textContent='Copie impossible'}};
+async function load(){try{await resolveShortLink();if(!token)throw new Error('Paramètres du lien de saison incomplets.');const r=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(r.error)throw r.error;const viewedSeasonId=render(r.data||{});const view=await sb.rpc('record_season_page_view',{p_public_token:token,p_season_id:viewedSeasonId});if(!view.error){const count=Number(view.data||0);$('#seasonViews').textContent='👁️ '+count+' consultation'+(count>1?'s':'')+' de cette page'}else $('#seasonViews').textContent=''}catch(e){$('#seasonError').textContent=e.message||'Impossible de charger les classements.';$('#seasonError').classList.remove('hidden');$('#seasonStatus').textContent='Lien indisponible';$('#seasonViews').textContent=''}}
+$('#shareSeason').onclick=async()=>{const url=location.href,title='Résultats de la saison SWÉ',message='Voici les résultats de la saison '+shareSeasonName;if(navigator.share){try{await navigator.share({title,text:message,url});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(message+'\n'+url);$('#shareSeason').textContent='✅ Message et lien copiés'}catch(e){$('#shareSeason').textContent='Copie impossible'}};
 load();
 })();
