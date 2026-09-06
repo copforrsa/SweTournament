@@ -2264,6 +2264,7 @@ function renderPlayers(){
         save.disabled=false;if(error)return toast(error.message);
         x.name=nameInput.value.trim();x.is_group_member=isMember;x.guest_of_player_id=isMember?null:(host.value||null);
         const found=S.contacts.find(c=>c.player_id===x.id);if(found)found.phone_number=phone.value.trim()||null;else S.contacts.push({player_id:x.id,phone_number:phone.value.trim()||null});
+        await loadAll();
         toast('Informations de '+x.name+' mises à jour ✅');
       };
       edit.append(nameInput,status,host,phone,save);d.appendChild(edit);
@@ -2300,7 +2301,7 @@ function renderPlayers(){
       const host=document.createElement('select');host.style.flex='1';host.innerHTML='<option value="">Guest de…</option>'+S.players.filter(y=>y.id!==x.id&&y.active&&y.is_group_member!==false).map(y=>'<option value="'+y.id+'">'+esc(y.name)+'</option>').join('');host.value=x.guest_of_player_id||'';host.classList.toggle('hidden',status.value!=='guest');status.onchange=()=>host.classList.toggle('hidden',status.value!=='guest');
       const phone=document.createElement('input');phone.type='tel';phone.inputMode='tel';phone.placeholder='Mobile (privé)';phone.style.flex='1';phone.value=(S.contacts.find(c=>c.player_id===x.id)?.phone_number)||'';
       const saveInfo=document.createElement('button');saveInfo.textContent='💾 Infos joueur';saveInfo.className='primary';
-      saveInfo.onclick=async()=>{const isMember=status.value==='member';saveInfo.disabled=true;const {error}=await sb.rpc('manager_update_player_personal_info',{p_player_id:x.id,p_name:nameInput.value.trim(),p_is_group_member:isMember,p_guest_of_player_id:isMember?null:(host.value||null),p_phone_number:phone.value.trim()||null});saveInfo.disabled=false;if(error)return toast(error.message);x.name=nameInput.value.trim();x.is_group_member=isMember;x.guest_of_player_id=isMember?null:(host.value||null);const found=S.contacts.find(c=>c.player_id===x.id);if(found)found.phone_number=phone.value.trim()||null;else S.contacts.push({player_id:x.id,phone_number:phone.value.trim()||null});toast('Informations mises à jour ✅');};
+      saveInfo.onclick=async()=>{const isMember=status.value==='member';saveInfo.disabled=true;const {error}=await sb.rpc('manager_update_player_personal_info',{p_player_id:x.id,p_name:nameInput.value.trim(),p_is_group_member:isMember,p_guest_of_player_id:isMember?null:(host.value||null),p_phone_number:phone.value.trim()||null});saveInfo.disabled=false;if(error)return toast(error.message);x.name=nameInput.value.trim();x.is_group_member=isMember;x.guest_of_player_id=isMember?null:(host.value||null);const found=S.contacts.find(c=>c.player_id===x.id);if(found)found.phone_number=phone.value.trim()||null;else S.contacts.push({player_id:x.id,phone_number:phone.value.trim()||null});await loadAll();toast('Informations mises à jour ✅');};
       edit.append(nameInput,status,host,phone,saveInfo);d.appendChild(edit);
     }
     if(isCoorg()&&S.myPermissions.can_delete_members){
