@@ -1,0 +1,85 @@
+name: Apply SWÉ V42.35
+on:
+  push:
+    paths:
+      - 'trigger-v4235.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Appliquer V42.35
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Cohérence de version + chargement du seul nouveau hotfix event-driven.
+          p=Path('index.html'); s=p.read_text()
+          s=re.sub(r'V42\.\d+','V42.35',s)
+          s=re.sub(r'MAJ 42\.\d+','MAJ 42.35',s)
+          s=re.sub(r'styles\.css\?v=\d+','styles.css?v=4235',s)
+          s=re.sub(r'app\.js\?v=\d+','app.js?v=4235',s)
+          for n in ['4227','4228','4229','4230','4231','4232']:
+              s=re.sub(fr'hotfix-v{n}\.js\?v=\d+',f'hotfix-v{n}.js?v=4235',s)
+          s=re.sub(r'ui-stability-v4234\.js\?v=\d+','ui-stability-v4234.js?v=4235',s)
+          if 'hotfix-v4235.js' not in s:
+              s=s.replace('</body>','<script src="./hotfix-v4235.js?v=4235" defer></script></body>')
+          p.write_text(s)
+
+          # Tous les scripts pouvant toucher le titre affichent la même version.
+          for name in ['hotfix-v4227.js','hotfix-v4228.js','hotfix-v4229.js','hotfix-v4230.js','hotfix-v4231.js','hotfix-v4232.js','ui-stability-v4234.js']:
+              p=Path(name); s=p.read_text(); s=re.sub(r"const VERSION='42\.\d+'","const VERSION='42.35'",s); p.write_text(s)
+
+          # Paiement : conserver les désistements tardifs à l'écran, mais hors compte payé/non payé.
+          p=Path('app.js'); s=p.read_text()
+          s=s.replace("const all=(snapshot.players||[]).filter(r=>r.present);\n    const confirmed=all.filter(r=>r.registration_status!=='waitlist'&&!r.is_substitute);",
+                      "const all=(snapshot.players||[]).filter(r=>r.present||r.registration_status==='late_withdrawal');\n    const confirmed=all.filter(r=>r.registration_status!=='waitlist'&&r.registration_status!=='late_withdrawal'&&!r.is_substitute);")
+          s=s.replace("const wait=r.registration_status==='waitlist';\n        const substitute=!!r.is_substitute;\n        const paid=!!r.manual_paid_at;",
+                      "const wait=r.registration_status==='waitlist';\n        const withdrawn=r.registration_status==='late_withdrawal';\n        const substitute=!!r.is_substitute;\n        const paid=!!r.manual_paid_at;")
+          old="""        const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';
+        const audit=paid&&r.manual_paid_collector_name?'<div class=\"muted\" style=\"margin-top:3px\">Saisi par '+esc(r.manual_paid_collector_name)+' • '+esc(fmtDateTime(r.manual_paid_at))+'</div>':'';
+        d.innerHTML='<span style=\"flex:1;min-width:170px\"><b>'+esc(r.player_name||'Joueur')+'</b><div class=\"muted\" style=\"margin-top:3px\">'+(substitute?'🟠 Remplaçant':(wait?'⏳ Liste d’attente':'✅ Inscrit confirmé'))+' • '+esc(paymentMoney(price))+'</div>'+audit+'</span><span class=\"guest-badge\" style=\"background:'+(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7'))+';color:'+(paid?'#176a36':(wait?'#9a5b00':'#b3261e'))+'\">'+(paid?'PAYÉ':'NON PAYÉ')+'</span>';
+        if(!wait){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'↩ Marquer non payé':'✅ Marquer payé';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);} 
+"""
+          new="""        const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';if(withdrawn){d.style.opacity='.58';d.style.background='#f3f4f6'}
+        const audit=paid&&r.manual_paid_collector_name?'<div class=\"muted\" style=\"margin-top:3px\">Saisi par '+esc(r.manual_paid_collector_name)+' • '+esc(fmtDateTime(r.manual_paid_at))+'</div>':'';
+        const statusText=withdrawn?'⚠️ Désistement de dernière minute':(substitute?'🟠 Remplaçant':(wait?'⏳ Liste d’attente':'✅ Inscrit confirmé'));
+        const withdrawalInfo=withdrawn?'<div class=\"muted\" style=\"margin-top:3px\">Retiré de la feuille active'+(r.withdrawal_note?' • '+esc(r.withdrawal_note):'')+'</div>':'';
+        d.innerHTML='<span style=\"flex:1;min-width:170px\"><b>'+esc(r.player_name||'Joueur')+'</b><div class=\"muted\" style=\"margin-top:3px\">'+statusText+(withdrawn?'':' • '+esc(paymentMoney(price)))+'</div>'+withdrawalInfo+audit+'</span><span class=\"guest-badge\" style=\"background:'+(withdrawn?'#e5e7eb':(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7')))+';color:'+(withdrawn?'#4b5563':(paid?'#176a36':(wait?'#9a5b00':'#b3261e')))+'\">'+(withdrawn?'DÉSISTEMENT':(paid?'PAYÉ':'NON PAYÉ'))+'</span>';
+        if(!wait&&!withdrawn){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'↩ Marquer non payé':'✅ Marquer payé';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);} 
+"""
+          if old not in s:
+              print('WARN payment row exact block not found; basic filters still patched')
+          else:
+              s=s.replace(old,new)
+
+          # Le prix sur place du tournoi a priorité sur l'ancien tarif générique du complexe.
+          s=s.replace('publicMoney(onsiteStandardPriceCents(regTour))','publicMoney(Number(regTour.onsite_entry_fee_cents??onsiteStandardPriceCents(regTour)))')
+          p.write_text(s)
+
+          # Cache propre. Aucun HTML injecté par le service worker.
+          sw=Path('sw.js').read_text()
+          sw=re.sub(r"const CACHE='[^']+';","const CACHE='swe-tournament-5v5-v42-35';",sw,1)
+          if "'./hotfix-v4235.js'" not in sw:
+              sw=sw.replace("'./ui-stability-v4234.js'","'./ui-stability-v4234.js','./hotfix-v4235.js'")
+          Path('sw.js').write_text(sw)
+          PY
+      - name: Vérifier JavaScript
+        run: |
+          node --check app.js
+          node --check hotfix-v4235.js
+          node --check ui-stability-v4234.js
+          for f in hotfix-v4227.js hotfix-v4228.js hotfix-v4229.js hotfix-v4230.js hotfix-v4231.js hotfix-v4232.js; do node --check "$f"; done
+          node --check sw.js
+      - name: Commit V42.35
+        run: |
+          git config user.name "SWÉ Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html app.js sw.js hotfix-v4227.js hotfix-v4228.js hotfix-v4229.js hotfix-v4230.js hotfix-v4231.js hotfix-v4232.js ui-stability-v4234.js hotfix-v4235.js
+          git diff --cached --quiet && exit 0
+          git commit -m "V42.35 — fiabilité joueurs et module SWÉ Pro"
+          git push
