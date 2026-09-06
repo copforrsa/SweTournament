@@ -3,6 +3,23 @@
 const BUILD='42.50';
 window.SWE_BUILD_VERSION=BUILD;
 let timer=null;
+let cleanupDone=false;
+async function cleanupLegacyRuntime(){
+  if(cleanupDone)return;
+  cleanupDone=true;
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));
+    }
+  }catch(_){}
+  try{
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+  }catch(_){}
+}
 function applyBuild(){
   const wanted='V'+BUILD;
   const nextTitle=document.title.replace(/V42\.\d+/g,wanted);
@@ -48,8 +65,10 @@ function settleBuild(){
   clearTimeout(timer);
   applyBuild();
   injectAuthStability();
+  cleanupLegacyRuntime();
   timer=setTimeout(()=>{applyBuild();injectAuthStability();},220);
 }
+cleanupLegacyRuntime();
 applyBuild();
 injectAuthStability();
 document.addEventListener('DOMContentLoaded',settleBuild,{once:true});
