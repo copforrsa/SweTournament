@@ -4566,7 +4566,7 @@ async function bootPaymentDesk(token){
     snapshot=data;renderDesk();
   }
   function currentReport(){
-    const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='waitlist'&&!r.is_substitute);
+    const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='waitlist');
     return {tournament_name:snapshot?.tournament_name,tournament_date:snapshot?.tournament_date,entry_fee_cents:snapshot?.entry_fee_cents||0,
       players:all.map(r=>({player_name:r.player_name,paid:!!r.manual_paid_at,paid_at:r.manual_paid_at,collector_name:r.manual_paid_collector_name,amount_cents:snapshot?.entry_fee_cents||0})),
       walkins:(snapshot?.walkins||[]).map(r=>({player_name:r.player_name,paid:true,paid_at:r.paid_at,collector_name:r.collector_name,amount_cents:r.amount_cents,walkin:true}))};
@@ -4585,7 +4585,7 @@ async function bootPaymentDesk(token){
       '<div class="player" style="margin-top:14px;background:#f8fafc"><label for="paymentDeskCollector"><b>👤 Ton prénom / nom</b></label><input id="paymentDeskCollector" maxlength="60" placeholder="Ex. Laurent" value="'+esc(savedName)+'" autocomplete="name" style="margin-top:6px"><label class="row" style="gap:8px;margin-top:8px;justify-content:flex-start"><input id="paymentDeskRememberCollector" type="checkbox" style="width:auto" '+(savedName?'checked':'')+'><span>Mémoriser ce nom sur cet appareil pour la prochaine fois</span></label><div class="muted" style="margin-top:5px">Le nom est enregistré avec chaque validation de paiement.</div></div>'+ 
       '<div class="grid g3" style="margin-top:14px"><div class="player" style="background:#eef8f2"><b style="font-size:1.2rem">'+paidCount+'</b><div class="muted">Payé'+(paidCount>1?'s':'')+'</div></div><div class="player" style="background:#fff3e8"><b style="font-size:1.2rem">'+unpaidCount+'</b><div class="muted">Non payé'+(unpaidCount>1?'s':'')+'</div></div><div class="player"><b style="font-size:1.2rem">'+esc(paymentMoney(totalCollected))+'</b><div class="muted">Total encaissé</div></div></div>'+ 
       '<div class="payment-walkin-card"><div><b>➕ Joueur absent de la liste</b><div class="muted">S’il se présente et paie, ajoute simplement son nom. Le montant utilisé sera '+esc(paymentMoney(price))+'.</div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input id="paymentDeskWalkinName" maxlength="80" placeholder="Nom / prénom du joueur" style="flex:1;min-width:220px"><button id="paymentDeskAddWalkin" class="primary">Ajouter comme PAYÉ</button></div></div>'+ 
-      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px"><div style="flex:1;min-width:220px"><input id="paymentDeskSearch" placeholder="🔎 Rechercher un joueur" autocomplete="off"></div><button id="paymentDeskPrint">🖨️ Imprimer / Enregistrer PDF</button><button id="paymentDeskReset" class="danger">🧪 Réinitialiser après test</button></div><div id="paymentDeskRows" style="margin-top:10px"></div>'+ 
+      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px"><div style="flex:1;min-width:220px"><input id="paymentDeskSearch" placeholder="🔎 Rechercher un joueur" autocomplete="off"></div><button id="paymentDeskPrint">🖨️ Imprimer / Enregistrer PDF</button></div><div id="paymentDeskRows" style="margin-top:10px"></div>'+ 
       (walkins.length?'<div style="margin-top:16px"><h3 class="sectiontitle">Ajoutés sur place</h3><div id="paymentDeskWalkins"></div></div>':'')+
       '<div class="readonly-note" style="margin-top:12px">🔐 Lien privé : suivi manuel uniquement. À la clôture du tournoi, un rapport définitif est archivé et disponible pour l’administrateur.</div>';
     const rowsBox=$('#paymentDeskRows');
@@ -4595,11 +4595,12 @@ async function bootPaymentDesk(token){
       rowsBox.innerHTML='';
       if(!rows.length){rowsBox.innerHTML='<p class="muted">Aucun joueur correspondant.</p>';return;}
       rows.forEach(r=>{
-        const wait=r.registration_status==='waitlist'||r.is_substitute;
+        const wait=r.registration_status==='waitlist';
+        const substitute=!!r.is_substitute;
         const paid=!!r.manual_paid_at;
         const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';
         const audit=paid&&r.manual_paid_collector_name?'<div class="muted" style="margin-top:3px">Saisi par '+esc(r.manual_paid_collector_name)+' • '+esc(fmtDateTime(r.manual_paid_at))+'</div>':'';
-        d.innerHTML='<span style="flex:1;min-width:170px"><b>'+esc(r.player_name||'Joueur')+'</b><div class="muted" style="margin-top:3px">'+(wait?'🟠 Remplaçant':'✅ Inscrit confirmé')+' • '+esc(paymentMoney(price))+'</div>'+audit+'</span><span class="guest-badge" style="background:'+(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7'))+';color:'+(paid?'#176a36':(wait?'#9a5b00':'#b3261e'))+'">'+(paid?'PAYÉ':(wait?'REMPLAÇANT':'NON PAYÉ'))+'</span>';
+        d.innerHTML='<span style="flex:1;min-width:170px"><b>'+esc(r.player_name||'Joueur')+'</b><div class="muted" style="margin-top:3px">'+(substitute?'🟠 Remplaçant':(wait?'⏳ Liste d’attente':'✅ Inscrit confirmé'))+' • '+esc(paymentMoney(price))+'</div>'+audit+'</span><span class="guest-badge" style="background:'+(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7'))+';color:'+(paid?'#176a36':(wait?'#9a5b00':'#b3261e'))+'">'+(paid?'PAYÉ':'NON PAYÉ')+'</span>';
         if(!wait){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'↩ Marquer non payé':'✅ Marquer payé';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);}
         rowsBox.appendChild(d);
       });
@@ -4609,7 +4610,6 @@ async function bootPaymentDesk(token){
     $('#paymentDeskSearch').oninput=draw;
     $('#paymentDeskRefresh').onclick=loadDesk;
     $('#paymentDeskPrint').onclick=()=>paymentReportPrint(currentReport(),getCollector());
-    $('#paymentDeskReset').onclick=async()=>{const collector=ensureCollector();if(!collector)return;if(!confirm('Réinitialiser toute la feuille après ton test ? Tous les statuts PAYÉ repasseront à NON PAYÉ et les joueurs ajoutés sur place seront supprimés.'))return;const {error}=await sb.rpc('payment_desk_reset_test',{p_token:token,p_collector_name:collector});if(error)return toast(error.message);await loadDesk();toast('Feuille réinitialisée ✅');};
     $('#paymentDeskAddWalkin').onclick=async()=>{const collector=ensureCollector();if(!collector)return;const name=($('#paymentDeskWalkinName')?.value||'').trim();if(!name){toast('Indique le nom du joueur à ajouter.');return;}const btn=$('#paymentDeskAddWalkin');btn.disabled=true;const {error}=await sb.rpc('payment_desk_add_walkin',{p_token:token,p_player_name:name,p_collector_name:collector});if(error){btn.disabled=false;return toast(error.message);}await loadDesk();toast(name+' ajouté comme payé ✅');};
     const collectorInput=$('#paymentDeskCollector');const rememberBox=$('#paymentDeskRememberCollector');
     if(collectorInput)collectorInput.onchange=()=>saveCollector(collectorInput.value,!!rememberBox?.checked);
