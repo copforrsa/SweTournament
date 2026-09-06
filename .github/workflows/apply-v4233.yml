@@ -1,0 +1,73 @@
+name: Apply SWÉ V42.33
+on:
+  push:
+    paths:
+      - 'trigger-v4233.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stabilize live and admin refresh
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # 1) Admin: never rebuild the UI while the user is entering data.
+          p=Path('app.js')
+          s=p.read_text()
+          old="""let safeSyncTimer=null;\nlet safeSyncBusy=false;\n\nasync function safeAppSync(){\n  // Ne jamais rafraîchir/reconstruire l'interface pendant la modification d'un tournoi.\n  // Les sélecteurs natifs de date/heure sur mobile peuvent aussi déclencher visibilitychange.\n  if(safeSyncBusy || S.editingTournamentId || S.publicMode || !S.session || !S.workspace || document.visibilityState==='hidden' || document.querySelector('#view-permissions.active')) return;\n  safeSyncBusy=true;\n  try{ await loadAll(); }\n  catch(e){ console.warn('safeAppSync',e); }\n  finally{ safeSyncBusy=false; }\n}\nfunction startSafeAppSync(){\n  if(safeSyncTimer) clearInterval(safeSyncTimer);\n  safeSyncTimer=setInterval(safeAppSync,20000);\n}\ndocument.addEventListener('visibilitychange',()=>{\n  if(document.visibilityState==='visible') setTimeout(safeAppSync,300);\n});\nwindow.addEventListener('pageshow',()=>setTimeout(safeAppSync,300));\n"""
+          new="""let safeSyncTimer=null;\nlet safeSyncBusy=false;\nlet lastUserInteractionAt=0;\nfunction markUserInteraction(){lastUserInteractionAt=Date.now();}\n['input','change','keydown','pointerdown','touchstart'].forEach(evt=>document.addEventListener(evt,e=>{\n  if(e.target?.closest?.('#main')) markUserInteraction();\n},{capture:true,passive:true}));\nfunction userIsEditing(){\n  const a=document.activeElement;\n  if(a&&a.closest?.('#main')&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable))return true;\n  return Date.now()-lastUserInteractionAt<30000;\n}\nasync function safeAppSync(){\n  // Ne jamais reconstruire l'interface pendant une saisie terrain.\n  if(safeSyncBusy || userIsEditing() || S.editingTournamentId || S.publicMode || !S.session || !S.workspace || document.visibilityState==='hidden' || document.querySelector('#view-permissions.active')) return;\n  safeSyncBusy=true;\n  try{ await loadAll(); }\n  catch(e){ console.warn('safeAppSync',e); }\n  finally{ safeSyncBusy=false; }\n}\nfunction startSafeAppSync(){\n  if(safeSyncTimer) clearInterval(safeSyncTimer);\n  // Rafraîchissement de sécurité moins agressif : le temps réel reste prioritaire.\n  safeSyncTimer=setInterval(safeAppSync,60000);\n}\ndocument.addEventListener('visibilitychange',()=>{\n  if(document.visibilityState==='visible'&&!userIsEditing()) setTimeout(safeAppSync,800);\n});\nwindow.addEventListener('pageshow',()=>{if(!userIsEditing())setTimeout(safeAppSync,800)});\n"""
+          if old not in s:
+              raise SystemExit('safeAppSync block not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          # 2) Live page: Matches/results first, then ranking, then teams.
+          p=Path('live.html')
+          s=p.read_text()
+          old_live='''    <div id="liveError" class="live-error hidden"></div>\n    <section class="card"><h2 class="sectiontitle">👥 Équipes</h2><div id="liveTeams" class="live-grid"></div><div id="liveSubs"></div></section>\n    <section class="card"><h2 class="sectiontitle">📊 Classement en direct</h2><div id="liveRanking"></div></section>\n    <section class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 class="sectiontitle">⚽ Matchs & résultats</h2><span id="liveUpdated" class="muted"></span></div><div id="liveMatches"></div></section>'''
+          new_live='''    <div id="liveError" class="live-error hidden"></div>\n    <section class="card live-primary"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 class="sectiontitle">⚽ Matchs & résultats</h2><span id="liveUpdated" class="muted"></span></div><div id="liveMatches"></div></section>\n    <section class="card"><h2 class="sectiontitle">📊 Classement en direct</h2><div id="liveRanking"></div></section>\n    <section class="card"><h2 class="sectiontitle">👥 Équipes</h2><div id="liveTeams" class="live-grid"></div><div id="liveSubs"></div></section>'''
+          if old_live not in s:
+              raise SystemExit('live sections not found')
+          s=s.replace(old_live,new_live)
+          s=s.replace('./styles.css?v=4229','./styles.css?v=4233').replace('./live.js?v=4231','./live.js?v=4233')
+          p.write_text(s)
+
+          # 3) Live refresh: update only when the server snapshot actually changed.
+          p=Path('live.js')
+          s=p.read_text()
+          s=s.replace("let timer=null,busy=false;","let timer=null,busy=false,lastSnapshotKey='';")
+          old_sync="async function sync(){if(busy)return;busy=true;try{await resolve();if(!token||!tournamentId)throw new Error('Paramètres du lien Live incomplets.');const r=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(r.error)throw r.error;render(r.data||{});$('#liveError').classList.add('hidden')}catch(e){$('#liveError').textContent=e.message||'Impossible de charger le tournoi.';$('#liveError').classList.remove('hidden');setStatus(navigator.onLine?'Synchronisation impossible':'Hors connexion',false)}finally{busy=false}}"
+          new_sync="async function sync(){if(busy)return;busy=true;try{await resolve();if(!token||!tournamentId)throw new Error('Paramètres du lien Live incomplets.');const r=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(r.error)throw r.error;const data=r.data||{};const key=JSON.stringify([data.matches||[],data.teams||[],data.team_players||[],data.tournament_players||[]]);if(key!==lastSnapshotKey){lastSnapshotKey=key;render(data)}else{const now=new Date();$('#liveUpdated').textContent='Vérifié '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setStatus(navigator.onLine?'Live connecté • à jour':'Hors connexion • dernier état affiché',navigator.onLine)}$('#liveError').classList.add('hidden')}catch(e){$('#liveError').textContent=e.message||'Impossible de charger le tournoi.';$('#liveError').classList.remove('hidden');setStatus(navigator.onLine?'Synchronisation impossible':'Hors connexion',false)}finally{busy=false}}"
+          if old_sync not in s:
+              raise SystemExit('live sync not found')
+          s=s.replace(old_sync,new_sync)
+          p.write_text(s)
+
+          # 4) Version/cache coherence.
+          p=Path('index.html'); s=p.read_text();
+          s=re.sub(r'V42\.\d+','V42.33',s); s=re.sub(r'MAJ 42\.\d+','MAJ 42.33',s)
+          s=re.sub(r'styles\.css\?v=\d+','styles.css?v=4233',s); s=re.sub(r'app\.js\?v=\d+','app.js?v=4233',s)
+          p.write_text(s)
+          for hp in Path('.').glob('hotfix-v*.js'):
+              hs=hp.read_text(); hs=re.sub(r"const VERSION='42\.\d+';","const VERSION='42.33';",hs); hp.write_text(hs)
+          p=Path('sw.js'); s=p.read_text(); s=re.sub(r"const CACHE='[^']+';","const CACHE='swe-tournament-5v5-v42-33';",s,1); p.write_text(s)
+          PY
+      - name: Validate JavaScript
+        run: |
+          node --check app.js
+          node --check live.js
+          for f in hotfix-v*.js; do node --check "$f"; done
+      - name: Commit V42.33
+        run: |
+          git config user.name "SWÉ Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js live.html live.js index.html sw.js hotfix-v*.js
+          git diff --cached --quiet && exit 0
+          git commit -m "V42.33 — live prioritaire et saisie stable"
+          git push
