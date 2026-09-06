@@ -1,13 +1,7 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
 let busy=false;
 const esc37=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
-function setVersion37(){
-  document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);
-  document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});
-  document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION);
-}
 function activeMatches(){return document.getElementById('view-matches')?.classList.contains('active');}
 function teamName(id){try{return (S.teams||[]).find(t=>String(t.id)===String(id))?.name||'Équipe';}catch(_){return 'Équipe';}}
 async function createRematch(match,button){
@@ -85,7 +79,7 @@ function enhanceMatches37(){
     addRematchButton(card,match);
   });
 }
-function tick37(){setVersion37();enhanceMatches37();}
+function tick37(){enhanceMatches37();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick37,{once:true});else tick37();
 document.addEventListener('swe:rendered',tick37);
 document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="matches"],.tab'))setTimeout(tick37,250)},true);
