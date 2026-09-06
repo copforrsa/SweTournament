@@ -3330,11 +3330,11 @@ function renderTeams(){
     d.style.setProperty('--team-color',bg);
     const head=document.createElement('div');head.className='row swe-team-card-head';head.style.justifyContent='space-between';head.style.background=bg;head.style.color=fg;
     const titleWrap=document.createElement('div');
-    const title=document.createElement('b');title.innerHTML='👕 '+esc(team.name)+' <span class="team-color-name">• '+esc(colorLabel)+'</span>';titleWrap.appendChild(title);
+    const title=document.createElement('b');title.innerHTML=esc(team.name)+' <span class="team-color-name">• '+esc(colorLabel)+'</span>';titleWrap.appendChild(title);
     const score=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
     if(score){
       const meta=document.createElement('div');meta.className='team-balance-badges';
-      meta.innerHTML='<span class="chien-boul-badge">'+esc(chienBoulLabel(score.team_score))+'</span><span class="team-mention">'+esc(score.mention||'Équilibrée')+'</span>'+(Number(score.free_slots||0)>0?'<span class="team-free">'+Number(score.free_slots)+' place'+(Number(score.free_slots)>1?'s':'')+' libre'+(Number(score.free_slots)>1?'s':'')+'</span>':'<span class="team-locked">Équipe complète</span>');
+      meta.innerHTML='<span class="chien-boul-badge">'+esc(chienBoulLabel(score.team_score))+'</span><span class="team-mention">'+esc(score.mention||'Équipe qui peut surprendre')+'</span>'+(Number(score.free_slots||0)>0?'<span class="team-free">'+Number(score.free_slots)+' place'+(Number(score.free_slots)>1?'s':'')+' libre'+(Number(score.free_slots)>1?'s':'')+'</span>':'<span class="team-locked">Équipe complète</span>');
       titleWrap.appendChild(meta);
     }
     head.appendChild(titleWrap);

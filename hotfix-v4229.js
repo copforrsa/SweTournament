@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.31';
+const VERSION='42.32';
 function setVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
 function liveUrl(){try{const t=typeof currentTour==='function'?currentTour():null;if(!t)return '';const u=new URL('./live.html',location.href);if(t.short_code)u.searchParams.set('s',String(t.short_code).toUpperCase());else{if(!S?.workspace?.public_token)return '';u.searchParams.set('public',S.workspace.public_token);u.searchParams.set('tournament',t.id)}return u.toString()}catch(_){return ''}}
 function ensureLiveCard(){
