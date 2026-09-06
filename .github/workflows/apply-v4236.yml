@@ -1,0 +1,48 @@
+name: Apply SWÉ V42.36
+on:
+  push:
+    paths:
+      - 'trigger-v4236.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Appliquer V42.36
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html');s=p.read_text()
+          s=re.sub(r'V42\.\d+','V42.36',s)
+          s=re.sub(r'MAJ 42\.\d+','MAJ 42.36',s)
+          s=re.sub(r'styles\.css\?v=\d+','styles.css?v=4236',s)
+          s=re.sub(r'app\.js\?v=\d+','app.js?v=4236',s)
+          for n in ['4227','4228','4229','4230','4231','4232','4235']:
+              s=re.sub(fr'hotfix-v{n}\.js\?v=\d+',f'hotfix-v{n}.js?v=4236',s)
+          s=re.sub(r'ui-stability-v4234\.js\?v=\d+','ui-stability-v4234.js?v=4236',s)
+          if 'hotfix-v4236.js' not in s:s=s.replace('</body>','<script src="./hotfix-v4236.js?v=4236" defer></script></body>')
+          p.write_text(s)
+          for name in ['hotfix-v4227.js','hotfix-v4228.js','hotfix-v4229.js','hotfix-v4230.js','hotfix-v4231.js','hotfix-v4232.js','hotfix-v4235.js','ui-stability-v4234.js']:
+              p=Path(name);x=p.read_text();x=re.sub(r"const VERSION='42\.\d+'","const VERSION='42.36'",x);p.write_text(x)
+          p=Path('sw.js');x=p.read_text();x=re.sub(r"const CACHE='[^']+';","const CACHE='swe-tournament-5v5-v42-36';",x,1)
+          if "'./hotfix-v4236.js'" not in x:x=x.replace("'./hotfix-v4235.js'","'./hotfix-v4235.js','./hotfix-v4236.js'")
+          p.write_text(x)
+          PY
+      - name: Vérifier JavaScript
+        run: |
+          node --check app.js
+          node --check hotfix-v4235.js
+          node --check hotfix-v4236.js
+          node --check sw.js
+      - name: Commit V42.36
+        run: |
+          git config user.name "SWÉ Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html sw.js hotfix-v*.js ui-stability-v4234.js
+          git diff --cached --quiet && exit 0
+          git commit -m "V42.36 — retrait joueur motivé obligatoire"
+          git push
