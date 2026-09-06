@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.36';
+const VERSION='42.37';
 const WITHDRAW_REASONS=[
   ['late_withdrawal','Désistement de dernière minute'],
   ['injury','Blessure'],
