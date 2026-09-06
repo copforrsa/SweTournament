@@ -25,9 +25,16 @@ function wrapRenderAll(){
     window.renderAll=wrapped;
   }catch(_){ }
 }
-function boot(){setVersion();wrapRenderAll();dispatchRendered();}
+function loadV4246(){
+  if(document.querySelector('script[data-v4246]'))return;
+  const s=document.createElement('script');
+  s.src='./hotfix-v4246.js?v=4246';
+  s.dataset.v4246='1';
+  document.body.appendChild(s);
+}
+function boot(){setVersion();wrapRenderAll();dispatchRendered();loadV4246();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.addEventListener('pageshow',()=>{setVersion();wrapRenderAll();});
+window.addEventListener('pageshow',()=>{setVersion();wrapRenderAll();loadV4246();});
 document.addEventListener('click',e=>{
   if(e.target.closest?.('.tab,[data-view],button,a.button')) setTimeout(dispatchRendered,650);
 },true);
