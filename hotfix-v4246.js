@@ -1,9 +1,10 @@
 (()=>{
 'use strict';
-const VERSION='42.46';
+const VERSION='42.47';
 let canCustomVenue=false;
 let savedVenues=[];
 let venueLoadedFor=null;
+let previewSnapshot47=null;
 
 function setVersion46(){
   document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);
@@ -126,9 +127,97 @@ function decoratePublicNavigation(){
     const info=[...pv.querySelectorAll('.player')].find(x=>/Infos pratiques/i.test(x.textContent||''));if(info)info.insertAdjacentHTML('beforeend',html);
   }
 }
-async function apply46(){setVersion46();if(typeof S!=='undefined'&&S.workspace?.id){await loadVenueEntitlement();ensureLeagueVenueUI();installCreateHandler();syncVenueMode();}decoratePublicNavigation();}
+
+function menuIcons47(){
+  document.querySelectorAll('.tabs .tab').forEach(tab=>{
+    const v=tab.dataset.view;
+    if(v==='myplayer'&&!/^👤/.test(tab.textContent.trim()))tab.textContent='👤 '+tab.textContent.trim();
+    if(v==='cooler'&&!/^🧊/.test(tab.textContent.trim()))tab.textContent='🧊 '+tab.textContent.trim();
+  });
+}
+function previewStyles47(){
+  if(E('swePreviewStyle47'))return;
+  const s=document.createElement('style');s.id='swePreviewStyle47';s.textContent=`
+  .swe-preview47{margin-top:14px}.swe-preview-toolbar47{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:10px;align-items:end}.swe-preview-grid47{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.swe-preview-card47{border:1px solid #dbe7e0;border-radius:16px;padding:14px;background:#fff}.swe-preview-card47 h3{margin:0 0 5px}.swe-preview-chip47{display:inline-block;font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#edf7f1;color:#11663f;margin-bottom:8px}.swe-preview-actions47{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.swe-preview-phone47{width:min(360px,100%);margin:0 auto;background:#071b12;border-radius:30px;padding:10px;box-shadow:0 18px 50px rgba(0,0,0,.25)}.swe-preview-screen47{background:#f5f8f6;border-radius:22px;min-height:560px;padding:15px;overflow:hidden}.swe-preview-screen47 .pv-hero{background:linear-gradient(135deg,#0b6b42,#072d20);color:#fff;border-radius:18px;padding:18px}.swe-preview-screen47 .pv-card{background:#fff;border:1px solid #dfe8e3;border-radius:15px;padding:13px;margin-top:10px}.swe-preview-screen47 .pv-row{display:flex;justify-content:space-between;gap:8px;margin-top:7px;font-size:12px}.swe-preview-screen47 .pv-btn{display:block;text-align:center;border-radius:12px;padding:11px;margin-top:9px;background:#0f7a4b;color:#fff;font-weight:900}.swe-preview-modal47{position:fixed;inset:0;background:rgba(2,15,10,.68);z-index:10000;display:flex;align-items:center;justify-content:center;padding:18px}.swe-preview-modal47.hidden{display:none}.swe-preview-modalbox47{width:min(980px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:18px}.swe-preview-top47{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}@media(max-width:760px){.swe-preview-grid47{grid-template-columns:1fr}.swe-preview-toolbar47{grid-template-columns:1fr}}`;
+  document.head.appendChild(s);
+}
+function previewWorkspaceOptions47(){
+  const list=Array.isArray(S?.superWorkspaces)?S.superWorkspaces:[];
+  return '<option value="">Choisir un espace</option>'+list.map(w=>'<option value="'+escapeHtml(w.id)+'">'+escapeHtml(w.name||'Espace SWÉ')+'</option>').join('');
+}
+function ensurePreviewStudio47(){
+  if(typeof S==='undefined'||!S.isSuperAdmin)return;
+  previewStyles47();
+  const tabs=document.querySelector('.sa-admin-tabs');if(!tabs)return;
+  if(!E('saPreviewTab47')){
+    const b=document.createElement('button');b.type='button';b.id='saPreviewTab47';b.dataset.saTab='previews47';b.textContent='🖼️ Visuels publics';tabs.appendChild(b);
+    b.onclick=()=>showPreviewStudio47();
+  }
+  if(E('saPreviewSection47'))return;
+  const host=E('superAdminPanel');if(!host)return;
+  const sec=document.createElement('div');sec.id='saPreviewSection47';sec.className='hidden';sec.innerHTML=`<div class="card swe-preview47"><div class="sa-eyebrow">LAB VISUELS PUBLICS</div><h2 class="sectiontitle">🖼️ Prévisualiser tous les liens générés</h2><p class="muted">Le Super Admin peut contrôler le rendu des pages publiques avant commercialisation : inscription, suivi des paiements, résultats de saison, ligue et autres liens disponibles. Le mode test n'effectue aucune inscription ni aucun paiement.</p><div class="swe-preview-toolbar47"><label><span class="muted">Espace à prévisualiser</span><select id="saPreviewWorkspace47">${previewWorkspaceOptions47()}</select></label><button id="saLoadPreviews47" class="primary">Générer les aperçus</button></div><div id="saPreviewStatus47" class="muted" style="margin-top:8px"></div><div id="saPreviewGrid47" class="swe-preview-grid47"></div></div>`;
+  host.appendChild(sec);
+  E('saLoadPreviews47').onclick=loadPreviews47;
+}
+function showPreviewStudio47(){
+  document.querySelectorAll('[id^="sa"][id$="Section"],#saSpacesSection,#saPlayersSection').forEach(x=>x.classList?.add('hidden'));
+  E('saPreviewSection47')?.classList.remove('hidden');
+  document.querySelectorAll('.sa-admin-tabs button').forEach(x=>x.classList.toggle('active',x.id==='saPreviewTab47'));
+}
+function appBase47(){return location.origin+location.pathname.replace(/[^/]*$/,'')}
+function linkFor47(kind,item,snap,workspace){
+  const base=appBase47(),token=workspace.public_token||snap?.workspace?.public_token||'';
+  if(kind==='tournament')return item.short_code?base+'?s='+encodeURIComponent(String(item.short_code).toUpperCase()):(token?base+'?public='+encodeURIComponent(token)+'&view=tournament&tournament='+encodeURIComponent(item.id):'');
+  if(kind==='league-session')return item.short_code?base+'?s='+encodeURIComponent(String(item.short_code).toUpperCase()):(token?base+'?public='+encodeURIComponent(token)+'&view=league-session&league='+encodeURIComponent(item.league_id||'')+'&tournament='+encodeURIComponent(item.id):'');
+  if(kind==='payment')return item.payment_short_code?base+'?pay='+encodeURIComponent(String(item.payment_short_code).toUpperCase()):'';
+  if(kind==='league')return token?base+'?public='+encodeURIComponent(token)+'&view=league&league='+encodeURIComponent(item.id):'';
+  if(kind==='season'){
+    const t=(snap?.tournaments||[]).find(x=>x.season_id===item.id&&x.format!=='league'&&x.short_code);
+    return t?.short_code?base+'saison/?s='+encodeURIComponent(String(t.short_code).toUpperCase()):(token?base+'saison/?public='+encodeURIComponent(token)+'&season='+encodeURIComponent(item.id):'');
+  }
+  return '';
+}
+function visualTypeLabel47(kind){return ({tournament:'Inscription tournoi','league-session':'Inscription Swé de Ligue',payment:'Suivi des paiements','league':'Inscription Ligue',season:'Résultats de saison'})[kind]||'Lien public'}
+function sampleVisual47(kind,item,workspace){
+  const name=escapeHtml(item?.name||workspace?.name||'SWÉ du dimanche');
+  const date=escapeHtml(item?.tournament_date||item?.starts_on||new Date().toISOString().slice(0,10));
+  if(kind==='payment')return `<div class="pv-hero"><b>SWÉ • Suivi paiement</b><h3>${name}</h3><small>Vue privée organisateur</small></div><div class="pv-card"><b>Participants</b><div class="pv-row"><span>Johnathan</span><b>✅ PAYÉ</b></div><div class="pv-row"><span>Mika</span><b>NON PAYÉ</b></div><div class="pv-row"><span>Flo</span><b>✅ PAYÉ</b></div></div>`;
+  if(kind==='season')return `<div class="pv-hero"><b>SWÉ • Résultats de la saison</b><h3>${name}</h3><small>Classements & statistiques</small></div><div class="pv-card"><b>🏆 Classement</b><div class="pv-row"><span>1. Team Rocket</span><b>18 pts</b></div><div class="pv-row"><span>2. Bleus</span><b>15 pts</b></div></div><div class="pv-card"><b>⚽ Buteurs</b><div class="pv-row"><span>Charly</span><b>11</b></div><div class="pv-row"><span>Forssa</span><b>2</b></div></div>`;
+  if(kind==='league')return `<div class="pv-hero"><b>🏁 SWÉ Ligue</b><h3>${name}</h3><small>Inscription à la Ligue</small></div><div class="pv-card"><b>Saison en cours</b><div class="pv-row"><span>Début</span><b>${date}</b></div><div class="pv-row"><span>Membres</span><b>15 joueurs</b></div></div><span class="pv-btn">Je rejoins la Ligue</span>`;
+  return `<div class="pv-hero"><b>SWÉ TOURNAMENT 5/5</b><h3>${name}</h3><small>${kind==='league-session'?'Swé de Ligue':'Inscription au tournoi'} • ${date}</small></div><div class="pv-card"><b>📍 Infos pratiques</b><div class="pv-row"><span>Terrain</span><b>Complexe SWÉ</b></div><div class="pv-row"><span>Heure</span><b>09:00</b></div><div class="pv-row"><span>Prix</span><b>10 €</b></div></div><div class="pv-card"><b>✅ Inscription</b><small>Choisis ton nom puis confirme ta participation.</small></div><span class="pv-btn">Je participe</span>`;
+}
+function openPreviewModal47(kind,item,workspace,url){
+  E('swePreviewModal47')?.remove();const m=document.createElement('div');m.id='swePreviewModal47';m.className='swe-preview-modal47';m.innerHTML=`<div class="swe-preview-modalbox47"><div class="swe-preview-top47"><div><div class="sa-eyebrow">APERÇU TEST</div><h2 style="margin:2px 0">${escapeHtml(visualTypeLabel47(kind))}</h2></div><button id="sweClosePreview47">✕ Fermer</button></div><div class="swe-preview-phone47"><div class="swe-preview-screen47">${sampleVisual47(kind,item,workspace)}</div></div>${url?`<div class="row" style="justify-content:center;margin-top:14px"><a class="button primary" target="_blank" rel="noopener noreferrer" href="${escapeHtml(url)}">Ouvrir le vrai lien</a></div>`:''}</div>`;document.body.appendChild(m);E('sweClosePreview47').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+}
+function addPreviewCard47(grid,kind,item,workspace,snap){
+  const url=linkFor47(kind,item,snap,workspace);const d=document.createElement('div');d.className='swe-preview-card47';d.innerHTML=`<span class="swe-preview-chip47">${escapeHtml(visualTypeLabel47(kind))}</span><h3>${escapeHtml(item?.name||workspace.name||'Visuel test')}</h3><div class="muted">${url?'Lien réel disponible • aperçu test sans action':'Aucun lien réel disponible pour cet élément • aperçu graphique uniquement'}</div><div class="swe-preview-actions47"><button data-preview47>👁️ Prévisualiser</button>${url?`<a class="button" target="_blank" rel="noopener noreferrer" href="${escapeHtml(url)}">↗ Ouvrir</a>`:''}</div>`;d.querySelector('[data-preview47]').onclick=()=>openPreviewModal47(kind,item,workspace,url);grid.appendChild(d);
+}
+async function loadPreviews47(){
+  const wid=E('saPreviewWorkspace47')?.value||'';const workspace=(S.superWorkspaces||[]).find(w=>String(w.id)===String(wid));if(!workspace)return toast('Choisis un espace.');
+  const status=E('saPreviewStatus47'),grid=E('saPreviewGrid47');status.textContent='Chargement des visuels…';grid.innerHTML='';previewSnapshot47=null;
+  let token=workspace.public_token||'';
+  if(!token){
+    const r=await sb.rpc('super_admin_get_workspace_preview_token',{p_workspace_id:workspace.id});if(!r.error)token=r.data||'';
+  }
+  if(token){const r=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(!r.error)previewSnapshot47=r.data||null;}
+  const snap=previewSnapshot47||{tournaments:[],leagues:[],seasons:[]};const w={...workspace,public_token:token};
+  const tours=(snap.tournaments||[]).filter(t=>t.format!=='league').slice(-4).reverse();
+  const leagueSessions=(snap.tournaments||[]).filter(t=>t.format==='league').slice(-3).reverse();
+  const leagues=(snap.leagues||[]).slice(-2).reverse();const seasons=(snap.seasons||[]).slice(-2).reverse();
+  if(!tours.length)addPreviewCard47(grid,'tournament',{name:'Tournoi test',tournament_date:new Date().toISOString().slice(0,10)},w,snap);else tours.forEach(t=>addPreviewCard47(grid,'tournament',t,w,snap));
+  if(!leagueSessions.length)addPreviewCard47(grid,'league-session',{name:'Swé Ligue test',tournament_date:new Date().toISOString().slice(0,10)},w,snap);else leagueSessions.forEach(t=>addPreviewCard47(grid,'league-session',t,w,snap));
+  if(!leagues.length)addPreviewCard47(grid,'league',{name:'Ligue test',starts_on:new Date().toISOString().slice(0,10)},w,snap);else leagues.forEach(l=>addPreviewCard47(grid,'league',l,w,snap));
+  if(!seasons.length)addPreviewCard47(grid,'season',{name:'Saison test',id:'test'},w,snap);else seasons.forEach(s=>addPreviewCard47(grid,'season',s,w,snap));
+  const pay=(snap.tournaments||[]).find(t=>t.payment_short_code);addPreviewCard47(grid,'payment',pay||{name:'Suivi paiements test'},w,snap);
+  status.innerHTML='<b>'+grid.children.length+' visuel'+(grid.children.length>1?'s':'')+'</b> disponible'+(grid.children.length>1?'s':'')+' pour contrôle. Les aperçus test sont en lecture seule.';
+}
+async function ensurePreviewTokenRpc47(){
+  // RPC optional: workspace public token is usually already returned to the super admin.
+}
+
+async function apply46(){setVersion46();menuIcons47();if(typeof S!=='undefined'&&S.workspace?.id){await loadVenueEntitlement();ensureLeagueVenueUI();installCreateHandler();syncVenueMode();}decoratePublicNavigation();ensurePreviewStudio47();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>apply46(),250),{once:true});else setTimeout(()=>apply46(),250);
 document.addEventListener('swe:rendered',()=>setTimeout(()=>apply46(),100));
-document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="league"],.tab'))setTimeout(()=>apply46(),150)},true);
-new MutationObserver(()=>{if(typeof S!=='undefined'&&S.publicMode)decoratePublicNavigation();}).observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="league"],.tab,.sa-admin-tabs'))setTimeout(()=>apply46(),150)},true);
+new MutationObserver(()=>{menuIcons47();if(typeof S!=='undefined'&&S.publicMode)decoratePublicNavigation();if(typeof S!=='undefined'&&S.isSuperAdmin)ensurePreviewStudio47();}).observe(document.documentElement,{childList:true,subtree:true});
 })();
