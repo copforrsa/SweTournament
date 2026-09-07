@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<title>SWÉ • Réinitialisation V42.50</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f4f8f6;color:#10251c;display:grid;place-items:center;min-height:100vh;margin:0}.box{max-width:520px;background:#fff;border:1px solid #dce7e1;border-radius:22px;padding:28px;box-shadow:0 14px 40px rgba(0,0,0,.08);text-align:center}.spin{width:38px;height:38px;border:4px solid #d9ebe1;border-top-color:#11814f;border-radius:50%;margin:0 auto 16px;animation:s .8s linear infinite}@keyframes s{to{transform:rotate(360deg)}}small{color:#64756c}</style>
+</head>
+<body>
+<div class="box"><div class="spin"></div><h1>Réinitialisation SWÉ</h1><p>Suppression des anciennes versions en cache…</p><small>Tu vas être redirigé automatiquement vers la V42.50.</small></div>
+<script>
+(async()=>{
+  try{if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}}catch(e){}
+  try{if(window.caches){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}}catch(e){}
+  try{
+    const keep={};
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&/supabase|sb-|swe_workspace_id/i.test(k))keep[k]=localStorage.getItem(k);}
+    localStorage.clear();
+    Object.entries(keep).forEach(([k,v])=>{if(v!==null)localStorage.setItem(k,v)});
+  }catch(e){}
+  try{sessionStorage.clear();}catch(e){}
+  setTimeout(()=>location.replace('/?build=4250&reset='+Date.now()),350);
+})();
+</script>
+</body>
+</html>
