@@ -7,9 +7,19 @@ if(!invite||!invitedEmail)return;
 const E=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 let sessionChecked=false;
-function style(){if(E('sweInviteAuthStyle'))return;const s=document.createElement('style');s.id='sweInviteAuthStyle';s.textContent=`body.swe-invite-lock .auth-social-sep,body.swe-invite-lock .auth-social-grid{display:none!important}body.swe-invite-lock #email{background:#f3f6f4!important;color:#32443b!important;font-weight:750}body.swe-invite-lock #forgotPassword{display:none!important}#sweInviteAuthNotice{margin:10px 0;padding:11px 12px;border:1px solid #b9dec9;background:#f1faf5;border-radius:12px;color:#244b37;font-size:13px;line-height:1.45}#sweInviteAuthNotice b{color:#0e633b}`;document.head.appendChild(s)}
+function style(){if(E('sweInviteAuthStyle'))return;const s=document.createElement('style');s.id='sweInviteAuthStyle';s.textContent=`body.swe-invite-lock .auth-social-sep,body.swe-invite-lock .auth-social-grid{display:none!important}body.swe-invite-lock #email{background:#f3f6f4!important;color:#32443b!important;font-weight:750}body.swe-invite-lock #forgotPassword{display:none!important}body.swe-invite-lock [data-swe-invite-hide="1"]{display:none!important}#sweInviteAuthNotice{margin:10px 0;padding:11px 12px;border:1px solid #b9dec9;background:#f1faf5;border-radius:12px;color:#244b37;font-size:13px;line-height:1.45}#sweInviteAuthNotice b{color:#0e633b}`;document.head.appendChild(s)}
+function hideOrganizerOffers(){
+  const nodes=[...document.querySelectorAll('section,div,article')].filter(el=>{
+    const t=(el.textContent||'').replace(/\s+/g,' ').trim();
+    return /Commence gratuitement/i.test(t)&&/Pour démarrer/i.test(t)&&(/Besoin ponctuel/i.test(t)||/À L.?UNITÉ/i.test(t));
+  });
+  if(!nodes.length)return;
+  nodes.sort((a,b)=>(a.textContent||'').length-(b.textContent||'').length);
+  const target=nodes[0];
+  if(target){target.dataset.sweInviteHide='1';target.style.display='none';}
+}
 function paint(){
-  style();document.body.classList.add('swe-invite-lock');
+  style();document.body.classList.add('swe-invite-lock');hideOrganizerOffers();
   const email=E('email');if(email){email.value=invitedEmail;email.readOnly=true;email.setAttribute('aria-readonly','true');email.title='Adresse imposée par l’invitation';}
   const social=[E('authGoogle'),E('authApple')];social.forEach(b=>{if(b){b.disabled=true;b.setAttribute('aria-disabled','true');}});
   const signup=E('signup');if(signup)signup.textContent='Recevoir un lien pour créer mon mot de passe';
@@ -26,7 +36,7 @@ async function checkWrongSession(){
   catch(_){sessionChecked=false}
 }
 function wire(){if(window.__SWE_INVITE_AUTH_WIRED)return;window.__SWE_INVITE_AUTH_WIRED=true;document.addEventListener('click',blockSocial,true);document.addEventListener('click',sendPasswordLink,true);document.addEventListener('input',e=>{if(e.target?.id==='email'&&e.target.value.trim().toLowerCase()!==invitedEmail)e.target.value=invitedEmail;},true);}
-function boot(){paint();wire();checkWrongSession();}
+function boot(){paint();wire();checkWrongSession();setTimeout(hideOrganizerOffers,150);setTimeout(hideOrganizerOffers,700);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 window.addEventListener('pageshow',()=>setTimeout(boot,40));document.addEventListener('swe:rendered',()=>setTimeout(paint,0));
 })();
