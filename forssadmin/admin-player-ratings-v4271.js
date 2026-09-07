@@ -1,0 +1,21 @@
+(()=>{
+'use strict';
+if(window.__SWE_SA_RATINGS_4271)return;
+window.__SWE_SA_RATINGS_4271=true;
+const {createClient}=window.supabase;
+const sbRatings=createClient(
+  'https://fbppesfxkvledwjemwsn.supabase.co',
+  'sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp',
+  {auth:{flowType:'pkce',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'swe-forssadmin-auth-v1'}}
+);
+const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+const num=v=>v===null||v===undefined||v===''?'—':Number(v).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:2});
+const dt=v=>{if(!v)return '—';try{return new Date(v).toLocaleString('fr-FR')}catch(_){return String(v)}};
+function closeModal(){document.getElementById('saRatingsModal')?.remove()}
+function openModal(title,html){closeModal();const m=document.createElement('div');m.id='saRatingsModal';m.className='modal-backdrop';m.innerHTML=`<div class="modal-card" style="max-width:900px"><div class="modal-head"><h3>${esc(title)}</h3><button type="button" class="btn ghost" data-close>✕</button></div><div class="modal-body">${html}</div><div class="modal-actions"><button type="button" class="btn ghost" data-close>Fermer</button></div></div>`;document.body.appendChild(m);m.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModal)}
+async function showRatings(playerId,name){openModal('Notes de '+(name||'joueur'),'<div class="loading">Chargement des évaluations…</div>');const {data,error}=await sbRatings.rpc('super_admin_get_player_rating_detail',{p_player_id:playerId});if(error){openModal('Notes de '+(name||'joueur'),`<div class="card"><b>Impossible de charger les notes.</b><div class="muted">${esc(error.message)}</div></div>`);return}const votes=Array.isArray(data?.votes)?data.votes:[];const summary=`<div class="grid stats"><div class="card stat"><span>Votants</span><b>${Number(data?.voter_count||0)}</b></div><div class="card stat"><span>Moyenne</span><b>${num(data?.average)}/5</b></div><div class="card stat"><span>Cardio</span><b>${num(data?.avg_cardio)}</b></div><div class="card stat"><span>Dribble</span><b>${num(data?.avg_dribble)}</b></div><div class="card stat"><span>Collectif</span><b>${num(data?.avg_collectif)}</b></div><div class="card stat"><span>Frappe</span><b>${num(data?.avg_frappe)}</b></div></div>`;const rows=votes.map((v,i)=>`<tr><td><b>Votant ${i+1}</b><div class="muted">${esc(v.evaluator_email||v.evaluator_user_id||'Compte inconnu')}</div></td><td><b>${num(v.rating)}/5</b></td><td>${num(v.cardio)}</td><td>${num(v.dribble)}</td><td>${num(v.collectif)}</td><td>${num(v.frappe)}</td><td>${esc(v.preferred_role||'—')}</td><td>${esc(dt(v.updated_at))}</td></tr>`).join('');openModal('Notes de '+(data?.player_name||name||'joueur'),summary+`<div class="card table-wrap" style="margin-top:12px"><table><thead><tr><th>Votant</th><th>Note</th><th>Cardio</th><th>Dribble</th><th>Collectif</th><th>Frappe</th><th>Rôle</th><th>Mise à jour</th></tr></thead><tbody>${rows||'<tr><td colspan="8">Aucune évaluation pour ce joueur.</td></tr>'}</tbody></table></div><div class="muted" style="margin-top:10px">Ces informations détaillées sont réservées au Super Admin. Les administrateurs d’espace continuent de voir les évaluations des co-gestionnaires de manière anonyme.</div>`)}
+function enhancePlayers(){const content=document.getElementById('content');if(!content)return;const body=document.getElementById('playersBody');if(!body)return;body.querySelectorAll('tr').forEach(tr=>{const modify=tr.querySelector('[data-action="player-edit"][data-id]');if(!modify)return;const actions=modify.closest('td');if(!actions||actions.querySelector('[data-sa-ratings]'))return;const b=document.createElement('button');b.type='button';b.className='btn ghost mini';b.dataset.saRatings=modify.dataset.id;b.textContent='Notes & votants';b.onclick=()=>showRatings(modify.dataset.id,tr.querySelector('td b')?.textContent||'Joueur');actions.appendChild(b)})}
+const obs=new MutationObserver(()=>enhancePlayers());
+function boot(){enhancePlayers();const c=document.getElementById('content');if(c)obs.observe(c,{subtree:true,childList:true})}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
