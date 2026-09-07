@@ -1,15 +1,36 @@
 (()=>{
 'use strict';
 const ADMIN_PATH='/forssadmin/';
-const entryFromQuery=new URLSearchParams(location.search).get('swe_admin_entry')==='1';
+const params=new URLSearchParams(location.search);
+const legacyAdminParam=params.has('superadmin')||params.has('admin')||params.has('sa');
+const handoff=params.get('swe_admin_entry')==='1';
+const storedEntry=sessionStorage.getItem('SWE_ADMIN_ENTRY')==='1';
 const entryFromPath=location.pathname.replace(/\/+$/,'/')===ADMIN_PATH;
-const adminEntry=entryFromQuery||entryFromPath||sessionStorage.getItem('SWE_ADMIN_ENTRY')==='1';
+// Le handoff technique n'est valide que s'il a été amorcé par /forssadmin dans cette session.
+const adminEntry=entryFromPath||(handoff&&storedEntry);
 window.SWE_ADMIN_ENTRY_ACTIVE=!!adminEntry;
 
 function ensureBase(){
   if(document.querySelector('base[data-swe-admin-base]'))return;
   const b=document.createElement('base');b.href='/';b.dataset.sweAdminBase='1';
   document.head.prepend(b);
+}
+function installCss(){
+  if(document.getElementById('sweAdminGateStyle'))return;
+  const s=document.createElement('style');s.id='sweAdminGateStyle';
+  s.textContent=`body:not(.swe-admin-entry) #superAdminPanel,body:not(.swe-admin-entry) #sweSa4250Side,body:not(.swe-admin-entry) #sa48Sidebar{display:none!important}body.swe-admin-entry #superAdminPanel>.sa-hero,body.swe-admin-entry #superAdminPanel>.sa-admin-tabs,body.swe-admin-entry #saSummaryCards{display:none!important}body.swe-legacy-admin-blocked .app,body.swe-legacy-admin-blocked #auth,body.swe-legacy-admin-blocked #main,body.swe-legacy-admin-blocked #platformFooter{display:none!important}#sweLegacyAdminBlocked{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#071b12;color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}#sweLegacyAdminBlocked>div{max-width:520px;text-align:center}#sweLegacyAdminBlocked h1{font-size:28px;margin:0 0 10px}#sweLegacyAdminBlocked p{opacity:.75;line-height:1.55}`;
+  document.head.appendChild(s);
+}
+function blockLegacyUrl(){
+  sessionStorage.removeItem('SWE_ADMIN_ENTRY');
+  window.SWE_ADMIN_ENTRY_ACTIVE=false;
+  document.body.classList.remove('swe-admin-entry','swe-sa4250','swe-super48');
+  document.body.classList.add('swe-legacy-admin-blocked');
+  document.getElementById('sweLegacyAdminBlocked')?.remove();
+  const x=document.createElement('div');x.id='sweLegacyAdminBlocked';
+  x.innerHTML='<div><h1>Page indisponible</h1><p>Cette adresse n’est plus utilisée.</p></div>';
+  document.body.appendChild(x);
+  try{history.replaceState({},'',location.pathname)}catch(_){}
 }
 function hideLegacyAdmin(){
   const p=document.getElementById('superAdminPanel');
@@ -19,22 +40,14 @@ function hideLegacyAdmin(){
   const oldSummary=document.getElementById('saSummaryCards');if(oldSummary)oldSummary.style.display='none';
   document.getElementById('sa48Sidebar')?.classList.add('hidden');
 }
-function installCss(){
-  if(document.getElementById('sweAdminGateStyle'))return;
-  const s=document.createElement('style');s.id='sweAdminGateStyle';
-  s.textContent=`body:not(.swe-admin-entry) #superAdminPanel,body:not(.swe-admin-entry) #sweSa4250Side,body:not(.swe-admin-entry) #sa48Sidebar{display:none!important}body.swe-admin-entry #superAdminPanel>.sa-hero,body.swe-admin-entry #superAdminPanel>.sa-admin-tabs,body.swe-admin-entry #saSummaryCards{display:none!important}`;
-  document.head.appendChild(s);
-}
 function showAppLogin(message){
+  if(document.body.classList.contains('swe-legacy-admin-blocked'))return;
   document.getElementById('main')?.classList.add('hidden');
   document.getElementById('auth')?.classList.remove('hidden');
   document.getElementById('superAdminPanel')?.classList.add('hidden');
   document.getElementById('sweSa4250Side')?.classList.add('hidden');
   document.body.classList.remove('swe-sa4250','swe-super48');
-  if(message){
-    const t=document.getElementById('toast');
-    if(t){t.textContent=message;t.style.display='block';setTimeout(()=>t.style.display='none',4200)}
-  }
+  if(message){const t=document.getElementById('toast');if(t){t.textContent=message;t.style.display='block';setTimeout(()=>t.style.display='none',4200)}}
 }
 async function denySuperAdminOnPublicApp(){
   try{
@@ -43,13 +56,13 @@ async function denySuperAdminOnPublicApp(){
     if(error||check!==true)return false;
     try{if(typeof S!=='undefined')S.isSuperAdmin=false}catch(_){}
     try{await sb.auth.signOut({scope:'local'})}catch(_){try{await sb.auth.signOut()}catch(__){}}
-    showAppLogin('Accès Super Admin réservé à /forssadmin.');
+    showAppLogin('Ce compte administrateur doit utiliser l’accès dédié.');
     return true;
   }catch(_){return false}
 }
 function installInitGate(){
-  if(window.__SWE_ADMIN_INIT_GATE_4258)return;
-  window.__SWE_ADMIN_INIT_GATE_4258=true;
+  if(window.__SWE_ADMIN_INIT_GATE_4259)return;
+  window.__SWE_ADMIN_INIT_GATE_4259=true;
   const original=typeof initSuperAdmin==='function'?initSuperAdmin:null;
   if(!original)return;
   window.initSuperAdmin=async function(){
@@ -66,21 +79,21 @@ function normalizeAdminUrl(){
   sessionStorage.setItem('SWE_ADMIN_ENTRY','1');
   ensureBase();
   document.body.classList.add('swe-admin-entry');
-  if(location.pathname!==ADMIN_PATH||entryFromQuery){
-    history.replaceState({},'',ADMIN_PATH);
-  }
+  document.body.classList.remove('swe-legacy-admin-blocked');
+  if(location.pathname!==ADMIN_PATH||handoff){history.replaceState({},'',ADMIN_PATH)}
 }
 function boot(){
   installCss();
+  // Les anciennes portes ?superadmin=1 / ?admin=... sont neutralisées : aucune mire de connexion n'est affichée.
+  if(legacyAdminParam){blockLegacyUrl();return}
+  // Un handoff forgé directement depuis l'URL n'est pas accepté.
+  if(handoff&&!storedEntry){blockLegacyUrl();return}
   if(adminEntry){normalizeAdminUrl();hideLegacyAdmin()}else{
     sessionStorage.removeItem('SWE_ADMIN_ENTRY');
     document.body.classList.remove('swe-admin-entry');
   }
   installInitGate();
-  if(adminEntry){
-    const mo=new MutationObserver(()=>hideLegacyAdmin());
-    mo.observe(document.documentElement,{subtree:true,childList:true});
-  }
+  if(adminEntry){const mo=new MutationObserver(()=>hideLegacyAdmin());mo.observe(document.documentElement,{subtree:true,childList:true})}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
