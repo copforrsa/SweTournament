@@ -2,105 +2,34 @@
 'use strict';
 const E=id=>document.getElementById(id);
 let activeView=sessionStorage.getItem('SWE_SA_ACTIVE_VIEW')||'overview';
-let allGroupPlayers=[];
-let playersLoaded=false;
-let playersLoading=false;
+let players=[],complexes=[],payments=[];
 let reinforcing=false;
 function isSA(){try{return typeof S!=='undefined'&&S.isSuperAdmin===true}catch(_){return false}}
 function esc(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
-function syncActive(){
-  E('sweSa4250Side')?.querySelectorAll('[data-sa50]').forEach(b=>b.classList.toggle('active',b.dataset.sa50===activeView));
-  document.querySelectorAll('#sa48Sidebar [data-sa48]').forEach(b=>b.classList.toggle('active',b.dataset.sa48===activeView));
-}
-function oldButton(view){return document.querySelector(`#sa48Sidebar [data-sa48="${view}"]`)}
-function invokeLegacy(view){const b=oldButton(view);if(!b)return false;b.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));return true}
-function venueCard(){return E('saVenueList')?.closest('.card')||null}
+function eur(c){return ((Number(c)||0)/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}
+function syncActive(){E('sweSa4250Side')?.querySelectorAll('[data-sa50]').forEach(b=>b.classList.toggle('active',b.dataset.sa50===activeView))}
 function settingsCards(){return [E('saConsentControl'),document.querySelector('.sa-footer-editor')].filter(Boolean)}
+function ensureSection(id){let x=E(id);if(x)return x;const p=E('superAdminPanel');if(!p)return null;x=document.createElement('section');x.id=id;x.className='hidden';p.appendChild(x);return x}
 function hideEverything(){
-  document.querySelectorAll('.sa48-view').forEach(x=>x.classList.remove('active'));
-  ['saSpacesSection','saPlayersSection','saPreviewSection47','swePublicVisualCatalog'].forEach(id=>E(id)?.classList.add('hidden'));
-  venueCard()?.classList.add('hidden');
-  settingsCards().forEach(x=>x.classList.add('hidden'));
+ document.querySelectorAll('.sa48-view').forEach(x=>x.classList.remove('active'));
+ ['saSpacesSection','saPlayersSection','saPreviewSection47','swePublicVisualCatalog','sweSaPlayersDirectory','sweSaVenues','sweSaPayments'].forEach(id=>E(id)?.classList.add('hidden'));
+ const vc=E('saVenueList')?.closest('.card');if(vc)vc.classList.add('hidden');
+ settingsCards().forEach(x=>x.classList.add('hidden'));
 }
-function forceVisibleView(view){
-  if(!isSA()||reinforcing)return;
-  reinforcing=true;
-  try{
-    hideEverything();
-    if(view==='spaces')E('saSpacesSection')?.classList.remove('hidden');
-    else if(view==='players')E('saPlayersSection')?.classList.remove('hidden');
-    else if(view==='venues')venueCard()?.classList.remove('hidden');
-    else if(view==='visuals')E('swePublicVisualCatalog')?.classList.remove('hidden');
-    else if(view==='settings')settingsCards().forEach(x=>x.classList.remove('hidden'));
-    else E('sa48-'+view)?.classList.add('active');
-    syncActive();
-  }finally{reinforcing=false}
-}
-function reinforceSoon(){
-  queueMicrotask(()=>forceVisibleView(activeView));
-  setTimeout(()=>forceVisibleView(activeView),30);
-  setTimeout(()=>forceVisibleView(activeView),140);
-}
-function playerSearchValue(){return (E('saSearchPlayer')?.value||'').trim().toLowerCase()}
-function renderAllGroupPlayers(){
-  const box=E('saPlayersList');if(!box)return;
-  const q=playerSearchValue();
-  const rows=allGroupPlayers.filter(r=>!q||[r.player_name,r.workspace_name,r.group_player_code,r.swe_player_id,r.player_id].some(v=>String(v||'').toLowerCase().includes(q)));
-  const pill=E('saPlayersCountPill');if(pill)pill.textContent=allGroupPlayers.length+' inscription'+(allGroupPlayers.length>1?'s':'')+' joueurs';
-  const stats=E('saPlayerStats');if(stats){const swe=allGroupPlayers.filter(r=>r.swe_player_id).length;const groups=new Set(allGroupPlayers.map(r=>r.workspace_id)).size;stats.innerHTML='<div><span>👥</span><b>'+allGroupPlayers.length+'</b><small>Inscriptions groupes</small></div><div><span>🪪</span><b>'+swe+'</b><small>ID SWÉ créés</small></div><div><span>🏟️</span><b>'+groups+'</b><small>Groupes</small></div>';}
-  box.innerHTML=rows.length?`<div style="overflow:auto"><table class="sa48-table" style="width:100%"><thead><tr><th>Joueur</th><th>Groupe</th><th>ID groupe</th><th>ID SWÉ</th><th>Statut</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.player_name||'Joueur')}</b></td><td>${esc(r.workspace_name||'—')}</td><td><code>${esc(r.group_player_code||'—')}</code></td><td>${r.swe_player_id?`<code>${esc(r.swe_player_id)}</code>`:'<span class="muted">Non créé</span>'}</td><td>${r.active===false?'🔴 Inactif':r.is_group_member===false?'🟠 Invité':'🟢 Membre'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="muted" style="padding:18px">Aucun joueur trouvé.</div>';
-}
-async function loadAllGroupPlayers(force=false){
-  if(playersLoading||(!force&&playersLoaded))return;
-  playersLoading=true;
-  try{
-    const r=await sb.rpc('super_admin_get_all_group_players_v1');
-    if(r.error)throw r.error;
-    allGroupPlayers=Array.isArray(r.data)?r.data:[];
-    playersLoaded=true;
-    renderAllGroupPlayers();
-  }catch(e){console.warn('super admin all players',e);const box=E('saPlayersList');if(box)box.innerHTML='<div class="muted">Impossible de charger l’annuaire global des joueurs.</div>'}
-  finally{playersLoading=false}
-}
-async function navigate(view){
-  if(!isSA())return;
-  activeView=view||'overview';
-  sessionStorage.setItem('SWE_SA_ACTIVE_VIEW',activeView);
-  syncActive();
-  if(activeView==='visuals'){
-    if(typeof ensureCatalog==='function')ensureCatalog();
-    forceVisibleView('visuals');
-    window.scrollTo({top:0,behavior:'smooth'});
-    return;
-  }
-  invokeLegacy(activeView);
-  forceVisibleView(activeView);
-  if(activeView==='players'){
-    await loadAllGroupPlayers();
-    renderAllGroupPlayers();
-    forceVisibleView('players');
-  }
-  reinforceSoon();
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-function wire(){
-  if(window.__SWE_SA_ONE_ROUTER_V2)return;window.__SWE_SA_ONE_ROUTER_V2=true;
-  document.addEventListener('click',e=>{
-    const b=e.target.closest?.('#sweSa4250Side [data-sa50]');if(!b)return;
-    e.preventDefault();e.stopImmediatePropagation();navigate(b.dataset.sa50);
-  },true);
-  document.addEventListener('input',e=>{if(e.target?.id==='saSearchPlayer')renderAllGroupPlayers()});
-  document.addEventListener('swe:rendered',()=>{
-    if(!isSA())return;
-    reinforceSoon();
-    if(activeView==='players'){setTimeout(()=>{renderAllGroupPlayers();forceVisibleView('players')},80)}
-  });
-}
-function boot(){
-  if(!isSA())return;
-  wire();syncActive();
-  setTimeout(()=>navigate(activeView),100);
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1200),{once:true});else setTimeout(boot,1200);
-window.addEventListener('pageshow',()=>setTimeout(()=>{if(isSA()){wire();navigate(activeView)}},420));
+function forceView(view){if(!isSA()||reinforcing)return;reinforcing=true;try{hideEverything();if(view==='players')E('sweSaPlayersDirectory')?.classList.remove('hidden');else if(view==='venues')E('sweSaVenues')?.classList.remove('hidden');else if(view==='payments')E('sweSaPayments')?.classList.remove('hidden');else if(view==='spaces')E('saSpacesSection')?.classList.remove('hidden');else if(view==='visuals')E('swePublicVisualCatalog')?.classList.remove('hidden');else if(view==='settings')settingsCards().forEach(x=>x.classList.remove('hidden'));else E('sa48-'+view)?.classList.add('active');syncActive()}finally{reinforcing=false}}
+function oldButton(view){return document.querySelector(`#sa48Sidebar [data-sa48="${view}"]`)}
+function legacy(view){const b=oldButton(view);if(!b)return;b.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}))}
+function ensurePlayersUI(){const s=ensureSection('sweSaPlayersDirectory');if(!s)return;s.innerHTML=`<div class="sa48-head"><div><h2>👤 Joueurs SWÉ</h2><p class="muted">Tous les joueurs inscrits dans tous les groupes, avec leur ID Groupe et leur ID SWÉ lorsqu’il existe.</p></div><span class="sa48-pill" id="sweSaPlayersCount">0 joueurs</span></div><div class="card"><div class="sa48-toolbar"><input id="sweSaPlayersSearch" placeholder="🔎 Rechercher joueur, groupe, ID Groupe ou ID SWÉ"><button type="button" id="sweSaPlayersRefresh">↻ Actualiser</button></div><div id="sweSaPlayersStats" class="sa48-grid" style="margin-top:10px"></div><div id="sweSaPlayersTable" style="margin-top:10px"></div></div>`;E('sweSaPlayersSearch').oninput=renderPlayers;E('sweSaPlayersRefresh').onclick=()=>loadPlayers(true)}
+function renderPlayers(){const box=E('sweSaPlayersTable');if(!box)return;const q=(E('sweSaPlayersSearch')?.value||'').toLowerCase().trim();const rows=players.filter(r=>!q||[r.player_name,r.workspace_name,r.group_player_code,r.swe_player_id,r.player_id].some(v=>String(v||'').toLowerCase().includes(q)));E('sweSaPlayersCount').textContent=players.length+' joueur'+(players.length>1?'s':'');const swe=players.filter(r=>r.swe_player_id).length;const groups=new Set(players.map(r=>r.workspace_id)).size;E('sweSaPlayersStats').innerHTML=`<div class="sa48-mini"><b>${players.length}</b><small>Inscriptions groupes</small></div><div class="sa48-mini"><b>${swe}</b><small>ID SWÉ créés</small></div><div class="sa48-mini"><b>${groups}</b><small>Groupes</small></div>`;box.innerHTML=rows.length?`<div style="overflow:auto"><table class="sa48-table"><thead><tr><th>Joueur</th><th>Groupe</th><th>ID Groupe</th><th>ID SWÉ</th><th>Statut</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.player_name)}</b></td><td>${esc(r.workspace_name)}</td><td><code>${esc(r.group_player_code||'—')}</code></td><td>${r.swe_player_id?`<code>${esc(r.swe_player_id)}</code>`:'<span class="muted">Non créé</span>'}</td><td>${r.active===false?'🔴 Inactif':r.is_group_member===false?'🟠 Invité':'🟢 Membre'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="sa48-empty">Aucun joueur trouvé.</div>'}
+async function loadPlayers(force=false){if(players.length&&!force){renderPlayers();return}const box=E('sweSaPlayersTable');if(box)box.innerHTML='<div class="muted">Chargement de tous les joueurs…</div>';const r=await sb.rpc('super_admin_get_all_group_players_v1');if(r.error){if(box)box.innerHTML='<div class="sa48-empty">Impossible de charger la liste complète des joueurs.</div>';return}players=Array.isArray(r.data)?r.data:[];renderPlayers()}
+function ensureVenuesUI(){const s=ensureSection('sweSaVenues');if(!s)return;s.innerHTML=`<div class="sa48-head"><div><h2>⌖ Complexes & terrains</h2><p class="muted">Référentiel des complexes, tarifs, créneaux et offres associées.</p></div><button id="sweSaVenuesRefresh">↻ Actualiser</button></div><div id="sweSaVenuesBody"></div>`;E('sweSaVenuesRefresh').onclick=()=>loadVenues(true)}
+function renderVenues(){const box=E('sweSaVenuesBody');if(!box)return;box.innerHTML=complexes.length?`<div class="card"><div class="sa48-grid">${complexes.map(c=>`<div class="sa48-mini"><b>${esc(c.name)}</b><small>${esc(c.city||'')}${c.address?' · '+esc(c.address):''}</small><div style="margin-top:8px;font-size:12px"><div>${c.active?'🟢 Actif':'🔴 Inactif'}</div><div>Dimanche : <b>${eur(c.onsite_sunday_price_cents)}</b></div><div>Semaine : <b>${eur(c.onsite_weekday_price_cents)}</b></div><div>${c.rates_count||0} tarif(s) · ${c.packages_count||0} formule(s) · ${c.negotiated_rates_count||0} tarif(s) négocié(s)</div></div></div>`).join('')}</div></div>`:'<div class="sa48-empty">Aucun complexe référencé.</div>';const legacyCard=E('saVenueList')?.closest('.card');if(legacyCard){legacyCard.classList.remove('hidden');box.appendChild(legacyCard)}}
+async function loadVenues(force=false){if(complexes.length&&!force){renderVenues();return}const box=E('sweSaVenuesBody');if(box)box.innerHTML='<div class="muted">Chargement des complexes…</div>';const r=await sb.rpc('super_admin_get_complexes_v1');if(r.error){if(box)box.innerHTML='<div class="sa48-empty">Impossible de charger les complexes.</div>';return}complexes=Array.isArray(r.data)?r.data:[];if(typeof renderSuperAdminVenues==='function')try{renderSuperAdminVenues()}catch(_){}renderVenues()}
+function ensurePaymentsUI(){const s=ensureSection('sweSaPayments');if(!s)return;s.innerHTML=`<div class="sa48-head"><div><h2>◫ Paiements & suivi</h2><p class="muted">Suivi des encaissements, Stripe Connect et disponibilité des versements par espace.</p></div><button id="sweSaPaymentsRefresh">↻ Actualiser</button></div><div id="sweSaPaymentsBody"></div>`;E('sweSaPaymentsRefresh').onclick=()=>loadPayments(true)}
+function renderPayments(){const box=E('sweSaPaymentsBody');if(!box)return;const total=payments.reduce((a,r)=>a+(Number(r.paid_amount_cents)||0),0),fees=payments.reduce((a,r)=>a+(Number(r.platform_fee_cents)||0),0),count=payments.reduce((a,r)=>a+(Number(r.paid_count)||0),0);box.innerHTML=`<div class="sa48-grid"><div class="sa48-mini"><b>${count}</b><small>Paiements validés</small></div><div class="sa48-mini"><b>${eur(total)}</b><small>Montant encaissé</small></div><div class="sa48-mini"><b>${eur(fees)}</b><small>Frais plateforme</small></div></div><div class="card" style="margin-top:10px">${payments.length?`<div style="overflow:auto"><table class="sa48-table"><thead><tr><th>Espace</th><th>Offre</th><th>Stripe Connect</th><th>Paiements</th><th>Encaissé</th><th>Versements</th></tr></thead><tbody>${payments.map(r=>`<tr><td><b>${esc(r.workspace_name)}</b></td><td>${esc((r.plan_code||'free').toUpperCase())}<br><small>${esc(r.subscription_status||'')}</small></td><td>${r.stripe_connect_account_id?'✅ Connecté':'⚪ Non connecté'}</td><td>${r.paid_count||0}/${r.payments_count||0}</td><td>${eur(r.paid_amount_cents)}</td><td>${r.connect_charges_enabled&&r.connect_payouts_enabled?'🟢 Prêt':'🟠 À configurer'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="sa48-empty">Aucune donnée de paiement.</div>'}</div>`}
+async function loadPayments(force=false){if(payments.length&&!force){renderPayments();return}const box=E('sweSaPaymentsBody');if(box)box.innerHTML='<div class="muted">Chargement des paiements…</div>';const r=await sb.rpc('super_admin_get_payment_overview_v1');if(r.error){if(box)box.innerHTML='<div class="sa48-empty">Impossible de charger le suivi des paiements.</div>';return}payments=Array.isArray(r.data)?r.data:[];renderPayments()}
+async function navigate(view){if(!isSA())return;activeView=view||'overview';sessionStorage.setItem('SWE_SA_ACTIVE_VIEW',activeView);syncActive();if(view==='players'){ensurePlayersUI();forceView(view);await loadPlayers();return}if(view==='venues'){ensureVenuesUI();forceView(view);await loadVenues();return}if(view==='payments'){ensurePaymentsUI();forceView(view);await loadPayments();return}if(view==='visuals'){if(typeof ensureCatalog==='function')ensureCatalog();forceView(view);return}legacy(view);forceView(view);setTimeout(()=>forceView(view),80)}
+function wire(){if(window.__SWE_SA_ONE_ROUTER_V3)return;window.__SWE_SA_ONE_ROUTER_V3=true;document.addEventListener('click',e=>{const b=e.target.closest?.('#sweSa4250Side [data-sa50]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();navigate(b.dataset.sa50)},true);document.addEventListener('swe:rendered',()=>{if(isSA())setTimeout(()=>forceView(activeView),60)})}
+function boot(){if(!isSA())return;ensurePlayersUI();ensureVenuesUI();ensurePaymentsUI();wire();navigate(activeView)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1100),{once:true});else setTimeout(boot,1100);window.addEventListener('pageshow',()=>setTimeout(boot,300));
 })();
