@@ -1,17 +1,48 @@
 (()=>{
 'use strict';
 const {createClient}=window.supabase;
-const sb=createClient('https://fbppesfxkvledwjemwsn.supabase.co','sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp',{auth:{flowType:'pkce',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const ADMIN_STORAGE_KEY='swe-forssadmin-auth-v1';
+const sb=createClient('https://fbppesfxkvledwjemwsn.supabase.co','sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp',{
+  auth:{flowType:'pkce',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:ADMIN_STORAGE_KEY}
+});
 const E=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const eur=c=>((Number(c)||0)/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
-let ready=false,active='overview';
+let ready=false,active='overview',checking=false;
 let cache={workspaces:[],players:[],organizers:[],payments:[],complexes:[],catalog:null,actions:null,settings:null};
 function showLogin(msg=''){ready=false;E('adminShell').classList.add('hidden');E('adminLogin').classList.remove('hidden');E('adminError').textContent=msg}
 function showShell(){ready=true;E('adminLogin').classList.add('hidden');E('adminShell').classList.remove('hidden');route(active)}
-async function ensureSuper(){const {data:s}=await sb.auth.getSession();if(!s?.session)return false;const {data,error}=await sb.rpc('is_platform_super_admin');return !error&&data===true}
-async function login(){const email=E('adminEmail').value.trim(),password=E('adminPassword').value;E('adminError').textContent='Connexion…';const {error}=await sb.auth.signInWithPassword({email,password});if(error)return showLogin(error.message);if(!await ensureSuper()){await sb.auth.signOut();return showLogin('Accès refusé : ce compte n’est pas Super Admin.')}showShell();await refreshAll()}
-function bindAuth(){E('adminLoginBtn').onclick=login;E('adminPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});E('adminLogout').onclick=()=>sb.auth.signOut();sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session)showLogin();else if((event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED')&&ready){};});}
+async function ensureSuper(){
+  if(checking)return ready;
+  checking=true;
+  try{
+    const {data:s,error}=await sb.auth.getSession();
+    if(error||!s?.session)return false;
+    const {data,error:roleError}=await sb.rpc('is_platform_super_admin');
+    return !roleError&&data===true;
+  }finally{checking=false}
+}
+async function login(){
+  const email=E('adminEmail').value.trim(),password=E('adminPassword').value;
+  E('adminError').textContent='Connexion…';
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error)return showLogin(error.message);
+  if(!await ensureSuper()){await sb.auth.signOut({scope:'local'});return showLogin('Accès refusé : ce compte n’est pas Super Admin.')}
+  showShell();await refreshAll();
+}
+function bindAuth(){
+  E('adminLoginBtn').onclick=login;
+  E('adminPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+  E('adminLogout').onclick=async()=>{await sb.auth.signOut({scope:'local'});showLogin()};
+  sb.auth.onAuthStateChange((event,session)=>{
+    // IMPORTANT : seul SIGNED_OUT ferme l'interface. Les événements transitoires
+    // de rafraîchissement ne doivent jamais provoquer un retour à la mire.
+    if(event==='SIGNED_OUT')showLogin();
+    else if(session&&(event==='TOKEN_REFRESHED'||event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='USER_UPDATED')){
+      if(ready){E('adminLogin').classList.add('hidden');E('adminShell').classList.remove('hidden')}
+    }
+  });
+}
 function nav(){document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>route(b.dataset.view))}
 function route(view){active=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));const titles={overview:'Vue d’ensemble',spaces:'Espaces clients',organizers:'Organisateurs',players:'Joueurs SWÉ',subscriptions:'Abonnements & modules',venues:'Complexes & terrains',visuals:'Visuels publics',payments:'Paiements & suivi',settings:'Paramètres plateforme',security:'Logs & sécurité',support:'Support'};E('pageTitle').textContent=titles[view]||'Super Admin';render(view)}
 async function rpc(name,args){const r=await sb.rpc(name,args);if(r.error)throw r.error;return r.data}
@@ -24,11 +55,24 @@ function renderOrganizers(){const rows=cache.organizers.map(o=>`<tr><td><b>${esc
 function renderPlayers(){const rows=cache.players.map(p=>`<tr><td><b>${esc(p.player_name||'Joueur')}</b></td><td>${esc(p.workspace_name||'')}</td><td>${esc(p.group_player_code||'—')}</td><td>${esc(p.swe_player_id||'—')}</td><td>${p.linked_account?'✅ Lié':'⚪ Non lié'}</td><td>${esc(p.linked_email||'')}</td></tr>`).join('');E('content').innerHTML=head('Joueurs SWÉ','Annuaire global de toutes les fiches joueurs.')+`<div class="card table-wrap"><table><thead><tr><th>Joueur</th><th>Groupe</th><th>ID groupe</th><th>ID SWÉ</th><th>Compte</th><th>Email</th></tr></thead><tbody>${rows||'<tr><td colspan="6">Aucun joueur.</td></tr>'}</tbody></table></div>`}
 function renderSubscriptions(){const plans=Array.isArray(cache.catalog?.plans)?cache.catalog.plans:Array.isArray(cache.catalog?.subscription_plans)?cache.catalog.subscription_plans:[],mods=Array.isArray(cache.catalog?.modules)?cache.catalog.modules:Array.isArray(cache.catalog?.module_offers)?cache.catalog.module_offers:[];E('content').innerHTML=head('Abonnements & modules','Catalogue commercial de la plateforme.')+`<div class="grid settings">${plans.map(p=>`<div class="card"><b>${esc(p.name||p.code)}</b><div class="muted">${esc(p.description||'')}</div><div style="margin-top:8px"><span class="pill">${p.is_free?'Gratuit':eur(p.monthly_price_cents)+'/mois'}</span></div></div>`).join('')||'<div class="card empty">Aucun abonnement.</div>'}</div><h3>Modules</h3><div class="grid settings">${mods.map(m=>`<div class="card"><b>${esc(m.name||m.module_key)}</b><div class="muted">${esc(m.description||'')}</div><div style="margin-top:8px">${eur(m.price_cents)}</div></div>`).join('')||'<div class="card empty">Aucun module.</div>'}</div>`}
 function renderVenues(){const rows=cache.complexes.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.city||'')}</td><td>${c.active===false?'Inactif':'Actif'}</td><td>${eur(c.onsite_sunday_price_cents)}</td><td>${eur(c.onsite_weekday_price_cents)}</td></tr>`).join('');E('content').innerHTML=head('Complexes & terrains','Référentiel global des complexes.')+`<div class="card table-wrap"><table><thead><tr><th>Complexe</th><th>Ville</th><th>Statut</th><th>Dimanche</th><th>Semaine</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Aucun complexe.</td></tr>'}</tbody></table></div>`}
-function renderVisuals(){E('content').innerHTML=head('Visuels publics','Ce module sera migré dans le nouveau Super Admin sans réimporter les anciens renderers.')+'<div class="card"><b>Migration propre en cours</b><div class="muted" style="margin-top:6px">Les liens publics continuent de fonctionner côté application. Cette page n’utilise aucun ancien code Super Admin.</div></div>'}
+function renderVisuals(){E('content').innerHTML=head('Visuels publics','Contrôle des accès publics indépendants de la session Super Admin.')+'<div class="card"><b>Liens publics isolés</b><div class="muted" style="margin-top:6px">Les inscriptions publiques utilisent désormais un lien canonique spécifique à chaque tournoi, vérifié après création.</div></div>'}
 function renderPayments(){const rows=cache.payments.map(p=>`<tr><td><b>${esc(p.workspace_name||'Espace')}</b></td><td>${esc(p.plan_code||'free')}</td><td>${esc(p.paid_count||0)}</td><td>${eur(p.paid_amount_cents)}</td><td>${p.connect_charges_enabled&&p.connect_payouts_enabled?'🟢 Prêt':'🟠 À configurer'}</td></tr>`).join('');E('content').innerHTML=head('Paiements & suivi','Encaissements et état Stripe Connect.')+`<div class="card table-wrap"><table><thead><tr><th>Espace</th><th>Offre</th><th>Paiements</th><th>Encaissé</th><th>Versements</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Aucune donnée.</td></tr>'}</tbody></table></div>`}
 function renderSettings(){const c=cache.settings?.consent_gate_enabled===true,w=cache.settings?.welcome_60_days_enabled!==false;E('content').innerHTML=head('Paramètres plateforme','Réglages globaux actifs.')+`<div class="grid settings"><div class="card setting"><div><b>Consentement création de compte</b><div class="muted">Active la validation des conditions.</div></div><input id="setConsent" type="checkbox" ${c?'checked':''}></div><div class="card setting"><div><b>Offre de bienvenue 60 jours</b><div class="muted">Pour les futurs nouveaux espaces.</div></div><input id="setWelcome" type="checkbox" ${w?'checked':''}></div></div>`;E('setConsent').onchange=async e=>{e.target.disabled=true;try{await rpc('super_admin_set_consent_gate',{p_enabled:e.target.checked});cache.settings.consent_gate_enabled=e.target.checked}catch(err){e.target.checked=!e.target.checked;alert(err.message)}e.target.disabled=false};E('setWelcome').onchange=async e=>{e.target.disabled=true;try{await rpc('super_admin_set_welcome_60_days',{p_enabled:e.target.checked});cache.settings.welcome_60_days_enabled=e.target.checked}catch(err){e.target.checked=!e.target.checked;alert(err.message)}e.target.disabled=false}}
 function renderSecurity(){const a=cache.actions||{};E('content').innerHTML=head('Logs & sécurité','État opérationnel et demandes à surveiller.')+`<div class="grid stats"><div class="card stat"><span>Actions</span><b>${Number(a.total_actions||0)}</b></div><div class="card stat"><span>Conflits identité</span><b>${Number(a.identity_disputes||0)}</b></div><div class="card stat"><span>Paiements en échec</span><b>${Number(a.failed_payments||0)}</b></div><div class="card stat"><span>Demandes rattachement</span><b>${Number(a.identity_link_requests||0)}</b></div></div>`}
-function renderSupport(){E('content').innerHTML=head('Support','Centre opérationnel Super Admin.')+'<div class="card"><b>Super Admin autonome actif</b><div class="muted" style="margin-top:6px">Cette interface est indépendante de l’application organisateur et de ses hotfixs.</div></div>'}
-async function boot(){bindAuth();nav();const {data:s}=await sb.auth.getSession();if(!s?.session)return showLogin();if(!await ensureSuper()){await sb.auth.signOut();return showLogin('Accès refusé : ce compte n’est pas Super Admin.')}showShell();await refreshAll()}
+function renderSupport(){E('content').innerHTML=head('Support','Centre opérationnel Super Admin.')+'<div class="card"><b>Session Super Admin isolée</b><div class="muted" style="margin-top:6px">La session utilise un stockage distinct de l’application organisateur. Un autre onglet SWÉ ne peut plus la déconnecter.</div></div>'}
+async function reconcileVisibleSession(){
+  if(document.visibilityState==='hidden')return;
+  const ok=await ensureSuper();
+  if(ok){if(!ready){showShell();await refreshAll()}}
+  else if(ready){showLogin('Session expirée. Reconnecte-toi.')}
+}
+async function boot(){
+  bindAuth();nav();
+  const ok=await ensureSuper();
+  if(!ok)return showLogin();
+  showShell();await refreshAll();
+  window.addEventListener('pageshow',()=>setTimeout(reconcileVisibleSession,150));
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(reconcileVisibleSession,150)});
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
