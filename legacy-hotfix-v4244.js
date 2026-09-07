@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.45';
+const VERSION=(window.SWE_BUILD_VERSION||'42.50');
 let membershipFlags=new Map();
 let membershipLoadedFor=null;
 let membershipLoading=null;

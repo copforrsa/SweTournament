@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const VERSION='42.37';
+  const VERSION=(window.SWE_BUILD_VERSION||'42.50');
   const STYLE_ID='swe-v4227-hotfix-style';
   const QUEUE_KEY='swe_offline_queue_v1';
   const SNAP_KEY='swe_offline_snapshot_v1';

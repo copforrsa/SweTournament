@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.48';
+const VERSION=(window.SWE_BUILD_VERSION||'42.50');
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 let activeView='overview';
