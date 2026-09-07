@@ -78,6 +78,7 @@ async function boot(){
   await load('./hotfix-v4246.js?v=4250','v4246');
   await load('./hotfix-v4248.js?v=4250','v4248');
   await load('./hotfix-v4250.js?v=4250','v4250');
+  await load('./hotfix-v4250-superadmin.js?v=4250','v4250-superadmin');
   applyBuild();
   setTimeout(applyBuild,250);
   setTimeout(applyBuild,1000);
