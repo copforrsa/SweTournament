@@ -2,11 +2,14 @@
 'use strict';
 const BUILD='42.63';
 const health=new Map();
+const appState=()=>{try{return typeof S!=='undefined'?S:null}catch(_){return null}};
+const appSb=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
 const canonicalRegistrationLink=t=>{
   try{
-    if(!t||!window.S?.workspace?.public_token)return '';
+    const state=appState();
+    if(!t||!state?.workspace?.public_token)return '';
     const q=new URLSearchParams({
-      public:String(window.S.workspace.public_token),
+      public:String(state.workspace.public_token),
       view:t.format==='league'?'league-session':'tournament',
       tournament:String(t.id)
     });
@@ -16,31 +19,30 @@ const canonicalRegistrationLink=t=>{
 };
 function installCanonicalGenerator(){
   try{
+    if(typeof registrationLink==='function'&&registrationLink!==canonicalRegistrationLink)registrationLink=canonicalRegistrationLink;
     window.registrationLink=canonicalRegistrationLink;
-    // Remplace aussi le binding global classique si le navigateur l'expose séparément.
-    if(typeof registrationLink==='function'&&registrationLink!==canonicalRegistrationLink){registrationLink=canonicalRegistrationLink;}
   }catch(_){}
 }
 async function verifyTournament(t){
-  if(!t||!window.sb||!window.S?.workspace?.public_token)return {ok:false,reason:'contexte indisponible'};
-  const token=String(window.S.workspace.public_token);
+  const state=appState(),client=appSb();
+  if(!t||!client||!state?.workspace?.public_token)return {ok:false,reason:'contexte indisponible'};
+  const token=String(state.workspace.public_token);
   try{
-    const snap=await window.sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
+    const snap=await client.rpc('get_public_workspace_snapshot_v2',{p_token:token});
     if(snap.error||!snap.data)return {ok:false,reason:snap.error?.message||'snapshot public indisponible'};
     const rows=Array.isArray(snap.data.tournaments)?snap.data.tournaments:[];
     const visible=rows.some(x=>String(x.id)===String(t.id));
     if(!visible)return {ok:false,reason:'tournoi absent du snapshot public'};
     if(t.short_code){
-      const r=await window.sb.rpc('resolve_public_tournament_short_link',{p_code:String(t.short_code).toUpperCase()});
+      const r=await client.rpc('resolve_public_tournament_short_link',{p_code:String(t.short_code).toUpperCase()});
       if(r.error||String(r.data?.tournament_id||'')!==String(t.id)||String(r.data?.public_token||'')!==token){
-        // Le lien canonique reste utilisable même si le raccourci est défaillant.
         return {ok:true,short:false,reason:r.error?.message||'raccourci non résolu'};
       }
     }
     return {ok:true,short:true};
   }catch(e){return {ok:false,reason:e?.message||String(e)}}
 }
-function statusToast(t,res){
+function statusToast(res){
   try{
     if(typeof toast!=='function')return;
     if(res.ok&&res.short!==false)toast('Tournoi créé • lien d’inscription vérifié ✅');
@@ -54,16 +56,15 @@ function installCreateGuard(){
   btn.dataset.publicGuard4263='1';
   const original=btn.onclick;
   btn.onclick=async function(ev){
-    const before=window.S?.activeTour||null;
+    const stateBefore=appState(),before=stateBefore?.activeTour||null;
     await original.call(this,ev);
-    const after=window.S?.activeTour||null;
+    const state=appState(),after=state?.activeTour||null;
     if(!after||String(after)===String(before))return;
-    const t=(window.S?.tournaments||[]).find(x=>String(x.id)===String(after));
+    const t=(state?.tournaments||[]).find(x=>String(x.id)===String(after));
     if(!t)return;
     const res=await verifyTournament(t);
     health.set(String(t.id),res);
-    statusToast(t,res);
-    // Le rendu suivant utilisera toujours l'URL canonique spécifique au tournoi.
+    statusToast(res);
     try{if(typeof renderTournaments==='function')renderTournaments()}catch(_){}
   };
 }
@@ -77,7 +78,6 @@ function boot(){
   installCanonicalGenerator();
   installCreateGuard();
   relabelGeneralPublicLink();
-  // Une seule reprise tardive pour les écrans rendus après l'authentification, sans observer permanent.
   setTimeout(()=>{installCanonicalGenerator();installCreateGuard();relabelGeneralPublicLink();},1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
