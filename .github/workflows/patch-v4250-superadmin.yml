@@ -1,0 +1,46 @@
+name: Patch V42.50 Super Admin
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-v4250-superadmin.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch legacy version writers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files=['hotfix-v4227.js','legacy-hotfix-v4244.js','hotfix-v4248.js']
+          replacements={
+            "const VERSION='42.37';":"const VERSION=(window.SWE_BUILD_VERSION||'42.50');",
+            "const VERSION='42.45';":"const VERSION=(window.SWE_BUILD_VERSION||'42.50');",
+            "const VERSION='42.48';":"const VERSION=(window.SWE_BUILD_VERSION||'42.50');",
+          }
+          for name in files:
+            p=Path(name)
+            s=p.read_text(encoding='utf-8')
+            for old,new in replacements.items():
+              s=s.replace(old,new)
+            p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify
+        run: |
+          ! grep -q "const VERSION='42.37'" hotfix-v4227.js
+          ! grep -q "const VERSION='42.45'" legacy-hotfix-v4244.js
+          ! grep -q "const VERSION='42.48'" hotfix-v4248.js
+          node --check hotfix-v4227.js
+          node --check legacy-hotfix-v4244.js
+          node --check hotfix-v4248.js
+      - name: Commit
+        run: |
+          git config user.name "SWE Deploy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add hotfix-v4227.js legacy-hotfix-v4244.js hotfix-v4248.js
+          git diff --cached --quiet && exit 0
+          git commit -m "V42.50: neutraliser les anciens writers de version"
+          git push
