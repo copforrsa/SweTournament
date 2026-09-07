@@ -6,6 +6,22 @@ let lastSession=null;
 let busy=false;
 let enforceTimer=null;
 let nullConfirmTimer=null;
+function publicContext(){
+  try{
+    if(typeof S!=='undefined'&&S.publicMode===true)return true;
+    const q=new URLSearchParams(location.search);
+    return q.has('public')||q.has('s')||q.has('pay')||q.has('paydesk')||q.has('paydesk_session')||q.has('history')||q.has('season');
+  }catch(_){return false}
+}
+function enforcePublicUi(){
+  if(!publicContext())return false;
+  E('auth')?.classList.add('hidden');
+  E('main')?.classList.add('hidden');
+  E('publicView')?.classList.remove('hidden');
+  hideSuperAdminShell();
+  document.body.classList.add('swe-public-only');
+  return true;
+}
 function hideSuperAdminShell(){
   E('sweSa4250Side')?.classList.add('hidden');
   E('sa48Sidebar')?.classList.add('hidden');
@@ -16,6 +32,7 @@ function applyAuthenticated(session){
   stableState='authenticated';
   lastSession=session;
   try{if(typeof S!=='undefined')S.session=session}catch(_){}
+  if(enforcePublicUi())return;
   E('auth')?.classList.add('hidden');
   E('main')?.classList.remove('hidden');
   try{
@@ -29,11 +46,13 @@ function applyLoggedOut(){
   stableState='loggedout';
   lastSession=null;
   try{if(typeof S!=='undefined')S.session=null}catch(_){}
+  if(enforcePublicUi())return;
   E('main')?.classList.add('hidden');
   E('auth')?.classList.remove('hidden');
   hideSuperAdminShell();
 }
 function enforceStableUi(){
+  if(enforcePublicUi())return;
   if(stableState==='authenticated'&&lastSession){
     E('auth')?.classList.add('hidden');
     E('main')?.classList.remove('hidden');
@@ -52,6 +71,7 @@ function enforceStableUi(){
 function confirmNullSession(){
   clearTimeout(nullConfirmTimer);
   nullConfirmTimer=setTimeout(async()=>{
+    if(enforcePublicUi())return;
     if(typeof sb==='undefined'||!sb?.auth?.getSession)return;
     try{
       const {data,error}=await sb.auth.getSession();
@@ -62,6 +82,7 @@ function confirmNullSession(){
   },700);
 }
 async function reconcile({allowLogout=false}={}){
+  if(enforcePublicUi())return;
   if(busy||typeof sb==='undefined'||!sb?.auth?.getSession)return;
   busy=true;
   try{
@@ -75,7 +96,18 @@ async function reconcile({allowLogout=false}={}){
 }
 function boot(){
   if(typeof sb==='undefined'||!sb?.auth){setTimeout(boot,120);return}
+  if(enforcePublicUi()){
+    // Sur une URL publique, la session éventuellement ouverte de l'organisateur
+    // ne doit jamais remettre en scène #main ni la navigation privée.
+    const mo=new MutationObserver(()=>{
+      clearTimeout(enforceTimer);
+      enforceTimer=setTimeout(enforcePublicUi,20);
+    });
+    mo.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+    return;
+  }
   sb.auth.onAuthStateChange((event,session)=>{
+    if(publicContext()){enforcePublicUi();return}
     if(event==='SIGNED_OUT'){
       clearTimeout(nullConfirmTimer);
       applyLoggedOut();
@@ -89,8 +121,6 @@ function boot(){
     if(event==='INITIAL_SESSION'&&!session)confirmNullSession();
   });
   reconcile({allowLogout:false});
-  // Une seule autorité visuelle : si un ancien hotfix tente de réafficher le login,
-  // on réapplique l'état stable sans relire la session en boucle.
   const mo=new MutationObserver(()=>{
     clearTimeout(enforceTimer);
     enforceTimer=setTimeout(enforceStableUi,30);
