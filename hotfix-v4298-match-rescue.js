@@ -1,0 +1,25 @@
+(()=>{
+'use strict';
+if(window.__SWE_4298_MATCH_RESCUE)return;window.__SWE_4298_MATCH_RESCUE=true;
+let busy=false,timer=null,watcher=null;
+const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+const team=id=>{try{return (S.teams||[]).find(t=>String(t.id)===String(id))||null}catch(_){return null}};
+const canEdit=()=>{try{return typeof canEditCurrentMatches==='function'&&canEditCurrentMatches()}catch(_){return false}};
+function installStyle(){if(document.getElementById('swe4298RescueStyle'))return;const s=document.createElement('style');s.id='swe4298RescueStyle';s.textContent=`
+#matchesList .swe4298-rescue{border:2px solid #d9e6f4;border-left:7px solid #1d6fdc;border-radius:18px;background:#fff;padding:16px;margin:14px 0;box-shadow:0 7px 20px rgba(15,23,42,.07)}
+.swe4298-head{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:12px;color:#64748b;font-weight:800;margin-bottom:12px}.swe4298-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}.swe4298-team{font-weight:950;font-size:17px}.swe4298-team:last-child{text-align:right}.swe4298-score b{font-size:24px;white-space:nowrap}.swe4298-edit{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:12px}.swe4298-note{font-size:11px;color:#64748b;margin-top:10px}
+@media(max-width:650px){.swe4298-edit{grid-template-columns:1fr 1fr}.swe4298-edit button{grid-column:1/-1;min-height:44px}.swe4298-team{font-size:15px}}
+`;document.head.appendChild(s)}
+function validRows(){try{return (S.matches||[]).map(m=>({m,h:team(m.home_team_id),a:team(m.away_team_id)})).filter(x=>x.h&&x.a)}catch(_){return []}}
+async function saveScore(m,hi,ai,btn){if(btn.disabled)return;const h=Math.max(0,Number(hi.value||0)),a=Math.max(0,Number(ai.value||0));btn.disabled=true;const oldH=m.home_score,oldA=m.away_score;try{const r=await sb.from('matches').update({home_score:h,away_score:a}).eq('id',m.id);if(r.error)throw r.error;m.home_score=h;m.away_score=a;if(typeof toast==='function')toast('Score enregistré ✅');setTimeout(()=>{try{if(typeof loadTournament==='function')loadTournament()}catch(_){ }},80)}catch(e){m.home_score=oldH;m.away_score=oldA;if(typeof toast==='function')toast(e?.message||'Score non enregistré')}finally{btn.disabled=false;ensure(true)}}
+function buildCard(row,index){const {m,h,a}=row;const d=document.createElement('div');d.className='swe4298-rescue';d.dataset.sweMatchId=String(m.id||'');d.innerHTML='<div class="swe4298-head"><span>⚽ MATCH '+(index+1)+'</span><span>'+esc(m.pitch||'Terrain non indiqué')+(m.round_label?' • '+esc(m.round_label):'')+'</span></div><div class="swe4298-score"><span class="swe4298-team">'+esc(h.name)+'</span><b>'+Number(m.home_score||0)+' - '+Number(m.away_score||0)+'</b><span class="swe4298-team">'+esc(a.name)+'</span></div>';
+ if(canEdit()){
+   const e=document.createElement('div');e.className='swe4298-edit';const hi=document.createElement('input'),ai=document.createElement('input'),b=document.createElement('button');hi.type='number';hi.min='0';hi.value=Number(m.home_score||0);ai.type='number';ai.min='0';ai.value=Number(m.away_score||0);b.type='button';b.className='primary';b.textContent='💾 Enregistrer le score';b.onclick=()=>saveScore(m,hi,ai,b);e.append(hi,ai,b);d.appendChild(e);
+ }
+ const n=document.createElement('div');n.className='swe4298-note';n.textContent='Affichage de secours SWÉ — le match reste accessible même si un module secondaire rencontre une erreur.';d.appendChild(n);return d}
+function ensure(force=false){if(busy)return;const view=document.getElementById('view-matches'),box=document.getElementById('matchesList');if(!view||!box)return;const rows=validRows();if(!rows.length)return;const nativeCards=[...box.children].filter(x=>x.classList?.contains('match')&&!x.classList.contains('swe4298-rescue'));const rescue=[...box.querySelectorAll(':scope > .swe4298-rescue')];if(nativeCards.length&&!force){rescue.forEach(x=>x.remove());return}if(rescue.length===rows.length&&!force)return;busy=true;try{rescue.forEach(x=>x.remove());if(!nativeCards.length){for(let i=0;i<rows.length;i++)box.appendChild(buildCard(rows[i],i));}}catch(e){console.error('SWÉ 42.98 rescue render',e)}finally{busy=false}}
+function schedule(delay=100){clearTimeout(timer);timer=setTimeout(()=>ensure(false),delay)}
+function watch(){const box=document.getElementById('matchesList');if(!box||watcher)return;watcher=new MutationObserver(()=>{if(!busy)schedule(80)});watcher.observe(box,{childList:true})}
+function boot(){installStyle();watch();schedule(50);document.addEventListener('swe:rendered',()=>schedule(80));document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="matches"],#matchCompetitionSelect'))schedule(180)},true);window.addEventListener('pageshow',()=>schedule(200));window.addEventListener('error',e=>console.error('SWÉ JS ERROR',e.message,e.filename,e.lineno,e.colno,e.error));setInterval(()=>ensure(false),1500)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
