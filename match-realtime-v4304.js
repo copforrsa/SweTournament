@@ -1,47 +1,61 @@
 (()=>{
 'use strict';
-if(window.__SWE_MATCH_REALTIME_4304)return;window.__SWE_MATCH_REALTIME_4304=true;
-let timer=null,channel=null,lastSync=0;
+if(window.__SWE_MATCH_REALTIME_4305)return;window.__SWE_MATCH_REALTIME_4305=true;
+let channel=null;
+const timers=new Map();
+const FIVE_SECONDS=5000;
+const localBusy=()=>Number(window.__SWE_LOCAL_MATCH_MUTATION_UNTIL||0)>Date.now();
 const currentTourId=()=>{try{return currentTour()?.id||S.activeTour||new URLSearchParams(location.search).get('tournament')||null}catch(_){return S.activeTour||null}};
 const publicToken=()=>{try{return window.__sweResolvedShortLink?.public_token||new URLSearchParams(location.search).get('public')||null}catch(_){return null}};
-function localBusy(){return Number(window.__SWE_LOCAL_MATCH_MUTATION_UNTIL||0)>Date.now()}
-async function syncAdmin(tid){
-  if(!tid||localBusy())return;
-  const [mr,gr]=await Promise.all([
-    sb.from('matches').select('*').eq('tournament_id',tid).order('match_order'),
-    sb.from('goals').select('*').in('match_id',(S.matches||[]).filter(m=>String(m.tournament_id)===String(tid)).map(m=>m.id).length?(S.matches||[]).filter(m=>String(m.tournament_id)===String(tid)).map(m=>m.id):['00000000-0000-0000-0000-000000000000'])
-  ]);
-  if(!mr.error){S.matches=mr.data||[]}
-  const mids=(S.matches||[]).map(m=>m.id);
-  let goals=[];
-  if(mids.length){const rr=await sb.from('goals').select('*').in('match_id',mids);if(!rr.error)goals=rr.data||[]}
-  S.goals=goals;
-  try{if(typeof renderMatches==='function')renderMatches();else window.SWE_RENDER_MATCHES_4302?.()}catch(e){console.warn('SWÉ realtime render admin',e)}
-  document.dispatchEvent(new Event('swe:rendered'));
-  document.dispatchEvent(new CustomEvent('swe:realtime-synced',{detail:{tournamentId:tid}}));
+function queue(matchId){
+  if(!matchId)return;
+  if(timers.has(matchId))clearTimeout(timers.get(matchId));
+  timers.set(matchId,setTimeout(()=>{timers.delete(matchId);syncOne(matchId)},FIVE_SECONDS));
 }
-async function syncPublic(){
+async function syncAdminMatch(matchId){
+  if(localBusy())return queue(matchId);
+  try{
+    const A=window.SWE_MATCH_ACTIONS_4303;
+    if(A?.refreshMatch){
+      const m=await A.refreshMatch(matchId);
+      document.dispatchEvent(new CustomEvent('swe:match-remote-final',{detail:{match:m,matchId}}));
+      return;
+    }
+    const [mr,gr]=await Promise.all([
+      sb.from('matches').select('*').eq('id',matchId).single(),
+      sb.from('goals').select('*').eq('match_id',matchId)
+    ]);
+    if(mr.error)throw mr.error;
+    const i=(S.matches||[]).findIndex(m=>String(m.id)===String(matchId));
+    if(i>=0)S.matches[i]=mr.data;
+    S.goals=[...(S.goals||[]).filter(g=>String(g.match_id)!==String(matchId)),...(gr.data||[])];
+    document.dispatchEvent(new CustomEvent('swe:match-remote-final',{detail:{match:mr.data,matchId}}));
+  }catch(e){console.warn('SWÉ V43.05 sync match',e)}
+}
+async function syncPublicOnce(){
   if(localBusy())return;
   const token=publicToken();
   if(!token||typeof bootPublic!=='function')return;
-  try{await bootPublic(token);document.dispatchEvent(new CustomEvent('swe:realtime-synced',{detail:{public:true}}))}catch(e){console.warn('SWÉ realtime public',e)}
+  try{await bootPublic(token)}catch(e){console.warn('SWÉ V43.05 sync public',e)}
 }
-async function runSync(){
-  if(localBusy())return;
-  if(Date.now()-lastSync<180)return;lastSync=Date.now();
-  if(S.publicMode)await syncPublic();else await syncAdmin(currentTourId());
+async function syncOne(matchId){
+  if(S.publicMode)return syncPublicOnce();
+  const tid=currentTourId();
+  const local=(S.matches||[]).find(m=>String(m.id)===String(matchId));
+  if(tid&&local?.tournament_id&&String(local.tournament_id)!==String(tid))return;
+  await syncAdminMatch(matchId);
 }
-function schedule(){clearTimeout(timer);timer=setTimeout(runSync,260)}
 function subscribe(){
   try{if(channel)sb.removeChannel(channel)}catch(_){}
-  channel=sb.channel('swe-match-live-4304')
-    .on('postgres_changes',{event:'*',schema:'public',table:'matches'},schedule)
-    .on('postgres_changes',{event:'*',schema:'public',table:'goals'},schedule)
+  channel=sb.channel('swe-score-final-4305')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'matches'},payload=>{
+      const n=payload?.new,o=payload?.old;
+      if(!n?.id)return;
+      const changed=Number(n.home_score||0)!==Number(o?.home_score||0)||Number(n.away_score||0)!==Number(o?.away_score||0);
+      if(changed)queue(n.id);
+    })
     .subscribe(status=>{document.documentElement.dataset.sweRealtime=String(status||'').toLowerCase()});
 }
 subscribe();
-// Fallback discret au cas où le WebView perd la websocket.
-setInterval(()=>{if(document.visibilityState==='visible'&&!localBusy())runSync()},3000);
-window.addEventListener('online',()=>{subscribe();setTimeout(runSync,350)});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(runSync,300)});
+window.addEventListener('online',subscribe);
 })();
