@@ -3,7 +3,7 @@
 if(window.__SWE_4284_MOBILE_MATCHES)return;window.__SWE_4284_MOBILE_MATCHES=true;
 const E=id=>document.getElementById(id);
 const isMobile=()=>window.matchMedia?.('(max-width: 820px), (pointer: coarse)').matches===true;
-const quickAssistActive=()=>window.__SWE_QUICK_ASSIST_ACTIVE===true;
+const quickAssistActive=()=>window.__SWE_QUICK_ASSIST_ACTIVE===true||Date.now()<Number(window.__SWE_QUICK_ASSIST_SETTLING_UNTIL||0);
 let createBusy=false,bulkBusy=false,rtTimer=null,fullTimer=null;
 function maxOrder(){return Math.max(0,...((typeof S!=='undefined'&&Array.isArray(S.matches))?S.matches:[]).map(m=>Number(m.match_order)||0));}
 function sortMatches(){if(typeof S==='undefined'||!Array.isArray(S.matches))return;S.matches.sort((a,b)=>(Number(a.match_order)||0)-(Number(b.match_order)||0)||String(a.created_at||'').localeCompare(String(b.created_at||'')));}
@@ -33,12 +33,13 @@ async function createRoundRobin(){if(bulkBusy||typeof sb==='undefined'||typeof S
 }catch(e){if(typeof toast==='function')toast(e?.message||String(e));else console.warn(e)}finally{bulkBusy=false;btn.disabled=false;btn.textContent=old}}
 function interceptClicks(){if(window.__SWE_4284_CLICK_CAPTURE)return;window.__SWE_4284_CLICK_CAPTURE=true;document.addEventListener('click',e=>{const add=e.target?.closest?.('#addMatch');if(add){e.preventDefault();e.stopImmediatePropagation();createMatch();return}const rr=e.target?.closest?.('#roundRobin');if(rr){e.preventDefault();e.stopImmediatePropagation();createRoundRobin();}},true)}
 function patchLocalMatch(payload){if(typeof S==='undefined'||!payload)return;const row=payload.new&&Object.keys(payload.new).length?payload.new:payload.old;if(!row)return;const active=String(S.activeTour||'');const tid=String((payload.new||payload.old)?.tournament_id||'');if(active&&tid&&active!==tid)return;if(!Array.isArray(S.matches))S.matches=[];const id=String(row.id||'');if(!id)return;const i=S.matches.findIndex(m=>String(m.id)===id);if(payload.eventType==='DELETE'){if(i>=0)S.matches.splice(i,1)}else if(i>=0)S.matches[i]={...S.matches[i],...row};else S.matches.push(row);if(!quickAssistActive())paintMatches()}
+function patchLocalGoal(payload){if(typeof S==='undefined'||!payload)return;const row=payload.new&&Object.keys(payload.new).length?payload.new:payload.old;if(!row?.id)return;if(!Array.isArray(S.goals))S.goals=[];const id=String(row.id),i=S.goals.findIndex(g=>String(g.id)===id);if(payload.eventType==='DELETE'){if(i>=0)S.goals.splice(i,1);return}if(i>=0)S.goals[i]={...S.goals[i],...row};else S.goals.push(row)}
 function scheduleTournamentRefresh(){clearTimeout(rtTimer);if(quickAssistActive()){rtTimer=setTimeout(scheduleTournamentRefresh,500);return}rtTimer=setTimeout(async()=>{if(quickAssistActive()){scheduleTournamentRefresh();return}if(typeof loadTournament!=='function')return;try{await loadTournament();paintMatches();if(typeof renderRanking==='function')renderRanking().catch?.(()=>{})}catch(e){console.warn('SWÉ sync tournoi mobile',e)}},320)}
 function scheduleFullRefresh(){clearTimeout(fullTimer);if(quickAssistActive()){fullTimer=setTimeout(scheduleFullRefresh,650);return}fullTimer=setTimeout(async()=>{if(quickAssistActive()){scheduleFullRefresh();return}if(typeof loadAll!=='function')return;try{await loadAll()}catch(e){console.warn('SWÉ sync mobile',e)}},1100)}
 function mobileRealtime(){if(!isMobile()||typeof sb==='undefined'||typeof S==='undefined'||!S.session||!S.workspace)return false;try{if(S.channel)sb.removeChannel(S.channel)}catch(_){ }
-  S.channel=sb.channel('tournoi-mobile-4284')
+  S.channel=sb.channel('tournoi-mobile-4291')
     .on('postgres_changes',{event:'*',schema:'public',table:'matches'},patchLocalMatch)
-    .on('postgres_changes',{event:'*',schema:'public',table:'goals'},scheduleTournamentRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'goals'},patchLocalGoal)
     .on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},scheduleTournamentRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'teams'},scheduleFullRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'team_players'},scheduleFullRefresh)
@@ -49,6 +50,6 @@ function mobileRealtime(){if(!isMobile()||typeof sb==='undefined'||typeof S==='u
     .subscribe();return true}
 function installMobileRealtime(){if(!isMobile())return;try{window.subscribeRealtime=mobileRealtime;subscribeRealtime=mobileRealtime}catch(_){window.subscribeRealtime=mobileRealtime}if(!mobileRealtime())setTimeout(installMobileRealtime,900)}
 function mobilePerfCss(){if(!isMobile()||E('swe4284MobileStyle'))return;const s=document.createElement('style');s.id='swe4284MobileStyle';s.textContent='@media(max-width:820px){#view-matches .match,#view-matches details{content-visibility:auto;contain-intrinsic-size:180px}#view-matches button{touch-action:manipulation}#matchList{overflow-anchor:none}}';document.head.appendChild(s)}
-function boot(){interceptClicks();mobilePerfCss();document.addEventListener('swe:quick-assist-closed',()=>setTimeout(scheduleTournamentRefresh,120));setTimeout(installMobileRealtime,700)}
+function boot(){interceptClicks();mobilePerfCss();setTimeout(installMobileRealtime,700)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();window.addEventListener('pageshow',()=>{mobilePerfCss();if(isMobile())setTimeout(installMobileRealtime,500)});
 })();
