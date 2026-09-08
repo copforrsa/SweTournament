@@ -1,0 +1,34 @@
+(()=>{
+'use strict';
+if(window.__SWE_4287_MATCH_CARDS)return;window.__SWE_4287_MATCH_CARDS=true;
+const E=id=>document.getElementById(id);
+let decorating=false,deleteSyncTimer=null,lastDeleteAt=0;
+const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+function teamName(id){try{return (S.teams||[]).find(t=>String(t.id)===String(id))?.name||'Équipe'}catch(_){return 'Équipe'}}
+function visibleMatches(){try{return (S.matches||[]).filter(m=>(S.teams||[]).some(t=>String(t.id)===String(m.home_team_id))&&(S.teams||[]).some(t=>String(t.id)===String(m.away_team_id)))}catch(_){return []}}
+function installStyle(){if(E('swe4287Style'))return;const s=document.createElement('style');s.id='swe4287Style';s.textContent=`
+#matchesList .match.swe-match-card-4287{position:relative;border:2px solid #dbe7f5!important;border-left-width:7px!important;border-radius:18px!important;padding-top:52px!important;overflow:visible;background:#fff!important;box-shadow:0 7px 20px rgba(15,23,42,.07)!important}
+#matchesList .match.swe-match-tone-0{border-left-color:#2563eb!important;background:linear-gradient(180deg,#f7fbff,#fff 72px)!important}
+#matchesList .match.swe-match-tone-1{border-left-color:#16a34a!important;background:linear-gradient(180deg,#f6fff8,#fff 72px)!important}
+#matchesList .match.swe-match-tone-2{border-left-color:#f59e0b!important;background:linear-gradient(180deg,#fffaf0,#fff 72px)!important}
+#matchesList .match.swe-match-tone-3{border-left-color:#7c3aed!important;background:linear-gradient(180deg,#faf7ff,#fff 72px)!important}
+.swe-match-head-4287{position:absolute;left:0;right:0;top:0;min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border-bottom:1px solid #e8eef5;border-radius:15px 15px 0 0;background:rgba(255,255,255,.93);font-size:12px}
+.swe-match-num-4287{font-weight:950;letter-spacing:.35px;color:#0f172a}.swe-match-pitch-4287{font-weight:800;color:#64748b;text-align:right}.swe-match-teams-4287{font-size:13px;font-weight:900;color:#173b6b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
+#matchesList .match.swe-match-selected-4287{outline:3px solid rgba(37,99,235,.24);outline-offset:2px}
+#matchesList .match.swe-match-delete-4287{outline:3px solid rgba(220,38,38,.34);outline-offset:2px;background:#fff7f7!important}
+#matchesList .match button.swe-delete-btn-4287{background:#fff1f2!important;color:#b91c1c!important;border-color:#fecaca!important}
+#matchesList .match button.swe-edit-btn-4287{background:#eff6ff!important;color:#1d4ed8!important;border-color:#bfdbfe!important}
+#sweMatchFocus4287{position:sticky;top:8px;z-index:35;display:none;margin:8px 0;padding:9px 12px;border-radius:12px;background:#10213f;color:#fff;font:800 12px/1.25 system-ui;box-shadow:0 7px 18px rgba(15,23,42,.18)}
+@media(max-width:650px){#matchesList .match.swe-match-card-4287{padding:52px 12px 14px!important;margin:14px 0!important}.swe-match-head-4287{padding:7px 9px}.swe-match-teams-4287{max-width:56%;font-size:12px}#sweMatchFocus4287{top:4px}}
+`;document.head.appendChild(s)}
+function focusBar(card){let b=E('sweMatchFocus4287');if(!b){b=document.createElement('div');b.id='sweMatchFocus4287';const list=E('matchesList');list?.parentElement?.insertBefore(b,list)}if(!b||!card)return;const n=card.dataset.sweMatchNumber||'?';const teams=card.dataset.sweMatchTeams||'Match';b.textContent='🎯 Match '+n+' • '+teams;b.style.display='block';clearTimeout(b._hide);b._hide=setTimeout(()=>{b.style.display='none'},3500)}
+function decorate(){if(decorating)return;const box=E('matchesList');if(!box)return;decorating=true;try{installStyle();const rows=visibleMatches();const cards=[...box.querySelectorAll(':scope > .match, :scope > .card.match')];cards.forEach((card,i)=>{const m=rows[i]||null;if(!m)return;const no=Number(m.match_order)||i+1;const home=teamName(m.home_team_id),away=teamName(m.away_team_id);card.classList.add('swe-match-card-4287','swe-match-tone-'+(i%4));card.dataset.sweMatchId=String(m.id||'');card.dataset.sweMatchNumber=String(no);card.dataset.sweMatchTeams=home+' vs '+away;if(!card.querySelector('.swe-match-head-4287')){const h=document.createElement('div');h.className='swe-match-head-4287';h.innerHTML='<span class="swe-match-num-4287">MATCH '+esc(no)+'</span><span class="swe-match-teams-4287">'+esc(home)+' vs '+esc(away)+'</span><span class="swe-match-pitch-4287">'+esc(m.pitch||'Terrain non indiqué')+'</span>';card.prepend(h)}
+ card.querySelectorAll('button').forEach(btn=>{const t=(btn.textContent||'').trim();if(/supprim|effac|retir/i.test(t))btn.classList.add('swe-delete-btn-4287');else if(/modif|édit|score|enregistr|but|passe/i.test(t))btn.classList.add('swe-edit-btn-4287')});});
+}finally{decorating=false}}
+async function forceTournamentSync(){if(typeof S==='undefined'||!S.session)return;const tid=String(S.activeTour||'');if(!tid)return;try{S.activeTour=tid;if(typeof loadTournament==='function')await loadTournament();S.activeTour=tid;if(typeof renderMatches==='function')renderMatches();decorate();if(typeof renderHome==='function')renderHome()}catch(e){console.warn('SWÉ 42.87 sync suppression',e)}}
+function scheduleDeleteSync(){clearTimeout(deleteSyncTimer);const started=Date.now();const run=async()=>{await forceTournamentSync();if(Date.now()-started<1800)deleteSyncTimer=setTimeout(run,650)};deleteSyncTimer=setTimeout(run,260)}
+function bindActions(){document.addEventListener('click',e=>{const btn=e.target?.closest?.('#matchesList .match button');if(!btn)return;const card=btn.closest('.match');document.querySelectorAll('#matchesList .match.swe-match-selected-4287').forEach(x=>x!==card&&x.classList.remove('swe-match-selected-4287'));card.classList.add('swe-match-selected-4287');focusBar(card);const t=(btn.textContent||'').trim();if(/supprim|effac|retir/i.test(t)){card.classList.add('swe-match-delete-4287');lastDeleteAt=Date.now();scheduleDeleteSync();setTimeout(()=>{if(document.body.contains(card))card.classList.remove('swe-match-delete-4287')},1800)}},true);document.addEventListener('focusin',e=>{const card=e.target?.closest?.('#matchesList .match');if(card)focusBar(card)},true)}
+function watch(){const box=E('matchesList');if(!box)return false;if(box.dataset.swe4287Watch)return true;box.dataset.swe4287Watch='1';let t=null;new MutationObserver(()=>{if(decorating)return;clearTimeout(t);t=setTimeout(decorate,50)}).observe(box,{childList:true,subtree:false});return true}
+function boot(){installStyle();bindActions();const go=()=>{decorate();if(!watch())setTimeout(go,350)};go();document.addEventListener('swe:rendered',()=>setTimeout(decorate,60));window.addEventListener('pageshow',()=>setTimeout(()=>{decorate();if(Date.now()-lastDeleteAt<5000)forceTournamentSync()},180))}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
