@@ -13,5 +13,8 @@
 /*.js
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
+/manifest.webmanifest
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
 /sw.js
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
