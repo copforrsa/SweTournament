@@ -2,6 +2,7 @@
 'use strict';
 if(window.__SWE_QUICKSCORE_4262)return;
 window.__SWE_QUICKSCORE_4262=true;
+window.__SWE_QUICK_ASSIST_ACTIVE=false;
 const escHtml=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const vibrate=p=>{try{if(navigator.vibrate)navigator.vibrate(p)}catch(_){}};
 const q=(root,sel)=>root?.querySelector(sel);
@@ -36,30 +37,37 @@ function localScore(match,teamId,delta){
   else if(String(match.away_team_id)===String(teamId))match.away_score=Math.max(0,Number(match.away_score||0)+delta);
 }
 function paintScore(card,match){const score=q(card,'.score');if(score)score.textContent=`${Number(match.home_score||0)} - ${Number(match.away_score||0)}`}
+function closeAssistLock(){
+  window.__SWE_QUICK_ASSIST_ACTIVE=false;
+  document.dispatchEvent(new CustomEvent('swe:quick-assist-closed'));
+}
 async function writeGoal(match,teamId,scorerId,card,quick){
   quick.classList.add('swe-qbusy');
+  window.__SWE_QUICK_ASSIST_ACTIVE=true;
   const beforeHome=Number(match.home_score||0),beforeAway=Number(match.away_score||0);
   const ins=await sb.from('goals').insert({match_id:match.id,team_id:teamId,scorer_player_id:scorerId,assister_player_id:null}).select('id').single();
-  if(ins.error){quick.classList.remove('swe-qbusy');toast(ins.error.message);return}
+  if(ins.error){quick.classList.remove('swe-qbusy');closeAssistLock();toast(ins.error.message);return}
   localScore(match,teamId,1);paintScore(card,match);vibrate(40);
   const upd=await sb.from('matches').update({home_score:Number(match.home_score||0),away_score:Number(match.away_score||0)}).eq('id',match.id);
   if(upd.error){
     match.home_score=beforeHome;match.away_score=beforeAway;paintScore(card,match);
     await sb.from('goals').delete().eq('id',ins.data.id);
-    quick.classList.remove('swe-qbusy');toast('But non enregistré : '+upd.error.message);return;
+    quick.classList.remove('swe-qbusy');closeAssistLock();toast('But non enregistré : '+upd.error.message);return;
   }
   const goal={id:ins.data.id,match_id:match.id,team_id:teamId,scorer_player_id:scorerId,assister_player_id:null};
-  if(Array.isArray(S.goals))S.goals.push(goal);
+  if(Array.isArray(S.goals)&&!S.goals.some(g=>String(g.id)===String(goal.id)))S.goals.push(goal);
   lastGoal={goal,match,card,quick,beforeHome,beforeAway};
   showAssist(match,teamId,scorerId,goal,quick);
   quick.classList.remove('swe-qbusy');
   toast('But de '+playerName(scorerId)+' ✅');
 }
 function showAssist(match,teamId,scorerId,goal,quick){
-  const zone=q(quick,'.swe-qassist');if(!zone)return;
+  const zone=q(quick,'.swe-qassist');if(!zone){closeAssistLock();return}
+  window.__SWE_QUICK_ASSIST_ACTIVE=true;
   const mateIds=matchTeamPlayerIds(match.id,teamId).filter(id=>String(id)!==String(scorerId));
   zone.innerHTML=`<div class="swe-qassist-title">🎯 Passeur pour ${escHtml(playerName(scorerId))} ?</div><div class="swe-qassist-actions">${mateIds.map(id=>`<button type="button" data-assist="${id}">${escHtml(playerName(id))}</button>`).join('')}<button type="button" class="none" data-assist="">Aucun</button><button type="button" class="swe-qundo" data-undo-goal="${goal.id}">↶ Annuler le but</button></div>`;
   zone.classList.add('show');
+  zone.scrollIntoView?.({block:'nearest',behavior:'smooth'});
   zone.onclick=async e=>{
     const undo=e.target.closest?.('[data-undo-goal]');if(undo){e.preventDefault();await undoGoal(goal,match,quick);return}
     const b=e.target.closest?.('[data-assist]');if(!b)return;
@@ -69,6 +77,7 @@ function showAssist(match,teamId,scorerId,goal,quick){
     zone.classList.remove('swe-qbusy');
     if(up.error)return toast(up.error.message);
     goal.assister_player_id=assistId;zone.classList.remove('show');zone.innerHTML='';vibrate(assistId?[25,40,25]:20);
+    closeAssistLock();
     toast(assistId?'Passe de '+playerName(assistId)+' ✅':'But enregistré sans passeur ✅');
   };
 }
@@ -84,7 +93,7 @@ async function undoGoal(goal,match,quick){
   }
   if(Array.isArray(S.goals))S.goals=S.goals.filter(g=>String(g.id)!==String(goal.id));
   const zone=q(quick,'.swe-qassist');if(zone){zone.classList.remove('show');zone.innerHTML=''}
-  quick.classList.remove('swe-qbusy');lastGoal=null;vibrate([20,30,20]);toast('But annulé ✅');
+  quick.classList.remove('swe-qbusy');lastGoal=null;closeAssistLock();vibrate([20,30,20]);toast('But annulé ✅');
 }
 function buildQuick(match,home,away,card){
   const wrap=document.createElement('section');wrap.className='swe-qscore';wrap.dataset.quickMatch=match.id;
