@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
-if(window.__SWE_MATCH_ENGINE_4301)return;
-window.__SWE_MATCH_ENGINE_4301=true;
+if(window.__SWE_MATCH_ENGINE_4302)return;
+window.__SWE_MATCH_ENGINE_4302=true;
 
 const E=id=>document.getElementById(id);
 const safe=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
@@ -16,10 +16,22 @@ function playersForTeam(teamId){
 function canEditScores(){try{return typeof canEditCurrentMatches==='function'?!!canEditCurrentMatches():false}catch(_){return false}}
 function adminUser(){try{return typeof isAdmin==='function'?!!isAdmin():false}catch(_){return false}}
 function current(){try{return typeof currentTour==='function'?currentTour():null}catch(_){return null}}
+function scoreFieldForGoal(m,g){
+  if(String(g.team_id)===String(m.home_team_id))return 'home_score';
+  if(String(g.team_id)===String(m.away_team_id))return 'away_score';
+  return null;
+}
+function syncCardScore(m){
+  const card=document.querySelector('.swe4300-match[data-match-id="'+CSS.escape(String(m.id))+'"]');
+  const score=card?.querySelector('.swe4300-result');
+  if(score)score.textContent=Number(m.home_score||0)+' - '+Number(m.away_score||0);
+  const inputs=card?.querySelectorAll('.swe4300-edit input');
+  if(inputs?.length>=2){inputs[0].value=Number(m.home_score||0);inputs[1].value=Number(m.away_score||0)}
+}
 
 function installCss(){
-  if(E('sweMatchEngine4301Css'))return;
-  const s=document.createElement('style');s.id='sweMatchEngine4301Css';s.textContent=`
+  if(E('sweMatchEngine4302Css'))return;
+  const s=document.createElement('style');s.id='sweMatchEngine4302Css';s.textContent=`
   #matchesList .swe4300-match{background:#fff;border:1px solid #dfe7ef;border-radius:18px;padding:15px;margin:12px 0;box-shadow:0 5px 16px rgba(15,23,42,.06)}
   #matchesList .swe4300-match.finished{opacity:.58;background:#f3f4f6;order:99}
   .swe4300-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px;font-size:12px;font-weight:800;color:#64748b}
@@ -48,7 +60,7 @@ async function hydrate(tid){
     if(teamIds.length){const tp=await sb.from('team_players').select('*').in('team_id',teamIds);if(!tp.error)S.teamPlayers=tp.data||[]}
     const mids=(S.matches||[]).map(x=>x.id);
     if(mids.length){const gr=await sb.from('goals').select('*').in('match_id',mids);if(!gr.error)S.goals=gr.data||[]}
-  }catch(e){console.error('SWÉ V43.01 hydrate matchs',e)}
+  }catch(e){console.error('SWÉ V43.02 hydrate matchs',e)}
   finally{hydrating=false;renderStableMatches(false)}
 }
 
@@ -58,11 +70,33 @@ async function saveScore(m,homeInput,awayInput,btn){
   try{
     const r=await sb.from('matches').update({home_score:home,away_score:away}).eq('id',m.id);
     if(r.error)throw r.error;
-    m.home_score=home;m.away_score=away;
-    const score=btn.closest('.swe4300-match')?.querySelector('.swe4300-result');if(score)score.textContent=home+' - '+away;
+    m.home_score=home;m.away_score=away;syncCardScore(m);
     if(typeof toast==='function')toast('Score enregistré ✅');
   }catch(e){if(typeof toast==='function')toast(e?.message||'Erreur lors de l’enregistrement')}
   finally{btn.disabled=false}
+}
+
+async function deleteGoalAndSyncScore(m,g,button,panel){
+  button.disabled=true;
+  const field=scoreFieldForGoal(m,g);
+  const previous=field?Number(m[field]||0):null;
+  const next=field?Math.max(0,previous-1):null;
+  try{
+    const del=await sb.from('goals').delete().eq('id',g.id);
+    if(del.error)throw del.error;
+    if(field){
+      const up=await sb.from('matches').update({[field]:next}).eq('id',m.id);
+      if(up.error)throw up.error;
+      m[field]=next;
+      syncCardScore(m);
+    }
+    S.goals=(S.goals||[]).filter(x=>String(x.id)!==String(g.id));
+    renderGoalPanel(panel,m);
+    if(typeof toast==='function')toast('But annulé • score corrigé ✅');
+  }catch(e){
+    console.error('SWÉ V43.02 suppression but',e);
+    if(typeof toast==='function')toast(e?.message||'Impossible d’annuler le but');
+  }finally{button.disabled=false}
 }
 
 function renderGoalPanel(panel,m){
@@ -91,8 +125,7 @@ function renderGoalPanel(panel,m){
         const r=await sb.from('goals').insert({match_id:m.id,team_id:teamSel.value,scorer_player_id:scorerSel.value,assister_player_id:assistSel.value||null}).select('*').single();
         if(r.error)throw r.error;
         S.goals=S.goals||[];S.goals.push(r.data);
-        scorerSel.value='';assistSel.value='';
-        renderGoalPanel(panel,m);
+        scorerSel.value='';assistSel.value='';renderGoalPanel(panel,m);
         if(typeof toast==='function')toast('Buteur / passeur ajouté ✅');
       }catch(e){if(typeof toast==='function')toast(e?.message||'Impossible d’ajouter le buteur')}
       finally{addBtn.disabled=false}
@@ -106,7 +139,7 @@ function renderGoalPanel(panel,m){
     const line=document.createElement('div');line.className='swe4301-goal-line';
     const scorer=playerById(g.scorer_player_id),assist=g.assister_player_id?playerById(g.assister_player_id):null,team=teamById(g.team_id);
     const text=document.createElement('span');text.textContent='⚽ '+(scorer?.name||'?')+(assist?' ← '+assist.name:' • sans passe')+(team?' • '+team.name:'');line.appendChild(text);
-    if(editable){const del=document.createElement('button');del.type='button';del.textContent='Annuler';del.onclick=async()=>{del.disabled=true;const r=await sb.from('goals').delete().eq('id',g.id);if(r.error){del.disabled=false;return toast(r.error.message)}S.goals=(S.goals||[]).filter(x=>String(x.id)!==String(g.id));renderGoalPanel(panel,m);toast('But annulé')};line.appendChild(del)}
+    if(editable){const del=document.createElement('button');del.type='button';del.textContent='Annuler';del.onclick=()=>deleteGoalAndSyncScore(m,g,del,panel);line.appendChild(del)}
     hist.appendChild(line);
   });
   panel.appendChild(hist);
@@ -140,7 +173,7 @@ function renderStableMatches(allowHydrate=true){
   if(selector){
     const selected=t?.id||'';
     selector.innerHTML='<option value="">Choisir une compétition</option>'+eligible.map(x=>'<option value="'+safe(x.id)+'"'+(String(x.id)===String(selected)?' selected':'')+'>'+safe(x.name||x.tournament_date||'Compétition')+'</option>').join('');
-    selector.onchange=async()=>{S.activeTour=selector.value||null;try{await loadTournament()}catch(e){console.error('SWÉ V43.01 changement tournoi',e)}renderStableMatches(true)};
+    selector.onchange=async()=>{S.activeTour=selector.value||null;try{await loadTournament()}catch(e){console.error('SWÉ V43.02 changement tournoi',e)}renderStableMatches(true)};
   }
   if(!t){box.innerHTML='<div class="card"><p class="muted">Choisis d’abord un tournoi ou un Swé de Ligue.</p></div>';if(status)status.textContent='Aucune compétition sélectionnée';return}
   const rows=[...(S.matches||[])].sort((a,b)=>{const af=String(a.status||'')==='finished'?1:0,bf=String(b.status||'')==='finished'?1:0;return af-bf||Number(a.match_order||0)-Number(b.match_order||0)});
@@ -150,8 +183,9 @@ function renderStableMatches(allowHydrate=true){
   rows.forEach((m,i)=>box.appendChild(buildCard(m,i)));
 }
 
-try{window.__SWE_NATIVE_RENDER_MATCHES=typeof renderMatches==='function'?renderMatches:null;renderMatches=renderStableMatches}catch(e){console.error('SWÉ V43.01 remplacement renderMatches',e)}
-window.SWE_RENDER_MATCHES_4301=renderStableMatches;
+window.SWE_MATCH_COMMON_4302={hydrate,saveScore,deleteGoalAndSyncScore,renderGoalPanel,buildCard,renderStableMatches,teamById,playerById,playersForTeam,canEditScores,adminUser,current,syncCardScore};
+try{window.__SWE_NATIVE_RENDER_MATCHES=typeof renderMatches==='function'?renderMatches:null;renderMatches=renderStableMatches}catch(e){console.error('SWÉ V43.02 remplacement renderMatches',e)}
+window.SWE_RENDER_MATCHES_4302=renderStableMatches;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>renderStableMatches(true),100),{once:true});else setTimeout(()=>renderStableMatches(true),100);
 document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="matches"]'))setTimeout(()=>renderStableMatches(true),80)},true);
 })();
