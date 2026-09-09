@@ -1,67 +1,42 @@
 (()=>{
 'use strict';
-if(window.__SWE_AUTH_PLAYER_CLEAN_4316)return;window.__SWE_AUTH_PLAYER_CLEAN_4316=true;
+if(window.__SWE_AUTH_PLAYER_CLEAN_4317)return;window.__SWE_AUTH_PLAYER_CLEAN_4317=true;
 const params=new URLSearchParams(location.search);
 if((params.get('start')||'').toLowerCase()!=='player')return;
 document.documentElement.dataset.sweAuthPlayerClean='1';
-
-function injectCss(){
- if(document.getElementById('sweAuthPlayerClean4316Style'))return;
- const s=document.createElement('style');s.id='sweAuthPlayerClean4316Style';s.textContent=`
+const LOGO='data:image/png;base64,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';
+function injectCss(){if(document.getElementById('sweAuthPlayerClean4317Style'))return;const s=document.createElement('style');s.id='sweAuthPlayerClean4317Style';s.textContent=`
 html[data-swe-auth-player-clean="1"] body{background:radial-gradient(circle at 50% -10%,#fff7dc 0,#f7f9fc 34%,#eef4fb 100%);color:#0b2345}
 html[data-swe-auth-player-clean="1"] .app{max-width:560px!important;padding:28px 18px 70px!important;margin:auto!important}
 html[data-swe-auth-player-clean="1"] #auth{max-width:470px!important;margin:2vh auto 0!important}
-html[data-swe-auth-player-clean="1"] #auth>.top{background:linear-gradient(135deg,#071a35 0%,#0d2b52 72%,#12385f 100%)!important;border:1px solid rgba(243,189,57,.35)!important;border-radius:24px!important;box-shadow:0 16px 38px rgba(7,26,53,.18)!important;padding:20px 22px!important;margin:0 0 14px!important;overflow:hidden!important}
-html[data-swe-auth-player-clean="1"] #auth>.top:after{content:""!important;position:absolute;right:-38px;top:-52px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(243,189,57,.16),rgba(243,189,57,0) 68%);opacity:1!important}
-html[data-swe-auth-player-clean="1"] #auth>.top h1{display:flex!important;align-items:center!important;gap:12px!important;font-size:20px!important;letter-spacing:-.02em!important;font-weight:950!important;color:#fff!important}
+html[data-swe-auth-player-clean="1"] #auth>.top{background:linear-gradient(135deg,#071a35 0%,#0d2b52 72%,#12385f 100%)!important;border:1px solid rgba(243,189,57,.35)!important;border-radius:24px!important;box-shadow:0 16px 38px rgba(7,26,53,.18)!important;padding:20px 22px!important;margin:0 0 14px!important}
+html[data-swe-auth-player-clean="1"] #auth>.top h1{display:flex!important;align-items:center!important;gap:12px!important;font-size:20px!important;color:#fff!important;margin:0!important}
 html[data-swe-auth-player-clean="1"] #auth>.top .muted{color:#c9d6e7!important;margin:7px 0 0 58px!important;font-size:12px!important}
-html[data-swe-auth-player-clean="1"] .swe-auth-logo{width:46px;height:46px;object-fit:contain;border-radius:50%;flex:0 0 auto;filter:drop-shadow(0 6px 12px rgba(0,0,0,.2))}
+html[data-swe-auth-player-clean="1"] .swe-auth-logo{width:48px;height:48px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 6px 12px rgba(0,0,0,.18))}
 html[data-swe-auth-player-clean="1"] .swe-brand-copy{display:grid;line-height:1.03}html[data-swe-auth-player-clean="1"] .swe-brand-copy strong{font-size:20px}html[data-swe-auth-player-clean="1"] .swe-brand-copy small{margin-top:4px;color:#f3bd39;font-size:9px;letter-spacing:.16em;font-weight:950}
-html[data-swe-auth-player-clean="1"] #loginCard{border:1px solid #d7e3f1!important;background:rgba(255,255,255,.98)!important;border-radius:24px!important;box-shadow:0 18px 42px rgba(7,26,53,.11)!important;padding:22px!important}
+html[data-swe-auth-player-clean="1"] #loginCard{border:1px solid #d7e3f1!important;background:#fff!important;border-radius:24px!important;box-shadow:0 18px 42px rgba(7,26,53,.11)!important;padding:22px!important}
 html[data-swe-auth-player-clean="1"] #loginCard .auth-login-brand{border-bottom:1px solid #e4ebf4!important;padding-bottom:17px!important;margin-bottom:16px!important;display:flex!important;align-items:center!important}
-html[data-swe-auth-player-clean="1"] #loginCard .auth-login-brand>img{display:block!important;width:50px!important;height:50px!important;object-fit:contain!important;border-radius:50%!important;margin-right:12px!important;flex:0 0 auto!important}
+html[data-swe-auth-player-clean="1"] #loginCard .auth-login-brand>img{display:block!important;width:54px!important;height:54px!important;object-fit:contain!important;margin-right:12px!important;flex:0 0 auto!important}
 html[data-swe-auth-player-clean="1"] #loginCard .auth-login-brand span{color:#c48700!important;letter-spacing:.13em!important;font-weight:950!important;font-size:10px!important}
 html[data-swe-auth-player-clean="1"] #loginCard .auth-login-brand h2{color:#071a35!important;font-size:24px!important;margin:3px 0 4px!important}
-html[data-swe-auth-player-clean="1"] #loginCard .auth-login-brand p{color:#61728b!important;line-height:1.45!important}
 html[data-swe-auth-player-clean="1"] #loginCard input{border:1px solid #ccd9e8!important;background:#fff!important;color:#0b2345!important;box-shadow:none!important}
 html[data-swe-auth-player-clean="1"] #loginCard input:focus{border-color:#d9a31d!important;box-shadow:0 0 0 3px rgba(243,189,57,.15)!important}
-html[data-swe-auth-player-clean="1"] #login{background:linear-gradient(135deg,#f8d66a,#f3bd39)!important;color:#071a35!important;border:0!important;box-shadow:0 8px 20px rgba(243,189,57,.26)!important}
 html[data-swe-auth-player-clean="1"] #signup,html[data-swe-auth-player-clean="1"] #signupConsentRow{display:none!important}
-html[data-swe-auth-player-clean="1"] #forgotPassword{background:#eef3f8!important;color:#17375d!important}
+html[data-swe-auth-player-clean="1"] .swe-login-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;margin-top:2px!important}
+html[data-swe-auth-player-clean="1"] .swe-login-actions #login{width:100%!important;background:linear-gradient(135deg,#f8d66a,#f3bd39)!important;color:#071a35!important;border:0!important;box-shadow:0 8px 20px rgba(243,189,57,.26)!important}
+html[data-swe-auth-player-clean="1"] .swe-login-actions #forgotPassword{width:100%!important;background:#0b2b54!important;color:#fff!important;border:1px solid #0b2b54!important;margin:0!important}
 html[data-swe-auth-player-clean="1"] .auth-social-btn{border-color:#d7e1ed!important;background:#fff!important;color:#162a45!important}
-html[data-swe-auth-player-clean="1"] #sweLoginOffers4252,html[data-swe-auth-player-clean="1"] #sweComplexHome4281,html[data-swe-auth-player-clean="1"] #swePublicTabs4310{display:none!important}
-html[data-swe-auth-player-clean="1"] #loginCard>p.muted:last-child{display:none!important}
-html[data-swe-auth-player-clean="1"] .swe-auth-back{position:fixed;left:18px;top:18px;z-index:200;display:inline-flex;align-items:center;gap:7px;padding:10px 14px;border-radius:999px;background:#071a35;color:#fff!important;text-decoration:none!important;font-weight:900;font-size:13px;box-shadow:0 9px 24px rgba(7,26,53,.18);border:1px solid rgba(243,189,57,.4)}
-html[data-swe-auth-player-clean="1"] .swe-auth-back:hover{background:#0d2b52;color:#f8d66a!important}
-@media(max-width:650px){html[data-swe-auth-player-clean="1"] .app{padding:54px 10px 40px!important}html[data-swe-auth-player-clean="1"] #auth{margin:0 auto!important}html[data-swe-auth-player-clean="1"] #auth>.top{border-radius:20px!important}html[data-swe-auth-player-clean="1"] .swe-auth-back{left:10px;top:10px;padding:8px 11px}html[data-swe-auth-player-clean="1"] #auth>.top .muted{margin-left:0!important}}
- `;document.head.appendChild(s)
-}
-function clean(){
- injectCss();
- document.querySelectorAll('#sweLoginOffers4252,#sweComplexHome4281,#swePublicTabs4310').forEach(el=>el.remove());
- const auth=document.getElementById('auth');if(!auth)return false;
- if(!document.querySelector('.swe-auth-back')){const a=document.createElement('a');a.className='swe-auth-back';a.href='https://swetournament.fr/';a.textContent='← Retour';a.setAttribute('aria-label','Retour au site SWÉ Tournament');document.body.appendChild(a)}
- const top=auth.querySelector(':scope>.top');
- if(top){
-   const h=top.querySelector('h1');
-   if(h&&!h.dataset.swe4316){
-     h.dataset.swe4316='1';h.innerHTML='';
-     const img=document.createElement('img');img.src='./favicon.png?v=4316';img.alt='SWÉ';img.className='swe-auth-logo';h.appendChild(img);
-     const copy=document.createElement('span');copy.className='swe-brand-copy';copy.innerHTML='<strong>SWÉ TOURNAMENT</strong><small>LE FOOT ENTRE AMIS, VERSION TOURNOI</small>';h.appendChild(copy)
-   }
-   const p=top.querySelector('.muted');if(p)p.textContent='Retrouve tes SWÉ, tes équipes et toutes tes stats.'
- }
- const brand=document.querySelector('#loginCard .auth-login-brand');
- if(brand){const img=brand.querySelector(':scope>img');if(img){img.src='./favicon.png?v=4316';img.alt='SWÉ'}}
- const signup=document.getElementById('signup');if(signup)signup.remove();
- const consent=document.getElementById('signupConsentRow');if(consent)consent.remove();
- return true;
-}
-function boot(){
- clean();
- let tries=0;
- const timer=setInterval(()=>{tries++;if(clean()||tries>=8)clearInterval(timer)},250);
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.addEventListener('pageshow',()=>setTimeout(clean,50),{once:true});
+html[data-swe-auth-player-clean="1"] #sweLoginOffers4252,html[data-swe-auth-player-clean="1"] #sweComplexHome4281,html[data-swe-auth-player-clean="1"] #swePublicTabs4310,html[data-swe-auth-player-clean="1"] #loginCard>p.muted:last-child{display:none!important}
+html[data-swe-auth-player-clean="1"] .swe-auth-back{position:fixed;left:18px;top:18px;z-index:200;padding:10px 14px;border-radius:999px;background:#071a35;color:#fff!important;text-decoration:none!important;font-weight:900;font-size:13px;box-shadow:0 9px 24px rgba(7,26,53,.18);border:1px solid rgba(243,189,57,.4)}
+@media(max-width:650px){html[data-swe-auth-player-clean="1"] .app{padding:54px 10px 40px!important}html[data-swe-auth-player-clean="1"] #auth>.top .muted{margin-left:0!important}html[data-swe-auth-player-clean="1"] .swe-login-actions{grid-template-columns:1fr 1fr!important}html[data-swe-auth-player-clean="1"] .swe-login-actions button{font-size:12px!important;padding:9px 8px!important}}
+`;document.head.appendChild(s)}
+function clean(){injectCss();document.querySelectorAll('#sweLoginOffers4252,#sweComplexHome4281,#swePublicTabs4310').forEach(el=>el.remove());const auth=document.getElementById('auth');if(!auth)return false;
+if(!document.querySelector('.swe-auth-back')){const a=document.createElement('a');a.className='swe-auth-back';a.href='https://swetournament.fr/';a.textContent='← Retour';document.body.appendChild(a)}
+const top=auth.querySelector(':scope>.top');if(top){const h=top.querySelector('h1');if(h&&!h.dataset.swe4317){h.dataset.swe4317='1';h.innerHTML='';const img=document.createElement('img');img.src=LOGO;img.alt='SWÉ Tournament';img.className='swe-auth-logo';h.appendChild(img);const copy=document.createElement('span');copy.className='swe-brand-copy';copy.innerHTML='<strong>SWÉ TOURNAMENT</strong><small>LE FOOT ENTRE AMIS, VERSION TOURNOI</small>';h.appendChild(copy)}const p=top.querySelector('.muted');if(p)p.textContent='Retrouve tes SWÉ, tes équipes et toutes tes stats.'}
+const brand=document.querySelector('#loginCard .auth-login-brand');if(brand){const img=brand.querySelector(':scope>img');if(img){img.src=LOGO;img.alt='SWÉ Tournament'}}
+const signup=document.getElementById('signup');if(signup)signup.remove();const consent=document.getElementById('signupConsentRow');if(consent)consent.remove();
+const login=document.getElementById('login'),forgot=document.getElementById('forgotPassword');if(login&&forgot){let row=login.parentElement;if(row){row.classList.add('swe-login-actions');if(forgot.parentElement!==row)row.appendChild(forgot)}}
+return true}
+function boot(){clean();setTimeout(clean,120);setTimeout(clean,500)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();window.addEventListener('pageshow',()=>setTimeout(clean,30),{once:true});
 })();
