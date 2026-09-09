@@ -1,5 +1,7 @@
 (()=>{
 'use strict';
+function loadCoorgRights(){if(document.querySelector('script[data-swe-coorg-rights="4319"]'))return;const s=document.createElement('script');s.src='/coorg-tab-rights-v4319.js?v=4319';s.async=false;s.dataset.sweCoorgRights='4319';document.body.appendChild(s)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadCoorgRights,{once:true});else loadCoorgRights();
 if((new URLSearchParams(location.search).get('start')||'').toLowerCase()==='player')return;
 if(window.__SWE_COMPLEX_ENTRY_4310)return;window.__SWE_COMPLEX_ENTRY_4310=true;
 const URL='/complexes-partenaires.html';
