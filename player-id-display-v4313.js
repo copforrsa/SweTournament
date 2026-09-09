@@ -1,0 +1,10 @@
+(()=>{
+'use strict';
+if(window.__SWE_PLAYER_ID_DISPLAY_4313)return;window.__SWE_PLAYER_ID_DISPLAY_4313=true;
+let cache=null,busy=false;
+async function loadRegistry(force=false){if(force)cache=null;if(cache||busy||typeof sb==='undefined'||typeof S==='undefined'||!S.workspace?.id||!S.session)return cache;busy=true;try{const {data,error}=await sb.rpc('get_workspace_player_identity_registry',{p_workspace_id:S.workspace.id});if(error)throw error;cache=Array.isArray(data)?data:[];return cache}catch(e){console.warn('SWÉ identité joueurs',e);return null}finally{busy=false}}
+function replaceCodeNode(el,row){if(!row?.linked||!row.public_player_id)return;el.textContent=row.public_player_id;el.dataset.swe4313Linked='1';el.title='ID SWÉ lié • ID Groupe conservé en arrière-plan';const host=el.closest('.player,tr,li,div');if(!host)return;const btn=[...host.querySelectorAll('button')].find(b=>/^copier$/i.test((b.textContent||'').trim()));if(btn&&!btn.dataset.swe4313Copy){const clone=btn.cloneNode(true);clone.dataset.swe4313Copy='1';clone.onclick=async()=>{try{await navigator.clipboard.writeText(row.public_player_id);if(typeof toast==='function')toast('ID SWÉ copié ✅')}catch(_){}};btn.replaceWith(clone)}}
+async function apply(force=false){const rows=await loadRegistry(force);if(!rows?.length)return;const byCode=new Map(rows.filter(r=>r.group_player_code).map(r=>[String(r.group_player_code).trim(),r]));document.querySelectorAll('b,span,code,div').forEach(el=>{if(el.children.length)return;const txt=(el.textContent||'').trim();if(!/^GRP-[A-Z0-9]+$/i.test(txt))return;const row=byCode.get(txt);if(row?.linked&&row.public_player_id)replaceCodeNode(el,row)})}
+function boot(){apply(false);let n=0;const t=setInterval(()=>{n++;apply(false);if(n>40)clearInterval(t)},300)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();document.addEventListener('swe:rendered',()=>setTimeout(()=>apply(false),80));window.addEventListener('pageshow',()=>setTimeout(()=>apply(true),120));
+})();
