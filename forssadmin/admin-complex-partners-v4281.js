@@ -10,3 +10,4 @@ async function render(){if(busy||!document.querySelector('[data-view="venues"].a
 }catch(e){console.warn('complex partners 4281',e)}finally{busy=false}}
 const obs=new MutationObserver(()=>setTimeout(render,80));function boot(){const c=E('content');if(c)obs.observe(c,{subtree:true,childList:true});document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="venues"]'))setTimeout(render,120)});setTimeout(render,500)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+(()=>{if(window.__SWE_COMPLEX_APPLICATIONS_LOADER_4315)return;window.__SWE_COMPLEX_APPLICATIONS_LOADER_4315=true;const s=document.createElement('script');s.src='/forssadmin/admin-complex-applications-v4315.js?v=4315';s.defer=true;document.head.appendChild(s)})();
