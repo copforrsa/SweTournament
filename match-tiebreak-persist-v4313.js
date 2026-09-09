@@ -1,0 +1,12 @@
+(()=>{
+'use strict';
+if(window.__SWE_TIEBREAK_PERSIST_4313)return;window.__SWE_TIEBREAK_PERSIST_4313=true;
+const team=id=>(S.teams||[]).find(t=>String(t.id)===String(id));
+const tour=id=>(S.tournaments||[]).find(t=>String(t.id)===String(id));
+function methodLabel(m){const method=m.tie_break_method_used||tour(m.tournament_id)?.tie_break_method||'shifumi_1';if(method==='penalties')return '🥅 Tirs au but';if(method==='shifumi_3')return '✊✋✌️ Shifumi • meilleur des 3';return '✊✋✌️ Shifumi'}
+function installCss(){if(document.getElementById('sweTieBreak4313Css'))return;const s=document.createElement('style');s.id='sweTieBreak4313Css';s.textContent='.swe4313-tie-result{margin-top:9px;padding:9px 11px;border-radius:11px;background:#eaf8f0;border:1px solid #b9e2ca;font-weight:900;color:#0b6b45}';document.head.appendChild(s)}
+function renderBadges(){installCss();document.querySelectorAll('.swe4300-match[data-match-id]').forEach(card=>{card.querySelector('.swe4313-tie-result')?.remove();const m=(S.matches||[]).find(x=>String(x.id)===String(card.dataset.matchId));if(!m||!m.tie_break_winner_team_id)return;const box=document.createElement('div');box.className='swe4313-tie-result';box.textContent=methodLabel(m)+' • vainqueur : '+(team(m.tie_break_winner_team_id)?.name||'Équipe');const actions=card.querySelector('.swe4306-actions');(actions||card).appendChild(box)})}
+function wrap(){const R=window.SWE_ROTATION_4306;if(!R||R.__swe4313Wrapped||typeof R.finish!=='function')return false;R.__swe4313Wrapped=true;const original=R.finish.bind(R);R.finish=async function(m,tieWinner=null){const hs=Number(m?.home_score||0),as=Number(m?.away_score||0),role=m?.rotation_role||'';const result=await original(m,tieWinner);if(hs===as&&role!=='king'&&tieWinner){const method=tour(m.tournament_id)?.tie_break_method||'shifumi_1';const {error}=await sb.from('matches').update({tie_break_winner_team_id:tieWinner,tie_break_method_used:method}).eq('id',m.id);if(error)console.warn('SWÉ départage',error);else{m.tie_break_winner_team_id=tieWinner;m.tie_break_method_used=method}}setTimeout(renderBadges,80);return result};return true}
+function boot(){if(!wrap())setTimeout(wrap,300);renderBadges();[500,1200].forEach(ms=>setTimeout(()=>{wrap();renderBadges()},ms))}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();document.addEventListener('swe:rendered',()=>setTimeout(renderBadges,100));document.addEventListener('swe:match-finished',()=>setTimeout(renderBadges,120));
+})();
