@@ -1,5 +1,6 @@
 (()=>{
 'use strict';
+if((new URLSearchParams(location.search).get('start')||'').toLowerCase()==='player')return;
 const BUILD='42.53';
 const AUTH_SELECTOR='#loginCard,#email,#password,#login,#signup,#authGoogle,#authApple';
 function injectCss(){if(document.getElementById('sweLoginOffers4252Style'))return;const s=document.createElement('style');s.id='sweLoginOffers4252Style';s.textContent=`
