@@ -1,5 +1,6 @@
 (()=>{
 'use strict';
+if((new URLSearchParams(location.search).get('start')||'').toLowerCase()==='player')return;
 if(window.__SWE_COMPLEX_ENTRY_4310)return;window.__SWE_COMPLEX_ENTRY_4310=true;
 const URL='/complexes-partenaires.html';
 function installCss(){if(document.getElementById('sweComplexEntry4310Style'))return;const s=document.createElement('style');s.id='sweComplexEntry4310Style';s.textContent=`
