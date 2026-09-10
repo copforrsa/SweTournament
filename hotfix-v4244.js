@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const BUILD='43.28';
+const BUILD='43.29';
 window.SWE_BUILD_VERSION=BUILD;
 window.__SWE_PAYMENT_AUTHORITY_ACTIVE=true;
 function applyBuild(){
@@ -12,7 +12,7 @@ function applyBuild(){
 }
 async function purgeLegacyClient(){
  try{
-  const k='swe-legacy-cache-cleaned-v4328';
+  const k='swe-legacy-cache-cleaned-v4329';
   if(localStorage.getItem(k)==='1')return;
   if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)))}
   if(window.caches){const keys=await caches.keys();await Promise.all(keys.map(x=>caches.delete(x).catch(()=>false)))}
@@ -84,7 +84,10 @@ async function boot(){
  await load('/match-realtime-v4304.js?v=4327','match-realtime-v4305');
  await load('/public-registration-lock-v4307.js?v=4327','public-registration-lock-v4307');
  applyBuild();
+ setTimeout(applyBuild,250);
+ setTimeout(applyBuild,1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 window.addEventListener('pageshow',()=>setTimeout(applyBuild,50));
+document.addEventListener('swe:rendered',()=>setTimeout(applyBuild,0));
 })();
