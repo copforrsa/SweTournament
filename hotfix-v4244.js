@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const BUILD='43.36';
+const BUILD='43.37';
 window.SWE_BUILD_VERSION=BUILD;
 window.__SWE_PAYMENT_AUTHORITY_ACTIVE=true;
 function applyBuild(){
@@ -12,7 +12,7 @@ function applyBuild(){
 }
 async function purgeLegacyClient(){
  try{
-  const k='swe-legacy-cache-cleaned-v4336';
+  const k='swe-legacy-cache-cleaned-v4337';
   if(localStorage.getItem(k)==='1')return;
   if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)))}
   if(window.caches){const keys=await caches.keys();await Promise.all(keys.map(x=>caches.delete(x).catch(()=>false)))}
@@ -35,8 +35,8 @@ function load(src,key){
 function mobileClient(){return matchMedia('(max-width: 760px)').matches||navigator.maxTouchPoints>1}
 async function boot(){
  applyBuild();purgeLegacyClient();
- loadCss('/desktop-layout-v4328.css?v=4336','desktop-layout-v4328');
- loadCss('/player-photo-v4333.css?v=4336','player-photo-v4333');
+ loadCss('/desktop-layout-v4328.css?v=4337','desktop-layout-v4328');
+ loadCss('/player-photo-v4333.css?v=4337','player-photo-v4333');
  document.documentElement.dataset.sweMatchClient=mobileClient()?'mobile':'desktop';
  await load('/admin-access-gate-v4258.js?v=4327','admin-access-gate');
  await load('/hotfix-v4250-invite-auth.js?v=4335','invite-auth');
@@ -55,7 +55,7 @@ async function boot(){
  await load('/hotfix-v4272-profile-registration.js?v=4327','v4272-profile-registration');
  await load('/player-contact-profile-v4321.js?v=4336','player-contact-profile-v4321');
  await load('/player-id-display-v4313.js?v=4327','player-id-display-v4313');
- await load('/player-profile-organizer-v4336.js?v=4336','player-profile-organizer-v4336');
+ await load('/player-profile-organizer-v4337.js?v=4337','player-profile-organizer-v4337');
  await load('/hotfix-v4273-payment-ratings-ui.js?v=4327','v4273-payment-ratings-ui');
  await load('/hotfix-v4274-payment-rating-admin.js?v=4327','v4274-payment-rating-admin');
  await load('/coorganizer-selfpay-v4308.js?v=4327','coorganizer-selfpay-v4308');
@@ -68,7 +68,7 @@ async function boot(){
  await load('/hotfix-v4282-partner-booking.js?v=4327','v4282-partner-booking');
  await load('/hotfix-v4283-stability-security.js?v=4327','v4283-stability-security');
  await load('/auth-player-clean-v4315.js?v=4331','auth-player-clean-v4318');
- loadCss('/player-entry-layout-v4330.css?v=4336','player-entry-layout-v4330');
+ loadCss('/player-entry-layout-v4330.css?v=4337','player-entry-layout-v4330');
  await load('/coorg-tab-rights-v4319.js?v=4327','coorg-tab-rights-v4321');
  await load('/match-rating-rules-v4323.js?v=4327','match-rating-rules-v4323');
  await load('/match-engine-v4300.js?v=4327','match-engine-v4302');
