@@ -2,7 +2,7 @@
 'use strict';
 if(window.__SWE_COORG_TAB_RIGHTS_4321)return;window.__SWE_COORG_TAB_RIGHTS_4321=true;
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
-function loadIdentityModule(){if(document.querySelector('script[data-swe-player-contact="4321"]'))return;const s=document.createElement('script');s.src='/player-contact-profile-v4321.js?v=4321';s.async=false;s.dataset.swePlayerContact='4321';document.body.appendChild(s)}
+function loadIdentityModule(){if(document.querySelector('script[data-swe-player-contact="4321"]'))return;const s=document.createElement('script');s.src='/player-contact-profile-v4321.js?v=4327';s.async=false;s.dataset.swePlayerContact='4321';document.body.appendChild(s)}
 function css(){if(document.getElementById('sweCoorgRights4321Style'))return;const s=document.createElement('style');s.id='sweCoorgRights4321Style';s.textContent=`
 .tabs button.swe-right-disabled,#view-home button[data-go].swe-right-disabled{opacity:.30!important;filter:grayscale(1)!important;cursor:not-allowed!important;pointer-events:auto!important;box-shadow:none!important;color:#8d9aaa!important}
 .tabs button.swe-right-disabled{background:transparent!important}
@@ -38,6 +38,8 @@ function mark(el,ok){el.classList.toggle('swe-right-disabled',!ok);el.setAttribu
 function forceProfileEnabled(){document.querySelectorAll('.tabs button[data-view]').forEach(btn=>{if(isProfileView(btn.dataset.view)){mark(btn,true);btn.disabled=false;btn.style.setProperty('color','#eef6ff','important');btn.style.setProperty('opacity','1','important');btn.style.setProperty('filter','none','important');btn.style.setProperty('pointer-events','auto','important')}})}
 function apply(){css();forceProfileEnabled();if(!isCoorg())return false;const txt=permissionsText();document.querySelectorAll('.tabs button[data-view]').forEach(btn=>mark(btn,allowed(btn.dataset.view||'',txt)));forceProfileEnabled();document.querySelectorAll('#view-home button[data-go]').forEach(btn=>{const view=quickView(btn);if(view)mark(btn,allowed(view,txt))});const active=document.querySelector('.tabs button.active[data-view]');if(active&&!allowed(active.dataset.view||'',txt))goHome();return true}
 document.addEventListener('click',e=>{const b=e.target.closest?.('.tabs button.swe-right-disabled,#view-home button[data-go].swe-right-disabled');if(!b)return;e.preventDefault();e.stopImmediatePropagation();toast()},true);
-function boot(){loadIdentityModule();apply();let n=0;const t=setInterval(()=>{n++;apply();if(n>20)clearInterval(t)},250)}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();document.addEventListener('swe:rendered',()=>setTimeout(apply,40));window.addEventListener('pageshow',()=>setTimeout(()=>{loadIdentityModule();apply()},80));
+function boot(){loadIdentityModule();apply();setTimeout(apply,350)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+document.addEventListener('swe:rendered',()=>setTimeout(apply,40));
+window.addEventListener('pageshow',()=>setTimeout(()=>{loadIdentityModule();apply()},80));
 })();
