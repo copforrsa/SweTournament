@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const BUILD='43.27';
+const BUILD='43.28';
 window.SWE_BUILD_VERSION=BUILD;
 window.__SWE_PAYMENT_AUTHORITY_ACTIVE=true;
 function applyBuild(){
@@ -12,12 +12,18 @@ function applyBuild(){
 }
 async function purgeLegacyClient(){
  try{
-  const k='swe-legacy-cache-cleaned-v4327';
+  const k='swe-legacy-cache-cleaned-v4328';
   if(localStorage.getItem(k)==='1')return;
   if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)))}
   if(window.caches){const keys=await caches.keys();await Promise.all(keys.map(x=>caches.delete(x).catch(()=>false)))}
   localStorage.setItem(k,'1');
  }catch(_){}
+}
+function loadCss(href,key){
+ if(document.querySelector('link[data-swe-style="'+key+'"]'))return;
+ const l=document.createElement('link');
+ l.rel='stylesheet';l.href=href;l.dataset.sweStyle=key;
+ document.head.appendChild(l);
 }
 function load(src,key){
  return new Promise(resolve=>{
@@ -31,6 +37,7 @@ function load(src,key){
 function mobileClient(){return matchMedia('(max-width: 760px)').matches||navigator.maxTouchPoints>1}
 async function boot(){
  applyBuild();purgeLegacyClient();
+ loadCss('/desktop-layout-v4328.css?v=4328','desktop-layout-v4328');
  document.documentElement.dataset.sweMatchClient=mobileClient()?'mobile':'desktop';
  await load('/admin-access-gate-v4258.js?v=4327','admin-access-gate');
  await load('/hotfix-v4250-invite-auth.js?v=4327','invite-auth');
