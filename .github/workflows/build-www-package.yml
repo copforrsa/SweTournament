@@ -1,0 +1,44 @@
+name: Build WWW package
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_NAME: swe-www-v43.40
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare www directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf www
+          mkdir -p www
+          rsync -a ./ www/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'www/' \
+            --exclude 'README*' \
+            --exclude '*.md' \
+            --exclude 'SQL_*.sql' \
+            --exclude 'FUTURE_*.sql'
+          printf 'SWÉ Tournament WWW package\nBuild source: %s\nCommit: %s\n' "${PACKAGE_NAME}" "${GITHUB_SHA}" > www/DEPLOY_INFO.txt
+          zip -r "${PACKAGE_NAME}.zip" www >/dev/null
+
+      - name: Upload WWW zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: ${{ env.PACKAGE_NAME }}.zip
+          if-no-files-found: error
+          retention-days: 7
