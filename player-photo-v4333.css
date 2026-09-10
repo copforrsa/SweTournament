@@ -1,0 +1,38 @@
+/* SWÉ V43.33 — photo de profil carrée et plus lisible */
+@media (min-width: 621px){
+  #view-myplayer .card:has(input[type="file"]) img,
+  #view-myplayer .player:has(input[type="file"]) img,
+  #view-myplayer [class*="profile"]:has(input[type="file"]) img{
+    width:110px!important;
+    height:110px!important;
+    min-width:110px!important;
+    min-height:110px!important;
+    max-width:110px!important;
+    max-height:110px!important;
+    border-radius:14px!important;
+    object-fit:cover!important;
+    object-position:center!important;
+    display:block!important;
+    background:#f4f7fb!important;
+    border:1px solid #d7e3f4!important;
+    box-shadow:0 8px 22px rgba(14,30,64,.10)!important;
+  }
+}
+@media (max-width:620px){
+  #view-myplayer .card:has(input[type="file"]) img,
+  #view-myplayer .player:has(input[type="file"]) img,
+  #view-myplayer [class*="profile"]:has(input[type="file"]) img{
+    width:88px!important;
+    height:88px!important;
+    min-width:88px!important;
+    min-height:88px!important;
+    max-width:88px!important;
+    max-height:88px!important;
+    border-radius:12px!important;
+    object-fit:cover!important;
+    object-position:center!important;
+    display:block!important;
+    background:#f4f7fb!important;
+    border:1px solid #d7e3f4!important;
+  }
+}
