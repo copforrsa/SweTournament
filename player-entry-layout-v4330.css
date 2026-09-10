@@ -1,0 +1,70 @@
+/* SWÉ V43.30 — nettoyage durable du parcours ?start=player, sans JS/observer */
+html[data-swe-auth-player-clean="1"] .app{
+  max-width:1280px!important;
+  width:min(1280px,calc(100% - 32px))!important;
+  margin:0 auto!important;
+}
+
+/* La page d'entrée joueur ne montre que la mire de connexion. */
+html[data-swe-auth-player-clean="1"] #auth>.top,
+html[data-swe-auth-player-clean="1"] #signup,
+html[data-swe-auth-player-clean="1"] #signupConsentRow,
+html[data-swe-auth-player-clean="1"] #loginCard>p.muted:last-child,
+html[data-swe-auth-player-clean="1"] #sweLoginOffers4252,
+html[data-swe-auth-player-clean="1"] #sweComplexHome4281,
+html[data-swe-auth-player-clean="1"] #swePublicTabs4310{
+  display:none!important;
+}
+
+/* L'ancien bloc commercial d'accueil ne doit pas réapparaître depuis le parcours joueur. */
+html[data-swe-auth-player-clean="1"] #homeEcosystemCard{
+  display:none!important;
+}
+
+/* La mire reste volontairement compacte, indépendamment du layout desktop connecté. */
+html[data-swe-auth-player-clean="1"] #auth{
+  width:min(470px,100%)!important;
+  max-width:470px!important;
+  margin:4vh auto 0!important;
+}
+html[data-swe-auth-player-clean="1"] #loginCard{
+  width:100%!important;
+  max-width:470px!important;
+}
+
+@media (min-width:900px){
+  /* Une fois connecté, on retrouve un vrai layout desktop standard. */
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden){
+    width:100%!important;
+    max-width:none!important;
+  }
+  html[data-swe-auth-player-clean="1"] .app:has(#main:not(.hidden)){
+    padding-left:224px!important;
+    padding-right:24px!important;
+    padding-bottom:30px!important;
+  }
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) .view.active,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-home,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-myplayer,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-players,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-permissions,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-tournaments,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-teams,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-matches,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-league,
+  html[data-swe-auth-player-clean="1"] #main:not(.hidden) #view-ranking{
+    width:100%!important;
+    max-width:none!important;
+  }
+}
+
+@media (max-width:899px){
+  html[data-swe-auth-player-clean="1"] .app{
+    width:100%!important;
+    max-width:none!important;
+  }
+  html[data-swe-auth-player-clean="1"] #auth{
+    margin:56px auto 0!important;
+    padding:0 10px!important;
+  }
+}
