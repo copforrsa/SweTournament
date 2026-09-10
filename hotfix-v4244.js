@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const BUILD='43.30';
+const BUILD='43.31';
 window.SWE_BUILD_VERSION=BUILD;
 window.__SWE_PAYMENT_AUTHORITY_ACTIVE=true;
 function applyBuild(){
@@ -12,7 +12,7 @@ function applyBuild(){
 }
 async function purgeLegacyClient(){
  try{
-  const k='swe-legacy-cache-cleaned-v4330';
+  const k='swe-legacy-cache-cleaned-v4331';
   if(localStorage.getItem(k)==='1')return;
   if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)))}
   if(window.caches){const keys=await caches.keys();await Promise.all(keys.map(x=>caches.delete(x).catch(()=>false)))}
@@ -35,7 +35,7 @@ function load(src,key){
 function mobileClient(){return matchMedia('(max-width: 760px)').matches||navigator.maxTouchPoints>1}
 async function boot(){
  applyBuild();purgeLegacyClient();
- loadCss('/desktop-layout-v4328.css?v=4330','desktop-layout-v4328');
+ loadCss('/desktop-layout-v4328.css?v=4331','desktop-layout-v4328');
  document.documentElement.dataset.sweMatchClient=mobileClient()?'mobile':'desktop';
  await load('/admin-access-gate-v4258.js?v=4327','admin-access-gate');
  await load('/hotfix-v4250-invite-auth.js?v=4327','invite-auth');
@@ -65,12 +65,13 @@ async function boot(){
  await load('/hotfix-v4281-complex-home.js?v=4327','v4281-complex-home');
  await load('/hotfix-v4282-partner-booking.js?v=4327','v4282-partner-booking');
  await load('/hotfix-v4283-stability-security.js?v=4327','v4283-stability-security');
- await load('/auth-player-clean-v4315.js?v=4330','auth-player-clean-v4318');
- loadCss('/player-entry-layout-v4330.css?v=4330','player-entry-layout-v4330');
+ await load('/auth-player-clean-v4315.js?v=4331','auth-player-clean-v4318');
+ loadCss('/player-entry-layout-v4330.css?v=4331','player-entry-layout-v4330');
  await load('/coorg-tab-rights-v4319.js?v=4327','coorg-tab-rights-v4321');
  await load('/match-rating-rules-v4323.js?v=4327','match-rating-rules-v4323');
  await load('/match-engine-v4300.js?v=4327','match-engine-v4302');
- await load('/match-team-select-v4309.js?v=4327','match-team-select-v4309');
+ await load('/match-team-select-v4309.js?v=4331','match-team-select-v4309');
+ await load('/ui-stability-v4331.js?v=4331','ui-stability-v4331');
  await load('/match-numbering-v4311.js?v=4327','match-numbering-v4311');
  await load('/match-actions-v4303.js?v=4327','match-actions-v4303');
  await load('/match-rotation-v4306.js?v=4327','match-rotation-v4306');
