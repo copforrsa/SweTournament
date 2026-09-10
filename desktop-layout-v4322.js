@@ -23,7 +23,6 @@ const CSS=`
   #main>.top,
   #main>.card,
   #main>.view,
-  #main>div:not(.hidden),
   .view.active,
   #view-home,
   #view-myplayer,
@@ -69,15 +68,12 @@ const CSS=`
   .tabs{left:10px!important;width:184px!important}
 }
 `;
-function apply(){
- let s=document.getElementById(STYLE_ID);
- if(!s){s=document.createElement('style');s.id=STYLE_ID;s.textContent=CSS;}
- else if(s.textContent!==CSS)s.textContent=CSS;
- if(s.parentNode)s.parentNode.removeChild(s);
- document.head.appendChild(s);
+function install(){
+  if(document.getElementById(STYLE_ID))return;
+  const s=document.createElement('style');
+  s.id=STYLE_ID;
+  s.textContent=CSS;
+  document.head.appendChild(s);
 }
-function boot(){apply();[250,800,1800,3500].forEach(ms=>setTimeout(apply,ms))}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.addEventListener('pageshow',()=>setTimeout(apply,60));
-document.addEventListener('swe:rendered',()=>setTimeout(apply,0));
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
