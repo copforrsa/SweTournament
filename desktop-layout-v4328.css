@@ -1,0 +1,87 @@
+/* SWÉ Tournament — V43.28
+   Layout desktop uniquement. Aucun JS, aucun observer, aucun changement métier. */
+
+@media (min-width: 1024px) {
+  /* Le conteneur large ne s'applique qu'une fois l'application connectée affichée.
+     La mire de connexion conserve donc son format compact. */
+  body:has(#main:not(.hidden)) .app {
+    width: min(1280px, calc(100% - 40px));
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 18px 24px 32px 232px;
+  }
+
+  body:has(#main:not(.hidden)) #main {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  body:has(#main:not(.hidden)) #main > .top,
+  body:has(#main:not(.hidden)) #main > .card,
+  body:has(#main:not(.hidden)) #main .view,
+  body:has(#main:not(.hidden)) #main .view.active {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  /* Sidebar desktop alignée sur le conteneur de 1280 px. */
+  body:has(#main:not(.hidden)) .tabs {
+    left: max(20px, calc(50% - 620px));
+    top: 18px;
+    bottom: 18px;
+    width: 194px;
+  }
+
+  /* Les principales cartes utilisent toute la largeur utile du contenu. */
+  body:has(#main:not(.hidden)) #view-home > .card,
+  body:has(#main:not(.hidden)) #view-myplayer > .card,
+  body:has(#main:not(.hidden)) #view-players > .card,
+  body:has(#main:not(.hidden)) #view-tournaments > .card,
+  body:has(#main:not(.hidden)) #view-teams > .card,
+  body:has(#main:not(.hidden)) #view-matches > .card,
+  body:has(#main:not(.hidden)) #view-league > .card,
+  body:has(#main:not(.hidden)) #view-ranking > .card {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* Profil joueur : deux colonnes naturelles sur PC. */
+  body:has(#main:not(.hidden)) #swePlayerIdentity4321 {
+    width: 100%;
+    max-width: none;
+  }
+
+  body:has(#main:not(.hidden)) #swePlayerIdentity4321 .swe4321-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+  }
+
+  body:has(#main:not(.hidden)) #swePlayerIdentity4321 .swe4321-wide {
+    grid-column: 1 / -1;
+  }
+
+  /* Accueil : les grilles existantes peuvent réellement exploiter la largeur PC. */
+  body:has(#main:not(.hidden)) #view-home .grid.g2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body:has(#main:not(.hidden)) #homeWorkspaceStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Tablette : on garde le comportement historique pour éviter toute régression. */
+@media (min-width: 1024px) and (max-width: 1180px) {
+  body:has(#main:not(.hidden)) .app {
+    width: calc(100% - 24px);
+    padding-left: 220px;
+    padding-right: 14px;
+  }
+
+  body:has(#main:not(.hidden)) .tabs {
+    left: 14px;
+    width: 188px;
+  }
+}
