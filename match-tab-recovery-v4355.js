@@ -1,63 +1,59 @@
 (()=>{
 'use strict';
-if(window.__SWE_MATCH_TAB_RECOVERY_4355)return;window.__SWE_MATCH_TAB_RECOVERY_4355=true;
+if(window.__SWE_MATCH_TAB_RECOVERY_4361)return;window.__SWE_MATCH_TAB_RECOVERY_4361=true;
+let busy=false,lastTourId=null,lastLoadedAt=0;
 const E=id=>document.getElementById(id);
-const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
-let busy=false,timer=null;
-function st(){try{return typeof S!=='undefined'?S:null}catch(_){return null}}
-function cli(){try{return typeof sb!=='undefined'?sb:null}catch(_){return null}}
-function matchViewActive(){const v=E('view-matches');return !!(v&&v.classList.contains('active'))}
-function eligible(){const s=st();return (s?.tournaments||[]).filter(t=>String(t.status||'').toLowerCase()!=='finished').sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')))}
-function activeTournament(){const s=st();if(!s)return null;return (s.tournaments||[]).find(t=>String(t.id)===String(s.activeTour))||null}
-function syncSelector(rows,t){const sel=E('matchCompetitionSelect');if(!sel)return;const wanted=t?.id||'';const html='<option value="">Choisir une compétition</option>'+rows.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name||x.tournament_date||'Compétition')+'</option>').join('');if(sel.innerHTML!==html)sel.innerHTML=html;if(wanted&&[...sel.options].some(o=>String(o.value)===String(wanted)))sel.value=String(wanted)}
-function renderEngine(){try{if(typeof window.SWE_RENDER_MATCHES_4302==='function')return window.SWE_RENDER_MATCHES_4302(false);if(typeof renderMatches==='function')return renderMatches()}catch(e){console.error('SWÉ V43.55 rendu matchs',e)}}
-function emptyMessage(msg){const box=E('matchesList');if(box)box.innerHTML='<div class="card"><p class="muted">'+esc(msg)+'</p></div>'}
-async function hydrate(t){
- const s=st(),c=cli();if(!s||!c||!t||busy)return;busy=true;
- const status=E('matchCompetitionStatus'),sel=E('matchCompetitionSelect');
- if(sel)sel.disabled=true;if(status)status.textContent='Chargement des matchs…';
+const activeView=()=>document.querySelector('.view.active')?.id||'';
+const inMatches=()=>activeView()==='view-matches'||document.querySelector('.tabs button[data-view="matches"].active');
+const tour=()=>{try{return typeof currentTour==='function'?currentTour():null}catch(_){return null}};
+const canScore=()=>{try{return typeof canEditCurrentMatches==='function'?!!canEditCurrentMatches():!!(S?.workspace?.role==='coorganizer'&&S?.myPermissions?.can_enter_scores)}catch(_){return false}};
+function render(){
+ const box=E('matchesList');if(box){box.classList.remove('hidden');box.style.removeProperty('display');box.style.removeProperty('visibility')}
+ try{if(typeof window.SWE_RENDER_MATCHES_4302==='function')window.SWE_RENDER_MATCHES_4302(false);else if(typeof renderMatches==='function')renderMatches()}catch(e){console.warn('SWÉ V43.61 render matchs',e)}
+ document.dispatchEvent(new CustomEvent('swe:matches-ready',{detail:{tournamentId:S?.activeTour||null}}));
+}
+async function optional(query,apply){try{const r=await query();if(!r?.error)apply(r.data||[]);else console.warn('SWÉ V43.61 donnée optionnelle',r.error.message)}catch(e){console.warn('SWÉ V43.61 donnée optionnelle',e)}}
+async function hydrate(force=false){
+ if(busy||!inMatches())return;
+ const t=tour();if(!t?.id)return render();
+ const now=Date.now();if(!force&&lastTourId===t.id&&Array.isArray(S.matches)&&S.matches.length&&now-lastLoadedAt<120000)return render();
+ busy=true;
  try{
-   const [tp,tr,mr]=await Promise.all([
-     c.from('tournament_players').select('*').eq('tournament_id',t.id),
-     c.from('teams').select('*').eq('tournament_id',t.id).order('created_at'),
-     c.from('matches').select('*').eq('tournament_id',t.id).order('match_order')
+   const [mr,tr]=await Promise.all([
+     sb.from('matches').select('*').eq('tournament_id',t.id).order('match_order'),
+     sb.from('teams').select('*').eq('tournament_id',t.id).order('created_at')
    ]);
-   if(tp.error)throw tp.error;if(tr.error)throw tr.error;if(mr.error)throw mr.error;
-   s.tPlayers=tp.data||[];s.teams=tr.data||[];s.matches=mr.data||[];
-   const teamIds=s.teams.map(x=>x.id),matchIds=s.matches.map(x=>x.id);
-   if(teamIds.length){const r=await c.from('team_players').select('*').in('team_id',teamIds);if(r.error)throw r.error;s.teamPlayers=r.data||[]}else s.teamPlayers=[];
-   if(matchIds.length){
-     const [gr,ar]=await Promise.all([c.from('goals').select('*').in('match_id',matchIds).order('created_at'),c.from('match_player_assignments').select('*').in('match_id',matchIds)]);
-     if(gr.error)throw gr.error;if(ar.error)throw ar.error;s.goals=gr.data||[];s.matchAssignments=ar.data||[];
-   }else{s.goals=[];s.matchAssignments=[]}
-   renderEngine();
-   if(!s.matches.length){if(status)status.textContent=(t.name||t.tournament_date||'Compétition')+' • aucun match';emptyMessage('Aucun match créé pour cette compétition.')}
+   if(mr.error)throw mr.error;
+   S.matches=mr.data||[];
+   if(!tr.error)S.teams=tr.data||[];else console.warn('SWÉ V43.61 équipes',tr.error.message);
+   lastTourId=t.id;lastLoadedAt=Date.now();
+   render();
+   const mids=(S.matches||[]).map(x=>x.id),tids=(S.teams||[]).map(x=>x.id);
+   const jobs=[];
+   jobs.push(optional(()=>sb.from('tournament_players').select('*').eq('tournament_id',t.id),d=>S.tPlayers=d));
+   if(tids.length)jobs.push(optional(()=>sb.from('team_players').select('*').in('team_id',tids),d=>S.teamPlayers=d));
+   else S.teamPlayers=[];
+   if(mids.length){
+     jobs.push(optional(()=>sb.from('goals').select('*').in('match_id',mids),d=>S.goals=d));
+     jobs.push(optional(()=>sb.from('match_player_assignments').select('*').in('match_id',mids),d=>S.matchAssignments=d));
+   }else{S.goals=[];S.matchAssignments=[]}
+   await Promise.all(jobs);
+   render();
  }catch(e){
-   console.error('SWÉ V43.55 récupération matchs',e);
-   if(status)status.textContent='Impossible de charger les matchs';
-   emptyMessage('Impossible de charger les matchs. Réessaie ou recharge la page.');
- }finally{busy=false;if(sel)sel.disabled=false}
+   console.warn('SWÉ V43.61 récupération matchs',e);
+   const box=E('matchesList');
+   if(box&&!box.children.length)box.innerHTML='<div class="card"><b>⚽ Matchs indisponibles</b><p class="muted">Impossible de charger les matchs pour le moment. Réessaie dans quelques secondes.</p></div>';
+ }finally{busy=false}
 }
-async function recover(force=false){
- const s=st();if(!s?.session||!s?.workspace)return;
- if(!force&&!matchViewActive())return;
- const rows=eligible();
- if(!rows.length){syncSelector([],null);emptyMessage('Aucune compétition en cours.');const status=E('matchCompetitionStatus');if(status)status.textContent='Aucune compétition en cours';return}
- let t=activeTournament();
- if(!t||String(t.status||'').toLowerCase()==='finished'){
-   const sel=E('matchCompetitionSelect');const fromSel=rows.find(x=>String(x.id)===String(sel?.value||''));t=fromSel||rows[0];s.activeTour=t.id;
- }
- syncSelector(rows,t);
- const currentRows=(s.matches||[]).filter(m=>String(m.tournament_id)===String(t.id));
- const stale=(s.matches||[]).some(m=>String(m.tournament_id)!==String(t.id));
- if(force||stale||!currentRows.length){await hydrate(t);return}
- if(currentRows.length!==(s.matches||[]).length)s.matches=currentRows;
- renderEngine();
-}
-function schedule(force=false,ms=80){clearTimeout(timer);timer=setTimeout(()=>recover(force),ms)}
-document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="matches"]'))schedule(true,120)},true);
-document.addEventListener('change',e=>{if(e.target?.id!=='matchCompetitionSelect')return;const s=st(),rows=eligible(),t=rows.find(x=>String(x.id)===String(e.target.value));if(!s||!t)return;s.activeTour=t.id;setTimeout(()=>hydrate(t),30)},true);
-document.addEventListener('swe:rendered',()=>{if(matchViewActive())schedule(false,100)});
-window.addEventListener('pageshow',()=>{if(matchViewActive())schedule(true,160)});
-setTimeout(()=>{if(matchViewActive())recover(true)},1000);
+function selectorChanged(){lastTourId=null;lastLoadedAt=0;setTimeout(()=>hydrate(true),40)}
+document.addEventListener('click',e=>{if(e.target.closest?.('.tabs button[data-view="matches"],#view-home [data-go="matches"]'))setTimeout(()=>hydrate(true),80)},true);
+document.addEventListener('change',e=>{if(e.target?.id==='matchCompetitionSelect')selectorChanged()},true);
+// Un rendu UI ne déclenche plus de requête réseau : on repeint seulement l'état local.
+document.addEventListener('swe:rendered',()=>{if(inMatches())setTimeout(render,20)});
+document.addEventListener('swe:match-remote-final',()=>{if(inMatches())setTimeout(render,20)});
+document.addEventListener('swe:match-local-change',()=>{if(inMatches())setTimeout(render,20)});
+window.addEventListener('pageshow',()=>setTimeout(()=>{if(inMatches())hydrate(!(S.matches||[]).length)},100));
+// Garde-fou : le co-gestionnaire avec droit scores doit toujours voir la zone des matchs.
+const guard=()=>{if(!inMatches())return;const box=E('matchesList');if(box&&canScore()){box.classList.remove('hidden');box.style.setProperty('display','block','important');if(!(S.matches||[]).length)hydrate(false)}};
+setInterval(guard,5000);
 })();
