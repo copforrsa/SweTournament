@@ -146,7 +146,8 @@ async function enhancePublicSelect(force=false){
 async function applyAll(){
   enhanceProfileForm();
   await enhanceProfileStats();
-  await enhancePublicSelect(false);
+  // Le statut d'inscription public est géré uniquement par
+  // hotfix-v4280-registration-status.js afin d'éviter deux rendus concurrents.
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(applyAll,250),{once:true});
