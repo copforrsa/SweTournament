@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  PACKAGE_NAME: swe-www-v43.59
+  PACKAGE_NAME: swe-www-v43.60
 
 jobs:
   build:
