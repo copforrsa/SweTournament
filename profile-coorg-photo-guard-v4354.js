@@ -11,12 +11,6 @@ function css(){if(E('sweProfileGuard4354Css'))return;const s=document.createElem
 #swe4348ProfileActions .swe4354-stop-ico{font-size:18px;line-height:1.1;flex:0 0 auto}
 @media(max-width:720px){#swe4348ProfileActions .swe4354-coorg-stop{width:100%;max-width:none}}
 `;document.head.appendChild(s)}
-function applyVersion(){
- window.SWE_BUILD_VERSION='43.54';document.documentElement.dataset.sweVersion='43.54';
- document.title=document.title.replace(/V(?:42|43)\.\d+/g,'V43.54');
- document.querySelectorAll('h1 span').forEach(el=>{if(/^V(?:42|43)\./.test((el.textContent||'').trim()))el.textContent='V43.54'});
- document.querySelectorAll('.build-badge').forEach(el=>{if(!el.classList.contains('swe-new-build'))el.textContent='MAJ 43.54'});
-}
 function applyCoorgCreateGuard(){
  const bar=E('swe4348ProfileActions');if(!bar)return;
  const btn=E('swe4348SimpleBtn');let stop=E('swe4354CoorgStop');
@@ -35,7 +29,7 @@ function applyPhotoVisibility(){
  btn.setAttribute('aria-hidden',editing?'false':'true');
  if(editing)btn.textContent=(st()?.playerDashboard?.profile?.avatar_url?'Modifier ma photo':'Ajouter ma photo');
 }
-function apply(){css();applyVersion();applyCoorgCreateGuard();applyPhotoVisibility()}
+function apply(){css();applyCoorgCreateGuard();applyPhotoVisibility()}
 document.addEventListener('click',e=>{
  if(e.target.closest?.('#swe4321Edit,#swe4321Cancel,#swe4321Save'))setTimeout(apply,40);
 },true);
