@@ -27,11 +27,11 @@ jobs:
           rsync -a ./ www/ \
             --exclude '.git/' \
             --exclude '.github/' \
+            --exclude 'supabase/' \
             --exclude 'www/' \
             --exclude 'README*' \
             --exclude '*.md' \
-            --exclude 'SQL_*.sql' \
-            --exclude 'FUTURE_*.sql'
+            --exclude '*.sql'
           printf 'SWÉ Tournament WWW package\nBuild source: %s\nCommit: %s\n' "${PACKAGE_NAME}" "${GITHUB_SHA}" > www/DEPLOY_INFO.txt
           zip -r "${PACKAGE_NAME}.zip" www >/dev/null
 
