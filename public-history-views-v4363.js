@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__SWE_PUBLIC_HISTORY_VIEWS_4363)return;window.__SWE_PUBLIC_HISTORY_VIEWS_4363=true;
-let countedTournamentId=null,busy=false;
+let countedTournamentId=null,busy=false,lastState=null,lastViewCount=null,lastHydratedAt=0;
 const qp=()=>new URLSearchParams(location.search);
 const resolved=()=>window.__sweResolvedShortLink||{};
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
@@ -25,6 +25,7 @@ function openHistory(token,id,currentTid){
  const w=window.open(historyUrl(token,id,currentTid),'_blank','noopener,noreferrer');
  if(w)w.opener=null;
 }
+function counterText(n){n=Number(n||0);return '👁 '+n.toLocaleString('fr-FR')+' vue'+(n>1?'s':'')+' de cette page'}
 function ensureCounter(){
  const view=document.getElementById('publicView');
  if(!view||qp().get('history'))return null;
@@ -32,20 +33,23 @@ function ensureCounter(){
  if(!c){
    c=document.createElement('div');c.id='sweRegistrationViewCounter4363';c.className='muted';
    c.style.cssText='text-align:center;margin:20px 0 8px;padding:8px 10px;font-size:12px;opacity:.82';
-   c.textContent='👁 Chargement des vues…';view.appendChild(c);
- }
+   c.textContent=lastViewCount==null?'👁 Chargement des vues…':counterText(lastViewCount);view.appendChild(c);
+ }else if(lastViewCount!=null)c.textContent=counterText(lastViewCount);
  return c;
 }
 async function recordView(token,tournamentId){
- if(!token||!tournamentId||countedTournamentId===String(tournamentId))return;
+ if(!token||!tournamentId)return;
+ if(countedTournamentId===String(tournamentId)){ensureCounter();return}
  countedTournamentId=String(tournamentId);
  const counter=ensureCounter();
  try{
    const r=await sb.rpc('record_public_registration_page_view',{p_public_token:token,p_tournament_id:tournamentId});
    if(r.error)throw r.error;
-   if(counter)counter.textContent='👁 '+Number(r.data||0).toLocaleString('fr-FR')+' vue'+(Number(r.data||0)>1?'s':'')+' de cette page';
+   lastViewCount=Number(r.data||0);
+   if(counter)counter.textContent=counterText(lastViewCount);
  }catch(e){
    console.warn('SWÉ V43.63 compteur vues',e);
+   countedTournamentId=null;
    if(counter)counter.remove();
  }
 }
@@ -75,10 +79,17 @@ function renderHistory(token,current,finished,season){
    const b=document.createElement('button');b.type='button';b.textContent='Voir les résultats ↗';b.onclick=()=>openHistory(token,t.id,current.id);row.appendChild(b);hist.appendChild(row);
  });
 }
-async function hydrate(){
+function renderState(){
+ if(!lastState)return false;
+ renderHistory(lastState.token,lastState.current,lastState.finished,lastState.season);
+ ensureCounter();return true;
+}
+async function hydrate(force=false){
  if(busy)return;
  const c=context();
  if(!c.token||c.historyId||typeof sb==='undefined')return;
+ const key=c.token+'|'+(c.tournamentId||'');
+ if(!force&&lastState?.key===key&&Date.now()-lastHydratedAt<30000){renderState();return}
  busy=true;
  try{
    const r=await sb.rpc('get_public_workspace_snapshot_v2',{p_public_token:c.token});
@@ -90,13 +101,13 @@ async function hydrate(){
    const season=seasons.find(s=>String(s.id)===String(current.season_id))||seasons.find(s=>s.is_active)||null;
    const seasonId=current.season_id||season?.id||null;
    const finished=tournaments.filter(t=>t.status==='finished'&&t.format!=='league'&&(!seasonId||String(t.season_id)===String(seasonId))).sort((a,b)=>String(b.tournament_date||'').localeCompare(String(a.tournament_date||'')));
-   renderHistory(c.token,current,finished,season);
-   ensureCounter();
+   lastState={key,token:c.token,current,finished,season};lastHydratedAt=Date.now();
+   renderState();
    await recordView(c.token,current.id);
  }catch(e){console.warn('SWÉ V43.63 historique public',e)}finally{busy=false}
 }
-function schedule(){[450,1200,2600,5000].forEach(ms=>setTimeout(hydrate,ms))}
+function schedule(){[450,1200,2600,5000].forEach(ms=>setTimeout(()=>hydrate(false),ms))}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 window.addEventListener('pageshow',schedule);
-document.addEventListener('swe:rendered',()=>setTimeout(hydrate,250));
+document.addEventListener('swe:rendered',()=>setTimeout(()=>{if(!renderState())hydrate(false)},250));
 })();
