@@ -1,0 +1,46 @@
+// Run with Playwright installed. All remote requests are mocked; no production writes.
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES?process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright':'playwright');
+const root=path.resolve(__dirname,'..');
+const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
+const token=id(1),current=id(2),past=id(3),season=id(4),match=id(5),a=id(6),b=id(7);
+const players=[1,2,3,4].map(n=>({id:id(10+n),name:'Joueur '+n,active:true,is_group_member:true}));
+const snapshot={workspace:{id:id(30),name:'Groupe de vérification'},features:{rankings_enabled:true,player_ratings_enabled:false,top_player_enabled:false},players,seasons:[{id:season,name:'Saison de test',is_active:true}],leagues:[],tournaments:[{id:current,name:'Prochain tournoi',tournament_date:'2099-09-20',registration_open:true,status:'draft',format:'classic',max_players:20,team_size:5,season_id:season,registration_deadline:'2099-09-19T17:00:00Z'},{id:past,name:'Tournoi précédent',tournament_date:'2026-09-01',status:'finished',format:'classic',season_id:season}],tournament_players:players.map(p=>({tournament_id:current,player_id:p.id,present:true,registration_status:'confirmed'})),teams:[{id:a,tournament_id:past,name:'Bleus',color:'#2563eb'},{id:b,tournament_id:past,name:'Rouges',color:'#dc2626'}],team_players:players.map((p,i)=>({team_id:i%2?a:b,player_id:p.id})),matches:[{id:match,tournament_id:past,home_team_id:a,away_team_id:b,home_score:1,away_score:0,status:'finished',match_order:1}],goals:[{id:id(20),match_id:match,team_id:a,scorer_player_id:players[1].id,assister_player_id:players[3].id}],match_player_assignments:players.map((p,i)=>({match_id:match,team_id:i%2?a:b,player_id:p.id})),sports_complexes:[],sports_pitches:[]};
+const sdk=`(()=>{window.__calls=[];window.__snapshot=${JSON.stringify(snapshot)};window.__testScore=0;window.supabase={createClient:()=>{const query=new Proxy(()=>query,{get:(t,k)=>k==='then'?resolve=>Promise.resolve({data:[],error:null}).then(resolve):()=>query});return {auth:{getSession:async()=>({data:{session:location.pathname.includes('forssadmin')||new URLSearchParams(location.search).has('test')?{user:{id:'${id(99)}',email:'test@example.invalid'}}:null}}),getUser:async()=>({data:{user:null}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signInWithPassword:async()=>({data:{},error:null}),signOut:async()=>({error:null})},from:()=>query,channel:()=>({on(){return this},subscribe(){return this},unsubscribe(){}}),removeChannel:async()=>{},rpc:async(name,args)=>{window.__calls.push({name,args});if(name==='is_platform_super_admin')return {data:true};if(name==='get_public_workspace_snapshot_v2')return {data:window.__snapshot};if(name==='resolve_public_tournament_short_link')return {data:{public_token:'${token}',tournament_id:'${current}',view:'tournament'}};if(name==='super_admin_get_test_match_accounts')return {data:[{swe_id:'SWE-TEST1',name:'Compte 1'},{swe_id:'SWE-TEST2',name:'Compte 2'}]};if(name==='super_admin_list_test_matches')return {data:[{id:'${match}',created_at:'2026-09-12T12:00:00Z',player_count:4,status:'scheduled',home_score:0,away_score:0}]};if(name==='super_admin_get_page_reports')return {data:[{page_key:'registration:x',page_type:'registration',title:'Prochain tournoi',workspace_name:'Groupe',view_count:42,updated_at:'2026-09-12T12:00:00Z'}]};if(name==='get_test_match_snapshot'){const d=structuredClone(window.__snapshot);d.is_test=true;d.tournament_id='${past}';d.matches[0].home_score=window.__testScore;return {data:d}}if(name.includes('platform_settings'))return {data:{footer_enabled:false,consent_gate_enabled:false}};return {data:[],error:null}}}}})();`;
+const errors=[];
+const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!target.startsWith(root+path.sep)&&target!==root){res.writeHead(403);return res.end()}try{if(fs.statSync(target).isDirectory())target=path.join(target,'index.html');res.setHeader('Content-Type',target.endsWith('.html')?'text/html':target.endsWith('.js')?'text/javascript':target.endsWith('.css')?'text/css':'application/octet-stream');res.end(fs.readFileSync(target))}catch{res.writeHead(404);res.end()}});
+(async()=>{
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
+ const browser=await chromium.launch({headless:true});
+ try{
+  for(const viewport of [{width:1280,height:900},{width:768,height:1024},{width:360,height:800}]){
+   const context=await browser.newContext({viewport});await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
+   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+   await page.goto(base+'/?s=TESTCODE');
+   await page.locator('#chooseSoloMode').waitFor({state:'visible'});
+   await page.locator('#chooseSoloMode').click();
+   await page.locator('#publicPlayerSelect').waitFor({state:'visible'});
+   await page.locator('#swePageViewCount').filter({hasText:'42 vues'}).waitFor();
+   assert.equal(await page.locator('#publicGuestFields').getAttribute('open'),null);
+   assert.equal(await page.locator('#publicLastTournamentDetails').isVisible(),false);
+   await page.locator('#toggleLastTournamentPublic').click();
+   await page.locator('#publicResults').waitFor({state:'visible'});
+   assert.match(await page.locator('#publicResults').innerText(),/Bleus|Rouges/);
+   await page.locator('#toggleLastTournamentPublic').click();
+   assert.equal(await page.locator('#publicLastTournamentDetails').isVisible(),false);
+   const href=await page.locator('#publicHistory a').getAttribute('href');assert.match(href,/history=/);assert.match(href,/from_tournament=/);
+   await page.locator('#publicGuestFields summary').click();assert.equal(await page.locator('#publicGuestName').isVisible(),true);
+   await page.locator('#publicPlayerSelect').selectOption(players[0].id);
+   const chosen=await page.locator('#publicPlayerSelect').inputValue();await page.waitForTimeout(1300);assert.equal(await page.locator('#publicPlayerSelect').inputValue(),chosen);
+   await page.screenshot({path:path.join(root,'..','screenshot-registration-'+viewport.width+'.png'),fullPage:true});
+   await page.goto(base+'/?public='+token+'&history='+past+'&from_tournament='+current+'&from_view=tournament');
+   await page.locator('#backPublic').waitFor({state:'visible'});await page.locator('#backPublic').click();await page.locator('#chooseSoloMode').waitFor({state:'visible'});assert.equal(new URL(page.url()).searchParams.get('tournament'),current);
+   console.log('Registration, history, guest disclosure and selection:',viewport.width,'OK');await context.close();
+  }
+  const context=await browser.newContext();await context.route('**/*',route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
+  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/live.html?test='+match+'&admin=1');await page.locator('#liveMatches').filter({hasText:'0 - 0'}).waitFor();await page.evaluate(()=>{window.__testScore=2;document.dispatchEvent(new Event('visibilitychange'))});await page.locator('#liveMatches').filter({hasText:'2 - 0'}).waitFor();console.log('Existing live renderer refreshes test scores: OK');
+  await page.goto(base+'/forssadmin/');await page.locator('[data-view="reports"]').click();await page.locator('#reportRows').filter({hasText:'42'}).waitFor();await page.locator('[data-view="matchtests"]').click();await page.locator('[data-test-account]').first().check();await page.locator('[data-test-account]').nth(1).check();assert.equal(await page.locator('#testCreate').isEnabled(),true);await page.locator('[data-open-test]').click();await page.locator('#testScorer').waitFor();assert.equal(await page.locator('#testAssister option').count(),2);console.log('Super Admin reports and match-test screen: OK');
+  await context.close();assert.deepEqual(errors,[]);
+ }finally{await browser.close();await new Promise(r=>server.close(r))}
+})().catch(e=>{console.error(e);console.error('Page errors:',errors);server.close();process.exitCode=1});

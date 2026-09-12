@@ -2,7 +2,7 @@ name: Build WWW package
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, work/v43.65-match-reports ]
   workflow_dispatch:
 
 permissions:
@@ -18,6 +18,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+
+      - name: Install browser test runner
+        run: |
+          npm install --prefix /tmp/swe-browser-tests --no-save --package-lock=false playwright@1.62.1
+          /tmp/swe-browser-tests/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Check registration, history, reports and live match
+        env:
+          CODEX_PRIMARY_RUNTIME_NODE_MODULES: /tmp/swe-browser-tests/node_modules
+        run: node tests/browser-smoke.cjs
+
       - name: Prepare www directory
         shell: bash
         run: |
@@ -28,6 +44,7 @@ jobs:
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude 'supabase/' \
+            --exclude 'tests/' \
             --exclude 'www/' \
             --exclude 'README*' \
             --exclude '*.md' \

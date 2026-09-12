@@ -241,6 +241,7 @@ function setView(v){
   }
   if(v==='ranking')renderRanking();
   S.lastView=v;
+  if(['home','myplayer','players','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
 }
 
 // Navigation attachée immédiatement : elle reste fonctionnelle même si une
@@ -4673,6 +4674,11 @@ async function bootPublic(token){
     return;
   }
   const P=parsed;
+  const pageParams=swePublicParams();
+  const viewedTournament=pageParams.get('history')||pageParams.get('tournament');
+  const viewedLeague=pageParams.get('league');
+  window.swePageViewContext={page:pageParams.get('history')?'history':viewedTournament?'registration':viewedLeague?'league':'workspace',token,id:viewedTournament||viewedLeague||null};
+  document.dispatchEvent(new Event('swe:page-view'));
   const publicThirdHalf=!!P.workspace?.third_half_enabled;
   $('#publicWorkspaceName').textContent=P.workspace?.name||'SWÉ TOURNAMENT 5/5';
   let players=P.players||[],seasons=P.seasons||[],leagues=P.leagues||[],leaguePlayers=P.league_players||[],tournaments=(P.tournaments||[]).sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
@@ -5153,11 +5159,11 @@ async function bootPublic(token){
       (regTour.format==='league'
         ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>🆕 Première fois ?</b><div class="muted" style="margin:5px 0 8px">Tu n’es pas encore membre du groupe ? Entre ton nom pour t’inscrire à cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton prénom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">M’inscrire pour la première fois</button></div>'
         : '<div class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa"><b>🤝 Tu ne participes pas mais tu invites quelqu’un ?</b><div class="muted" style="margin-top:6px;line-height:1.6">Aucun problème : <b>sélectionne simplement ton nom</b> dans la liste ci-dessus, sans cliquer sur « Je participe », puis saisis le nom de ton invité ci-dessous. Ton invité sera rattaché à ton nom et <b>toi, tu ne seras pas inscrit au tournoi</b>.</div></div>')+
-      '<div class="player" style="margin-top:12px"><b>👤 Tes invités</b><div class="muted" style="margin:4px 0 8px">'+
+      '<details class="player" id="publicGuestFields" style="margin-top:12px"><summary style="cursor:pointer"><b>👤 Tes invités — développer</b></summary><div class="muted" style="margin:4px 0 8px">'+
         (regTour.format==='league'
           ? 'Sélectionne ton nom ci-dessus puis ajoute tes invités un par un. Tu peux en ajouter jusqu’à <b>5 au total</b> pour ce Swé.'
           : 'Pour un tournoi, une personne extérieure ne peut pas s’inscrire seule : elle doit être <b>invitée par un membre du groupe</b>. Sélectionne ton nom puis ajoute ton ou tes invités, même si toi-même tu ne participes pas. Tu peux en ajouter jusqu’à <b>5 au total</b>.')+
-      '</div><input id="publicGuestName" placeholder="Nom de l’invité"><label class="row" style="margin-top:8px;justify-content:flex-start"><input id="publicGuestMember" type="checkbox" style="width:auto"><span>Ajouter cet invité comme membre du groupe</span></label><div id="publicGuestPhoneWrap" class="hidden" style="margin-top:8px"><input id="publicGuestPhone" type="tel" inputmode="tel" placeholder="Numéro de mobile de l’invité"><div class="muted" style="margin-top:4px">Le numéro est demandé uniquement pour créer sa fiche membre. Il reste privé et visible uniquement par l’administrateur.</div></div><div class="space"></div><button id="publicAddGuest" class="primary">+ Ajouter mon invité</button></div>'+
+      '</div><input id="publicGuestName" placeholder="Nom de l’invité"><label class="row" style="margin-top:8px;justify-content:flex-start"><input id="publicGuestMember" type="checkbox" style="width:auto"><span>Ajouter cet invité comme membre du groupe</span></label><div id="publicGuestPhoneWrap" class="hidden" style="margin-top:8px"><input id="publicGuestPhone" type="tel" inputmode="tel" placeholder="Numéro de mobile de l’invité"><div class="muted" style="margin-top:4px">Le numéro est demandé uniquement pour créer sa fiche membre. Il reste privé et visible uniquement par l’administrateur.</div></div><div class="space"></div><button id="publicAddGuest" class="primary">+ Ajouter mon invité</button></details>'+
       '<div id="publicRegStatus" class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;line-height:1.6"><b>🟠 Comment fonctionne le statut « Remplaçant » ?</b><div class="muted" style="margin-top:6px">Le statut remplaçant est attribué uniquement lorsqu’il n’y a pas encore assez de joueurs pour constituer une équipe complète supplémentaire de <b>5 joueurs</b>.<br><br><b>Exemple :</b> avec <b>14 inscrits</b>, on peut former <b>2 équipes complètes de 5</b> : les joueurs classés de la 11e à la 14e place sont donc <b>4 remplaçants</b>. Dès qu’un <b>15e joueur</b> s’inscrit, ces 5 joueurs forment la <b>3e équipe complète</b> et ne sont plus remplaçants.<br><br>Même principe ensuite : 16 à 19 inscrits = remplaçants pour préparer la 4e équipe ; à 20 inscrits = 4 équipes complètes. L’ordre est basé sur la <b>date et l’heure d’inscription</b>, affichées sous le nom de chaque joueur dans la liste.</div></div>'+
       '<h3 style="margin-top:18px">👥 Liste des inscrits</h3><div id="publicRegisteredList"></div>'+
       '<div id="publicWaitWrap" class="'+(waiting?'':'hidden')+'"><h3 style="margin-top:14px">⏳ Liste d’attente</h3><div id="publicWaitList"></div></div>';
@@ -6024,7 +6030,9 @@ async function bootPublic(token){
     if(topBox)topBox.innerHTML=top.map((x,i)=>'<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+(i===0?'👑':(i+1))+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.matches+' match'+(x.matches>1?'s':'')+' • ⚽ '+x.g+' • 🎯 '+x.a+'</div></span><b class="right">⭐ '+x.avg.toFixed(1)+'</b></div>').join('')||'<p class="muted">Aucune note disponible.</p>';
   }
 
-  const latest=tournaments.find(t=>t.format!=='league'&&t.status==='finished')||tournaments.find(t=>t.format!=='league');
+  const historySeason=regTour?.season_id||seasons.find(s=>s.is_active)?.id||null;
+  const finishedHistory=tournaments.filter(t=>t.status==='finished'&&t.format!=='league'&&(!historySeason||t.season_id===historySeason));
+  const latest=finishedHistory[0]||null;
   if(latest){
     const lteams=teams.filter(x=>x.tournament_id===latest.id);
     const lm=matches.filter(m=>m.tournament_id===latest.id).sort((a,b)=>(a.match_order||0)-(b.match_order||0));
@@ -6153,24 +6161,27 @@ async function bootPublic(token){
   }
   const lastDetails=$('#publicLastTournamentDetails');
   const toggleLast=$('#toggleLastTournamentPublic');
+  if(toggleLast){toggleLast.disabled=!latest;toggleLast.setAttribute('aria-expanded','false');toggleLast.textContent=latest?'Développer les derniers résultats':'Aucun résultat';}
   if(toggleLast&&lastDetails){
     toggleLast.onclick=()=>{
       const opening=lastDetails.classList.contains('hidden');
       lastDetails.classList.toggle('hidden',!opening);
-      toggleLast.textContent=opening?'Masquer':'Afficher';
+      toggleLast.textContent=opening?'Réduire les derniers résultats':'Développer les derniers résultats';
+      toggleLast.setAttribute('aria-expanded',String(opening));
     };
   }
 
   const pubHist=$('#publicHistory');
   pubHist.innerHTML='';
-  tournaments.filter(t=>t.status==='finished').forEach(t=>{
+  pubHist.closest('.card')?.classList.toggle('hidden',regTour?.format==='league');
+  finishedHistory.forEach(t=>{
     const d=document.createElement('div');d.className='player row';
     d.innerHTML='<span style="flex:1"><b>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' • Terminé</div></span>';
-    const b=document.createElement('button');b.textContent='Voir le tournoi';b.className='primary';
-    b.onclick=()=>{location.href=publicHistoryUrl(token,t.id)};
+    const b=document.createElement('a');b.textContent='Voir les résultats';b.className='primary';
+    b.href=publicHistoryUrl(token,t.id);
     d.appendChild(b);pubHist.appendChild(d);
   });
-  if(!tournaments.some(t=>t.status==='finished'))pubHist.innerHTML='<p class="muted">Aucun tournoi terminé.</p>';
+  if(!finishedHistory.length)pubHist.innerHTML='<p class="muted">Aucun tournoi terminé dans cette saison.</p>';
 }
 authState();
 document.addEventListener('click',e=>{const t=e.target?.closest?.('.tab[data-view="cooler"]');if(t)setTimeout(loadThirdHalfFunds,0);});
