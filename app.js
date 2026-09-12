@@ -5102,8 +5102,8 @@ async function bootPublic(token){
       : '<p class="muted">Aucune équipe composée.</p>';
 
     return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>📊 '+regs.length+'/'+maxPlayers+' inscrits</b><div class="muted" style="margin-top:4px"><b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant d’atteindre la limite d’inscrits.</div></div>'+
-           '<div class="player" style="margin-top:10px;background:#f8fbf9"><b>👤 Joueurs en équipe aléatoire</b>'+freeHtml+'</div>'+
-           '<div class="player" style="margin-top:10px;background:#f8fbff"><b>👥 Équipes déjà composées</b>'+teamsHtml+'</div>';
+           (free.length?'<div class="player" style="margin-top:10px;background:#f8fbf9"><b>👤 Joueurs en équipe aléatoire</b>'+freeHtml+'</div>':'')+
+           (tourTeams.length?'<div class="player" style="margin-top:10px;background:#f8fbff"><b>👥 Équipes déjà composées</b>'+teamsHtml+'</div>':'');
   }
 
   function publicRegistrationDateTime(value){
@@ -5175,7 +5175,7 @@ async function bootPublic(token){
       (regTour.format==='league'
         ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>🆕 Première fois ?</b><div class="muted" style="margin:5px 0 8px">Tu n’es pas encore membre du groupe ? Entre ton nom pour t’inscrire à cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton prénom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">M’inscrire pour la première fois</button></div>'
         : '<div class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa"><b>🤝 Tu ne participes pas mais tu invites quelqu’un ?</b><div class="muted" style="margin-top:6px;line-height:1.6">Aucun problème : <b>sélectionne simplement ton nom</b> dans la liste ci-dessus, sans cliquer sur « Je participe », puis saisis le nom de ton invité ci-dessous. Ton invité sera rattaché à ton nom et <b>toi, tu ne seras pas inscrit au tournoi</b>.</div></div>')+
-      '<details class="player" id="publicGuestFields" style="margin-top:12px"><summary style="cursor:pointer"><b>👤 Tes invités — développer</b></summary><div class="muted" style="margin:4px 0 8px">'+
+      '<details class="player" id="publicGuestFields" style="margin-top:12px"><summary style="cursor:pointer"><b>👤 Mes invités</b></summary><div class="muted" style="margin:4px 0 8px">'+
         (regTour.format==='league'
           ? 'Sélectionne ton nom ci-dessus puis ajoute tes invités un par un. Tu peux en ajouter jusqu’à <b>5 au total</b> pour ce Swé.'
           : 'Pour un tournoi, une personne extérieure ne peut pas s’inscrire seule : elle doit être <b>invitée par un membre du groupe</b>. Sélectionne ton nom puis ajoute ton ou tes invités, même si toi-même tu ne participes pas. Tu peux en ajouter jusqu’à <b>5 au total</b>.')+

@@ -179,6 +179,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    assert.equal(await page.locator('#publicView').getAttribute('data-stage'),'green');
    assert.equal(new URL(page.url()).searchParams.get('s'),'TESTCODE');
    assert.equal(await page.locator('#registrationLiveLink').count(),0);
+   const rules=page.locator('#registrationParticipationRules');assert.equal(await rules.getAttribute('open'),null);await rules.locator('summary').click();assert.match(await rules.innerText(),/tu paies ta tournée au groupe à la prochaine édition/);await rules.locator('summary').click();assert.equal(await rules.getAttribute('open'),null);
    await page.locator('#publicPreviousGuestsWrap').waitFor({state:'visible'});
    await page.locator('#publicPreviousGuest').selectOption(id(50));assert.equal(await page.locator('#publicGuestName').inputValue(),'Ancien invité');
    await page.locator('#publicAddGuest').click();await page.locator('#publicPreviousGuest option[value="'+id(50)+'"]').waitFor({state:'attached'});await page.waitForFunction(pid=>document.querySelector('#publicPreviousGuest option[value="'+pid+'"]').disabled,id(50));
@@ -186,6 +187,8 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await page.locator('#publicGuestName').fill('Nouvel invité');await page.locator('#publicAddGuest').click();await page.locator('#publicRegisteredList').filter({hasText:'Nouvel invité'}).waitFor();
    assert.equal(await page.locator('#registrationMissions').isVisible(),false);
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Premium has no page overflow');
+   await page.locator('#publicJoin').click();await page.locator('#registrationConfirmOk').click();
+   assert.ok(await page.evaluate(({current,token})=>window.__calls.some(c=>c.name==='public_tournament_registration'&&c.args.p_tournament_id===current&&c.args.p_token===token&&c.args.p_action==='join'),{current,token}));
    console.log('Production preview uses shared URL and real guest/registration callbacks:',viewport.width,'OK');
 
    await page.goto(base+'/?public='+token+'&history='+past+'&from_tournament='+current+'&from_view=tournament');
@@ -267,6 +270,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
   await premium.locator('#registrationLiveLink').waitFor({timeout:12000});assert.equal(await premium.locator('#publicView').getAttribute('data-stage'),'orange');assert.match(await premium.locator('#registrationPhaseCard').innerText(),/0 – 0/);assert.equal(await premium.locator('#publicGuestName').inputValue(),'Saisie à préserver');assert.equal(await premium.locator('#registrationGeneral').isVisible(),false);assert.equal(await premium.locator('#registrationMissions').isVisible(),false);
   assert.equal(new URL(premium.url()).searchParams.get('s'),'TESTCODE');assert.match(await premium.locator('#registrationLiveLink').getAttribute('href'),new RegExp('tournament='+current));
   await premium.screenshot({path:path.join(screenshotDir,'premium-production-live.png'),fullPage:true});
+  await premium.evaluate(current=>{window.__snapshot.tournaments.find(t=>t.id===current).registration_open=false},current);await premium.locator('#publicJoin').waitFor({state:'hidden',timeout:12000});assert.equal(await premium.locator('#publicLeave').isVisible(),true);
   await premium.evaluate(current=>{window.__snapshot.tournaments.find(t=>t.id===current).status='finished'},current);await premium.waitForFunction(()=>document.querySelector('#publicView').dataset.stage==='purple',{timeout:12000});assert.equal(await premium.locator('#publicJoin').isVisible(),false);assert.equal(await premium.locator('#publicPlayerSelect').isVisible(),true);assert.equal(await premium.locator('#publicRegisteredList').isVisible(),true);await premium.close();
   console.log('Personal briefing, empty cards, automatic 0–0 live transition, completed signup and preserved fields: OK');
   await context.close();assert.deepEqual(errors,[]);
