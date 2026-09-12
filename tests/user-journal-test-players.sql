@@ -4,6 +4,7 @@ do $$ declare t jsonb;begin
  t:=public.super_admin_create_test_tournament(gen_random_uuid(),current_date,'classic');
  perform set_config('swe.fixture_workspace',t->>'workspace_id',true);
  perform set_config('swe.fixture_tournament',t->>'tournament_id',true);
+ insert into public.audit_logs(workspace_id,user_id,action,entity_type,entity_id) values((t->>'workspace_id')::uuid,auth.uid(),'unit_retention','goal',gen_random_uuid());
  perform set_config('swe.real_player',(select id::text from public.players where workspace_id='3a7b90b2-46a1-4125-9e6b-f580455b5cdb' limit 1),true);
  if (select count(*) from private.test_player_registry r join public.players p on p.id=r.player_id where p.workspace_id=(t->>'workspace_id')::uuid)<>30 then raise exception 'Fixture players not registered';end if;
  if private.journal_safe_values('{"token":"secret","phone_number":"private","status":"live"}')<>'{"status":"live"}'::jsonb then raise exception 'Secret values exposed';end if;
@@ -21,6 +22,8 @@ do $$ declare ids uuid[];blocked boolean:=false; feed jsonb;visit uuid:=gen_rand
  if exists(select 1 from public.players where id=any(ids)) then raise exception 'Test players remain';end if;
  feed:=public.super_admin_get_user_journal('test_players.bulk_delete');if jsonb_array_length(feed->'rows')=0 then raise exception 'Bulk deletion not logged';end if;
  perform public.super_admin_manage_test_tournament(current_setting('swe.fixture_tournament')::uuid,'delete');
+ perform public.super_admin_delete_workspace(current_setting('swe.fixture_workspace')::uuid);
+ feed:=public.super_admin_get_user_journal('unit_retention');if jsonb_array_length(feed->'rows')<>1 or feed->'rows'->0->>'workspace_name'='—' then raise exception 'Audit lost or duplicated after workspace deletion';end if;
 end $$;
 reset role;
 do $$ begin

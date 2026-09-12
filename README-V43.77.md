@@ -6,6 +6,8 @@ Réutilise audit_logs et security_audit_log. Reprend 177 anciens événements d�
 
 Les mutations métier sont désormais journalisées côté serveur, y compris les opérations déclenchées par les liens publics et les traitements automatiques. Les buts conservent leur trigger d’audit existant. Les valeurs copiées sont limitées à une liste autorisée ; aucun jeton, mot de passe, référence Stripe ou coordonnées privées n’est copié. Les ouvertures de l’application sont enregistrées par compte connecté et par onglet, avec dédoublonnage serveur. Ceci ne constitue pas un suivi de tous les clics ni un historique des tentatives de connexion échouées.
 
+Les anciens événements d’audit sont conservés dans le journal central même après suppression de leur groupe, sans doublon à l’affichage.
+
 Lecture réservée au Super Admin : recherche, dates, pagination et détails avant/après lorsque disponibles.
 
 ## Groupe Joueurs test
