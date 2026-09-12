@@ -3,6 +3,7 @@ const noStoreFetch=(input,init={})=>fetch(input,{...init,cache:'no-store'});
 const sb=createClient('https://fbppesfxkvledwjemwsn.supabase.co','sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp',{
   global:{fetch:noStoreFetch},
   auth:{
+    ...(new URLSearchParams(location.search).has('test_tournament')?{storageKey:'swe-forssadmin-auth-v1'}:{}),
     flowType:'pkce',
     persistSession:true,
     autoRefreshToken:true,
@@ -910,6 +911,12 @@ function renderSuperAdminWorkspaces(){
   });
 }
 async function initSuperAdmin(){
+  const testId=new URLSearchParams(location.search).get('test_tournament');
+  if(testId){
+    const {data,error}=await sb.rpc('super_admin_manage_test_tournament',{p_tournament_id:testId,p_action:'open'});
+    if(error||!data?.workspace_id){toast(error?.message||'Tournoi test indisponible.');return true;}
+    S.testAdminContext=data;S.isSuperAdmin=false;return false;
+  }
   const claim=await sb.rpc('claim_platform_super_admin');
   if(claim.error)console.warn('claim super admin',claim.error);
   const check=await sb.rpc('is_platform_super_admin');
@@ -1173,11 +1180,13 @@ async function boot(){
   const currentUserId=S.session?.user?.id;
   if(!currentUserId)return toast('Session utilisateur introuvable.');
   await loadOnboardingStatus();
-  const {data,error}=await sb.from('workspace_members')
+  let membershipQuery=sb.from('workspace_members')
     .select('workspace_id,role,workspaces(name,public_token,public_enabled,rating_group_name)')
     .eq('user_id',currentUserId)
     .eq('active',true)
     .limit(50);
+  if(S.testAdminContext)membershipQuery=membershipQuery.eq('workspace_id',S.testAdminContext.workspace_id);
+  const {data,error}=await membershipQuery;
   if(error)return toast(error.message);
   S.memberships=Array.isArray(data)?data:[];
   if(!S.memberships.length){
@@ -1193,10 +1202,10 @@ async function boot(){
     }else showAccountOnboarding();
     return;
   }
-  const stored=localStorage.getItem('swe_workspace_id');
+  const stored=S.testAdminContext?.workspace_id||localStorage.getItem('swe_workspace_id');
   const chosen=S.memberships.find(x=>String(x.workspace_id)===String(stored))||S.memberships[0];
   S.workspace={id:chosen.workspace_id,name:chosen.workspaces?.name||'SWÉ Tournament 5/5',rating_group_name:chosen.workspaces?.rating_group_name||'',role:chosen.role,public_token:chosen.workspaces?.public_token||null,public_enabled:chosen.workspaces?.public_enabled!==false};
-  localStorage.setItem('swe_workspace_id',S.workspace.id);
+  if(!S.testAdminContext)localStorage.setItem('swe_workspace_id',S.workspace.id);
   $('#workspaceSetup').classList.add('hidden');$('#accountOnboarding')?.classList.add('hidden');
   const access=await sb.rpc('get_workspace_organizer_access',{p_workspace_id:S.workspace.id});
   S.organizerAccess=access.error?null:(access.data||null);
@@ -1206,7 +1215,12 @@ async function boot(){
   await loadMyPlayerDashboard();
   $('#workspaceName').textContent=S.workspace.name+' • '+(S.workspace.role==='admin'?'Administrateur':(hasTemporaryAdmin()?'Co-organisateur • Admin temporaire':'Co-organisateur'));
   applyPermissions();renderCoorgOrganizerCta();subscribeRealtime();startSafeAppSync();
-  const startMode=new URLSearchParams(location.search).get('start');if(startMode==='player')setView('myplayer');
+  if(S.testAdminContext){
+    const target=S.tournaments.find(t=>t.id===S.testAdminContext.tournament_id);
+    if(!target)return toast('Tournoi test introuvable dans cet espace.');
+    S.activeTour=target.id;await loadTournament();renderAll();setView('tournaments');
+    if(!document.getElementById('testAdminReturn')){const a=document.createElement('a');a.id='testAdminReturn';a.href='/forssadmin/';a.textContent='← Retour au Super Admin';a.className='btn';document.getElementById('workspaceName').after(a);}
+  }else{const startMode=new URLSearchParams(location.search).get('start');if(startMode==='player')setView('myplayer');}
 }
 $('#createWorkspace').onclick=async()=>{
   const btn=$('#createWorkspace');const name=$('#newWorkspace')?.value.trim();
@@ -6047,7 +6061,18 @@ async function loadPublicPage(token,bootState){
   renderPublicSeasonAssists();
   if($('#togglePublicSeasonAssists'))$('#togglePublicSeasonAssists').onclick=()=>{publicAssistsExpanded=!publicAssistsExpanded;renderPublicSeasonAssists();};
 
-  refreshSeasonRankings=()=>{collectSeasonRankings();renderPublicSeasonScorers();renderPublicSeasonAssists();if(regTour){$('#publicSeasonScorers')?.closest('.card')?.classList.toggle('hidden',!scor.length);$('#publicSeasonAssists')?.closest('.card')?.classList.toggle('hidden',!seasonAss.length);$('#registrationSeasonRankings')?.classList.toggle('hidden',!scor.length&&!seasonAss.length);}};
+  function renderTournamentTopFive(){
+    const box=$('#publicTournamentTopFive');if(!box)return false;
+    const completed=matches.filter(m=>m.status==='finished');
+    const seasonId=regTour?.season_id||activeSeason?.id;
+    const target=regTour&&completed.some(m=>m.tournament_id===regTour.id)?regTour:tournaments.find(t=>t.status==='finished'&&t.format!=='league'&&(!seasonId||t.season_id===seasonId));
+    const rows=publicPlayerRatingsEnabled&&target?topPlayersFromData(completed,goals,matchAssignments,players,new Set([target.id])).slice(0,5):[];
+    box.classList.toggle('hidden',!rows.length);if(!rows.length){box.replaceChildren();return false;}
+    const html='<div class="top-five-heading"><small>LES JOUEURS À L’HONNEUR</small><h2>👑 Top 5 du tournoi</h2><p>'+esc(target.name)+' · '+(target.status==='finished'?'Classement final':'Classement provisoire')+'</p></div><ol>'+rows.map((x,i)=>'<li><span class="top-five-rank" aria-label="Place '+(i+1)+'">'+(i+1)+'</span><span class="top-five-name">'+esc(x.name)+'<span class="top-five-detail">'+x.matches+' match'+(x.matches>1?'s':'')+' · ⚽ '+x.g+' · 🎯 '+x.a+'</span></span><span class="top-five-score">'+x.avg.toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+'<small>/10</small></span></li>').join('')+'</ol><p class="top-five-caption">Moyenne des notes Match · matchs terminés uniquement.</p>';
+    if(box.innerHTML!==html)box.innerHTML=html;return true;
+  }
+  refreshSeasonRankings=()=>{collectSeasonRankings();renderPublicSeasonScorers();renderPublicSeasonAssists();const hasTop=renderTournamentTopFive();if(regTour){$('#publicSeasonScorers')?.closest('.card')?.classList.toggle('hidden',!scor.length);$('#publicSeasonAssists')?.closest('.card')?.classList.toggle('hidden',!seasonAss.length);$('#registrationSeasonRankings')?.classList.toggle('hidden',!scor.length&&!seasonAss.length&&!hasTop);}};
+  renderTournamentTopFive();
 
   const seasonWinStats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,matchWins:0,tournamentWins:0,g:0,a:0,avg:0,ratingTotal:0,ratingMatches:0,guest:x.is_group_member===false}]));
   const seasonTours=tournaments.filter(t=>t.format!=='league'&&t.status==='finished'&&(!activeSeason||t.season_id===activeSeason.id));

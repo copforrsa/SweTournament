@@ -1,0 +1,13 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const src=fs.readFileSync('app.js','utf8');
+const init=src.slice(src.indexOf('async function initSuperAdmin(){'),src.indexOf("document.addEventListener('input',e=>{",src.indexOf('async function initSuperAdmin(){')));
+const boot=src.slice(src.indexOf('async function boot(){'),src.indexOf("$('#createWorkspace').onclick",src.indexOf('async function boot(){')));
+function environment(allowed){
+ const events=[],S={session:{user:{id:'sa'}},tournaments:[{id:'requested'},{id:'other'}]},node={classList:{add(){},remove(){}},after(){},textContent:''};
+ let q; q=new Proxy(()=>q,{get:(_,key)=>key==='then'?resolve=>Promise.resolve({data:[{workspace_id:'test-workspace',role:'admin',workspaces:{name:'Test'}}]}).then(resolve):(...args)=>{events.push([key,...args]);return q}});
+ const context={S,URLSearchParams,location:{search:'?test_tournament=requested'},sb:{rpc:async(name,args)=>{events.push([name,args]);return name==='super_admin_manage_test_tournament'?(allowed?{data:{workspace_id:'test-workspace',tournament_id:'requested'}}:{error:{message:'Denied'}}):{data:{}}},from:()=>q},localStorage:{getItem:()=> 'other-workspace',setItem(){throw Error('must preserve current workspace')}},toast:m=>events.push(['toast',m]),$:()=>node,document:{getElementById:()=>node,createElement:()=>node},console,hasTemporaryAdmin:()=>false,setView:v=>events.push(['view',v])};
+ for(const name of ['loadInvites','loadOnboardingStatus','renderWorkspaceSwitcher','renderOrganizerAccessBanner','loadSportsVenues','loadAll','loadMyPlayerDashboard','applyPermissions','renderCoorgOrganizerCta','subscribeRealtime','startSafeAppSync','renderAll','loadTournament'])context[name]=async()=>events.push([name]);
+ vm.createContext(context);vm.runInContext(init+'\n'+boot,context);return{context,events};
+}
+test('test entry checks server authorization and opens the requested tournament in the selected workspace',async()=>{const {context:c,events}=environment(true);await c.boot();assert.equal(c.S.workspace.id,'test-workspace');assert.equal(c.S.activeTour,'requested');assert.equal(c.S.isSuperAdmin,false);assert.ok(events.some(x=>x[0]==='eq'&&x[1]==='workspace_id'&&x[2]==='test-workspace'));assert.ok(events.some(x=>x[0]==='view'&&x[1]==='tournaments'));});
+test('denied test entry does not load workspace data or grant client permissions',async()=>{const {context:c,events}=environment(false);await c.boot();assert.equal(c.S.testAdminContext,undefined);assert.equal(c.S.workspace,undefined);assert.ok(!events.some(x=>x[0]==='loadAll'));});
