@@ -1203,7 +1203,8 @@ async function boot(){
     }else showAccountOnboarding();
     return;
   }
-  const stored=S.testAdminContext?.workspace_id||localStorage.getItem('swe_workspace_id');
+  const requestedWorkspace=new URLSearchParams(location.search).get('workspace');
+  const stored=S.testAdminContext?.workspace_id||requestedWorkspace||localStorage.getItem('swe_workspace_id');
   const chosen=S.memberships.find(x=>String(x.workspace_id)===String(stored))||S.memberships[0];
   S.workspace={id:chosen.workspace_id,name:chosen.workspaces?.name||'SWÉ Tournament 5/5',rating_group_name:chosen.workspaces?.rating_group_name||'',role:chosen.role,public_token:chosen.workspaces?.public_token||null,public_enabled:chosen.workspaces?.public_enabled!==false};
   if(!S.testAdminContext)localStorage.setItem('swe_workspace_id',S.workspace.id);
@@ -1221,7 +1222,7 @@ async function boot(){
     if(!target)return toast('Tournoi test introuvable dans cet espace.');
     S.activeTour=target.id;await loadTournament();renderAll();setView('tournaments');
     if(!document.getElementById('testAdminReturn')){const a=document.createElement('a');a.id='testAdminReturn';a.href='/forssadmin/';a.textContent='← Retour au Super Admin';a.className='btn';document.getElementById('workspaceName').after(a);}
-  }else{const startMode=new URLSearchParams(location.search).get('start');if(startMode==='player')setView('myplayer');}
+  }else{const startMode=new URLSearchParams(location.search).get('start');if(startMode==='player')setView('myplayer');else if(startMode==='home')setView('home');}
 }
 $('#createWorkspace').onclick=async()=>{
   const btn=$('#createWorkspace');const name=$('#newWorkspace')?.value.trim();
@@ -1263,7 +1264,7 @@ async function loadInvites(){
   const userEmail=(S.session?.user?.email||'').trim().toLowerCase();
   if(!userEmail){$('#inviteBox').classList.add('hidden');return}
   const {data,error}=await sb.from('workspace_invites')
-    .select('id,email,role,workspaces(name)')
+    .select('id,email,role,workspace_id,workspaces(name)')
     .is('accepted_at',null)
     .ilike('email',userEmail);
   if(error){$('#inviteBox').classList.add('hidden');return}
@@ -1277,9 +1278,10 @@ async function loadInvites(){
     b.onclick=async()=>{
       const {error}=await sb.rpc('accept_workspace_invite',{p_invite_id:i.id});
       if(error)return toast(error.message);
+      if(i.workspace_id)localStorage.setItem('swe_workspace_id',i.workspace_id);
       history.replaceState({},'',APP_URL);
       toast('Invitation acceptée ✅');
-      await boot();
+      await boot();setView('home');
     };
     d.appendChild(b);box.appendChild(d)
   })
@@ -1664,6 +1666,9 @@ function renderPermissions(){
     if(c.linked_player_id) linkedSel.disabled=true;
     linkBox.innerHTML='<b>👤 Compte associé à un joueur</b><div class="muted small" style="margin:4px 0 7px">'+(c.linked_player_id?'🔒 Liaison définitive : ce membre utilise désormais le même ID SWÉ que le co-gestionnaire. Seul le Super Admin peut délier ce profil.':'Identifie le membre correspondant au co-gestionnaire. S’il possède déjà un ID SWÉ, ses statistiques seront automatiquement rattachées à cet ID.')+'</div>';
     linkBox.appendChild(linkedSel);card.appendChild(linkBox);
+    const instructionBox=document.createElement('label');instructionBox.style.cssText='display:block;margin-top:10px;padding:10px;border:1px solid #d7e7df;border-radius:12px;background:#f7fbf8';
+    instructionBox.innerHTML='<b>📣 Consigne personnalisée</b><div class="muted small" style="margin:4px 0 7px">Visible uniquement par ce co-gestionnaire lorsqu’il est connecté.</div><textarea data-personal-instructions maxlength="2000" rows="3" placeholder="Ex. Observe en priorité les nouveaux joueurs et vérifie les présences.">'+esc(c.personal_instructions||'')+'</textarea>';
+    card.appendChild(instructionBox);
     defs.forEach(([key,label,help])=>{
       const row=document.createElement('label');row.className='row';row.style.justifyContent='flex-start';row.style.alignItems='flex-start';row.style.marginTop='10px';
       const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.checked=!!c[key];cb.dataset.perm=key;
@@ -1697,10 +1702,11 @@ function renderPermissions(){
         p_can_generate_team_codes:!!vals.can_generate_team_codes,
         p_can_edit_player_personal_info:!!vals.can_edit_player_personal_info,
         p_linked_player_id:linkedPlayerId,
-        p_temporary_admin_until:tempUntil
+        p_temporary_admin_until:tempUntil,
+        p_personal_instructions:card.querySelector('[data-personal-instructions]')?.value.trim()||null
       });
       if(error){save.disabled=false;return toast(error.message);}
-      Object.assign(c,vals,{linked_player_id:linkedPlayerId,temporary_admin_until:tempUntil});
+      Object.assign(c,vals,{linked_player_id:linkedPlayerId,temporary_admin_until:tempUntil,personal_instructions:card.querySelector('[data-personal-instructions]')?.value.trim()||null});
       // Relit la configuration via la même source RPC que celle utilisée au chargement.
       // Cela évite les états incohérents liés à une lecture RLS différente de l'écriture RPC.
       try{
@@ -3237,6 +3243,11 @@ function tournamentCommonSubstitutes(){
   return S.tPlayers.filter(r=>r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!assigned.has(String(r.player_id)))
     .map(r=>p(r.player_id)).filter(Boolean);
 }
+async function syncTournamentSubstitutes(tournamentId){
+  const result=await sb.rpc('sync_tournament_substitutes',{p_tournament_id:tournamentId});
+  if(result.error)throw result.error;
+  return result.data||null;
+}
 function chienBoulLabel(score){return '🐶⚽ Note équipe évaluée par Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
 
 function renderTeams(){
@@ -3388,6 +3399,17 @@ function renderTeams(){
     head.appendChild(titleWrap);
 
     if(canFullEdit){
+      const rename=document.createElement('button');rename.textContent='✏️ Renommer';rename.className='secondary';
+      rename.onclick=async()=>{
+        const next=prompt('Nouveau nom de l’équipe',team.name);
+        if(next===null)return;
+        const name=next.trim();
+        if(!name||name.length>40)return toast('Le nom doit contenir entre 1 et 40 caractères.');
+        rename.disabled=true;
+        const {error}=await sb.from('teams').update({name}).eq('id',team.id).select('id').single();
+        if(error){rename.disabled=false;return toast(error.message)}
+        await loadTournament();renderAll();toast('Équipe renommée ✅');
+      };
       const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
       del.onclick=async()=>{
         const hasMatches=S.matches.some(m=>m.home_team_id===team.id||m.away_team_id===team.id);
@@ -3398,7 +3420,7 @@ function renderTeams(){
         del.disabled=true;
         const {error}=await sb.from('teams').delete().eq('id',team.id);
         if(error){del.disabled=false;return toast(error.message)}
-        await loadTournament();
+        await syncTournamentSubstitutes(t.id);await loadTournament();
         if(t.format!=='league'&&Number(t.generated_team_count||0)>0&&!hasGeneratedTournamentTeams()){
           const reset=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});
           if(reset.error)return toast('Équipe supprimée, mais le tirage doit être annulé depuis le panneau de validation.');
@@ -3406,7 +3428,7 @@ function renderTeams(){
         }
         renderAll();toast('Équipe supprimée ✅');
       };
-      head.appendChild(del);
+      head.append(rename,del);
     }
     d.appendChild(head);
 
@@ -3418,8 +3440,10 @@ function renderTeams(){
       }).join('');
       sel.onchange=async()=>{
         if(!sel.value)return;
+        if(teamPlayerIds(team.id).length>=Number(t.team_size||5))return toast('Cette équipe est complète. Retire d’abord un joueur pour effectuer un remplacement.');
         const {error}=await sb.from('team_players').insert({team_id:team.id,player_id:sel.value});
         if(error)return toast(error.message);
+        try{await syncTournamentSubstitutes(t.id)}catch(e){return toast(e.message)}
         await loadTournament();renderTeams();
       };
       d.appendChild(sel);
@@ -3432,7 +3456,7 @@ function renderTeams(){
       r.innerHTML='<span style="flex:1">'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span>';
       if(canFullEdit){
         const b=document.createElement('button');b.textContent='×';
-        b.onclick=async()=>{const {error}=await sb.from('team_players').delete().eq('team_id',team.id).eq('player_id',id);if(error)return toast(error.message);await loadTournament();renderTeams();};
+        b.onclick=async()=>{const {error}=await sb.from('team_players').delete().eq('team_id',team.id).eq('player_id',id);if(error)return toast(error.message);try{await syncTournamentSubstitutes(t.id)}catch(e){return toast(e.message)}await loadTournament();renderTeams();};
         r.appendChild(b);
       }
       d.appendChild(r);
@@ -5030,17 +5054,18 @@ async function loadPublicPage(token,bootState){
   }
   const regBox=$('#publicRegistration');
   let registrationPresentation=null;
-  let registrationCoorganizers=[],registrationRatingWindows=[],registrationIsCoorganizer=false;
+  let registrationCoorganizers=[],registrationRatingWindows=[],registrationIsCoorganizer=false,registrationPersonalInstruction='';
   let presentationMetadataAt=0;
   async function loadPresentationMetadata(){
     if(!regTour||regTour.format==='league'||Date.now()-presentationMetadataAt<30000)return;
     presentationMetadataAt=Date.now();
     const session=await sb.auth.getSession();
-    registrationIsCoorganizer=false;registrationCoorganizers=[];registrationRatingWindows=[];
+    registrationIsCoorganizer=false;registrationCoorganizers=[];registrationRatingWindows=[];registrationPersonalInstruction='';
     if(!session.data?.session){registrationPresentation?.updateMissions();return;}
     const {data,error}=await sb.rpc('get_my_tournament_presentation_v1',{p_tournament_id:regTour.id});
     if(error||!data){registrationPresentation?.updateMissions();return;}
     registrationIsCoorganizer=data.is_coorganizer===true;
+    registrationPersonalInstruction=String(data.personal_instructions||'').trim();
     registrationCoorganizers=data.is_coorganizer&&data.my_player_id?[data.my_player_id]:[];registrationRatingWindows=data.tournament_rating_windows||[];
     registrationPresentation?.updateMissions();
   }
@@ -5232,7 +5257,7 @@ async function loadPublicPage(token,bootState){
       '<div class="player" style="margin-top:12px;background:#f8fbf9"><b>✅ Inscription</b><div class="muted" style="margin-top:6px;line-height:1.6">Inscris-toi en cliquant sur <b>« Je participe »</b>. Si tu viens accompagné, indique le nom de tes invités. Chaque membre peut ajouter jusqu’à <b>5 invités maximum</b>.</div></div>'+
       '<div class="space"></div><select id="publicPlayerSelect"><option value="">Choisis ton nom</option></select>'+
       '<div id="publicSelectedStatus" class="muted" style="margin-top:7px">Choisis ton nom pour voir ton statut.</div><div class="muted" style="margin-top:5px">Si un autre joueur t’a proposé une équipe, les boutons <b>Accepter</b> / <b>Refuser</b> apparaîtront ici après sélection de ton nom.</div><div id="publicTeamInvitationDecision" class="hidden" style="margin-top:10px"></div>'+
-      '<div class="space"></div><div class="row"><button id="publicJoin" class="primary">✅ Je participe</button><button id="publicLeave">❌ Je ne participe pas</button></div>'+
+      '<div class="space"></div><div id="publicParticipationActions" class="row"><button id="publicJoin" class="primary">✅ Je participe</button><button id="publicLeave">❌ Je ne participe pas</button></div>'+
       '<div id="publicPaymentBox" data-payment-controller="app" class="hidden" style="margin-top:12px"></div>'+
       (regTour.format==='league'
         ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>🆕 Première fois ?</b><div class="muted" style="margin:5px 0 8px">Tu n’es pas encore membre du groupe ? Entre ton nom pour t’inscrire à cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton prénom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">M’inscrire pour la première fois</button></div>'
@@ -6312,7 +6337,7 @@ async function loadPublicPage(token,bootState){
   });
   if(!finishedHistory.length)pubHist.innerHTML='<p class="muted">Aucun tournoi terminé dans cette saison.</p>';
   if(regTour&&regTour.format!=='league'&&window.SWERegistrationPresentation){
-    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},loadRules:async()=>{const {data,error}=await sb.rpc('get_public_tournament_king_rules',{p_token:token,p_tournament_id:regTour.id});if(error)throw error;return data;},standings:tournamentStandings,rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,seasons,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,isCoorganizer:registrationIsCoorganizer,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
+    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},loadRules:async()=>{const {data,error}=await sb.rpc('get_public_tournament_king_rules',{p_token:token,p_tournament_id:regTour.id});if(error)throw error;return data;},standings:tournamentStandings,rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,seasons,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,isCoorganizer:registrationIsCoorganizer,personalInstruction:registrationPersonalInstruction,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
     refreshSeasonRankings();
     updateTournamentCountdowns();
     loadPresentationMetadata().catch(()=>{});
