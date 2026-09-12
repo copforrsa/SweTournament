@@ -4,10 +4,13 @@ if(window.__SWE_MATCH_QUICKSCORE_4360)return;window.__SWE_MATCH_QUICKSCORE_4360=
 const E=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const vibrate=p=>{try{navigator.vibrate?.(p)}catch(_){}};
-let busy=false,timer=null,lastGoal=null;
+let busy=false,timer=null,lastGoal=null,pendingAssist=null;
+const context=window.SWE_MATCH_CONTEXT||null;
+const notify=message=>{if(context)context.notify(message);else if(typeof toast==='function')toast(message)};
 
-function state(){try{return typeof S!=='undefined'?S:null}catch(_){return null}}
+function state(){if(context)return context.state;try{return typeof S!=='undefined'?S:null}catch(_){return null}}
 function editable(match){
+  if(context)return !!context.canEditScores();
   const s=state();if(!s?.session||s.publicMode)return false;
   let ok=false;try{ok=typeof canEditCurrentMatches==='function'&&!!canEditCurrentMatches()}catch(_){ok=false}
   if(!ok)return false;
@@ -44,13 +47,17 @@ async function recordGoal(match,teamId,scorerId,card,quick){
   if(busy)return;busy=true;quick.classList.add('swe4360-busy');
   const beforeHome=Number(match.home_score||0),beforeAway=Number(match.away_score||0);
   try{
+    if(context){
+      const data=await context.addGoal(match,teamId,scorerId,null);
+      pendingAssist={matchId:match.id,goalId:data.action_goal_id};enhance();vibrate(35);return;
+    }
     const ins=await sb.from('goals').insert({match_id:match.id,team_id:teamId,scorer_player_id:scorerId,assister_player_id:null}).select('*').single();
     if(ins.error)throw ins.error;
     bump(match,teamId,1);
     const up=await sb.from('matches').update({home_score:Number(match.home_score||0),away_score:Number(match.away_score||0)}).eq('id',match.id);
     if(up.error){match.home_score=beforeHome;match.away_score=beforeAway;await sb.from('goals').delete().eq('id',ins.data.id);throw up.error}
     const goal=ins.data;addLocalGoal(goal);syncScore(match,card);refreshGoalPanel(card,match);showAssist(match,teamId,scorerId,goal,card,quick);lastGoal={goal,match,card,quick};vibrate(35);if(typeof toast==='function')toast('⚽ But de '+playerName(scorerId)+' ajouté !');
-  }catch(e){match.home_score=beforeHome;match.away_score=beforeAway;syncScore(match,card);if(typeof toast==='function')toast(e?.message||'Impossible d’enregistrer le but')}
+  }catch(e){if(!context){match.home_score=beforeHome;match.away_score=beforeAway;syncScore(match,card)}notify(e?.message||'Impossible d’enregistrer le but')}
   finally{busy=false;quick.classList.remove('swe4360-busy')}
 }
 function showAssist(match,teamId,scorerId,goal,card,quick){
@@ -62,13 +69,16 @@ function showAssist(match,teamId,scorerId,goal,card,quick){
     const undo=e.target.closest?.('[data-undo]');if(undo){e.preventDefault();await undoGoal(goal,match,card,quick);return}
     const b=e.target.closest?.('[data-assist]');if(!b)return;e.preventDefault();
     const assist=b.dataset.assist||null;zone.classList.add('swe4360-busy');
-    const up=await sb.from('goals').update({assister_player_id:assist}).eq('id',goal.id);zone.classList.remove('swe4360-busy');
-    if(up.error){if(typeof toast==='function')toast(up.error.message);return}
-    goal.assister_player_id=assist;zone.classList.remove('show');zone.innerHTML='';refreshGoalPanel(card,match);vibrate(assist?[20,35,20]:20);if(typeof toast==='function')toast(assist?'🎯 Passe de '+playerName(assist)+' ajoutée !':'✅ But enregistré sans passeur');
+    try{
+      if(context){await context.setAssist(match,goal,assist);pendingAssist=null;enhance()}
+      else{const up=await sb.from('goals').update({assister_player_id:assist}).eq('id',goal.id);if(up.error)throw up.error;goal.assister_player_id=assist;zone.classList.remove('show');zone.innerHTML='';refreshGoalPanel(card,match)}
+      vibrate(assist?[20,35,20]:20);notify(assist?'🎯 Passe de '+playerName(assist)+' ajoutée !':'✅ But enregistré sans passeur');
+    }catch(error){notify(error.message)}finally{zone.classList.remove('swe4360-busy')}
   };
 }
 async function undoGoal(goal,match,card,quick){
   if(busy||!goal?.id)return;busy=true;quick.classList.add('swe4360-busy');
+  if(context){try{await context.deleteGoal(match,goal);pendingAssist=null;enhance();vibrate([15,25,15])}catch(error){notify(error.message)}finally{busy=false;quick.classList.remove('swe4360-busy')}return}
   const beforeHome=Number(match.home_score||0),beforeAway=Number(match.away_score||0);bump(match,goal.team_id,-1);
   try{
     const up=await sb.from('matches').update({home_score:Number(match.home_score||0),away_score:Number(match.away_score||0)}).eq('id',match.id);if(up.error)throw up.error;
@@ -82,12 +92,21 @@ function playerButtons(match,teamId){const ids=teamPlayerIds(match,teamId);if(!i
 function build(match,card){const h=team(match.home_team_id),a=team(match.away_team_id),q=document.createElement('section');q.className='swe4360-quick';q.dataset.quickMatch=String(match.id);q.innerHTML='<div class="swe4360-head"><b>⚡ Saisie rapide des buteurs</b><small>1 clic sur un joueur = 1 but</small></div><div class="swe4360-teams"><div class="swe4360-team"><h4>'+esc(h?.name||'Équipe 1')+'</h4><div class="swe4360-players">'+playerButtons(match,match.home_team_id)+'</div></div><div class="swe4360-team"><h4>'+esc(a?.name||'Équipe 2')+'</h4><div class="swe4360-players">'+playerButtons(match,match.away_team_id)+'</div></div></div><div class="swe4360-assist"></div>';
   q.onclick=e=>{const b=e.target.closest?.('.swe4360-player');if(!b)return;e.preventDefault();e.stopPropagation();recordGoal(match,b.dataset.team,b.dataset.player,card,q)};return q}
 function enhance(){
-  css();const s=state();if(!s?.session||s.publicMode)return;const box=E('matchesList');if(!box)return;
-  [...box.querySelectorAll('.swe4300-match[data-match-id]')].forEach(card=>{const id=card.dataset.matchId,match=(s.matches||[]).find(x=>String(x.id)===String(id));if(!match||!editable(match))return;if(card.querySelector('.swe4360-quick[data-quick-match="'+CSS.escape(String(id))+'"]'))return;const q=build(match,card);const goals=card.querySelector('.swe4301-goals');if(goals)goals.insertAdjacentElement('beforebegin',q);else card.appendChild(q)});
+  css();const s=state();if(!s||(!context&&(!s.session||s.publicMode)))return;const box=E('matchesList');if(!box)return;
+  [...box.querySelectorAll('.swe4300-match[data-match-id]')].forEach(card=>{
+    const id=card.dataset.matchId,match=(s.matches||[]).find(x=>String(x.id)===String(id));if(!match||!editable(match))return;
+    let q=card.querySelector('.swe4360-quick[data-quick-match="'+CSS.escape(String(id))+'"]');
+    if(!q){q=build(match,card);const goals=card.querySelector('.swe4301-goals');if(goals)goals.insertAdjacentElement('beforebegin',q);else card.appendChild(q)}
+    if(context){const goal=pendingAssist?.matchId===match.id&&(s.goals||[]).find(g=>g.id===pendingAssist.goalId);
+      if(goal)showAssist(match,goal.team_id,goal.scorer_player_id,goal,card,q);
+      else{const zone=q.querySelector('.swe4360-assist');zone.classList.remove('show');zone.innerHTML=''}
+    }
+  });
 }
+window.SWE_ENHANCE_QUICKSCORE_4360=enhance;
 function schedule(){clearTimeout(timer);timer=setTimeout(enhance,35)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 document.addEventListener('swe:rendered',schedule);document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="matches"],#matchesList,#matchCompetitionSelect'))setTimeout(schedule,60)},true);window.addEventListener('pageshow',schedule);
-const startObs=()=>{const root=E('matchesList')||document.body;new MutationObserver(schedule).observe(root,{childList:true,subtree:true})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startObs,{once:true});else startObs();
+const startObs=()=>{if(context)return;const root=E('matchesList')||document.body;new MutationObserver(schedule).observe(root,{childList:true,subtree:true})};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startObs,{once:true});else startObs();
 setTimeout(enhance,250);setTimeout(enhance,900);
 })();

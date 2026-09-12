@@ -11,7 +11,11 @@ let tournamentId=params.get('tournament')||null;
 let timer=null,busy=false,lastSnapshotKey='';
 
 const testState={players:[],teams:[],teamPlayers:[],matches:[],goals:[],tournaments:[],activeTour:null};
-let testCanEdit=false,testActionBusy=false,testEnginePromise=null;
+let testCanEdit=false,testActionBusy=false,testEnginePromise=null,testRevision=0;
+if(testMatchId&&params.get('embed')==='1'){
+ document.body.classList.add('test-embedded');
+ new ResizeObserver(()=>{parent.postMessage({type:'swe:test-height',matchId:testMatchId,height:Math.ceil(document.querySelector('.live-shell').getBoundingClientRect().height)+16},location.origin)}).observe(document.querySelector('.live-shell'));
+}
 function testTab(name){
  document.querySelectorAll('[data-test-direct]').forEach(el=>el.classList.toggle('hidden',name==='matches'));
  $('#testMatchModule')?.classList.toggle('hidden',name!=='matches');
@@ -26,14 +30,14 @@ function testControls(){
 }
 async function testAction(action,extra={}){
  if(testActionBusy)throw new Error('Une action est déjà en cours.');
- testActionBusy=true;$('#testModuleError').textContent='';
+ testActionBusy=true;testRevision++;$('#testModuleError').textContent='';
  $('#testMatchModule').querySelectorAll('button,input,select').forEach(el=>el.disabled=true);testControls();
  try{
   const r=await sb.rpc('super_admin_test_match_action',{p_match_id:testMatchId,p_action:action,...extra});
   if(r.error)throw r.error;
-  render(r.data);await updateTestModule(r.data);lastSnapshotKey='';
+  render(r.data);await updateTestModule(r.data);lastSnapshotKey='';return r.data;
  }catch(e){$('#testModuleError').textContent=e.message||'Impossible d’enregistrer';throw e}
- finally{testActionBusy=false;window.SWE_RENDER_MATCHES_4302?.(false);testControls()}
+ finally{testActionBusy=false;window.SWE_RENDER_MATCHES_4302?.(false);window.SWE_ENHANCE_QUICKSCORE_4360?.();testControls()}
 }
 async function updateTestModule(data){
  testCanEdit=data.can_edit===true;
@@ -52,18 +56,21 @@ async function updateTestModule(data){
   $('#testModuleFinish').onclick=()=>testAction('finish').catch(()=>{});
   window.SWE_MATCH_CONTEXT={
    state:testState,current:()=>testState.tournaments.find(t=>t.id===testState.activeTour),notify:message=>{$('#testModuleError').textContent=message},
-   canEditScores:()=>testCanEdit&&testState.matches[0]?.status==='live',adminUser:()=>false,refresh:sync,
+   canEditScores:()=>testCanEdit&&!testActionBusy&&testState.matches[0]?.status==='live',adminUser:()=>false,refresh:sync,
    saveScore:(m,home,away)=>testAction('set_score',{p_home_score:home,p_away_score:away}),
    addGoal:(m,team,scorer,assister)=>testAction('goal',{p_scorer_id:scorer,p_assister_id:assister}),
-   deleteGoal:(m,goal)=>testAction('delete_goal',{p_goal_id:goal.id})
+   deleteGoal:(m,goal)=>testAction('delete_goal',{p_goal_id:goal.id}),
+   setAssist:(m,goal,assister)=>testAction('set_assist',{p_goal_id:goal.id,p_assister_id:assister})
   };
   testTab(params.get('tab')==='matches'?'matches':'direct');
  }
- if(!testEnginePromise)testEnginePromise=new Promise((resolve,reject)=>{
-  const script=document.createElement('script');script.src='/match-engine-v4300.js?v='+String(window.SWE_BUILD_VERSION).replaceAll('.','');
-  script.onload=resolve;script.onerror=()=>{script.remove();testEnginePromise=null;reject(new Error('Impossible de charger le module Matchs. Actualise la page.'))};document.body.appendChild(script);
- });
- await testEnginePromise;window.SWE_RENDER_MATCHES_4302(false);testControls();
+ if(!testEnginePromise)testEnginePromise=(async()=>{
+  for(const file of ['match-engine-v4300.js','match-quickscore-v4360.js'])await new Promise((resolve,reject)=>{
+   const script=document.createElement('script');script.src='/'+file+'?v='+String(window.SWE_BUILD_VERSION).replaceAll('.','');
+   script.onload=resolve;script.onerror=()=>{script.remove();reject(new Error('Impossible de charger le module Matchs. Actualise la page.'))};document.body.appendChild(script);
+  });
+ })().catch(error=>{testEnginePromise=null;throw error});
+ await testEnginePromise;window.SWE_RENDER_MATCHES_4302(false);window.SWE_ENHANCE_QUICKSCORE_4360?.();testControls();
 }
 
 function setStatus(text,ok=true){$('#liveStatus').textContent=text;const dot=document.querySelector('.live-dot');if(dot)dot.style.background=ok?'#4ade80':'#fb923c'}
@@ -108,6 +115,6 @@ function showTestLogin(){
  document.querySelector('.live-hero').insertAdjacentElement('afterend',form);
  form.onsubmit=async e=>{e.preventDefault();const b=form.querySelector('button');b.disabled=true;const {error}=await sb.auth.signInWithPassword({email:form.elements.email.value.trim(),password:form.elements.password.value});form.elements.password.value='';b.disabled=false;if(error){document.getElementById('testLoginError').textContent=error.message;return}form.remove();sync()};
 }
-async function sync(){if(busy)return;busy=true;try{if(testMatchId){const {data:session}=await sb.auth.getSession();if(!session.session){showTestLogin();return}}else{await resolve();if(!token||!tournamentId)throw new Error('Paramètres du lien Live incomplets.')}const r=testMatchId?await sb.rpc('get_test_match_snapshot',{p_match_id:testMatchId}):await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(r.error)throw r.error;const data=r.data||{};if(testMatchId){tournamentId=data.tournament_id;document.getElementById('testLiveLogin')?.remove()}window.swePageViewContext={page:testMatchId?'test_live':'live',token:testMatchId?null:token,id:testMatchId?null:tournamentId};document.dispatchEvent(new Event('swe:page-view'));const key=JSON.stringify([data.matches||[],data.goals||[],data.players||[],data.teams||[],data.team_players||[],data.tournament_players||[],data.can_edit]);if(key!==lastSnapshotKey){render(data);if(testMatchId)await updateTestModule(data);lastSnapshotKey=key}else{const now=new Date();$('#liveUpdated').textContent='Vérifié '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setStatus(navigator.onLine?'Live connecté • à jour':'Hors connexion • dernier état affiché',navigator.onLine)}$('#liveError').classList.add('hidden')}catch(e){$('#liveError').textContent=e.message||'Impossible de charger le tournoi.';$('#liveError').classList.remove('hidden');setStatus(navigator.onLine?'Synchronisation impossible':'Hors connexion',false)}finally{busy=false}}
-window.addEventListener('online',()=>{setStatus('Connexion retrouvée • synchronisation…',true);sync()});window.addEventListener('offline',()=>setStatus('Hors connexion • dernier état affiché',false));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});sync();timer=setInterval(()=>{if(navigator.onLine&&document.visibilityState==='visible')sync()},15000);
+async function sync(){if(busy||testActionBusy)return;busy=true;const revision=testRevision;try{if(testMatchId){const {data:session}=await sb.auth.getSession();if(!session.session){showTestLogin();return}}else{await resolve();if(!token||!tournamentId)throw new Error('Paramètres du lien Live incomplets.')}const r=testMatchId?await sb.rpc('get_test_match_snapshot',{p_match_id:testMatchId}):await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(testMatchId&&revision!==testRevision)return;if(r.error)throw r.error;const data=r.data||{};if(testMatchId){tournamentId=data.tournament_id;document.getElementById('testLiveLogin')?.remove()}window.swePageViewContext={page:testMatchId?'test_live':'live',token:testMatchId?null:token,id:testMatchId?null:tournamentId};document.dispatchEvent(new Event('swe:page-view'));const key=JSON.stringify([data.matches||[],data.goals||[],data.players||[],data.teams||[],data.team_players||[],data.tournament_players||[],data.can_edit]);if(key!==lastSnapshotKey){render(data);if(testMatchId)await updateTestModule(data);lastSnapshotKey=key}else{const now=new Date();$('#liveUpdated').textContent='Vérifié '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setStatus(navigator.onLine?'Live connecté • à jour':'Hors connexion • dernier état affiché',navigator.onLine)}$('#liveError').classList.add('hidden')}catch(e){if(testMatchId){testCanEdit=false;window.SWE_RENDER_MATCHES_4302?.(false);if($('#testMatchModule'))testControls()}$('#liveError').textContent=e.message||'Impossible de charger le tournoi.';$('#liveError').classList.remove('hidden');setStatus(navigator.onLine?'Synchronisation impossible':'Hors connexion',false)}finally{busy=false}}
+window.addEventListener('online',()=>{setStatus('Connexion retrouvée • synchronisation…',true);sync()});window.addEventListener('offline',()=>setStatus('Hors connexion • dernier état affiché',false));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});sync();timer=setInterval(()=>{if(navigator.onLine&&document.visibilityState==='visible')sync()},testMatchId?5000:15000);
 })();

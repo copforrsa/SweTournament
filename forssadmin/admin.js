@@ -69,13 +69,13 @@ async function renderReports(){
   E('reportSearch').oninput=draw;E('reportRefresh').onclick=renderReports;draw();
  }catch(e){if(active==='reports')E('content').innerHTML='<div class="card error">'+esc(e.message)+'</div>'}
 }
-let testSelected=new Set(),testRequestId=null,testCreating=false;
+let testSelected=new Set(),testRequestId=null,testCreating=false,testDestination='';
 async function renderMatchTests(){
  E('content').innerHTML=head('Match test','Chargement…');
  try{
-  const [accounts,runs]=await Promise.all([rpc('super_admin_get_test_match_accounts'),rpc('super_admin_list_test_matches')]);if(active!=='matchtests'||!ready)return;
+  const [accounts,runs,recipients]=await Promise.all([rpc('super_admin_get_test_match_accounts'),rpc('super_admin_list_test_matches'),rpc('super_admin_get_test_match_recipients')]);if(active!=='matchtests'||!ready)return;
   E('content').innerHTML=head('Match test','Un clic génère 10 joueurs de test et deux équipes de 5. Tu peux ajouter des comptes SWÉ au test si tu le souhaites.','<button class="btn ghost" id="testRefresh">↻ Actualiser</button>')+
-   '<div class="card"><div class="actions"><button type="button" class="btn primary" id="testCreate" aria-describedby="testCreateHint">Créer 1 match test automatique</button><b id="testSelectionCount"></b></div><p id="testCreateHint" class="muted" role="status"></p><div id="testCreateError" class="error" role="alert"></div><details id="testOptionalAccounts" style="margin-top:16px"><summary>Ajouter des comptes SWÉ au test (facultatif)</summary><label class="form-field"><span>Rechercher un compte</span><input id="testSearch" placeholder="Nom ou ID SWÉ"></label><div class="actions" style="margin:10px 0"><span id="testAccountCount" class="muted"></span><button type="button" class="btn ghost" id="testExpandAccounts" aria-controls="testAccounts" aria-expanded="false">Afficher tous les comptes</button></div><div id="testAccounts" style="max-height:260px;overflow:auto" tabindex="0" aria-label="Comptes disponibles pour le match test"></div></details></div><div id="testMatchPanel"></div><div class="card" style="margin-top:16px"><h3>Matchs tests récents</h3><div id="testRuns">'+runs.map(r=>'<div class="pitch-row"><span>'+esc(dt(r.created_at))+' • '+r.player_count+' joueurs • '+esc(r.status)+' • '+r.home_score+' – '+r.away_score+'</span><button class="btn ghost" data-open-test="'+esc(r.id)+'">Ouvrir</button></div>').join('')+'</div></div>';
+   '<div class="card">'+select('Afficher le test dans l’onglet Matchs de…','testDestination',[['','Super Admin uniquement'],...recipients.map(r=>[r.workspace_id+':'+r.user_id,r.workspace_name+' — '+r.name+' ('+(r.role==='admin'?'Administrateur':'Co-organisateur')+')'+(r.swe_id?' • '+r.swe_id:'')])],testDestination)+'<p class="muted">Le gestionnaire choisi retrouve ce test dans son espace, onglet Matchs. Seuls les comptes ayant le droit de saisir les scores sont proposés.</p><div class="actions"><button type="button" class="btn primary" id="testCreate" aria-describedby="testCreateHint">Créer 1 match test automatique</button><b id="testSelectionCount"></b></div><p id="testCreateHint" class="muted" role="status"></p><div id="testCreateError" class="error" role="alert"></div><details id="testOptionalAccounts" style="margin-top:16px"><summary>Ajouter des comptes SWÉ au test (facultatif)</summary><label class="form-field"><span>Rechercher un compte</span><input id="testSearch" placeholder="Nom ou ID SWÉ"></label><div class="actions" style="margin:10px 0"><span id="testAccountCount" class="muted"></span><button type="button" class="btn ghost" id="testExpandAccounts" aria-controls="testAccounts" aria-expanded="false">Afficher tous les comptes</button></div><div id="testAccounts" style="max-height:260px;overflow:auto" tabindex="0" aria-label="Comptes disponibles pour le match test"></div></details></div><div id="testMatchPanel"></div><div class="card" style="margin-top:16px"><h3>Matchs tests récents</h3><div id="testRuns">'+runs.map(r=>'<div class="pitch-row"><span>'+esc(dt(r.created_at))+' • '+r.player_count+' joueurs • '+esc(r.status)+' • '+r.home_score+' – '+r.away_score+'</span><button class="btn ghost" data-open-test="'+esc(r.id)+'">Ouvrir</button></div>').join('')+'</div></div>';
   const valid=new Set(accounts.map(a=>a.swe_id));testSelected=new Set([...testSelected].filter(id=>valid.has(id)));
   const totalPlayers=()=>Math.max(10,Math.ceil(testSelected.size/2)*2);
   const selectionHint=()=>testSelected.size>12?'Maximum 12 comptes SWÉ : décoche '+(testSelected.size-12)+' compte'+(testSelected.size>13?'s':'')+'.':testSelected.size===0?'10 joueurs fictifs seront générés automatiquement : deux équipes de 5.':testSelected.size+' compte'+(testSelected.size>1?'s':'')+' SWÉ + '+(totalPlayers()-testSelected.size)+' joueur(s) fictif(s) : deux équipes de '+(totalPlayers()/2)+'.';
@@ -85,7 +85,7 @@ async function renderMatchTests(){
    const hint=testCreating?'Création du match en cours…':selectionHint();
    E('testCreateHint').textContent=hint;button.title=hint;button.disabled=testCreating;button.style.cursor=testCreating?'progress':'pointer';button.textContent=testCreating?'Création en cours…':'Créer 1 match test automatique';button.setAttribute('aria-busy',String(testCreating));
    E('testAccounts').querySelectorAll('input').forEach(input=>input.disabled=testCreating);
-   for(const id of ['testSearch','testRefresh','testExpandAccounts'])if(E(id))E(id).disabled=testCreating;
+   for(const id of ['testSearch','testRefresh','testExpandAccounts','testDestination'])if(E(id))E(id).disabled=testCreating;
   };
   let showAllAccounts=false;
   const draw=()=>{
@@ -96,6 +96,7 @@ async function renderMatchTests(){
    E('testAccounts').innerHTML=matching.map(a=>'<label class="check-line"><input type="checkbox" data-test-account="'+esc(a.swe_id)+'" '+(testSelected.has(a.swe_id)?'checked':'')+'><span>'+esc(a.name)+' <b>'+esc(a.swe_id)+'</b></span></label>').join('')||'<p>Aucun compte correspondant.</p>';
    E('testAccounts').querySelectorAll('[data-test-account]').forEach(b=>b.onchange=()=>{if(b.checked)testSelected.add(b.dataset.testAccount);else testSelected.delete(b.dataset.testAccount);testRequestId=null;E('testCreateError').textContent='';count()});count();
   };
+  E('testDestination').onchange=e=>{testDestination=e.target.value;testRequestId=null;E('testCreateError').textContent=''};
   E('testExpandAccounts').onclick=()=>{showAllAccounts=!showAllAccounts;draw()};
   E('testSearch').oninput=draw;E('testRefresh').onclick=renderMatchTests;draw();
   E('content').querySelectorAll('[data-open-test]').forEach(b=>b.onclick=()=>openTestMatch(b.dataset.openTest));
@@ -106,7 +107,8 @@ async function renderMatchTests(){
    testCreating=true;count();
    try{
     testRequestId||=crypto.randomUUID();
-    const id=await rpc('super_admin_create_test_match',{p_swe_ids:[...testSelected],p_request_id:testRequestId});
+    const [workspace,manager]=E('testDestination').value.split(':');
+    const id=await rpc('super_admin_create_test_match',{p_swe_ids:[...testSelected],p_request_id:testRequestId,p_target_workspace_id:workspace||null,p_manager_user_id:manager||null});
     testRequestId=null;if(active!=='matchtests')return;
     await renderMatchTests();await openTestMatch(id);
    }
@@ -119,14 +121,19 @@ async function openTestMatch(id){
  try{const data=await rpc('get_test_match_snapshot',{p_match_id:id});if(active==='matchtests')paintTestMatch(data)}catch(e){alert(e.message)}
 }
 function paintTestMatch(data){
- const panel=E('testMatchPanel');if(!panel)return;const m=data.matches[0],players=data.players||[],assignments=data.match_player_assignments||[],teams=new Map((data.teams||[]).map(t=>[t.id,t]));
- const link=new URL('/live.html',location.origin);link.searchParams.set('test',m.id);const adminLink=new URL(link);adminLink.searchParams.set('admin','1');const moduleLink=new URL(adminLink);moduleLink.searchParams.set('tab','matches');
- panel.innerHTML='<div class="card" style="margin-top:16px"><h3>⚽ Match test</h3><p>Simulation isolée • '+esc(m.status)+'</p><h2>'+esc(teams.get(m.home_team_id)?.name)+' '+m.home_score+' – '+m.away_score+' '+esc(teams.get(m.away_team_id)?.name)+'</h2><div class="actions"><button class="btn primary" id="testStart" '+(m.status!=='scheduled'?'disabled':'')+'>Démarrer</button><button class="btn ghost" id="testFinish" '+(m.status!=='live'?'disabled':'')+'>Terminer</button><a class="btn primary" href="'+esc(moduleLink.toString())+'" target="_blank" rel="noopener">Ouvrir l’onglet Matchs</a><a class="btn ghost" href="'+esc(adminLink.toString())+'" target="_blank" rel="noopener">Ouvrir le direct</a><button class="btn ghost" id="testCopy">Copier le lien pour les joueurs</button><button class="btn ghost" id="testReload">Actualiser</button></div><div class="grid form-grid" style="margin-top:14px">'+select('Buteur','testScorer',players.map(p=>[p.id,p.name+' • '+(teams.get(assignments.find(a=>a.player_id===p.id)?.team_id)?.name||'')]),players[0]?.id)+select('Passeur','testAssister',[['','Sans passeur']],'')+'</div><div class="actions"><button class="btn primary" id="testGoal" '+(m.status!=='live'?'disabled':'')+'>⚽ Ajouter le but</button><button class="btn ghost" id="testUndo" '+(m.status!=='live'||!data.goals?.length?'disabled':'')+'>Annuler le dernier but</button></div><p id="testActionError" class="error"></p><div>'+((data.goals||[]).map(g=>'<p>⚽ '+esc(players.find(p=>p.id===g.scorer_player_id)?.name||'')+(g.assister_player_id?' ← 🎯 '+esc(players.find(p=>p.id===g.assister_player_id)?.name||''):'')+'</p>').join('')||'<p class="muted">Aucun but saisi.</p>')+'</div></div>';
- const updateAssists=()=>{const id=E('testScorer').value,team=assignments.find(a=>a.player_id===id)?.team_id;E('testAssister').innerHTML='<option value="">Sans passeur</option>'+players.filter(p=>p.id!==id&&assignments.some(a=>a.player_id===p.id&&a.team_id===team)).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('')};E('testScorer').onchange=updateAssists;updateAssists();
- const action=async(name)=>{const scorer=E('testScorer').value,assister=E('testAssister').value||null;panel.querySelectorAll('button').forEach(b=>b.disabled=true);try{const next=await rpc('super_admin_test_match_action',{p_match_id:m.id,p_action:name,p_scorer_id:name==='goal'?scorer:null,p_assister_id:name==='goal'?assister:null});paintTestMatch(next)}catch(e){paintTestMatch(data);E('testActionError').textContent=e.message}};
- E('testStart').onclick=()=>action('start');E('testFinish').onclick=()=>action('finish');E('testGoal').onclick=()=>action('goal');E('testUndo').onclick=()=>action('undo_goal');E('testReload').onclick=()=>openTestMatch(m.id);
+ const panel=E('testMatchPanel');if(!panel)return;const m=data.matches[0];
+ const link=new URL('/live.html',location.origin);link.searchParams.set('test',m.id);
+ const adminLink=new URL(link);adminLink.searchParams.set('admin','1');
+ const moduleLink=new URL(adminLink);moduleLink.searchParams.set('tab','matches');
+ const embeddedLink=new URL(moduleLink);embeddedLink.searchParams.set('embed','1');
+ panel.innerHTML='<div class="card" style="margin-top:16px"><h3>⚽ Match test — saisie rapide</h3><div class="actions"><a class="btn ghost" href="'+esc(moduleLink.toString())+'" target="_blank" rel="noopener">Ouvrir la saisie dans une nouvelle fenêtre</a><a class="btn ghost" href="'+esc(adminLink.toString())+'" target="_blank" rel="noopener">Ouvrir le direct</a><button class="btn ghost" id="testCopy">Copier le lien pour les joueurs</button></div><p id="testActionError" class="error" role="alert"></p><iframe id="testQuickFrame" title="Match test — saisie rapide" data-match-id="'+esc(m.id)+'" src="'+esc(embeddedLink.toString())+'" style="width:100%;height:1050px;border:0;display:block"></iframe></div>';
  E('testCopy').onclick=async()=>{try{await navigator.clipboard.writeText(link.toString());E('testCopy').textContent='Lien copié ✓'}catch(e){E('testActionError').textContent='Copie impossible : '+link.toString()}};
 }
+window.addEventListener('message',event=>{
+ const frame=E('testQuickFrame'),data=event.data;
+ if(event.origin!==location.origin||event.source!==frame?.contentWindow||data?.type!=='swe:test-height'||data.matchId!==frame.dataset.matchId)return;
+ if(Number.isFinite(data.height))frame.style.height=Math.max(360,Math.min(2400,data.height))+'px';
+});
 async function reconcileVisibleSession(){if(document.visibilityState==='hidden')return;const ok=await ensureSuper();if(ok){if(!ready){showShell();await refreshAll()}}else if(ready){showLogin('Session expirée. Reconnecte-toi.')}}
 async function boot(){document.documentElement.dataset.sweVersion=BUILD;bindAuth();nav();const ok=await ensureSuper();if(!ok)return showLogin();showShell();await refreshAll();window.addEventListener('pageshow',()=>setTimeout(reconcileVisibleSession,150));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(reconcileVisibleSession,150)})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();

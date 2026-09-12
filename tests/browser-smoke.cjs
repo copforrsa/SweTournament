@@ -32,6 +32,7 @@ function installMock(data,ids){
     if(name==='get_public_workspace_snapshot_v2')return {data:window.__snapshot};
     if(name==='resolve_public_tournament_short_link')return {data:{public_token:ids.token,tournament_id:ids.current,view:'tournament'}};
     if(name==='super_admin_get_test_match_accounts')return {data:[...Array.from({length:15},(_,i)=>({swe_id:'SWE-TEST'+(i+1),name:'Compte '+(i+1)})),{swe_id:'SWE-E5DE3BA0',name:'Testing boy'}]};
+    if(name==='super_admin_get_test_match_recipients')return {data:[{workspace_id:ids.current,user_id:ids.user,workspace_name:'Groupe du dimanche',role:'coorganizer',name:'Testing boy',swe_id:'SWE-E5DE3BA0'}]};
     if(name==='super_admin_list_test_matches')return {data:[{id:ids.match,created_at:'2026-09-12T12:00:00Z',player_count:4,status:'scheduled',home_score:0,away_score:0}]};
     if(name==='super_admin_get_page_reports')return {data:[{page_key:'registration:x',page_type:'registration',title:'Prochain tournoi',workspace_name:'Groupe',view_count:42,updated_at:'2026-09-12T12:00:00Z'}]};
     if(name==='super_admin_create_test_match'){
@@ -46,7 +47,8 @@ function installMock(data,ids){
      if(args.p_action==='start'){m.status='live';d.tournaments[0].status='live'}
      if(args.p_action==='finish'){m.status='finished';d.tournaments[0].status='finished'}
      if(args.p_action==='set_score'){m.home_score=args.p_home_score;m.away_score=args.p_away_score}
-     if(args.p_action==='goal'){const team=d.match_player_assignments.find(p=>p.player_id===args.p_scorer_id).team_id;d.goals.push({id:fakeId(goalIndex++),match_id:m.id,team_id:team,scorer_player_id:args.p_scorer_id,assister_player_id:args.p_assister_id});if(team===m.home_team_id)m.home_score++;else m.away_score++}
+     if(args.p_action==='goal'){const team=d.match_player_assignments.find(p=>p.player_id===args.p_scorer_id).team_id;const goalId=fakeId(goalIndex++);d.action_goal_id=goalId;d.goals.push({id:goalId,match_id:m.id,team_id:team,scorer_player_id:args.p_scorer_id,assister_player_id:args.p_assister_id});if(team===m.home_team_id)m.home_score++;else m.away_score++}
+     if(args.p_action==='set_assist')d.goals.find(g=>g.id===args.p_goal_id).assister_player_id=args.p_assister_id;
      if(args.p_action==='delete_goal'){const goal=d.goals.find(g=>g.id===args.p_goal_id);if(goal.team_id===m.home_team_id)m.home_score--;else m.away_score--;d.goals=d.goals.filter(g=>g.id!==args.p_goal_id)}
      window.__testScore=m.home_score;return {data:structuredClone(d)};
     }
@@ -86,15 +88,17 @@ async function checkTestMatchCreation(page){
  await create.click();await page.locator('#testCreateError').filter({hasText:'Maximum 12 comptes'}).waitFor();
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c.name==='super_admin_create_test_match').length),0);
  for(let i=0;i<13;i++)await accounts.nth(i).uncheck();
+ await page.locator('#testDestination').selectOption(current+':'+id(99));
  await page.evaluate(()=>{window.__failTestCreate=true});
  await create.click();assert.equal(await create.isDisabled(),true);assert.equal(await create.getAttribute('aria-busy'),'true');
  await page.locator('#testCreateError').filter({hasText:'Création temporairement indisponible'}).waitFor();
  assert.equal(await create.isEnabled(),true);assert.equal(await accounts.first().isEnabled(),true);
- await create.click();await page.locator('#testScorer').waitFor();
+ await create.click();await page.locator('#testQuickFrame').waitFor();
  await page.waitForFunction(()=>document.getElementById('testCreate')?.getAttribute('aria-busy')==='false');
  const calls=await page.evaluate(()=>window.__calls.filter(c=>c.name==='super_admin_create_test_match'));
  assert.equal(calls.length,2);assert.deepEqual(calls[0].args.p_swe_ids,[]);assert.equal(calls[0].args.p_request_id,calls[1].args.p_request_id);
- assert.match(await page.getByRole('link',{name:'Ouvrir l’onglet Matchs'}).getAttribute('href'),/tab=matches/);
+ assert.equal(calls[0].args.p_target_workspace_id,current);assert.equal(calls[0].args.p_manager_user_id,id(99));
+ assert.match(await page.getByRole('link',{name:'Ouvrir la saisie dans une nouvelle fenêtre'}).getAttribute('href'),/tab=matches/);
  console.log('Automatic match creation with no account selected, limit, busy state and retry: OK');
 }
 async function checkSharedMatchModule(page){
@@ -102,6 +106,16 @@ async function checkSharedMatchModule(page){
  await page.locator('.swe4301-goal-form').waitFor();
  const score=page.locator('.swe4300-result'),inputs=page.locator('.swe4300-edit input');
  await inputs.nth(0).fill('0');await inputs.nth(1).fill('0');await page.getByRole('button',{name:'Enregistrer le score'}).click();await score.filter({hasText:'0 - 0'}).waitFor();
+ assert.equal(await page.locator('.swe4360-player').count(),10);
+ await page.locator('.swe4360-player').filter({hasText:'Joueur test 01'}).click();await score.filter({hasText:'1 - 0'}).waitFor();
+ await page.locator('.swe4360-assist.show').waitFor();assert.equal(await page.locator('.swe4360-assist [data-assist]').count(),5);
+ // The next server refresh must preserve the pending passer choice.
+ await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+ await page.locator('.swe4360-assist [data-assist]').filter({hasText:'Joueur test 03'}).click();
+ await page.locator('.swe4301-goal-history').filter({hasText:'Joueur test 01 ← Joueur test 03'}).waitFor();
+ await page.getByRole('button',{name:'Annuler',exact:true}).click();await score.filter({hasText:'0 - 0'}).waitFor();
+ await page.locator('.swe4360-player').filter({hasText:'Joueur test 02'}).click();await score.filter({hasText:'0 - 1'}).waitFor();
+ await page.locator('.swe4360-assist [data-undo]').click();await score.filter({hasText:'0 - 0'}).waitFor();
  const addGoal=async()=>{
   const selects=page.locator('.swe4301-goal-form select');
   await selects.nth(0).selectOption(a);await selects.nth(1).selectOption({label:'Joueur test 01'});await selects.nth(2).selectOption({label:'Joueur test 03'});
@@ -113,7 +127,7 @@ async function checkSharedMatchModule(page){
  await addGoal();await score.filter({hasText:'4 - 2'}).waitFor();
  await page.locator('#testModuleFinish').click();await page.locator('#testModuleState').filter({hasText:'terminé'}).waitFor();assert.equal(await page.locator('.swe4301-goal-form').count(),0);
  await page.locator('[data-test-tab="direct"]').click();await page.locator('#liveMatches').filter({hasText:'4 - 2'}).waitFor();
- console.log('Shared Matchs module: start, manual score, scorer, assister, delete, finish and direct result: OK');
+ console.log('Shared Matchs module: quick scorer, passer, refresh, undo, manual score, finish and direct result: OK');
 }
 const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!target.startsWith(root+path.sep)&&target!==root){res.writeHead(403);return res.end()}try{if(fs.statSync(target).isDirectory())target=path.join(target,'index.html');res.setHeader('Content-Type',target.endsWith('.html')?'text/html':target.endsWith('.js')?'text/javascript':target.endsWith('.css')?'text/css':'application/octet-stream');res.end(fs.readFileSync(target))}catch{res.writeHead(404);res.end()}});
 (async()=>{
@@ -172,12 +186,34 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
     await organizer.waitForFunction(id=>document.querySelector('[data-swe-generate-tour="'+id+'"]').disabled,current);
     console.log('Tournament shortcut targets the selected tournament and respects permissions: OK');await organizer.close();
    }
+   // The assigned test is available in Matchs even without an active tournament.
+   const assigned=await context.newPage();assigned.on('pageerror',e=>errors.push(e.message));
+   await assigned.route(base+'/tests/match-harness.html',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><meta name="viewport" content="width=device-width"><div class="tabs"><button data-view="matches" class="active">Matchs</button></div><section id="view-matches" class="view active"><div id="matchesList"></div></section>'}));
+   await assigned.goto(base+'/tests/match-harness.html');
+   await assigned.evaluate(({current,match,user})=>{
+    window.S={workspace:{id:current,role:'coorganizer'},session:{user:{id:user}},myPermissions:{can_enter_scores:true},matches:[],tournaments:[],activeTour:null};
+    window.currentTour=()=>null;window.renderMatches=()=>{};window.canEditCurrentMatches=()=>false;
+    window.__assignedCalls=[];window.sb={rpc:async(name,args)=>{window.__assignedCalls.push({name,args});return {data:args.p_workspace_id===current?[{id:match,status:'scheduled',created_at:'2026-09-12T12:00:00Z'}]:[]}}};
+   },{current,match,user:id(99)});
+   await assigned.addScriptTag({content:fs.readFileSync(path.join(root,'match-tab-recovery-v4355.js'),'utf8')});
+   await assigned.locator('[data-view="matches"]').click();await assigned.locator('#assignedTestFrame').waitFor();
+   const assignedFrame=await (await assigned.locator('#assignedTestFrame').elementHandle()).contentFrame();
+   assert.equal(new URL(assignedFrame.url()).searchParams.has('admin'),false);
+   await assignedFrame.locator('#testModuleStart').click();await assignedFrame.locator('.swe4360-player').first().waitFor();
+   await assignedFrame.locator('.swe4360-player').filter({hasText:'Joueur test 01'}).click();await assignedFrame.locator('.swe4360-assist.show').waitFor();
+   await assignedFrame.locator('.swe4360-assist [data-assist]').filter({hasText:'Joueur test 03'}).click();
+   await assignedFrame.locator('.swe4301-goal-history').filter({hasText:'Joueur test 01 ← Joueur test 03'}).waitFor();
+   await assigned.screenshot({path:path.join(screenshotDir,'screenshot-assigned-quick-'+viewport.width+'.png'),fullPage:true});
+   await assigned.evaluate(past=>{S.workspace.id=past;document.dispatchEvent(new Event('swe:rendered'))},past);
+   await assigned.locator('#assignedWorkspaceTests').waitFor({state:'detached'});assert.equal(await assigned.evaluate(()=>S.matches.length),0);
+   await assigned.close();console.log('Assigned Matchs tab, quick entry, no tournament and workspace switch:',viewport.width,'OK');
    await page.goto(base+'/live.html?test='+match+'&admin=1&tab=matches');await checkSharedMatchModule(page);
    console.log('Registration, history, guest disclosure and selection:',viewport.width,'OK');await context.close();
   }
   const context=await browser.newContext();await context.route('**/*',route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/live.html?test='+match+'&admin=1');await page.locator('#liveMatches').filter({hasText:'0 - 0'}).waitFor();await page.evaluate(()=>{window.__testScore=2;document.dispatchEvent(new Event('visibilitychange'))});await page.locator('#liveMatches').filter({hasText:'2 - 0'}).waitFor();console.log('Existing live renderer refreshes test scores: OK');
-  await page.goto(base+'/forssadmin/');await page.locator('[data-view="reports"]').click();await page.locator('#reportRows').filter({hasText:'42'}).waitFor();await page.locator('[data-view="matchtests"]').click();await checkTestAccountPicker(page);await checkTestMatchCreation(page);await page.locator('#testScorer').waitFor();assert.equal(await page.locator('#testAssister option').count(),5);console.log('Super Admin reports and match-test screen: OK');
+  await page.goto(base+'/forssadmin/');await page.locator('[data-view="reports"]').click();await page.locator('#reportRows').filter({hasText:'42'}).waitFor();await page.locator('[data-view="matchtests"]').click();await checkTestAccountPicker(page);await checkTestMatchCreation(page);
+  const testFrame=await (await page.locator('#testQuickFrame').elementHandle()).contentFrame();await checkSharedMatchModule(testFrame);console.log('Super Admin reports, destination picker and embedded quick entry: OK');
   const reader=await context.newPage();reader.on('pageerror',e=>errors.push(e.message));await reader.addInitScript(()=>{window.__testCanEdit=false});await reader.goto(base+'/live.html?test='+match+'&tab=matches');await reader.locator('.swe4300-result').waitFor();assert.equal(await reader.locator('#testModuleStart').isVisible(),false);assert.equal(await reader.locator('.swe4301-goal-form').count(),0);assert.equal(await reader.locator('.swe4300-edit').count(),0);await reader.close();
   const denied=await context.newPage();denied.on('pageerror',e=>errors.push(e.message));await denied.addInitScript(()=>{window.__denyTest=true});await denied.goto(base+'/live.html?test='+match+'&tab=matches');await denied.locator('#liveError').filter({hasText:'ne participe pas'}).waitFor();assert.equal(await denied.locator('.swe4300-match').count(),0);await denied.close();
   const normal=await context.newPage();normal.on('pageerror',e=>errors.push(e.message));await normal.setContent('<div id="matchesList"></div>');
