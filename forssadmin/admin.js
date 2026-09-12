@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 const {createClient}=window.supabase;
-const BUILD='42.64';
+const BUILD=window.SWE_BUILD_VERSION;
 const ADMIN_STORAGE_KEY='swe-forssadmin-auth-v1';
 const sb=createClient('https://fbppesfxkvledwjemwsn.supabase.co','sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp',{auth:{flowType:'pkce',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:ADMIN_STORAGE_KEY}});
 const E=id=>document.getElementById(id);
