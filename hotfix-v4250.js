@@ -1,7 +1,5 @@
 (()=>{
 'use strict';
-const BUILD='42.50';
-window.SWE_BUILD_VERSION=BUILD;
 let timer=null;
 let cleanupDone=false;
 async function cleanupLegacyRuntime(){
@@ -19,20 +17,6 @@ async function cleanupLegacyRuntime(){
       await Promise.all(keys.map(k=>caches.delete(k)));
     }
   }catch(_){}
-}
-function applyBuild(){
-  const wanted='V'+BUILD;
-  const nextTitle=document.title.replace(/V42\.\d+/g,wanted);
-  if(document.title!==nextTitle)document.title=nextTitle;
-  document.querySelectorAll('h1 span').forEach(el=>{
-    const txt=(el.textContent||'').trim();
-    if(/^V42\./.test(txt)&&txt!==wanted)el.textContent=wanted;
-  });
-  document.querySelectorAll('.build-badge').forEach(el=>{
-    const txt='MAJ '+BUILD;
-    if(el.textContent!==txt)el.textContent=txt;
-  });
-  if(document.documentElement.dataset.sweVersion!==BUILD)document.documentElement.dataset.sweVersion=BUILD;
 }
 function injectAuthStability(){
   if(document.getElementById('sweAuth4250Style'))return;
@@ -63,13 +47,13 @@ function injectAuthStability(){
 }
 function settleBuild(){
   clearTimeout(timer);
-  applyBuild();
+  
   injectAuthStability();
   cleanupLegacyRuntime();
-  timer=setTimeout(()=>{applyBuild();injectAuthStability();},220);
+  timer=setTimeout(()=>{injectAuthStability();},220);
 }
 cleanupLegacyRuntime();
-applyBuild();
+
 injectAuthStability();
 document.addEventListener('DOMContentLoaded',settleBuild,{once:true});
 window.addEventListener('pageshow',settleBuild);

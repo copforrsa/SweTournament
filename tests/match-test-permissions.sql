@@ -1,0 +1,43 @@
+begin;
+do $$
+declare v_admin uuid; v_ids text[]; v_match uuid; v_participant uuid; v_uid uuid; v_token uuid; v_tour uuid; v_before bigint; v_after bigint; v_n integer:=0;
+begin
+select user_id into v_admin from public.platform_super_admins limit 1;
+select array_agg(public_player_id) into v_ids from (select public_player_id from public.global_player_profiles where identity_status='active' and user_id<>v_admin order by public_player_id limit 2) p;
+perform set_config('request.jwt.claim.sub',v_admin::text,true);
+v_match:=public.super_admin_create_test_match(v_ids,gen_random_uuid());
+select (participants->0->>'user_id')::uuid into v_participant from private.match_test_runs where match_id=v_match;
+for v_uid in select user_id from public.global_player_profiles where user_id<>v_admin union select user_id from public.workspace_members where active and user_id<>v_admin loop
+  v_n:=v_n+1;
+  perform set_config('request.jwt.claim.sub',v_uid::text,true);
+  execute 'set local role authenticated';
+  begin perform public.super_admin_create_test_match(v_ids,gen_random_uuid());raise exception 'TEST_FAILED: création autorisée';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+  begin perform public.super_admin_get_page_reports();raise exception 'TEST_FAILED: rapport autorisé';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+  begin perform public.super_admin_test_match_action(v_match,'start');raise exception 'TEST_FAILED: saisie autorisée';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+  execute 'reset role';
+end loop;
+if v_n=0 then raise exception 'Aucun compte non Super Admin testé';end if;
+perform set_config('request.jwt.claim.sub',v_participant::text,true);
+execute 'set local role authenticated';
+perform public.get_test_match_snapshot(v_match);
+execute 'reset role';
+perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
+execute 'set local role authenticated';
+begin perform public.get_test_match_snapshot(v_match);raise exception 'TEST_FAILED: lecture étrangère autorisée';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+begin perform count(*) from private.match_test_runs;raise exception 'TEST_FAILED: accès direct autorisé';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+execute 'reset role';
+select w.public_token,t.id into v_token,v_tour from public.workspaces w join public.tournaments t on t.workspace_id=w.id where w.public_enabled limit 1;
+select coalesce(view_count,0) into v_before from public.public_registration_page_views where tournament_id=v_tour;v_before:=coalesce(v_before,0);
+perform set_config('request.jwt.claim.sub','',true);
+execute 'set local role anon';
+begin perform public.get_test_match_snapshot(v_match);raise exception 'TEST_FAILED: lecture anonyme autorisée';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+begin perform public.super_admin_get_page_reports();raise exception 'TEST_FAILED: rapport anonyme autorisé';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+v_after:=public.record_swe_page_view('registration',v_token,v_tour);
+if v_after<>v_before+1 then raise exception 'Compteur inscription incorrect';end if;
+perform public.record_swe_page_view('live',v_token,v_tour);
+begin perform public.record_swe_page_view('registration',gen_random_uuid(),v_tour);raise exception 'TEST_FAILED: faux jeton accepté';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+begin perform public.record_swe_page_view('arbitrary-page');raise exception 'TEST_FAILED: page arbitraire acceptée';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+execute 'reset role';
+end $$;
+rollback;
+select 'Rights and counter checks passed; fixtures rolled back' as validation;

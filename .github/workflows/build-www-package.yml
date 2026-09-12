@@ -23,6 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+          node --test tests/*.test.cjs
 
       - name: Install browser test runner
         run: |
