@@ -14,10 +14,10 @@ begin
   execute 'set local role authenticated';
   v_auto:=public.super_admin_create_test_match(array[]::text[],gen_random_uuid());
   v_data:=public.get_test_match_snapshot(v_auto);
-  if jsonb_array_length(v_data->'players')<>10 or jsonb_array_length(v_data->'match_player_assignments')<>10 or (v_data->>'can_edit')::boolean is not true then raise exception 'Génération automatique incorrecte';end if;
+  if jsonb_array_length(v_data->'players')<>12 or jsonb_array_length(v_data->'match_player_assignments')<>10 or (v_data->>'can_edit')::boolean is not true then raise exception 'Génération automatique incorrecte';end if;
   if exists(select 1 from jsonb_array_elements(v_data->'teams') t where (select count(*) from jsonb_array_elements(v_data->'team_players') p where p->>'team_id'=t->>'id')<>5) then raise exception 'Équipes automatiques déséquilibrées';end if;
   v_single:=public.super_admin_create_test_match(array[v_ids[1]],gen_random_uuid());
-  if jsonb_array_length(public.get_test_match_snapshot(v_single)->'players')<>10 then raise exception 'Un compte ne suffit pas à lancer le test';end if;
+  if jsonb_array_length(public.get_test_match_snapshot(v_single)->'players')<>12 then raise exception 'Un compte ne suffit pas à lancer le test';end if;
   v_match:=public.super_admin_create_test_match(v_ids,v_request);
   if public.super_admin_create_test_match(v_ids,v_request)<>v_match then raise exception 'Idempotence incorrecte'; end if;
   v_data:=public.get_test_match_snapshot(v_match);

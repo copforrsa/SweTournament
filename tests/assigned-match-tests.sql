@@ -2,7 +2,7 @@
 begin;
 do $$
 declare sa uuid; users uuid[]; ws uuid; other_ws uuid; ma uuid; mc uuid; data jsonb; recipients jsonb;
- scorer uuid; assister uuid; opponent uuid; goal uuid; fake_ws uuid;
+ scorer uuid; assister uuid; opponent uuid; goal uuid; fake_ws uuid; bench uuid;
 begin
  select user_id into sa from public.platform_super_admins limit 1;
  select array_agg(user_id) into users from (select distinct user_id from public.global_player_profiles where user_id<>sa order by user_id limit 4) x;
@@ -24,12 +24,12 @@ begin
  select workspace_id into fake_ws from private.match_test_runs where match_id=mc;
  if exists(select 1 from public.workspace_members where workspace_id=fake_ws) then raise exception 'Test leaked membership';end if;
  perform set_config('request.jwt.claim.sub',users[1]::text,true);execute 'set local role authenticated';
- if jsonb_array_length(public.get_my_workspace_test_matches(ws))<>1 then raise exception 'Admin list scope incorrect';end if;
+ if jsonb_array_length(public.get_my_workspace_test_matches(ws))<>2 then raise exception 'Admin list scope incorrect';end if;
  perform public.super_admin_test_match_action(ma,'start');
- begin perform public.super_admin_test_match_action(mc,'start');raise exception 'TEST_FAILED: wrong manager';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+ if (public.get_test_match_snapshot(mc)->>'can_edit')::boolean is not true then raise exception 'Workspace admin cannot manage assigned test';end if;
  execute 'reset role';
  perform set_config('request.jwt.claim.sub',users[2]::text,true);execute 'set local role authenticated';
- if jsonb_array_length(public.get_my_workspace_test_matches(ws))<>1 or jsonb_array_length(public.get_my_workspace_test_matches(other_ws))<>0 then raise exception 'Workspace scope incorrect';end if;
+ if jsonb_array_length(public.get_my_workspace_test_matches(ws))<>2 or jsonb_array_length(public.get_my_workspace_test_matches(other_ws))<>1 then raise exception 'Workspace scope incorrect';end if;
  data:=public.super_admin_test_match_action(mc,'start');
  if (data->>'can_edit')::boolean is not true then raise exception 'Assigned coorganizer cannot edit';end if;
  select (p->>'player_id')::uuid into scorer from jsonb_array_elements(data->'team_players') p where p->>'team_id'=data->'matches'->0->>'home_team_id' limit 1;
@@ -43,6 +43,21 @@ begin
  if not exists(select 1 from jsonb_array_elements(data->'goals') g where g->>'id'=goal::text and g->>'assister_player_id'=assister::text) then raise exception 'Quick assist missing';end if;
  begin perform public.super_admin_test_match_action(mc,'set_assist',p_goal_id=>goal,p_assister_id=>opponent);raise exception 'TEST_FAILED: opposite-team assist';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
  begin perform public.super_admin_test_match_action(mc,'set_assist',p_goal_id=>goal,p_assister_id=>scorer);raise exception 'TEST_FAILED: self assist';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+ data:=public.super_admin_test_match_action(mc,'set_assist',p_goal_id=>goal,p_assister_id=>null);
+ if (data->'goals'->0->>'assister_player_id') is not null or data->'matches'->0->>'home_score'<>'3' then raise exception 'Removing assist removed score';end if;
+ select (p->>'player_id')::uuid into bench from jsonb_array_elements(data->'tournament_players') p where not exists(select 1 from jsonb_array_elements(data->'match_player_assignments') a where a->>'player_id'=p->>'player_id' and a->>'team_id' is not null) limit 1;
+ if bench is null then raise exception 'Bench player missing';end if;
+ data:=public.super_admin_test_match_action(mc,'substitute',p_out_player_id=>scorer,p_in_player_id=>bench);
+ if not exists(select 1 from jsonb_array_elements(data->'match_player_assignments') p where p->>'player_id'=bench::text and p->>'team_id'=data->'matches'->0->>'home_team_id') then raise exception 'Replacement not on pitch';end if;
+ if exists(select 1 from jsonb_array_elements(data->'match_player_assignments') p where p->>'player_id'=scorer::text and p->>'team_id' is not null) then raise exception 'Outgoing player still on pitch';end if;
+ if data->'matches'->0->>'home_score'<>'3' or jsonb_array_length(data->'goals')<>1 then raise exception 'Substitution changed previous goal';end if;
+ begin perform public.super_admin_test_match_action(mc,'goal',scorer);raise exception 'TEST_FAILED: outgoing scorer';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+ begin perform public.super_admin_test_match_action(mc,'substitute',p_out_player_id=>assister,p_in_player_id=>opponent);raise exception 'TEST_FAILED: opponent substitution';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+ begin perform public.super_admin_test_match_action(mc,'substitute',p_out_player_id=>assister,p_in_player_id=>gen_random_uuid());raise exception 'TEST_FAILED: foreign substitution';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
+ data:=public.super_admin_test_match_action(mc,'goal',bench,assister);
+ if data->'matches'->0->>'home_score'<>'4' then raise exception 'Incoming player cannot score';end if;
+ data:=public.super_admin_test_match_action(mc,'substitute',p_out_player_id=>bench,p_in_player_id=>scorer);
+ if data->'matches'->0->>'home_score'<>'4' then raise exception 'Return substitution changed score';end if;
  begin perform public.super_admin_get_test_match_recipients();raise exception 'TEST_FAILED: recipient directory exposed';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
  execute 'reset role';
  -- Revoke the actual workspace permission while the match remains live.
@@ -53,6 +68,7 @@ begin
  begin perform public.get_my_workspace_test_matches(ws);raise exception 'TEST_FAILED: revoked listing';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
  execute 'reset role';
  perform set_config('request.jwt.claim.sub',users[3]::text,true);execute 'set local role authenticated';
+ begin perform public.get_test_match_snapshot(mc);raise exception 'TEST_FAILED: unauthorized coorganizer read';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
  begin perform public.super_admin_test_match_action(mc,'start');raise exception 'TEST_FAILED: unauthorized coorganizer';exception when others then if sqlerrm like 'TEST_FAILED:%' then raise;end if;end;
  execute 'reset role';
  perform set_config('request.jwt.claim.sub',users[4]::text,true);execute 'set local role authenticated';

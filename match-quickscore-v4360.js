@@ -22,6 +22,7 @@ function team(id){return (state()?.teams||[]).find(x=>String(x.id)===String(id))
 function player(id){return (state()?.players||[]).find(x=>String(x.id)===String(id))||null}
 function playerName(id){const p=player(id);try{return typeof playerDisplayName==='function'?playerDisplayName(p)||(p?.name||'Joueur'):(p?.name||'Joueur')}catch(_){return p?.name||'Joueur'}}
 function teamPlayerIds(match,teamId){
+  if(context){const rows=(state()?.matchAssignments||[]).filter(a=>String(a.match_id)===String(match.id));if(rows.length)return rows.filter(a=>String(a.team_id)===String(teamId)).map(a=>String(a.player_id))}
   try{if(typeof matchTeamPlayerIds==='function'){const a=matchTeamPlayerIds(match.id,teamId);if(Array.isArray(a)&&a.length)return [...new Set(a.map(String))]}}catch(_){}
   return [...new Set((state()?.teamPlayers||[]).filter(x=>String(x.team_id)===String(teamId)).map(x=>String(x.player_id)))];
 }

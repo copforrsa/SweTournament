@@ -13,8 +13,9 @@ const notify=message=>{if(context)context.notify(message);else if(typeof toast==
 
 function teamById(id){return (state.teams||[]).find(t=>String(t.id)===String(id))||null}
 function playerById(id){return (state.players||[]).find(p=>String(p.id)===String(id))||null}
-function playersForTeam(teamId){
-  const ids=(state.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(teamId)).map(tp=>tp.player_id);
+function playersForTeam(teamId,matchId=null){
+  const assignments=context?(state.matchAssignments||[]).filter(a=>String(a.match_id)===String(matchId||state.matches[0]?.id)):[];
+  const ids=(assignments.length?assignments:state.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(teamId)).map(tp=>tp.player_id);
   return ids.map(playerById).filter(Boolean).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
 }
 function canEditScores(){if(context)return !!context.canEditScores();try{return typeof canEditCurrentMatches==='function'?!!canEditCurrentMatches():false}catch(_){return false}}
@@ -44,7 +45,7 @@ function installCss(){
   .swe4300-edit{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:12px}.swe4300-edit input{min-width:0;text-align:center;font-weight:900}
   .swe4301-goals{margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px}.swe4301-goals h4{margin:0 0 9px;font-size:14px}
   .swe4301-goal-form{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px}.swe4301-goal-form select{min-width:0}
-  .swe4301-goal-history{margin-top:10px;display:grid;gap:6px}.swe4301-goal-line{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:10px;background:#f8fafc;font-size:12px}.swe4301-goal-line span{flex:1}
+  .swe4301-goal-history{margin-top:10px;display:grid;gap:6px}.swe4301-goal-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 9px;border-radius:10px;background:#f8fafc;font-size:12px}.swe4301-goal-line span{flex:1 1 180px}.swe4301-assist-edit{display:flex;flex-wrap:wrap;gap:6px;width:100%}.swe4301-assist-edit select{min-width:0;flex:1}
   .swe4300-note{margin-top:9px;font-size:11px;color:#64748b}.swe4300-finished{font-size:11px;font-weight:900;color:#475569}
   @media(max-width:650px){.swe4300-match{padding:13px}.swe4300-team{font-size:15px}.swe4300-result{font-size:22px}.swe4300-edit{grid-template-columns:1fr 1fr}.swe4300-edit button{grid-column:1/-1;min-height:44px}.swe4301-goal-form{grid-template-columns:1fr}.swe4301-goal-form button{min-height:44px}}
   `;document.head.appendChild(s);
@@ -117,7 +118,7 @@ function renderGoalPanel(panel,m){
     teamSel.innerHTML='<option value="">Équipe</option><option value="'+safe(m.home_team_id)+'">'+safe(h?.name||'Domicile')+'</option><option value="'+safe(m.away_team_id)+'">'+safe(a?.name||'Extérieur')+'</option>';
     scorerSel.innerHTML='<option value="">Buteur</option>';assistSel.innerHTML='<option value="">Passeur (facultatif)</option>';
     const refill=()=>{
-      const people=playersForTeam(teamSel.value);
+      const people=playersForTeam(teamSel.value,m.id);
       scorerSel.innerHTML='<option value="">Buteur</option>'+people.map(p=>'<option value="'+safe(p.id)+'">'+safe(p.name)+'</option>').join('');
       assistSel.innerHTML='<option value="">Passeur (facultatif)</option>'+people.map(p=>'<option value="'+safe(p.id)+'">'+safe(p.name)+'</option>').join('');
     };
@@ -148,6 +149,19 @@ function renderGoalPanel(panel,m){
     const scorer=playerById(g.scorer_player_id),assist=g.assister_player_id?playerById(g.assister_player_id):null,team=teamById(g.team_id);
     const text=document.createElement('span');text.textContent='⚽ '+(scorer?.name||'?')+(assist?' ← '+assist.name:' • sans passe')+(team?' • '+team.name:'');line.appendChild(text);
     if(editable){const del=document.createElement('button');del.type='button';del.textContent='Annuler';del.onclick=()=>deleteGoalAndSyncScore(m,g,del,panel);line.appendChild(del)}
+    if(editable&&context?.setAssist){
+      const edit=document.createElement('button');edit.type='button';edit.textContent=assist?'Modifier le passeur':'Ajouter un passeur';
+      edit.onclick=()=>{
+        const existing=line.querySelector('.swe4301-assist-edit');if(existing){existing.remove();return}
+        const form=document.createElement('div');form.className='swe4301-assist-edit';
+        const select=document.createElement('select');select.setAttribute('aria-label','Passeur du but');
+        select.innerHTML='<option value="">Sans passeur</option>'+playersForTeam(g.team_id,m.id).filter(p=>p.id!==g.scorer_player_id).map(p=>'<option value="'+safe(p.id)+'">'+safe(p.name)+'</option>').join('');select.value=g.assister_player_id||'';
+        const save=document.createElement('button');save.type='button';save.textContent='Enregistrer le passeur';
+        save.onclick=async()=>{save.disabled=true;try{await context.setAssist(m,g,select.value||null)}catch(e){context.notify(e.message)}finally{save.disabled=false}};
+        form.append(select,save);line.appendChild(form);
+      };line.appendChild(edit);
+      if(assist){const remove=document.createElement('button');remove.type='button';remove.textContent='Retirer le passeur';remove.onclick=async()=>{remove.disabled=true;try{await context.setAssist(m,g,null)}catch(e){context.notify(e.message)}finally{remove.disabled=false}};line.appendChild(remove)}
+    }
     hist.appendChild(line);
   });
   panel.appendChild(hist);
@@ -179,10 +193,12 @@ function renderStableMatches(allowHydrate=true){
   if(!box)return;
   const eligible=(state.tournaments||[]).filter(x=>x.status!=='finished').sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
   if(selector){
-    const selected=t?.id||'';
-    selector.innerHTML='<option value="">Choisir une compétition</option>'+eligible.map(x=>'<option value="'+safe(x.id)+'"'+(String(x.id)===String(selected)?' selected':'')+'>'+safe(x.name||x.tournament_date||'Compétition')+'</option>').join('');
-    selector.onchange=async()=>{state.activeTour=selector.value||null;try{await loadTournament()}catch(e){console.error('SWÉ V43.02 changement tournoi',e)}renderStableMatches(true)};
+    const assigned=!context?window.SWE_ASSIGNED_TEST_MATCHES:null,selected=assigned?.value()||t?.id||'';
+    const html='<option value="">Choisir une compétition ou un match test</option>'+eligible.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name||x.tournament_date||'Compétition')+'</option>').join('')+(assigned?.options()||'');
+    if(selector.innerHTML!==html)selector.innerHTML=html;selector.value=selected;
+    selector.onchange=async()=>{if(assigned?.select(selector.value))return;state.activeTour=selector.value||null;try{await loadTournament()}catch(e){console.error('SWÉ V43.02 changement tournoi',e)}renderStableMatches(true)};
   }
+  if(!context&&window.SWE_ASSIGNED_TEST_MATCHES?.show())return;
   if(!t){box.innerHTML='<div class="card"><p class="muted">Choisis d’abord un tournoi ou un Swé de Ligue.</p></div>';if(status)status.textContent='Aucune compétition sélectionnée';return}
   const rows=[...(state.matches||[])].sort((a,b)=>{const af=String(a.status||'')==='finished'?1:0,bf=String(b.status||'')==='finished'?1:0;return af-bf||Number(a.match_order||0)-Number(b.match_order||0)});
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');

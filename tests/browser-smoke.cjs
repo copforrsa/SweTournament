@@ -16,6 +16,7 @@ function installMock(data,ids){
  const testPlayers=Array.from({length:10},(_,i)=>({id:fakeId(i+1),name:'Joueur test '+String(i+1).padStart(2,'0'),is_group_member:false}));
  const testTeams=data.teams.map(t=>({...t}));
  window.__testSnapshot={is_test:true,can_edit:window.__testCanEdit,tournament_id:ids.past,tournaments:[{id:ids.past,name:'Match test automatique',status:'draft',format:'classic',team_size:5}],players:testPlayers,teams:testTeams,team_players:testPlayers.map((p,i)=>({team_id:testTeams[i%2].id,player_id:p.id})),matches:[{...data.matches[0],status:'scheduled',home_score:0,away_score:0}],goals:[],tournament_players:testPlayers.map(p=>({tournament_id:ids.past,player_id:p.id,present:true,registration_status:'confirmed'})),match_player_assignments:testPlayers.map((p,i)=>({match_id:ids.match,team_id:testTeams[i%2].id,player_id:p.id}))};
+ for(let i=1;i<=2;i++){const p={id:fakeId(10+i),name:'Remplaçant test 0'+i,is_group_member:false};window.__testSnapshot.players.push(p);window.__testSnapshot.tournament_players.push({tournament_id:ids.past,player_id:p.id,present:true,registration_status:'confirmed',is_substitute:true})}
  let goalIndex=100;
  window.supabase={createClient:()=>{
   const query=new Proxy(()=>query,{get:(_t,k)=>k==='then'?resolve=>Promise.resolve({data:[],error:null}).then(resolve):()=>query});
@@ -48,6 +49,7 @@ function installMock(data,ids){
      if(args.p_action==='finish'){m.status='finished';d.tournaments[0].status='finished'}
      if(args.p_action==='set_score'){m.home_score=args.p_home_score;m.away_score=args.p_away_score}
      if(args.p_action==='goal'){const team=d.match_player_assignments.find(p=>p.player_id===args.p_scorer_id).team_id;const goalId=fakeId(goalIndex++);d.action_goal_id=goalId;d.goals.push({id:goalId,match_id:m.id,team_id:team,scorer_player_id:args.p_scorer_id,assister_player_id:args.p_assister_id});if(team===m.home_team_id)m.home_score++;else m.away_score++}
+     if(args.p_action==='substitute'){const outgoing=d.match_player_assignments.find(p=>p.player_id===args.p_out_player_id);const team=outgoing.team_id;outgoing.team_id=null;const incoming=d.match_player_assignments.find(p=>p.player_id===args.p_in_player_id);if(incoming)incoming.team_id=team;else d.match_player_assignments.push({match_id:m.id,player_id:args.p_in_player_id,team_id:team})}
      if(args.p_action==='set_assist')d.goals.find(g=>g.id===args.p_goal_id).assister_player_id=args.p_assister_id;
      if(args.p_action==='delete_goal'){const goal=d.goals.find(g=>g.id===args.p_goal_id);if(goal.team_id===m.home_team_id)m.home_score--;else m.away_score--;d.goals=d.goals.filter(g=>g.id!==args.p_goal_id)}
      window.__testScore=m.home_score;return {data:structuredClone(d)};
@@ -113,6 +115,8 @@ async function checkSharedMatchModule(page){
  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
  await page.locator('.swe4360-assist [data-assist]').filter({hasText:'Joueur test 03'}).click();
  await page.locator('.swe4301-goal-history').filter({hasText:'Joueur test 01 ← Joueur test 03'}).waitFor();
+ await page.getByRole('button',{name:'Retirer le passeur',exact:true}).click();await page.locator('.swe4301-goal-history').filter({hasText:'sans passe'}).waitFor();assert.equal(await score.innerText(),'1 - 0');
+ await page.getByRole('button',{name:'Ajouter un passeur',exact:true}).click();await page.getByLabel('Passeur du but').selectOption({label:'Joueur test 03'});await page.getByRole('button',{name:'Enregistrer le passeur',exact:true}).click();await page.locator('.swe4301-goal-history').filter({hasText:'Joueur test 01 ← Joueur test 03'}).waitFor();
  await page.getByRole('button',{name:'Annuler',exact:true}).click();await score.filter({hasText:'0 - 0'}).waitFor();
  await page.locator('.swe4360-player').filter({hasText:'Joueur test 02'}).click();await score.filter({hasText:'0 - 1'}).waitFor();
  await page.locator('.swe4360-assist [data-undo]').click();await score.filter({hasText:'0 - 0'}).waitFor();
@@ -125,11 +129,19 @@ async function checkSharedMatchModule(page){
  await page.getByRole('button',{name:'Annuler',exact:true}).click();await score.filter({hasText:'0 - 0'}).waitFor();
  await inputs.nth(0).fill('3');await inputs.nth(1).fill('2');await page.getByRole('button',{name:'Enregistrer le score'}).click();await score.filter({hasText:'3 - 2'}).waitFor();
  await addGoal();await score.filter({hasText:'4 - 2'}).waitFor();
- await page.locator('#testModuleFinish').click();await page.locator('#testModuleState').filter({hasText:'terminé'}).waitFor();assert.equal(await page.locator('.swe4301-goal-form').count(),0);
+ await page.locator('.swe4306-details summary').filter({hasText:'Remplaçants'}).click();
+ await page.getByLabel('Joueur à remplacer',{exact:true}).selectOption({label:'Joueur test 01'});await page.getByLabel('Remplaçant',{exact:true}).selectOption({label:'Remplaçant test 01'});await page.getByRole('button',{name:'🔁 Remplacer',exact:true}).click();
+ await page.locator('.swe4360-player').filter({hasText:'Remplaçant test 01'}).waitFor();assert.equal(await page.locator('.swe4360-player').filter({hasText:'Joueur test 01'}).count(),0);assert.equal(await page.locator('.swe4360-player').count(),10);assert.equal(await score.innerText(),'4 - 2');
+ // Assignment-only server refresh must keep the new scorer and the old goal history.
+ await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.locator('.swe4360-player').filter({hasText:'Remplaçant test 01'}).click();await score.filter({hasText:'5 - 2'}).waitFor();
+ await page.locator('.swe4360-assist [data-undo]').click();await score.filter({hasText:'4 - 2'}).waitFor();
+ await page.locator('#testModuleFinish').click();await page.locator('#testModuleState').filter({hasText:'terminé'}).waitFor();assert.equal(await page.locator('.swe4301-goal-form').count(),0);assert.equal(await page.getByRole('button',{name:'🔁 Remplacer',exact:true}).count(),0);
  await page.locator('[data-test-tab="direct"]').click();await page.locator('#liveMatches').filter({hasText:'4 - 2'}).waitFor();
  console.log('Shared Matchs module: quick scorer, passer, refresh, undo, manual score, finish and direct result: OK');
 }
-const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!target.startsWith(root+path.sep)&&target!==root){res.writeHead(403);return res.end()}try{if(fs.statSync(target).isDirectory())target=path.join(target,'index.html');res.setHeader('Content-Type',target.endsWith('.html')?'text/html':target.endsWith('.js')?'text/javascript':target.endsWith('.css')?'text/css':'application/octet-stream');res.end(fs.readFileSync(target))}catch{res.writeHead(404);res.end()}});
+const securityHeaders=Object.fromEntries(fs.readFileSync(path.join(root,'_headers'),'utf8').split('\n\n')[0].split('\n').slice(1).filter(Boolean).map(line=>{const i=line.indexOf(':');return [line.slice(0,i).trim(),line.slice(i+1).trim()]}));
+const appCsp=fs.readFileSync(path.join(root,'index.html'),'utf8').match(/<meta http-equiv="Content-Security-Policy"[^>]+>/)[0];
+const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!target.startsWith(root+path.sep)&&target!==root){res.writeHead(403);return res.end()}try{if(fs.statSync(target).isDirectory())target=path.join(target,'index.html');if(target.endsWith('.html'))for(const [key,value] of Object.entries(securityHeaders))res.setHeader(key,value);res.setHeader('Content-Type',target.endsWith('.html')?'text/html':target.endsWith('.js')?'text/javascript':target.endsWith('.css')?'text/css':'application/octet-stream');res.end(fs.readFileSync(target))}catch{res.writeHead(404);res.end()}});
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
  const browser=await chromium.launch({headless:true});
@@ -186,27 +198,32 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
     await organizer.waitForFunction(id=>document.querySelector('[data-swe-generate-tour="'+id+'"]').disabled,current);
     console.log('Tournament shortcut targets the selected tournament and respects permissions: OK');await organizer.close();
    }
-   // The assigned test is available in Matchs even without an active tournament.
+   // Use the real selector, renderer and CSP; the V43.68 iframe regression fails here.
    const assigned=await context.newPage();assigned.on('pageerror',e=>errors.push(e.message));
-   await assigned.route(base+'/tests/match-harness.html',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><meta name="viewport" content="width=device-width"><div class="tabs"><button data-view="matches" class="active">Matchs</button></div><section id="view-matches" class="view active"><div id="matchesList"></div></section>'}));
-   await assigned.goto(base+'/tests/match-harness.html');
-   await assigned.evaluate(({current,match,user})=>{
-    window.S={workspace:{id:current,role:'coorganizer'},session:{user:{id:user}},myPermissions:{can_enter_scores:true},matches:[],tournaments:[],activeTour:null};
-    window.currentTour=()=>null;window.renderMatches=()=>{};window.canEditCurrentMatches=()=>false;
-    window.__assignedCalls=[];window.sb={rpc:async(name,args)=>{window.__assignedCalls.push({name,args});return {data:args.p_workspace_id===current?[{id:match,status:'scheduled',created_at:'2026-09-12T12:00:00Z'}]:[]}}};
-   },{current,match,user:id(99)});
-   await assigned.addScriptTag({content:fs.readFileSync(path.join(root,'match-tab-recovery-v4355.js'),'utf8')});
-   await assigned.locator('[data-view="matches"]').click();await assigned.locator('#assignedTestFrame').waitFor();
-   const assignedFrame=await (await assigned.locator('#assignedTestFrame').elementHandle()).contentFrame();
+   await assigned.route(base+'/tests/match-harness.html',route=>route.fulfill({contentType:'text/html',headers:securityHeaders,body:'<!doctype html><head><meta name="viewport" content="width=device-width">'+appCsp+'<link rel="stylesheet" href="/styles.css"></head><body><main style="max-width:1000px;margin:auto;padding:16px"><div class="tabs"><button data-view="matches" class="active">Matchs</button></div><section id="view-matches" class="view active"><div id="matchCompetitionSelectorCard" class="card"><h3>Matchs à saisir</h3><select id="matchCompetitionSelect"></select><p id="matchCompetitionStatus"></p></div><div id="matchCreateAdminCard"></div><div id="matchesList"></div></section></main></body>'}));
+   const bootAssigned=async()=>{
+    await assigned.goto(base+'/tests/match-harness.html');
+    await assigned.evaluate(({current,match,user})=>{
+     window.S={workspace:{id:current,role:'coorganizer'},session:{user:{id:user}},myPermissions:{can_enter_scores:true},matches:[],tournaments:[{id:current,name:'Tournoi réel',status:'draft'}],activeTour:current,teams:[],teamPlayers:[],players:[],goals:[]};
+     window.currentTour=()=>S.tournaments.find(t=>t.id===S.activeTour);window.loadTournament=async()=>{};window.renderMatches=()=>{};window.canEditCurrentMatches=()=>false;
+     const query=new Proxy(()=>query,{get:(_t,k)=>k==='then'?resolve=>Promise.resolve({data:[],error:null}).then(resolve):()=>query});
+     window.__assignedCalls=[];window.sb={from:()=>query,rpc:async(name,args)=>{window.__assignedCalls.push({name,args});return {data:args.p_workspace_id===current?[{id:match,status:'scheduled',created_at:'2026-09-12T12:00:00Z',source_workspace_name:'Espace partagé'}]:[]}}};
+    },{current,match,user:id(99)});
+    await assigned.addScriptTag({url:base+'/match-engine-v4300.js'});await assigned.addScriptTag({url:base+'/match-tab-recovery-v4355.js'});await assigned.locator('[data-view="matches"]').click();
+    await assigned.locator('#matchCompetitionSelect option[value="test:'+match+'"]').waitFor({state:'attached'});
+   };
+   await bootAssigned();await assigned.locator('#matchCompetitionSelect').selectOption('test:'+match);await assigned.locator('#assignedTestFrame').waitFor();
+   let assignedFrame=await (await assigned.locator('#assignedTestFrame').elementHandle()).contentFrame();
    assert.equal(new URL(assignedFrame.url()).searchParams.has('admin'),false);
-   await assignedFrame.locator('#testModuleStart').click();await assignedFrame.locator('.swe4360-player').first().waitFor();
-   await assignedFrame.locator('.swe4360-player').filter({hasText:'Joueur test 01'}).click();await assignedFrame.locator('.swe4360-assist.show').waitFor();
-   await assignedFrame.locator('.swe4360-assist [data-assist]').filter({hasText:'Joueur test 03'}).click();
-   await assignedFrame.locator('.swe4301-goal-history').filter({hasText:'Joueur test 01 ← Joueur test 03'}).waitFor();
+   await checkSharedMatchModule(assignedFrame);
    await assigned.screenshot({path:path.join(screenshotDir,'screenshot-assigned-quick-'+viewport.width+'.png'),fullPage:true});
+   await assigned.evaluate(()=>window.SWE_RENDER_MATCHES_4302(false));assert.equal(await assigned.locator('#matchCompetitionSelect').inputValue(),'test:'+match);
+   await bootAssigned();await assigned.locator('#assignedTestFrame').waitFor();assert.equal(await assigned.locator('#matchCompetitionSelect').inputValue(),'test:'+match);
+   await assigned.locator('#matchCompetitionSelect').selectOption(current);await assigned.locator('#assignedWorkspaceTests').waitFor({state:'detached'});assert.equal(await assigned.evaluate(()=>S.activeTour),current);
+   await assigned.evaluate(()=>{S.activeTour=null;S.tournaments=[];document.querySelector('[data-view="matches"]').click()});await assigned.locator('#assignedTestFrame').waitFor();
    await assigned.evaluate(past=>{S.workspace.id=past;document.dispatchEvent(new Event('swe:rendered'))},past);
    await assigned.locator('#assignedWorkspaceTests').waitFor({state:'detached'});assert.equal(await assigned.evaluate(()=>S.matches.length),0);
-   await assigned.close();console.log('Assigned Matchs tab, quick entry, no tournament and workspace switch:',viewport.width,'OK');
+   await assigned.close();console.log('Real CSP, assigned selector, management, reload, no tournament and workspace switch:',viewport.width,'OK');
    await page.goto(base+'/live.html?test='+match+'&admin=1&tab=matches');await checkSharedMatchModule(page);
    console.log('Registration, history, guest disclosure and selection:',viewport.width,'OK');await context.close();
   }
