@@ -65,8 +65,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: swe-visual-checks-v43.66
-          path: |
-            ../screenshot-registration-*.png
-            ../screenshot-history-*.png
+          path: tests/screenshots/*.png
           if-no-files-found: error
           retention-days: 7
