@@ -4,11 +4,7 @@ const VERSION=(window.SWE_BUILD_VERSION||'42.50');
 let membershipFlags=new Map();
 let membershipLoadedFor=null;
 let membershipLoading=null;
-function setVersion44(){
-  document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);
-  document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});
-  document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION);
-}
+function setVersion44(){window.SWEApplyBuild?.();}
 function playersViewActive(){return document.getElementById('view-players')?.classList.contains('active')}
 function topPlayerCards(){const box=document.getElementById('playersList');return box?[...box.children].filter(x=>x.classList?.contains('player')):[]}
 function playerCardName(card){return card?.querySelector(':scope > .row > span:first-child > b')?.textContent?.trim()||''}

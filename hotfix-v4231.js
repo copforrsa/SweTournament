@@ -1,9 +1,8 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
 const COLOR_OPTS=[['#111827','Noir'],['#2563eb','Bleu'],['#f8fafc','Blanc'],['#dc2626','Rouge'],['#16a34a','Vert'],['#eab308','Jaune'],['#f97316','Orange'],['#7c3aed','Violet'],['#ec4899','Rose'],['#78350f','Marron'],['#64748b','Gris']];
 const esc31=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function setVersion31(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+function setVersion31(){window.SWEApplyBuild?.();}
 function stableMention(team,score,guests){if(guests>2)return 'Trop de Guests pour une note fiable';const n=Number(score||0),pool=n>=4.2?['Très costaud','Ça promet','Gros potentiel']:n>=3.5?['Bien équilibrée','Solide sur le papier','Ça se tient']:['À surveiller','Peut surprendre','Équilibre à confirmer'];const seed=String(team?.id||team?.name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0);return pool[seed%pool.length]}
 function teamGuestCount(team){try{const ids=(S.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(team.id)).map(tp=>String(tp.player_id));return (S.players||[]).filter(p=>ids.includes(String(p.id))&&p.is_group_member===false).length}catch(_){return 0}}
 function enhanceTeams(){if(typeof S==='undefined'||!Array.isArray(S.teams))return;document.querySelectorAll('.swe-team-card').forEach((card,i)=>{const team=S.teams[i]||S.teams.find(t=>card.textContent.includes(t.name));if(!team)return;const head=card.querySelector('.swe-team-card-head');if(head){head.querySelectorAll('b').forEach(b=>{if(b.textContent.trim().startsWith('👕'))b.textContent=b.textContent.replace(/^👕\s*/,'')});}

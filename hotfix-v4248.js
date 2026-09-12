@@ -5,11 +5,7 @@ const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 let activeView='overview';
 
-function setVersion48(){
-  document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);
-  document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test((x.textContent||'').trim()))x.textContent='V'+VERSION});
-  document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION);
-}
+function setVersion48(){window.SWEApplyBuild?.();}
 
 function injectStyles48(){
   if($('sweSuper48Style'))return;

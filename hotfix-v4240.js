@@ -2,7 +2,7 @@
 'use strict';
 const VERSION='42.40';
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
-function setVersion(){document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+function setVersion(){window.SWEApplyBuild?.();}
 function decoratePlayers(){
   if(typeof S==='undefined'||!document.getElementById('view-players')?.classList.contains('active'))return;
   const box=document.getElementById('playersList');if(!box)return;

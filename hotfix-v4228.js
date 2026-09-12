@@ -1,6 +1,5 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
 const STYLE_ID='swe-v4228-style';
 const RATE_REASONS=[['progression','Progression constatée'],['different_day','Performance différente aujourd’hui'],['better_known','Je connais maintenant mieux le joueur'],['correction','Première évaluation à corriger'],['role_change','Changement de rôle / profil de jeu'],['return','Retour après une longue absence'],['other','Autre raison']];
 const css=`
@@ -10,7 +9,7 @@ const css=`
 `;
 function esc2(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function installStyle(){if(document.getElementById(STYLE_ID))return;const s=document.createElement('style');s.id=STYLE_ID;s.textContent=css;document.head.appendChild(s)}
-function setVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+function setVersion(){window.SWEApplyBuild?.();}
 function currentBase(){return location.origin+location.pathname}
 function fmtDate(v){try{return new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}}
 let publicLive=false,liveTimer=null;

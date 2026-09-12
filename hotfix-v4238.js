@@ -1,11 +1,7 @@
 (()=>{
 'use strict';
 const VERSION='42.38';
-function setVersion(){
-  document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);
-  document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test((x.textContent||'').trim()))x.textContent='V'+VERSION});
-  document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION);
-}
+function setVersion(){window.SWEApplyBuild?.();}
 function installCss(){
   if(document.getElementById('swe4238css'))return;
   const st=document.createElement('style');st.id='swe4238css';st.textContent=`

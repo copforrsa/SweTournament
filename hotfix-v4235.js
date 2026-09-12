@@ -1,6 +1,5 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
 const WITHDRAW_REASONS=[
   ['late_withdrawal','Désistement de dernière minute'],
   ['injury','Blessure'],
@@ -15,7 +14,7 @@ let proOptionsCache=new Map();
 let catalogLoaded=false,catalogData=null;
 const esc35=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money35=c=>(Number(c||0)/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
-function setVersion35(){document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+function setVersion35(){window.SWEApplyBuild?.();}
 function viewActive(id){return document.getElementById(id)?.classList.contains('active')}
 
 function openWithdrawModal(team,pl){

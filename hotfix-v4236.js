@@ -1,7 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
-function setVersion(){document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+function setVersion(){window.SWEApplyBuild?.();}
 function resolveContext(btn){
   if(typeof S==='undefined'||typeof currentTour!=='function')return null;
   const card=btn.closest('.swe-team-card,.team');

@@ -1,6 +1,5 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function appBase(){return new URL('./',location.href)}
 function makeUrls(t){
@@ -46,7 +45,7 @@ document.addEventListener('click',async e=>{
     e.target.disabled=true;const r=await sb.rpc('admin_reset_tournament_payment_sheet',{p_tournament_id:t.id});e.target.disabled=false;if(r.error)return toast(r.error.message);toast('Feuille de paiement réinitialisée ✅');
   }
 },true);
-function setVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+function setVersion(){window.SWEApplyBuild?.();}
 function tick(){setVersion();renderLinks();document.getElementById('paymentDeskReset')?.remove()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick,{once:true});else tick();document.addEventListener('swe:rendered',tick);
 })();

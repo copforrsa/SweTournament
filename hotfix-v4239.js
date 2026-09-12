@@ -3,11 +3,7 @@
 const VERSION='42.39';
 const activeMatches=()=>document.getElementById('view-matches')?.classList.contains('active');
 const editingMain=()=>{const a=document.activeElement;return !!(a&&a.closest?.('#main')&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable));};
-function setVersion(){
-  document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);
-  document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});
-  document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION);
-}
+function setVersion(){window.SWEApplyBuild?.();}
 function protectedReload(){
   if(activeMatches()||editingMain())return;
   clearTimeout(window.__sweRealtimeGuardTimer39);

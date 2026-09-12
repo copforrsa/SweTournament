@@ -1,6 +1,5 @@
 (()=>{
 'use strict';
-const VERSION='42.37';
 const esc32=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function hash32(s){let h=0;for(const c of String(s||''))h=((h<<5)-h+c.charCodeAt(0))|0;return Math.abs(h)}
 function teamGuestCount(team){if(typeof S==='undefined')return 0;const ids=(S.teamPlayers||[]).filter(x=>String(x.team_id)===String(team.id)).map(x=>String(x.player_id));return (S.players||[]).filter(p=>ids.includes(String(p.id))&&p.is_group_member===false).length}
@@ -58,7 +57,7 @@ function ensurePlayerProfileDetails(){
   box.querySelector('#sweSavePlayerDetails').onclick=async()=>{const btn=box.querySelector('#sweSavePlayerDetails');btn.disabled=true;try{let avatar=p.avatar_url||null;const file=box.querySelector('#swePlayerAvatarFile')?.files?.[0];if(file){if(file.size>5*1024*1024)throw new Error('Photo trop lourde (5 Mo maximum).');const ext=(file.name.split('.').pop()||'jpg').toLowerCase();const path=S.session.user.id+'/avatar-'+Date.now()+'.'+ext;const up=await sb.storage.from('player-avatars').upload(path,file,{upsert:true,cacheControl:'3600'});if(up.error)throw up.error;avatar=sb.storage.from('player-avatars').getPublicUrl(path).data.publicUrl;}const ageRaw=box.querySelector('#swePlayerAge')?.value;const age=ageRaw?Number(ageRaw):null;const r=await sb.rpc('update_my_player_profile_details',{p_age:age,p_avatar_url:avatar});if(r.error)throw r.error;await loadMyPlayerDashboard();toast('Profil joueur mis à jour ✅')}catch(e){toast(e.message||String(e))}finally{btn.disabled=false}};
 }
 function fixOpenButtons(){document.querySelectorAll('#sweTournamentLinksCard a.button').forEach(a=>{a.style.cssText='display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;background:#fff;color:#17251f;font-weight:800;min-height:42px'});}
-function forceVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+function forceVersion(){window.SWEApplyBuild?.();}
 let busy=false;function tick(){if(busy)return;busy=true;requestAnimationFrame(()=>{busy=false;forceVersion();enhanceTeams();bindPdf();ensureLateAdminAdd();ensurePlayerProfileDetails();fixOpenButtons()})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick,{once:true});else tick();document.addEventListener('swe:rendered',tick);
 })();

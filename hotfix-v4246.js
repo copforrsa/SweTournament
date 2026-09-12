@@ -6,11 +6,7 @@ let savedVenues=[];
 let venueLoadedFor=null;
 let previewSnapshot47=null;
 
-function setVersion46(){
-  document.title=document.title.replace(/V42\.\d+/g,'V'+VERSION);
-  document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test((x.textContent||'').trim()))x.textContent='V'+VERSION});
-  document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION);
-}
+function setVersion46(){window.SWEApplyBuild?.();}
 function E(id){return document.getElementById(id)}
 function escapeHtml(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
 function moneyCents(v){return Math.round(Math.max(0,Number(v)||0)*100)}

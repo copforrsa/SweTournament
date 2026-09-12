@@ -15,10 +15,7 @@
     const s=document.createElement('style');s.id=STYLE_ID;s.textContent=css;document.head.appendChild(s);
   }
 
-  function setVersion(){
-    document.querySelectorAll('h1 span').forEach(el=>{if(/^V42\.23$/.test(el.textContent.trim()))el.textContent='V42.24';});
-    document.querySelectorAll('.build-badge').forEach(el=>{if(el.textContent.includes('42.23'))el.textContent='MAJ 42.24';});
-  }
+  function setVersion(){window.SWEApplyBuild?.();}
 
   function foldSubstitutes(){
     document.querySelectorAll('.swe-substitutes-card:not(details)').forEach(card=>{

@@ -88,6 +88,15 @@ function mount(ctx){
   mission.hidden=!items.length;if(!items.length){mission.replaceChildren();return}
   setHtml(mission,'<div class="sp-eyebrow">CO-GESTIONNAIRE</div><h3>'+esc(d.players.find(p=>p.id===pid)?.name||'Tes missions')+', tes missions</h3><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><a class="sp-button sp-secondary" href="'+esc(ctx.appUrl)+'" target="_blank" rel="noopener">Ouvrir mon espace organisateur ↗</a>');
  }
+ let kingRules=null,ruleKey='',ruleAt=0,ruleSequence=0;
+ function refreshRules(d){
+  if(!ctx.loadRules)return;
+  const t=d.tournament,n=d.registrations.filter(r=>r.tournament_id===t.id&&r.present&&r.registration_status!=='waitlist').length,key=t.id+'|'+n;
+  if(ruleKey===key&&Date.now()-ruleAt<30000)return;
+  if(ruleKey!==key)kingRules=null;ruleKey=key;ruleAt=Date.now();const sequence=++ruleSequence;
+  ctx.loadRules().then(value=>{if(sequence!==ruleSequence)return;kingRules=value;update();}).catch(()=>{});
+ }
+ const paragraphs=text=>String(text||'').split('\n').filter(Boolean).map(line=>'<p>'+esc(line)+'</p>').join('');
  function update(){
   const d=ctx.data(),t=d.tournament;if(!t)return;
   const tm=d.matches.filter(m=>m.tournament_id===t.id),begun=tm.some(started),finished=t.status==='finished',isClosed=closed(t),visibleTeams=d.teams.filter(x=>x.tournament_id===t.id);
@@ -108,7 +117,12 @@ function mount(ctx){
   const size=Number(t.team_size||5);
   setHtml(E('registrationParticipationRules').querySelector('div'),'<h3>Les remplaçants</h3><p>Les dernières inscriptions qui ne complètent pas encore une équipe de '+size+' joueurs sont placées en remplacement, dans l’ordre de date et d’heure d’inscription. Dès qu’une équipe supplémentaire est complète, leur statut évolue automatiquement.</p><h3>Les invitations</h3><p>Un membre du groupe peut inviter jusqu’à 5 personnes, même s’il ne participe pas. Choisis ton nom, puis retrouve un ancien invité ou ajoute une nouvelle personne dans « Mes invités ». Une personne déjà inscrite n’a pas besoin d’être ajoutée à nouveau.</p><h3>Le désistement de dernière minute</h3><p>Préviens le groupe et utilise « Je ne participe pas » pour signaler ton absence. En cas de désistement de dernière minute, tu paies ta tournée au groupe à la prochaine édition.</p>');
   const rules=E('registrationRules');rules.querySelector('summary').textContent='Règles · '+format;
+  if(king){
+   refreshRules(d);
+   setHtml(rules.querySelector('div'),kingRules?'<p><b>'+Number(kingRules.player_count)+' inscrits confirmés · '+Number(kingRules.team_count)+' équipes complètes'+(kingRules.substitutes?' · '+Number(kingRules.substitutes)+' remplaçant(s)':'')+'</b></p>'+(kingRules.body?'<h3>'+esc(kingRules.title)+'</h3>'+paragraphs(kingRules.body):'<p>Le règlement spécifique sera affiché lorsque l’effectif permettra de constituer entre 3 et 7 équipes de 5. L’organisateur précisera l’organisation si le format est différent.</p>')+'<h3>'+esc(kingRules.common_title)+'</h3>'+paragraphs(kingRules.common_body):'<p>Chargement des règles adaptées aux inscriptions…</p>');
+  }else{
   setHtml(rules.querySelector('div'),'<p>'+ (king?'Le vainqueur reste sur le terrain du Roi ; les équipes tournent selon l’ordre organisé.':'Les équipes se rencontrent selon le calendrier du tournoi. Le classement est calculé aux points : 3 pour une victoire, 1 pour un nul, 0 pour une défaite.')+'</p>'+(t.match_duration_minutes?'<p>Durée prévue : <b>'+Number(t.match_duration_minutes)+' min</b> par match.</p>':'')+(t.odd_team_rotation_rule?'<p>Avec une équipe en attente : rotation à 2 buts d’écart, ou au terme de la durée du match.</p>':'')+'<p>Respectez les horaires, les décisions de l’organisation et les autres joueurs.</p>');
+  }
   const live=ctx.appUrl+'live.html?'+new URLSearchParams({public:ctx.token,tournament:t.id}).toString();
   const now=tm.find(m=>['live','playing'].includes(m.status))||tm.filter(started).slice(-1)[0];
   const score=now?esc(d.teams.find(x=>x.id===now.home_team_id)?.name||'Équipe A')+' '+Number(now.home_score||0)+' – '+Number(now.away_score||0)+' '+esc(d.teams.find(x=>x.id===now.away_team_id)?.name||'Équipe B'):'';

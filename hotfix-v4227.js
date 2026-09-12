@@ -20,7 +20,7 @@
 `;
 
   function installStyle(){if(document.getElementById(STYLE_ID))return;const x=document.createElement('style');x.id=STYLE_ID;x.textContent=css;document.head.appendChild(x)}
-  function setVersion(){document.title=document.title.replace(/V42\.\d+/,'V'+VERSION);document.querySelectorAll('h1 span').forEach(x=>{if(/^V42\./.test(x.textContent.trim()))x.textContent='V'+VERSION});document.querySelectorAll('.build-badge').forEach(x=>x.textContent='MAJ '+VERSION)}
+  function setVersion(){window.SWEApplyBuild?.();}
   function uid(){return crypto?.randomUUID?crypto.randomUUID():'00000000-0000-4000-8000-'+Math.random().toString(16).slice(2).padEnd(12,'0').slice(0,12)}
   function qget(){try{return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]')||[]}catch(_){return []}}
   function qset(rows){localStorage.setItem(QUEUE_KEY,JSON.stringify(rows||[]));renderOfflineBanner()}
