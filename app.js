@@ -4658,7 +4658,7 @@ async function bootPublic(token){
   }
   const state={key,loaded:false,refresh:null};publicBootState=state;
   state.loading=loadPublicPage(token,state);
-  try{await state.loading;state.loaded=true;}finally{state.loading=null;}
+  try{state.loaded=(await state.loading)!==false;}finally{state.loading=null;}
 }
 async function loadPublicPage(token,bootState){
   S.publicMode=true;
@@ -4690,7 +4690,7 @@ async function loadPublicPage(token,bootState){
   }catch(e){
     $('#publicWorkspaceName').textContent='Lien indisponible';
     $('#publicSeasonScorers').innerHTML='<p class="muted">'+esc(e.message||e)+'</p>';
-    return;
+    return false;
   }
   const P=parsed;
   let ratingGroupName='';

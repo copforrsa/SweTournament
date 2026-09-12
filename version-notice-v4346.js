@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-if(window.__SWE_VERSION_NOTICE_4372)return;window.__SWE_VERSION_NOTICE_4372=true;
+if(window.__SWE_VERSION_NOTICE_4373)return;window.__SWE_VERSION_NOTICE_4373=true;
 const BUILD=window.SWE_BUILD_VERSION,KEY='swe-version-seen';
 function css(){if(document.getElementById('sweVersionNoticeCss'))return;const s=document.createElement('style');s.id='sweVersionNoticeCss';s.textContent=`
 #sweVersionNotice{position:fixed;right:18px;bottom:18px;z-index:10050;display:flex;align-items:center;gap:10px;background:#0b2b54;color:#fff;border:2px solid #f3c544;border-radius:16px;padding:12px 14px;box-shadow:0 14px 34px rgba(0,0,0,.24);font-weight:900;max-width:min(360px,calc(100vw - 24px));transition:.25s ease}#sweVersionNotice .dot{width:10px;height:10px;border-radius:50%;background:#25d366;box-shadow:0 0 0 5px rgba(37,211,102,.15)}#sweVersionNotice small{display:block;color:#d7e8f7;font-weight:700;margin-top:2px}#sweVersionNotice button{margin-left:auto;border:0;background:transparent;color:#fff;font-size:18px;cursor:pointer;padding:2px 4px}#sweVersionNotice.hide{opacity:0;transform:translateY(10px);pointer-events:none}.build-badge{position:relative}.build-badge.swe-new-build{background:#f3c544!important;color:#071a35!important;font-weight:950!important;box-shadow:0 0 0 4px rgba(243,197,68,.18)}@media(max-width:640px){#sweVersionNotice{right:12px;left:12px;bottom:94px}}
