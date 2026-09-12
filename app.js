@@ -237,7 +237,7 @@ function setView(v){
     requestAnimationFrame(()=>activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}));
   }
   if(v==='teams'){
-    if(previousView!=='teams')S.teamCompetitionId=null;
+    if(previousView!=='teams'&&!S.teamCompetitionId&&S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
     renderTeams();
   }
   if(v==='ranking')renderRanking();
@@ -3155,6 +3155,7 @@ $('#createTournament').onclick=async()=>{
       allow_external_players:!!$('#tourAllowExternal')?.checked,
       external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked
     };
+    if(S.workspaceFeatures.team_review_enabled){row.team_review_requested=true;row.team_review_duration_minutes=120;}
     if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active « Accepter des joueurs externes » pour rendre ce Swé visible aux joueurs solo.');
     if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant d’exiger un paiement en ligne.');
     if(S.workspaceFeatures.third_half_enabled)row.cooler_suggested_cents=Math.round(Math.max(0,Number($('#tourCoolerSuggested')?.value)||0)*100);
@@ -3179,6 +3180,7 @@ $('#createTournament').onclick=async()=>{
 };
 
 function presentIds(){return new Set(S.tPlayers.filter(x=>x.present&&x.registration_status!=='waitlist').map(x=>x.player_id))} function teamPlayerIds(teamId){return S.teamPlayers.filter(x=>x.team_id===teamId).map(x=>x.player_id)}
+function hasGeneratedTournamentTeams(){return S.teams.some(team=>!team.is_preformed)}
 function teamReviewStatusLabel(status){
   return ({not_started:'Pas démarrée',pending:'Avis en cours',redraw_requested:'Nouveau tirage demandé',approved:'Composition validée',cancelled:'Création annulée'})[status]||status||'—';
 }
@@ -3208,7 +3210,7 @@ function renderTeamReviewPanel(t){
   if(r.status==='redraw_requested')html+='<div class="readonly-note"><b>🔄 La majorité demande un nouveau tirage.</b> L’administrateur peut appliquer le prochain tirage dans la limite autorisée.</div>';
   if(r.status==='approved')html+='<div class="readonly-note success-note"><b>✅ Composition validée.</b> Les équipes peuvent maintenant apparaître sur le lien d’invitation.</div>';
   box.innerHTML=html;box.classList.remove('hidden');
-  const save=$('#saveTeamReviewLimit');if(save)save.onclick=async()=>{const max=Math.max(0,Math.min(10,Number($('#teamReviewMaxRedraws').value)||0));save.disabled=true;const {error}=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:t.id,p_max_redraws:max});save.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Limite de nouveaux tirages enregistrée ✅');};
+  const save=$('#saveTeamReviewLimit');if(save)save.onclick=async()=>{const max=Math.max(0,Math.min(10,Number($('#teamReviewMaxRedraws').value)||0));save.disabled=true;const {error}=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:t.id,p_max_redraws:max,p_requested:true,p_duration_minutes:120});save.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Limite de nouveaux tirages enregistrée ✅');};
   const approve=$('#approveTeamsNow');if(approve)approve.onclick=async()=>{if(!confirm('Valider cette composition maintenant ? Elle deviendra visible sur le lien public.'))return;approve.disabled=true;const {error}=await sb.rpc('admin_approve_tournament_team_review',{p_tournament_id:t.id});approve.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Composition validée ✅');};
   const redraw=$('#applyTeamRedraw');if(redraw)redraw.onclick=()=>runSmartTeamGeneration(true);
   const cancel=$('#cancelTeamGeneration');if(cancel)cancel.onclick=async()=>{if(!confirm('Annuler la création des équipes ?\n\nLes équipes générées, les matchs associés et la phase de validation seront supprimés. Les équipes préformées restent conservées.'))return;cancel.disabled=true;const {error}=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});cancel.disabled=false;if(error)return toast(error.message);await loadAll();S.activeTour=t.id;await loadTournament();renderAll();toast('Création des équipes annulée.');};
@@ -3295,7 +3297,7 @@ function renderTeams(){
   const canFullEdit=hasAdminOps();
 
   if(controls)controls.classList.toggle('hidden',!canGenerate);
-  const genBtn=$('#smartAutoTeams');if(genBtn&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&Number(t.generated_team_count||0)>0){genBtn.disabled=true;genBtn.title='Le tirage initial existe déjà. Utilise la validation collaborative ou annule la création.';}else if(genBtn){genBtn.disabled=false;genBtn.title='';}
+  const genBtn=$('#smartAutoTeams');if(genBtn&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&hasGeneratedTournamentTeams()){genBtn.disabled=true;genBtn.title='Le tirage initial existe déjà. Utilise la validation collaborative ou annule la création.';}else if(genBtn){genBtn.disabled=false;genBtn.title='';}
 
   if(!canFullEdit){
     att.innerHTML='<div class="readonly-note">Tu peux consulter les joueurs inscrits et les équipes de cette compétition. La modification manuelle des présences reste réservée à l’administrateur.</div>';
@@ -3396,7 +3398,13 @@ function renderTeams(){
         del.disabled=true;
         const {error}=await sb.from('teams').delete().eq('id',team.id);
         if(error){del.disabled=false;return toast(error.message)}
-        await loadTournament();renderAll();toast('Équipe supprimée ✅');
+        await loadTournament();
+        if(t.format!=='league'&&Number(t.generated_team_count||0)>0&&!hasGeneratedTournamentTeams()){
+          const reset=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});
+          if(reset.error)return toast('Équipe supprimée, mais le tirage doit être annulé depuis le panneau de validation.');
+          await loadAll();S.activeTour=t.id;S.teamCompetitionId=t.id;await loadTournament();
+        }
+        renderAll();toast('Équipe supprimée ✅');
       };
       head.appendChild(del);
     }
@@ -3475,7 +3483,7 @@ async function runSmartTeamGeneration(isRedraw=false){
   if(isRedraw&&!isAdmin())return toast('Seul l’administrateur peut appliquer un nouveau tirage.');
   if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_generate_teams)return toast('Tu n’es pas autorisé à générer les équipes.');
   const t=currentTour();if(!t)return toast('Choisis d’abord le tournoi ou le Swé de Ligue concerné.');
-  if(!isRedraw&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&Number(t.generated_team_count||0)>0)return toast('Un tirage existe déjà. Utilise la validation collaborative ou annule la création avant de repartir de zéro.');
+  if(!isRedraw&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&hasGeneratedTournamentTeams())return toast('Un tirage existe déjà. Utilise la validation collaborative ou annule la création avant de repartir de zéro.');
   if(isRedraw&&S.teamReviewState?.status!=='redraw_requested')return toast('Aucun nouveau tirage n’a été demandé.');
   const confirmed=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist').length;
   if(t.format!=='league'&&confirmed<10)return toast('Il faut au moins 10 joueurs confirmés pour créer 2 équipes.');
@@ -3485,20 +3493,27 @@ async function runSmartTeamGeneration(isRedraw=false){
   if((isRedraw||S.matches.length||S.teams.length)&&!confirm(message))return;
   const btn=isRedraw?$('#applyTeamRedraw'):$('#smartAutoTeams');if(btn){btn.disabled=true;btn.textContent=isRedraw?'Nouveau tirage…':'Génération…';}
   try{
+    const targetId=t.id;
+    S.activeTour=targetId;S.teamCompetitionId=targetId;
+    if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&isAdmin()){
+      const configured=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:targetId,p_max_redraws:Number(t.max_team_redraws??1),p_requested:true,p_duration_minutes:120});
+      if(configured.error)throw configured.error;
+    }
     const call=t.format==='league'?sb.rpc('generate_balanced_teams',{p_tournament_id:t.id,p_players_per_team:perTeam}):sb.rpc('generate_swe_tournament_teams',{p_tournament_id:t.id});
     const {data,error}=await call;if(error)throw error;
+    let reviewError=null;
     if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled){
       const review=await sb.rpc('start_tournament_team_review',{p_tournament_id:t.id,p_is_redraw:!!isRedraw});
-      if(review.error)throw review.error;
+      reviewError=review.error||null;
     }
-    await loadAll();S.activeTour=t.id;await loadTournament();renderAll();
+    await loadAll();S.activeTour=targetId;S.teamCompetitionId=targetId;await loadTournament();renderAll();setView('teams');
     const n=Number(data?.team_count||S.teams.length||0);
     if(t.format==='league')$('#teamBalanceInfo').textContent=n+' équipes générées automatiquement selon les niveaux privés définis par l’administrateur.';
     else{
       const subs=Number(data?.substitute_count||0),pitches=Number(data?.pitch_count||1),scores=(data?.team_scores||[]).map(x=>x.team_name+' '+Number(x.score||0).toFixed(1)+'/5 • '+x.mention).join(' · ');
-      $('#teamBalanceInfo').innerHTML='<b>'+n+' équipes • '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' • '+subs+' remplaçant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>🔒 Les équipes complètes et les joueurs ayant accepté leur place ont été conservés. Les autres joueurs ont été répartis dans les places libres pour équilibrer les niveaux.'+(scores?'<br><b>⚖️ Note moyenne équipes :</b> '+esc(scores):'')+'<br>Règle automatique : '+(data?.odd_team_rule?'2 buts d’écart = l’équipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(S.workspaceFeatures.team_review_enabled?'<br><b>🗳️ Validation :</b> les équipes restent masquées du lien public pendant la fenêtre d’avis des co-gestionnaires présents.':'');
+      $('#teamBalanceInfo').innerHTML='<b>'+n+' équipes • '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' • '+subs+' remplaçant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>🔒 Les équipes complètes et les joueurs ayant accepté leur place ont été conservés. Les autres joueurs ont été répartis dans les places libres pour équilibrer les niveaux.'+(scores?'<br><b>⚖️ Note moyenne équipes :</b> '+esc(scores):'')+'<br>Règle automatique : '+(data?.odd_team_rule?'2 buts d’écart = l’équipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(S.workspaceFeatures.team_review_enabled?(reviewError?'<br><b>⚠️ Avis des co-gestionnaires :</b> les équipes sont créées, mais le lancement des votes a échoué. Relance la page puis réessaie.':'<br><b>🗳️ Validation :</b> les équipes restent masquées du lien public pendant la fenêtre d’avis des co-gestionnaires présents.'):'');
     }
-    toast(isRedraw?'Nouveau tirage créé. Nouvelle fenêtre d’avis de 2 heures ouverte ✅':n+' équipes générées ✅');
+    toast(reviewError?'Équipes générées, mais les votes n’ont pas démarré : '+reviewError.message:(isRedraw?'Nouveau tirage créé. Nouvelle fenêtre d’avis ouverte ✅':n+' équipes générées ✅'));
   }catch(e){toast(e.message||'Impossible de générer les équipes')}
   finally{if(btn){btn.disabled=false;btn.textContent=isRedraw?'🔄 Refaire le tirage':'⚡ Générer équipes équilibrées';}}
 }
