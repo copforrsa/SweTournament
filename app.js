@@ -4497,7 +4497,8 @@ function publicHistoryReturnUrl(token){
 }
 function publicHistoryUrl(token,historyId){
   const q=swePublicParams();
-  const remembered=sweStoredPublicRegistrationContext();
+  const stored=sweStoredPublicRegistrationContext();
+  const remembered=stored.public===String(token)?stored:{};
   const out=new URLSearchParams();
   out.set('public',token);
   out.set('history',historyId);
@@ -4510,7 +4511,8 @@ function publicHistoryUrl(token,historyId){
 }
 function publicHistoryBackUrl(token){
   const q=swePublicParams();
-  const remembered=sweStoredPublicRegistrationContext();
+  const stored=sweStoredPublicRegistrationContext();
+  const remembered=stored.public===String(token)?stored:{};
   const short=q.get('from_s')||remembered.s;if(/^[A-Za-z0-9]{1,32}$/.test(short||''))return APP_URL+'?s='+encodeURIComponent(short);
   const out=new URLSearchParams();
   out.set('public',token);
@@ -4534,7 +4536,7 @@ function swePublicParams(){
 function sweRememberPublicRegistrationContext(){
   const q=swePublicParams();
   if(q.get('history'))return;
-  const ctx={};
+  const ctx={public:String(q.get('public')||publicTokenFromUrl||'')};
   for(const key of ['s','tournament','view','mode','league']){
     const v=q.get(key);
     if(v)ctx[key]=v;
