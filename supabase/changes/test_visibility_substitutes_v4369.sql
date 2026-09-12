@@ -1,4 +1,4 @@
--- Existing assignments belong to the selected account; list them from each permitted workspace.
+-- Test-only access: share assigned tests with score managers of the selected workspace.
 CREATE OR REPLACE FUNCTION private.can_manage_test_match(p_match_id uuid)
  RETURNS boolean
  LANGUAGE sql
@@ -109,90 +109,6 @@ begin
   return v_match;
 end $function$
 ;
--- Reuse the existing assignment RPC: one transaction for outgoing and incoming players.
-drop function public.set_match_player_assignment(uuid,uuid,uuid,boolean);
-CREATE OR REPLACE FUNCTION public.set_match_player_assignment(p_match_id uuid, p_player_id uuid, p_team_id uuid, p_apply_future boolean DEFAULT false, p_replaced_player_id uuid DEFAULT NULL)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-declare
-  v_match public.matches%rowtype;
-  v_tour public.tournaments%rowtype;
-  v_player_ok boolean; v_test boolean; v_out_team uuid;
-begin
-  select * into v_match from public.matches where id=p_match_id for update;
-  if not found then raise exception 'Match introuvable'; end if;
-  select * into v_tour from public.tournaments where id=v_match.tournament_id;
-  if not found then raise exception 'Tournoi introuvable'; end if;
-  v_test:=exists(select 1 from private.match_test_runs where match_id=p_match_id);
-  if auth.uid() is null or (case when v_test then not private.can_manage_test_match(p_match_id)
-    else not (private.is_workspace_operational_admin(v_tour.workspace_id) or private.coorganizer_has_permission(v_tour.workspace_id,'scores')) end) then
-    raise exception 'Autorisation refusée';
-  end if;
-  if v_match.status='finished' or (v_test and v_match.status<>'live') then raise exception 'Le match doit être en cours'; end if;
-  if v_test and (coalesce(p_apply_future,false) or p_replaced_player_id is null) then raise exception 'Utilise un remplacement pour ce match test'; end if;
-  select exists(select 1 from public.tournament_players where tournament_id=v_tour.id and player_id=p_player_id and present=true and coalesce(registration_status,'confirmed')<>'waitlist') into v_player_ok;
-  if not v_player_ok then raise exception 'Ce joueur n’est pas inscrit à ce tournoi'; end if;
-  if p_team_id is not null and p_team_id not in (v_match.home_team_id,v_match.away_team_id) then
-    raise exception 'Le joueur doit être placé dans une des deux équipes de ce match';
-  end if;
-
-  if p_replaced_player_id is not null then
-    if p_replaced_player_id=p_player_id or p_team_id is null then raise exception 'Remplacement invalide'; end if;
-    if not exists(select 1 from public.match_player_assignments where match_id=p_match_id) then
-      insert into public.match_player_assignments(match_id,player_id,team_id)
-      select p_match_id,tp.player_id,tp.team_id from public.team_players tp where tp.team_id in (v_match.home_team_id,v_match.away_team_id);
-    end if;
-    select team_id into v_out_team from public.match_player_assignments where match_id=p_match_id and player_id=p_replaced_player_id;
-    if v_out_team is null or v_out_team<>p_team_id then raise exception 'Joueur à remplacer introuvable dans cette équipe'; end if;
-    if exists(select 1 from public.match_player_assignments a join public.matches m on m.id=a.match_id
-      where a.player_id=p_player_id and a.team_id is not null and m.tournament_id=v_tour.id and m.status<>'finished') then
-      raise exception 'Ce remplaçant est déjà engagé dans un match';
-    end if;
-    update public.match_player_assignments set team_id=null,updated_by=auth.uid(),updated_at=now()
-      where match_id=p_match_id and player_id=p_replaced_player_id;
-  end if;
-
-  insert into public.match_player_assignments(match_id,player_id,team_id,updated_by,updated_at)
-  values(p_match_id,p_player_id,p_team_id,auth.uid(),now())
-  on conflict(match_id,player_id) do update set team_id=excluded.team_id,updated_by=auth.uid(),updated_at=now();
-
-  if coalesce(p_apply_future,false) then
-    delete from public.team_players tp using public.teams tm
-    where tp.team_id=tm.id and tm.tournament_id=v_tour.id and tp.player_id=p_player_id;
-
-    if p_team_id is null then
-      update public.tournament_players set is_substitute=true where tournament_id=v_tour.id and player_id=p_player_id;
-    else
-      insert into public.team_players(team_id,player_id) values(p_team_id,p_player_id) on conflict do nothing;
-      update public.tournament_players set is_substitute=false where tournament_id=v_tour.id and player_id=p_player_id;
-    end if;
-
-    delete from public.match_player_assignments a
-    using public.matches m
-    where a.match_id=m.id and m.tournament_id=v_tour.id and m.match_order>=v_match.match_order and a.player_id=p_player_id;
-
-    if p_team_id is null then
-      insert into public.match_player_assignments(match_id,player_id,team_id,updated_by)
-      select m.id,p_player_id,null,auth.uid() from public.matches m
-      where m.tournament_id=v_tour.id and m.match_order>=v_match.match_order
-      on conflict(match_id,player_id) do update set team_id=null,updated_by=auth.uid(),updated_at=now();
-    else
-      insert into public.match_player_assignments(match_id,player_id,team_id,updated_by)
-      select m.id,p_player_id,p_team_id,auth.uid() from public.matches m
-      where m.tournament_id=v_tour.id and m.match_order>=v_match.match_order and p_team_id in (m.home_team_id,m.away_team_id)
-      on conflict(match_id,player_id) do update set team_id=excluded.team_id,updated_by=auth.uid(),updated_at=now();
-    end if;
-  end if;
-
-  return jsonb_build_object('match_id',p_match_id,'player_id',p_player_id,'team_id',p_team_id,'apply_future',coalesce(p_apply_future,false));
-end;
-$function$
-;
-revoke all on function public.set_match_player_assignment(uuid,uuid,uuid,boolean,uuid) from public,anon;
-grant execute on function public.set_match_player_assignment(uuid,uuid,uuid,boolean,uuid) to authenticated;
 drop function public.super_admin_test_match_action(uuid,text,uuid,uuid,uuid,integer,integer);
 CREATE OR REPLACE FUNCTION public.super_admin_test_match_action(p_match_id uuid, p_action text, p_scorer_id uuid DEFAULT NULL::uuid, p_assister_id uuid DEFAULT NULL::uuid, p_goal_id uuid DEFAULT NULL::uuid, p_home_score integer DEFAULT NULL::integer, p_away_score integer DEFAULT NULL::integer, p_out_player_id uuid DEFAULT NULL, p_in_player_id uuid DEFAULT NULL)
  RETURNS jsonb
@@ -245,7 +161,19 @@ begin
   if p_out_player_id is null or p_in_player_id is null then raise exception 'Choisis le joueur et son remplaçant'; end if;
   select team_id into v_team from public.match_player_assignments where match_id=m.id and player_id=p_out_player_id;
   if v_team is null then raise exception 'Joueur à remplacer introuvable'; end if;
-  perform public.set_match_player_assignment(m.id,p_in_player_id,v_team,false,p_out_player_id);
+  if p_out_player_id=p_in_player_id or not exists(
+    select 1 from public.tournament_players where tournament_id=m.tournament_id and player_id=p_in_player_id
+      and present=true and coalesce(registration_status,'confirmed')<>'waitlist'
+  ) then raise exception 'Remplaçant invalide pour ce match test'; end if;
+  if exists(select 1 from public.match_player_assignments where match_id=m.id and player_id=p_in_player_id and team_id is not null) then
+    raise exception 'Ce remplaçant est déjà sur le terrain';
+  end if;
+  -- Only this isolated test is changed; keep a null assignment for the outgoing player.
+  update public.match_player_assignments set team_id=null,updated_by=auth.uid(),updated_at=now()
+    where match_id=m.id and player_id=p_out_player_id;
+  insert into public.match_player_assignments(match_id,player_id,team_id,updated_by,updated_at)
+    values(m.id,p_in_player_id,v_team,auth.uid(),now())
+    on conflict(match_id,player_id) do update set team_id=excluded.team_id,updated_by=auth.uid(),updated_at=now();
  elsif p_action='finish' then
   if m.status<>'live' then raise exception 'Le match doit être en cours'; end if;
   update public.matches set status='finished',finished_at=now() where id=m.id;
