@@ -6118,13 +6118,14 @@ async function loadPublicPage(token,bootState){
 
   function renderTournamentTopFive(){
     const box=$('#publicTournamentTopFive');if(!box)return false;
-    const completed=matches.filter(m=>m.status==='finished');
     const seasonId=regTour?.season_id||activeSeason?.id;
     const season=seasons.find(s=>s.id===seasonId)||activeSeason;
     const seasonTournamentIds=new Set(tournaments.filter(t=>t.format!=='league'&&(!seasonId||t.season_id===seasonId)).map(t=>t.id));
+    const finishedTournamentIds=new Set(tournaments.filter(t=>t.status==='finished'&&seasonTournamentIds.has(t.id)).map(t=>t.id));
+    const completed=matches.filter(m=>m.status==='finished'||finishedTournamentIds.has(m.tournament_id));
     const rows=publicPlayerRatingsEnabled&&seasonTournamentIds.size?topPlayersFromData(completed,goals,matchAssignments,players,seasonTournamentIds).slice(0,5):[];
     box.classList.toggle('hidden',!rows.length);if(!rows.length){box.replaceChildren();return false;}
-    const html='<div class="top-five-heading"><small>LES JOUEURS À L’HONNEUR</small><h2>👑 Top 5 de la saison</h2><p>'+esc(season?.name||'Saison en cours')+' · Tous les tournois et matchs terminés</p></div><ol>'+rows.map((x,i)=>'<li><span class="top-five-rank" aria-label="Place '+(i+1)+'">'+(i+1)+'</span><span class="top-five-name">'+esc(x.name)+'<span class="top-five-detail">'+x.matches+' match'+(x.matches>1?'s':'')+' · ⚽ '+x.g+' · 🎯 '+x.a+'</span></span><span class="top-five-score">'+x.avg.toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+'<small>/10</small></span></li>').join('')+'</ol><p class="top-five-caption">Moyenne de la saison · notes Match de tous les matchs terminés.</p>';
+    const html='<div class="top-five-heading"><small>LES JOUEURS À L’HONNEUR</small><h2>👑 Top 5 de la saison</h2><p>'+esc(season?.name||'Saison en cours')+' · Tous les résultats validés de la saison</p></div><ol>'+rows.map((x,i)=>'<li><span class="top-five-rank" aria-label="Place '+(i+1)+'">'+(i+1)+'</span><span class="top-five-name">'+esc(x.name)+'<span class="top-five-detail">'+x.matches+' match'+(x.matches>1?'s':'')+' · ⚽ '+x.g+' · 🎯 '+x.a+'</span></span><span class="top-five-score">'+x.avg.toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+'<small>/10</small></span></li>').join('')+'</ol><p class="top-five-caption">Moyenne de la saison · tous les matchs des tournois terminés sont cumulés.</p>';
     if(box.innerHTML!==html)box.innerHTML=html;return true;
   }
   refreshSeasonRankings=()=>{collectSeasonRankings();renderPublicSeasonScorers();renderPublicSeasonAssists();const hasTop=renderTournamentTopFive();if(regTour){$('#publicSeasonScorers')?.closest('.card')?.classList.toggle('hidden',!scor.length);$('#publicSeasonAssists')?.closest('.card')?.classList.toggle('hidden',!seasonAss.length);$('#registrationSeasonRankings')?.classList.toggle('hidden',!scor.length&&!seasonAss.length&&!hasTop);}};
