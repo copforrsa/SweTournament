@@ -2497,6 +2497,12 @@ function updateTournamentCountdowns(){
     el.style.fontSize='1.05rem';
     el.style.color=expired?'#b91c1c':'#166534';
   });
+  document.querySelectorAll('[data-tournament-start]').forEach(el=>{
+    const kickoff=new Date(el.dataset.tournamentStart).getTime();
+    if(!Number.isFinite(kickoff)){el.textContent='Coup d’envoi à confirmer';return}
+    const ms=kickoff-Date.now();
+    el.textContent=ms<=0?'⚽ Le coup d’envoi est donné':'⏱️ Coup d’envoi dans '+formatCountdown(ms).replace('Inscriptions terminées','00h 00m 00s');
+  });
 }
 if(!window.__sweDeadlineTimer){
   window.__sweDeadlineTimer=setInterval(updateTournamentCountdowns,1000);
