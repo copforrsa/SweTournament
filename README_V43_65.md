@@ -14,7 +14,7 @@ Tournois → Générer les équipes équilibrées appelle `runSmartTeamGeneratio
 
 Validation : syntaxe JavaScript ; tests des compteurs ; parcours navigateur PC/tablette/mobile avec données simulées ; création, score/buteur/passeur, annulation et fin testés dans Supabase avec ROLLBACK ; contrôle des refus pour admin standard, co-gestionnaires, joueurs et accès anonyme. Un essai physique sur Samsung/iPhone reste à faire après copie du WWW.
 
-La migration `20260912120000_page_reports_and_match_tests.sql` a déjà été appliquée au projet Supabase SWÉ. Les tests SQL du dossier `tests` s’exécutent avec privilèges d’administration dans une transaction annulée et ne doivent pas être utilisés comme données de démonstration.
+La migration `20260912004110_page_reports_and_match_tests_v4365.sql` a déjà été appliquée au projet Supabase SWÉ. Les tests SQL du dossier `tests` s’exécutent avec privilèges d’administration dans une transaction annulée et ne doivent pas être utilisés comme données de démonstration.
 
 Sauvegarde : branche `backup/v43.64-before-match-test-reports-20260912` au commit `da5fed264f0ea218b1d55429741ac2662d96c1b1`. L’archive SQL conservée séparément contient les définitions du schéma et des fonctions, pas les lignes métier ni Auth/Storage. Elle n’est pas un export complet de base.
 

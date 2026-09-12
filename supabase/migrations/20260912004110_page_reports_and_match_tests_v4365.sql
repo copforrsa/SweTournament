@@ -1,4 +1,4 @@
--- V43.65: additive changes. Existing registration/season totals remain authoritative.
+-- Applied as 20260912004110 in Supabase. Existing registration/season totals remain authoritative.
 create table private.app_page_views (
   page_key text primary key,
   page_type text not null,

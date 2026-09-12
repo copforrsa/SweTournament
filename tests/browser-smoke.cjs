@@ -65,12 +65,19 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await page.goto(base+'/?public='+token+'&history='+past+'&from_tournament='+current+'&from_view=tournament');
    await page.locator('#backPublic').waitFor({state:'visible'});await page.locator('#backPublic').click();await page.locator('#chooseSoloMode').waitFor({state:'visible'});assert.equal(new URL(page.url()).searchParams.get('tournament'),current);
    if(viewport.width===1280){
-    await page.waitForFunction(()=>window.__SWE_TOURNAMENT_COMPACT_4349);
-    await page.evaluate(({current,past})=>{S.publicMode=false;S.workspace={id:'test-workspace',role:'admin'};S.tournaments=window.__snapshot.tournaments.map(t=>({...t,status:'draft'}));S.activeTour=past;S.lastView='tournaments';document.getElementById('publicView').classList.add('hidden');document.getElementById('main').classList.remove('hidden');document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-tournaments'));window.__generated=[];loadTournament=async()=>{};runSmartTeamGeneration=async()=>{window.__generated.push(S.activeTour)};document.dispatchEvent(new Event('swe:rendered'))},{current,past});
-    await page.locator('[data-swe-generate-tour="'+current+'"]').click();await page.waitForFunction(()=>window.__generated.length===1);assert.deepEqual(await page.evaluate(()=>window.__generated),[current]);
-    await page.evaluate(()=>{S.workspace.role='coorganizer';S.myPermissions.can_generate_teams=false;S.myPermissions.temporary_admin_until=null;document.dispatchEvent(new Event('swe:rendered'))});
-    await page.waitForFunction(id=>document.querySelector('[data-swe-generate-tour="'+id+'"]').disabled,current);assert.equal(await page.locator('[data-swe-generate-tour="'+current+'"]').isDisabled(),true);
-    console.log('Tournament shortcut targets the selected tournament and respects permissions: OK');
+    const organizer=await context.newPage();organizer.on('pageerror',e=>errors.push(e.message));
+    await organizer.setContent('<main><div class="card"><div id="tournamentList"></div></div></main>');
+    await organizer.evaluate(({current,past})=>{
+      window.S={workspace:{role:'admin'},tournaments:[{id:current,name:'Tournoi choisi',status:'draft'},{id:past,name:'Autre tournoi',status:'draft'}],activeTour:past,tPlayers:[],myPermissions:{}};
+      window.sb={from:()=>({select:()=>({in:async()=>({data:[],error:null})})})};
+      window.hasAdminOps=()=>S.workspace.role==='admin';window.isCoorg=()=>S.workspace.role==='coorganizer';
+      window.__generated=[];window.loadTournament=async()=>{};window.runSmartTeamGeneration=async()=>{window.__generated.push(S.activeTour)};window.renderAll=()=>{};window.toast=()=>{};
+    },{current,past});
+    await organizer.addScriptTag({content:fs.readFileSync(path.join(root,'tournament-compact-v4349.js'),'utf8')});
+    await organizer.locator('[data-swe-generate-tour="'+current+'"]').click();await organizer.waitForFunction(()=>window.__generated.length===1);assert.deepEqual(await organizer.evaluate(()=>window.__generated),[current]);
+    await organizer.evaluate(()=>{S.workspace.role='coorganizer';S.myPermissions.can_generate_teams=false;document.dispatchEvent(new Event('swe:rendered'))});
+    await organizer.waitForFunction(id=>document.querySelector('[data-swe-generate-tour="'+id+'"]').disabled,current);
+    console.log('Tournament shortcut targets the selected tournament and respects permissions: OK');await organizer.close();
    }
    console.log('Registration, history, guest disclosure and selection:',viewport.width,'OK');await context.close();
   }
