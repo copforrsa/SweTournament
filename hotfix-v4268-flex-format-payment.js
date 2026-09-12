@@ -40,7 +40,7 @@ async function forcePublicCheckout(btn){
   }catch(e){btn.disabled=false;btn.innerHTML=old;if(typeof toast==='function')toast(e?.message||String(e));paying=false}
 }
 function bindPaymentCapture(){
-  document.addEventListener('click',e=>{const b=e.target.closest?.('#publicPayEntry');if(!b||!publicContext())return;e.preventDefault();e.stopImmediatePropagation();forcePublicCheckout(b)},true)
+  document.addEventListener('click',e=>{const b=e.target.closest?.('#publicPayEntry');if(!b||!publicContext()||b.closest('[data-payment-controller="app"]'))return;e.preventDefault();e.stopImmediatePropagation();forcePublicCheckout(b)},true)
 }
 function updatePublicFormatText(){
   if(!publicContext())return;let size=5;try{if(typeof regTour!=='undefined'&&regTour?.team_size)size=clamp(regTour.team_size)}catch(_){}

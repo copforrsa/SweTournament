@@ -3,13 +3,15 @@ name: Build WWW package
 on:
   push:
     branches: [ main, work/v43.65-match-reports ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  PACKAGE_NAME: swe-www-v43.77
+  PACKAGE_NAME: swe-www-v43.78
 
 jobs:
   build:
@@ -66,7 +68,7 @@ jobs:
       - name: Upload visual checks
         uses: actions/upload-artifact@v4
         with:
-          name: swe-visual-checks-v43.77
+          name: swe-visual-checks-v43.78
           path: tests/screenshots/*.png
           if-no-files-found: error
           retention-days: 7

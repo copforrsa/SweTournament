@@ -1858,6 +1858,8 @@ function renderEcosystemCommercial(){
   const c=S.commercialAccess||{};
   const a=S.organizerAccess||{};
   const trialActive=!!a.trial_active&&!c.special_access_enabled;
+  const hasLockedModules=['player_ratings_enabled','third_half_enabled','tournaments_enabled'].some(key=>!S.workspaceFeatures[key]);
+  for(const id of ['#homeCoorgOfferCard','#homeModulesDisclosure']){const section=$(id);if(section&&section.dataset.workspace!==String(S.workspace?.id||'')){section.open=false;section.dataset.workspace=String(S.workspace?.id||'');}}
   const badge=$('#homePlanBadge');if(badge)badge.textContent=trialActive?('ESSAI • '+Number(a.days_remaining||0)+' J'):(c.special_access_enabled?'ACCÈS SPÉCIAL • ':'')+String(c.subscription_plan||'free').toUpperCase();
   const special=$('#homeSpecialAccessNotice');if(special){special.classList.toggle('hidden',!c.special_access_enabled);special.innerHTML=c.special_access_enabled?'<div class="player" style="background:#ecfdf3;border-color:#86d6a3"><b>🎁 Autorisation spéciale SWÉ active</b><div class="muted" style="margin-top:4px">Tous les modules sont débloqués pour faire découvrir la solution, sans modifier ton abonnement commercial.</div></div>':'';}
   const trialNotice=$('#homeTrialPricingNotice');
@@ -1865,13 +1867,13 @@ function renderEcosystemCommercial(){
   const upgradeCard=$('#homeUpgradeCard');
   if(trialNotice){
     trialNotice.classList.toggle('hidden',!trialActive);
-    trialNotice.innerHTML=trialActive?'<div class="player" style="background:#f8fbff;border-color:#c8d8ee"><b>🎁 Profite de ton essai, on ne te parle pas encore prix</b><div class="muted" style="margin-top:5px;line-height:1.55">Toutes les fonctions organisateur sont disponibles pendant encore <b>'+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+'</b>. Les tarifs et options payantes restent masqués pendant cette période.</div><button type="button" id="endTrialToPay" class="secondary" style="margin-top:10px">Je veux arrêter mon essai et voir les offres payantes</button></div>':'';
+    trialNotice.innerHTML=trialActive?'<div class="home-trial-strip"><b>🎁 Offre découverte · '+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+' restant'+(Number(a.days_remaining||0)>1?'s':'')+'</b><span>Retrouve le statut de chaque option dans « Voir nos modules ».</span><details><summary>Gérer mon essai</summary><button type="button" id="endTrialToPay" class="secondary">Arrêter mon essai et voir les offres payantes</button></details></div>':'';
   }
   if(coorgOffer)coorgOffer.classList.toggle('hidden',trialActive);
-  if(upgradeCard)upgradeCard.classList.toggle('hidden',trialActive);
-  const paint=(id,on)=>{const el=$(id);if(!el)return;el.style.borderColor=on?'#86d6a3':'#e3e7e5';el.style.background=on?'#f0fdf4':'#fff';const old=el.querySelector('[data-module-status]');if(old)old.remove();const st=document.createElement('div');st.dataset.moduleStatus='1';st.style.marginTop='7px';st.innerHTML=on?'<span class="guest-badge" style="background:#dcfce7;color:#166534">✓ ACTIF</span>':'<span class="guest-badge" style="background:#f3f4f6;color:#6b7280">À DÉBLOQUER</span>';el.appendChild(st)};
+  if(upgradeCard)upgradeCard.classList.toggle('hidden',!hasLockedModules);
+  const paint=(id,on)=>{const el=$(id);if(!el)return;el.dataset.moduleState=on?(trialActive?'trial':'active'):'locked';let st=el.querySelector('[data-module-status]');if(!st){st=document.createElement('div');st.dataset.moduleStatus='1';el.appendChild(st);}st.className='home-module-status';st.textContent=on?(trialActive?'🎁 Offert pendant l’essai':'✓ Module actif'):'＋ À débloquer';};
   paint('#ecoRatingsModule',!!S.workspaceFeatures.player_ratings_enabled);paint('#ecoThirdHalfModule',!!S.workspaceFeatures.third_half_enabled);paint('#ecoTournamentModule',!!S.workspaceFeatures.tournaments_enabled);
-  const up=$('#homeRequestUpgrade');if(up){up.textContent=c.upgrade_requested_at?'⏳ Demande envoyée':'Voir les formules SWÉ';up.disabled=!!c.upgrade_requested_at;}
+  const up=$('#homeRequestUpgrade');if(up){up.textContent=c.upgrade_requested_at?'⏳ Demande envoyée':'Demander une activation';up.disabled=!!c.upgrade_requested_at;}
   refreshCoorgPurchasePrice();
 }
 
@@ -5010,15 +5012,17 @@ async function loadPublicPage(token,bootState){
   }
   const regBox=$('#publicRegistration');
   let registrationPresentation=null;
-  let registrationCoorganizers=[],registrationRatingWindows=[];
+  let registrationCoorganizers=[],registrationRatingWindows=[],registrationIsCoorganizer=false;
   let presentationMetadataAt=0;
   async function loadPresentationMetadata(){
     if(!regTour||regTour.format==='league'||Date.now()-presentationMetadataAt<30000)return;
     presentationMetadataAt=Date.now();
     const session=await sb.auth.getSession();
-    if(!session.data?.session)return;
+    registrationIsCoorganizer=false;registrationCoorganizers=[];registrationRatingWindows=[];
+    if(!session.data?.session){registrationPresentation?.updateMissions();return;}
     const {data,error}=await sb.rpc('get_my_tournament_presentation_v1',{p_tournament_id:regTour.id});
-    if(error||!data)return;
+    if(error||!data){registrationPresentation?.updateMissions();return;}
+    registrationIsCoorganizer=data.is_coorganizer===true;
     registrationCoorganizers=data.is_coorganizer&&data.my_player_id?[data.my_player_id]:[];registrationRatingWindows=data.tournament_rating_windows||[];
     registrationPresentation?.updateMissions();
   }
@@ -5211,7 +5215,7 @@ async function loadPublicPage(token,bootState){
       '<div class="space"></div><select id="publicPlayerSelect"><option value="">Choisis ton nom</option></select>'+
       '<div id="publicSelectedStatus" class="muted" style="margin-top:7px">Choisis ton nom pour voir ton statut.</div><div class="muted" style="margin-top:5px">Si un autre joueur t’a proposé une équipe, les boutons <b>Accepter</b> / <b>Refuser</b> apparaîtront ici après sélection de ton nom.</div><div id="publicTeamInvitationDecision" class="hidden" style="margin-top:10px"></div>'+
       '<div class="space"></div><div class="row"><button id="publicJoin" class="primary">✅ Je participe</button><button id="publicLeave">❌ Je ne participe pas</button></div>'+
-      '<div id="publicPaymentBox" class="hidden" style="margin-top:12px"></div>'+
+      '<div id="publicPaymentBox" data-payment-controller="app" class="hidden" style="margin-top:12px"></div>'+
       (regTour.format==='league'
         ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>🆕 Première fois ?</b><div class="muted" style="margin:5px 0 8px">Tu n’es pas encore membre du groupe ? Entre ton nom pour t’inscrire à cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton prénom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">M’inscrire pour la première fois</button></div>'
         : '<div class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa"><b>🤝 Tu ne participes pas mais tu invites quelqu’un ?</b><div class="muted" style="margin-top:6px;line-height:1.6">Aucun problème : <b>sélectionne simplement ton nom</b> dans la liste ci-dessus, sans cliquer sur « Je participe », puis saisis le nom de ton invité ci-dessous. Ton invité sera rattaché à ton nom et <b>toi, tu ne seras pas inscrit au tournoi</b>.</div></div>')+
@@ -5333,6 +5337,10 @@ async function loadPublicPage(token,bootState){
       }catch(_e){return false;}finally{publicStripeConfirmRunning=false;}
     }
     const publicMoney=cents=>(Number(cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+    function publicOnsitePriceLabel(){
+      const cents=regTour.onsite_entry_fee_cents;
+      return cents!=null&&Number.isFinite(Number(cents))&&Number(cents)>=0?publicMoney(cents):'Tarif à confirmer auprès du complexe';
+    }
     function applyPublicPaymentView(box,html,bg,border){
       box.className='player';
       box.style.background=bg||'#f8fbff';
@@ -5343,13 +5351,10 @@ async function loadPublicPage(token,bootState){
       const box=$('#publicPaymentBox');
       if(!box)return;
       const pid=$('#publicPlayerSelect')?.value;
-      if(!pid){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
+      if(!pid||regTour.status==='finished'){++publicPaymentSeq;publicPaymentLoadingFor=null;publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
       const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
       if(!reg){
-        if(options.backgroundRefresh&&publicPaymentCache.playerId===pid&&publicPaymentCache.html){
-          applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
-          return;
-        }
+        ++publicPaymentSeq;publicPaymentLoadingFor=null;
         publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;
       }
       if(publicPaymentLoadingFor===pid)return;
@@ -5366,8 +5371,8 @@ async function loadPublicPage(token,bootState){
           sb.rpc('public_tournament_payment_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid}),
           sb.rpc('public_tournament_payment_choice_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid})
         ]);
-        if(seq!==publicPaymentSeq)return;
-        if(error){if(!publicPaymentCache.html)box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
+        if(seq!==publicPaymentSeq||$('#publicPlayerSelect')?.value!==pid||!box.isConnected)return;
+        if(error||choiceError){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
         const st=data||{};
         if(st.reason==='waitlist'){
           const html='<b>🟠 Paiement en attente de confirmation</b><div class="muted" style="margin-top:5px;line-height:1.6">Tu es actuellement remplaçant. Le paiement sera proposé automatiquement lorsqu’une place confirmée se libérera.</div>';
@@ -5387,7 +5392,7 @@ async function loadPublicPage(token,bootState){
           return;
         }
         if(choice.payment_preference==='onsite'){
-          const html='<b>🏟️ Paiement sur place choisi</b><div style="margin-top:7px">Tarif public sur place : <b style="font-size:1.05rem">'+publicMoney(Number(regTour.onsite_entry_fee_cents??onsiteStandardPriceCents(regTour)))+'</b></div><div class="muted" style="margin-top:5px">Ton inscription est enregistrée. Le complexe confirmera ton paiement lorsqu’il le recevra.</div><button id="publicSwitchOnline" style="width:100%;margin-top:10px">💳 Finalement payer en ligne</button>';
+          const html='<b>🏟️ Paiement sur place choisi</b><div style="margin-top:7px">Tarif public sur place : <b style="font-size:1.05rem">'+publicOnsitePriceLabel()+'</b></div><div class="muted" style="margin-top:5px">Ton inscription est enregistrée. Le complexe confirmera ton paiement lorsqu’il le recevra.</div><button id="publicSwitchOnline" style="width:100%;margin-top:10px">💳 Finalement payer en ligne</button>';
           publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
           $('#publicSwitchOnline').onclick=async()=>{await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'online'});publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};await renderPublicPaymentBox({skipStripeReconcile:true});};
           return;
@@ -5406,7 +5411,7 @@ async function loadPublicPage(token,bootState){
         const html='<div><b style="font-size:1.02rem">💶 Comment veux-tu payer ?</b><div class="muted" style="margin-top:5px">Choisis ton mode de paiement pour cette inscription.</div></div>'+ 
           '<div class="grid g2" style="gap:9px;margin-top:12px">'+
             '<button id="publicPayEntry" class="primary" style="min-height:64px"><span style="font-size:1.05rem">💳 Payer en ligne</span><br><span style="font-size:.76rem;font-weight:700">Gagner du temps • sécurisé par Stripe</span></button>'+ 
-            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">🏟️ Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicMoney(Number(regTour.onsite_entry_fee_cents??onsiteStandardPriceCents(regTour)))+' tarif public</span></button>'+ 
+            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">🏟️ Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicOnsitePriceLabel()+' tarif public</span></button>'+ 
           '</div>'+ 
           '<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e4e8ee"><div style="font-weight:850;font-size:.88rem">Paiement en ligne accepté</div><div class="muted" style="font-size:.70rem;line-height:1.35;margin:3px 0 8px">Selon ton appareil, ton navigateur et les moyens de paiement disponibles sur Stripe.</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">'+
             '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="display:flex;align-items:center;justify-content:center;gap:6px;height:28px"><span style="font-weight:950;font-size:.72rem;background:#1434CB;color:#fff;border-radius:4px;padding:3px 5px;font-style:italic">VISA</span><span aria-label="Mastercard" style="display:inline-flex;align-items:center"><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#EB001B;margin-right:-5px"></i><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#F79E1B;opacity:.92"></i></span></div><div class="muted" style="font-size:.67rem">Carte bancaire</div></div>'+
@@ -5442,7 +5447,7 @@ async function loadPublicPage(token,bootState){
       }catch(e){
         if(seq===publicPaymentSeq&&!publicPaymentCache.html)box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';
       }finally{
-        if(publicPaymentLoadingFor===pid)publicPaymentLoadingFor=null;
+        if(seq===publicPaymentSeq&&publicPaymentLoadingFor===pid)publicPaymentLoadingFor=null;
       }
     }
 
@@ -6289,7 +6294,7 @@ async function loadPublicPage(token,bootState){
   });
   if(!finishedHistory.length)pubHist.innerHTML='<p class="muted">Aucun tournoi terminé dans cette saison.</p>';
   if(regTour&&regTour.format!=='league'&&window.SWERegistrationPresentation){
-    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},loadRules:async()=>{const {data,error}=await sb.rpc('get_public_tournament_king_rules',{p_token:token,p_tournament_id:regTour.id});if(error)throw error;return data;},standings:tournamentStandings,rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,seasons,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
+    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},loadRules:async()=>{const {data,error}=await sb.rpc('get_public_tournament_king_rules',{p_token:token,p_tournament_id:regTour.id});if(error)throw error;return data;},standings:tournamentStandings,rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,seasons,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,isCoorganizer:registrationIsCoorganizer,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
     refreshSeasonRankings();
     updateTournamentCountdowns();
     loadPresentationMetadata().catch(()=>{});

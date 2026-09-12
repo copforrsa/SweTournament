@@ -76,18 +76,25 @@ function mount(ctx){
   const format=(n,scale)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' / '+scale;
   const academy=ratingPlayer===pid?ratingResult:null,group=academy?.rating_group_name||d.ratingGroupName||'Groupe de notation';
   const note=ratingState==='loading'?'Chargement…':ratingState==='unavailable'?'Note indisponible':academy?.avg_rating!=null?format(academy.avg_rating,5):'Non noté';
-  setHtml(playerPanel,'<div class="sp-rating-grid"><div class="sp-academy"><span>Note '+esc(group)+'</span><strong>'+esc(note)+'</strong></div><div class="sp-match-rating"><span>Note Match · saison</span><strong>'+(ratings.length?format(ratings.reduce((a,b)=>a+b,0)/ratings.length,10):'Non noté')+'</strong></div></div><h3>'+esc(season?'Résultats de la saison · '+season.name:'Aucune saison active')+'</h3><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists],['Tournois remportés',stats.tournamentsWon]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
+  const player=d.players.find(p=>p.id===pid),matchAverage=ratings.length?ratings.reduce((sum,n)=>sum+n,0)/ratings.length:null;
+  const scoreCard=(label,value,scale,caption,tone)=>{
+   const valid=value!==null&&value!==undefined&&Number.isFinite(Number(value)),percentage=valid?Math.max(0,Math.min(100,Number(value)/scale*100)):0;
+   return '<div class="sp-score-card '+tone+'"><span class="sp-score-label">'+esc(label)+'</span><div class="sp-score-value'+(valid?'':' sp-score-empty')+'">'+(valid?esc(Number(value).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1}))+' <small>/ '+scale+'</small>':esc(caption))+'</div><div class="sp-score-track" aria-hidden="true"><i style="width:'+percentage+'%"></i></div><p>'+esc(valid?caption:label==='Note Match'?'Les notes apparaîtront après tes matchs.':'Ta note apparaîtra une fois disponible.')+'</p></div>';
+  };
+  setHtml(playerPanel,'<div class="sp-player-heading"><div><div class="sp-eyebrow">MON PROFIL JOUEUR</div><h3>'+esc(player?.name||'Mon profil')+'</h3></div><span class="sp-season-tag">'+esc(season?.name||'Aucune saison active')+'</span></div><div class="sp-rating-grid">'+scoreCard('Note '+group,ratingState==='ready'?academy?.avg_rating:null,5,note==='Chargement…'||note==='Note indisponible'||note==='Non noté'?note:'Évaluation du groupe · sur 5','sp-academy')+scoreCard('Note Match',matchAverage,10,ratings.length?'Moyenne de '+ratings.length+' match'+(ratings.length>1?'s':'')+' noté'+(ratings.length>1?'s':''):'Non noté','sp-match-rating')+'</div><div class="sp-season-heading">Mes résultats de la saison</div><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists],['Tournois remportés',stats.tournamentsWon]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
  }
  function updateMissions(){
   const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
-  const co=(d.coorganizers||[]).includes(pid);const items=[];
+  const co=d.isCoorganizer===true||(d.coorganizers||[]).includes(pid);const items=[];
+  if(!co){mission.hidden=false;setHtml(mission,'<div class="sp-eyebrow">ÉQUIPE D’ORGANISATION</div><h3>Tu es co-gestionnaire ?</h3><p>Connecte-toi avec ton compte co-gestionnaire pour retrouver les consignes qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(ctx.appUrl)+'" target="_blank" rel="noopener">Me connecter à mon espace ↗</a>');return;}
   if(co){
    if(b.observe===true&&t.status!=='finished')items.push('Surveillez les nouveaux joueurs pour leur donner une note.');
    if(b.evening===true)items.push(t.team_review_status==='approved'?'La composition des équipes est validée.':t.team_review_status==='pending'?'Ton avis est demandé sur la composition proposée. Connecte-toi à ton espace pour participer à la validation.':'Ton avis sera demandé dans la soirée pour valider la composition des équipes.');
    if(b.rating===true){const w=d.ratingWindows?.find(w=>w.tournament_id===t.id),expired=w&&(w.status==='closed'||Date.parse(w.closes_at)<=Date.now());items.push(expired?'La période de notation de 48 h est terminée.':t.status==='finished'&&w?'Pense à te connecter pour noter les joueurs. La notation est ouverte jusqu’au '+dateTime(w.closes_at)+'.':'Pense à te connecter pour noter les joueurs à la fin du tournoi. Le lien sera valable 48 h après sa clôture officielle.');}
   }
-  mission.hidden=!items.length;if(!items.length){mission.replaceChildren();return}
-  setHtml(mission,'<div class="sp-eyebrow">CO-GESTIONNAIRE</div><h3>'+esc(d.players.find(p=>p.id===pid)?.name||'Tes missions')+', tes missions</h3><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><a class="sp-button sp-secondary" href="'+esc(ctx.appUrl)+'" target="_blank" rel="noopener">Ouvrir mon espace organisateur ↗</a>');
+  if(!items.length)items.push('Aucune consigne spécifique pour le moment. Consulte ton espace organisateur pour retrouver tes actions disponibles.');
+  mission.hidden=false;
+  setHtml(mission,'<div class="sp-eyebrow">CO-GESTIONNAIRE</div><h3>Tes consignes pour ce tournoi</h3><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><a class="sp-button sp-secondary" href="'+esc(ctx.appUrl)+'" target="_blank" rel="noopener">Ouvrir mon espace organisateur ↗</a>');
  }
  let kingRules=null,ruleKey='',ruleAt=0,ruleSequence=0;
  function refreshRules(d){

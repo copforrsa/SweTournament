@@ -45,7 +45,7 @@ function injectMapButtons(links){
   box.innerHTML='<a href="'+esc(links.google)+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-flex;align-items:center;gap:7px;padding:10px 13px;border-radius:12px;background:#fff;border:1px solid #d8e3dc;font-weight:850;color:#173c2d">📍 Google Maps</a><a href="'+esc(links.waze)+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-flex;align-items:center;gap:7px;padding:10px 13px;border-radius:12px;background:#33ccff;border:1px solid #1bb7e7;font-weight:850;color:#06394b">🚗 Waze</a>';
   target.appendChild(box);
 }
-async function repairPaymentIfNeeded(){
+async function repairPaymentIfNeeded(){if(document.getElementById('publicPaymentBox')?.dataset.paymentController==='app')return;
   const box=document.getElementById('publicPaymentBox');
   const sel=document.getElementById('publicPlayerSelect');
   if(!box||!sel?.value||!/Statut indisponible pour le moment/i.test(box.textContent||''))return;

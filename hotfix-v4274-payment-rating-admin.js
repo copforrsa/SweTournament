@@ -15,7 +15,7 @@ async function invokeCheckout(body){
  const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});let data={};try{data=await r.json()}catch(_){ }
  if(!r.ok||data?.error)throw new Error(data?.error||('Paiement HTTP '+r.status));return data;
 }
-async function renderPayment(){
+async function renderPayment(){if(document.getElementById('publicPaymentBox')?.dataset.paymentController==='app')return;
  if(!isPublic()||typeof sb==='undefined')return;const old=E('publicPaymentBox'),sel=E('publicPlayerSelect');if(!old||!sel)return;
  old.dataset.swe4274='1';const pid=sel.value;if(!pid){old.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:6px">Sélectionne ton nom pour afficher les moyens de paiement.</div>';return}
  const {token,tid}=await ids();if(!token||!tid){old.innerHTML='<b>💳 Paiement de la participation</b><div style="color:#b91c1c;margin-top:6px">Lien de tournoi incomplet.</div>';return}

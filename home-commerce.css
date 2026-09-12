@@ -1,0 +1,43 @@
+/* Compact home shop. Native disclosures remain usable without JavaScript. */
+#homeEcosystemCard{border:1px solid #dbe5e2!important;background:#fff!important}
+#homeEcosystemCard .home-shop-disclosure{margin-top:12px;border:1px solid #cdded6;border-radius:14px;background:#fff;box-shadow:none;overflow:hidden}
+#homeEcosystemCard .home-shop-disclosure>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:48px;padding:13px 16px;background:#123f32;color:#fff;font-size:.9375rem;font-weight:750;line-height:1.5}
+.home-shop-disclosure>summary::-webkit-details-marker{display:none}
+.home-shop-disclosure>summary:after{content:'＋';font-size:1.25rem;flex-shrink:0}
+.home-shop-disclosure[open]>summary:after{content:'−'}
+.home-shop-disclosure:not([open])>summary .shop-open,.home-shop-disclosure[open]>summary .shop-closed{display:none}
+.home-shop-disclosure:not([open])>.home-shop-content{display:none}
+.home-shop-disclosure>summary:focus-visible{outline:3px solid #e5b94e;outline-offset:-4px}
+#homeEcosystemCard .home-modules-disclosure>summary{background:#edf4f0;color:#174c38}
+#homeCoorgOfferCard .coorg-offer-head{padding:16px;grid-template-columns:minmax(0,1fr);gap:8px;background:#f4f8f5}
+#homeCoorgOfferCard .coorg-offer-icon,#homeCoorgOfferCard .coorg-auto-badge{display:none}
+#homeCoorgOfferCard .coorg-offer-copy h3{font-size:1.125rem;margin:0 0 6px;color:#173e30}
+#homeCoorgOfferCard .coorg-offer-copy p{font-size:.875rem;line-height:1.55;margin:0}
+#homeCoorgOfferCard .coorg-benefits{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 16px;gap:10px}
+#homeCoorgOfferCard .coorg-benefits>div{padding:10px;background:#f8faf9;border:1px solid #e3eae6;border-radius:10px}
+#homeCoorgOfferCard .coorg-benefits small{font-size:.875rem;line-height:1.5}
+#homeCoorgOfferCard .coorg-pricing-title{padding:12px 16px}
+#homeCoorgOfferCard .coorg-billing-options{margin-top:0}
+#homeCoorgOfferCard .coorg-trust{gap:8px;padding:8px 16px;font-size:.75rem}
+#homeCoorgOfferCard .coorg-trust span:nth-child(n+3){display:none}
+#homeCoorgOfferCard .coorg-cancel-box{padding:12px 16px;margin:0;border-radius:0;box-shadow:none}
+#homeCoorgOfferCard .coorg-cancel-box .muted{font-size:.875rem;line-height:1.5}
+.home-modules-intro{padding:20px 18px 0;display:flex;flex-direction:column;gap:5px;color:#153c2f}
+.home-modules-intro b{font-size:1.125rem}.home-modules-intro span{font-size:.875rem;color:#5c7268}
+.home-modules-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:16px 18px}
+#homeEcosystemCard .home-module{--module-color:#24598c;--module-tint:#edf4fc;display:flex;flex-direction:column;align-items:flex-start;min-width:0;margin:0;padding:18px;border:1px solid #dbe5e3;border-top:3px solid var(--module-color);border-radius:12px;background:#fff;box-shadow:none}
+#homeEcosystemCard .home-module[data-tone=amber]{--module-color:#93601a;--module-tint:#fff6e5}
+#homeEcosystemCard .home-module[data-tone=green]{--module-color:#177154;--module-tint:#eaf6ef}
+.home-module-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--module-tint);font-size:1.4rem;margin-bottom:12px}
+#homeEcosystemCard .home-module h3{font-size:1rem;color:#193c30;line-height:1.4;margin:0 0 6px;overflow-wrap:anywhere}
+.home-module p{font-size:.875rem;line-height:1.5;color:#52685e;margin:0 0 12px}
+.home-module ul{padding-left:17px;margin:0 0 16px;font-size:.875rem;line-height:1.6;color:#334f41}
+.home-module-status{margin-top:auto;padding:6px 10px;font-size:.75rem;font-weight:750;border-radius:7px;background:#eaf6ef;color:#176040}
+.home-module[data-module-state=trial] .home-module-status{background:#fff3d5;color:#73510a}
+.home-module[data-module-state=locked] .home-module-status{background:#173e30;color:#fff}
+#homeModulesDisclosure .workspace-upgrade-card{margin:0 18px 18px;padding:14px;border:1px solid #d6e3da;border-radius:12px;background:#f1f7f3;box-shadow:none}
+.home-trial-strip{display:flex;flex-direction:column;gap:5px;padding:12px 14px;background:#f1f7fc;border:1px solid #d9e5ee;border-radius:12px}
+.home-trial-strip b{font-size:.875rem;color:#23496c}.home-trial-strip>span{font-size:.875rem;line-height:1.5;color:#536e83}
+.home-trial-strip summary{font-size:.875rem;cursor:pointer;color:#315d7d;padding:7px 0}.home-trial-strip button{margin-top:6px}
+@media(max-width:850px){.home-modules-grid{grid-template-columns:1fr}.home-module ul{margin-bottom:12px}#homeModulesDisclosure .workspace-upgrade-card{align-items:stretch}#homeCoorgOfferCard .coorg-cancel-box{flex-direction:column;align-items:stretch}}
+@media(max-width:480px){#homeCoorgOfferCard .coorg-benefits{grid-template-columns:1fr}.home-modules-grid{padding:14px 12px}.home-modules-intro{padding:16px 12px 0}#homeModulesDisclosure .workspace-upgrade-card{margin:0 12px 12px}}
