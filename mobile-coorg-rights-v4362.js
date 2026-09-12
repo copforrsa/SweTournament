@@ -37,15 +37,18 @@ function deny(btn){
  btn.classList.add('swe-mobile-right-denied');
  btn.setAttribute('aria-disabled','true');
  btn.title='Non autorisé par l’administrateur';
- if(!btn.disabled){btn.dataset.sweMobileRightsOwnDisabled='1';btn.disabled=true}
+ /* Keep the button focusable/clickable so touch users get the explanation toast. */
+ if(btn.dataset.sweMobileRightsOwnDisabled==='1')delete btn.dataset.sweMobileRightsOwnDisabled;
+ btn.disabled=false;
+ btn.style.removeProperty('display');
+ btn.classList.remove('hidden');
 }
 function permit(btn){
  btn.classList.remove('swe-mobile-right-denied');
- if(btn.dataset.sweMobileRightsOwnDisabled==='1'){
-   delete btn.dataset.sweMobileRightsOwnDisabled;
-   if(!btn.classList.contains('disabled-tab'))btn.disabled=false;
- }
- if(!btn.classList.contains('swe-right-disabled')&&!btn.classList.contains('disabled-tab')){
+ if(btn.dataset.sweMobileRightsOwnDisabled==='1')delete btn.dataset.sweMobileRightsOwnDisabled;
+ if(btn.classList.contains('disabled-tab'))btn.disabled=true;
+ else if(!btn.classList.contains('swe-right-disabled')){
+   btn.disabled=false;
    btn.setAttribute('aria-disabled','false');
    if(btn.title==='Non autorisé par l’administrateur')btn.removeAttribute('title');
  }
@@ -91,4 +94,5 @@ window.addEventListener('pageshow',()=>setTimeout(apply,120));
 document.addEventListener('swe:rendered',()=>setTimeout(apply,60));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(apply,120)});
 [0,180,450,900,1600,2800,4500].forEach(ms=>setTimeout(apply,ms));
+window.SWEApplyMobileCoorgRights=apply;
 })();
