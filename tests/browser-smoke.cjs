@@ -128,6 +128,19 @@ async function checkMobileCoorgRights(context,base){
  assert.equal(await page.locator('[data-view="permissions"]').getAttribute('aria-disabled'),'true');
  await page.close();console.log('Mobile co-manager tabs use live permissions, stay visible in grey and explain denied access: OK');
 }
+async function checkPlayerRatingMobile(context,base){
+ const source=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ for(const cls of ['player-rating-card','player-rating-criteria','player-rating-field','player-rating-role','player-rating-progress'])assert.match(source,new RegExp(cls));
+ const page=await context.newPage();
+ await page.setContent('<!doctype html><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="'+base+'/styles.css"><link rel="stylesheet" href="'+base+'/player-rating-ui.css"><main class="app"><article class="player" style="max-width:480px"><h3>Alex L</h3><div class="player-rating-card"><div class="player-rating-head"><div class="player-rating-title-row"><b>⚽ Mon évaluation</b><span class="player-rating-private">🔒 CONFIDENTIEL</span></div><div class="muted small player-rating-scale">1 à renforcer · 2 moyen · 3 bon · 4 très bon · 5 excellent</div><div class="player-rating-balance">⚖️ Ces critères alimentent la création des équipes équilibrées.</div><div class="player-rating-verdict"><b>🕵️ Verdict collectif</b><strong>2.3/5</strong></div></div><div class="player-rating-criteria">'+['❤️ Cardio','🪄 Dribble','🤝 Collectif','🎯 Frappe'].map((label,i)=>'<label class="player-rating-field '+(i<3?'is-filled':'')+'"><span class="player-rating-label">'+label+'</span><select class="player-rating-select"><option>'+(i===1?'1/5 · À renforcer':'3/5 · Bon')+'</option></select></label>').join('')+'</div><label class="player-rating-role is-filled"><span class="player-rating-label">🧭 Rôle de prédilection</span><select class="player-rating-select"><option>🛡️ Défenseur</option></select></label><div class="player-rating-progress"><div><span>Préparation de l’évaluation</span><b>4/5</b></div><span class="player-rating-progress-track"><i style="width:80%"></i></span></div><button class="primary" style="width:100%;margin-top:10px">💾 Mettre à jour mon évaluation</button></div></article></main>');
+ const fields=page.locator('.player-rating-field');assert.equal(await fields.count(),4);
+ assert.ok(await fields.evaluateAll(nodes=>Math.abs(nodes[0].getBoundingClientRect().top-nodes[1].getBoundingClientRect().top)<1),'Two compact rating tiles stay on the same row');
+ assert.ok(await page.locator('.player-rating-select').evaluateAll(selects=>selects.every(s=>{const r=s.getBoundingClientRect(),p=s.parentElement.getBoundingClientRect();return r.left>=p.left-1&&r.right<=p.right+1})),'Every rating select stays inside its tile');
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Rating card has no mobile horizontal overflow');
+ assert.ok(await page.locator('.player-rating-progress-track').evaluate(e=>Math.abs(e.firstElementChild.getBoundingClientRect().width-e.getBoundingClientRect().width*.8)<1));
+ await page.screenshot({path:path.join(screenshotDir,'player-rating-mobile-360.png'),fullPage:true});await page.close();
+ console.log('Mobile player rating tiles, selects, balance cue and progress: OK');
+}
 const sdk='('+installMock.toString()+')('+JSON.stringify(snapshot)+','+JSON.stringify({user:id(99),token,current,past,match})+','+JSON.stringify(require('./king-rule-fixtures.json'))+');';
 new (require('node:vm').Script)(sdk);
 async function checkScoreLayout(page){
@@ -242,6 +255,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await checkPlayerCards(context,base,viewport.width);
    await checkHomeShop(context,base,viewport.width);
    if(viewport.width===360)await checkMobileCoorgRights(context,base);
+   if(viewport.width===360)await checkPlayerRatingMobile(context,base);
    await page.goto(base+'/?s=TESTCODE');
    await page.locator('#chooseSoloMode').waitFor({state:'visible'});
    await page.locator('#chooseSoloMode').click();

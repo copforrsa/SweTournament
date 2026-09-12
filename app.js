@@ -2350,26 +2350,29 @@ function renderPlayers(){
     }
     if(S.workspaceFeatures.player_ratings_enabled&&(isAdmin()||isCoorg())&&!(isCoorg()&&S.myLinkedPlayerId&&String(S.myLinkedPlayerId)===String(x.id))){
       const existing=S.myRatings.find(r=>r.player_id===x.id);
-      const rate=document.createElement('div');rate.className='player-skill-review';rate.style.cssText='margin-top:8px;padding:9px 10px;border:1px solid #dce9e1;border-radius:13px;background:#f8fcfa';
+      const rate=document.createElement('div');rate.className='player-skill-review player-rating-card';
       const aggregate=playerSkillAggregate(x.id);
-      const aggText=aggregate&&Number(aggregate.voter_count)>0?(isCoorg()?'<div style="margin-top:5px"><b>🕵️ Verdict des co-gestionnaires : '+Number(aggregate.avg_rating).toFixed(1)+'/5</b></div>':'<div style="margin-top:5px"><b>🕵️ Verdict des co-gestionnaires : '+Number(aggregate.avg_rating).toFixed(1)+'/5</b> • '+aggregate.voter_count+' évaluation'+(Number(aggregate.voter_count)>1?'s':'')+'</div>'):'<div style="margin-top:5px">📊 Pas encore assez d’avis pour une moyenne.</div>';
-      const title=document.createElement('div');title.innerHTML='<b>⚽ Mon évaluation confidentielle</b><div class="muted small">1 = à renforcer • 2 = moyen • 3 = bon • 4 = très bon • 5 = excellent.</div>'+aggText;
-      const criteria=document.createElement('div');criteria.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px';
+      const aggText=aggregate&&Number(aggregate.voter_count)>0?(isCoorg()?'<div class="player-rating-verdict"><b>🕵️ Verdict collectif</b><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong></div>':'<div class="player-rating-verdict"><b>🕵️ Verdict collectif</b><span><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong> • '+aggregate.voter_count+' évaluation'+(Number(aggregate.voter_count)>1?'s':'')+'</span></div>'):'<div class="player-rating-verdict is-empty">📊 Pas encore assez d’avis pour une moyenne.</div>';
+      const title=document.createElement('div');title.className='player-rating-head';title.innerHTML='<div class="player-rating-title-row"><b>⚽ Mon évaluation</b><span class="player-rating-private">🔒 CONFIDENTIEL</span></div><div class="muted small player-rating-scale">1 à renforcer · 2 moyen · 3 bon · 4 très bon · 5 excellent</div><div class="player-rating-balance">⚖️ Ces critères alimentent la création des équipes équilibrées.</div>'+aggText;
+      const criteria=document.createElement('div');criteria.className='player-rating-criteria';
       const values={};
       const labels={cardio:'❤️ Cardio',dribble:'🪄 Dribble',collectif:'🤝 Collectif',frappe:'🎯 Frappe'};
       const levelText={1:'À renforcer',2:'Moyen',3:'Bon',4:'Très bon',5:'Excellent'};
       Object.entries(labels).forEach(([key,txt])=>{
-        const wrap=document.createElement('label');wrap.style.cssText='display:flex;align-items:center;gap:7px;padding:6px 7px;background:white;border:1px solid #e4eee8;border-radius:10px;min-height:42px';
-        const cap=document.createElement('div');cap.style.cssText='font-weight:700;flex:1;white-space:nowrap';cap.textContent=txt;
-        const sel=document.createElement('select');sel.style.cssText='width:auto;min-width:120px;padding:6px 7px;min-height:34px';sel.innerHTML='<option value="">—</option>'+[1,2,3,4,5].map(n=>'<option value="'+n+'">'+n+'/5 • '+levelText[n]+'</option>').join('');
+        const wrap=document.createElement('label');wrap.className='player-rating-field';
+        const cap=document.createElement('span');cap.className='player-rating-label';cap.textContent=txt;
+        const sel=document.createElement('select');sel.className='player-rating-select';sel.setAttribute('aria-label',txt);sel.innerHTML='<option value="">—</option>'+[1,2,3,4,5].map(n=>'<option value="'+n+'">'+n+'/5 · '+levelText[n]+'</option>').join('');
         if(existing?.[key])sel.value=String(existing[key]);
         values[key]=sel;wrap.append(cap,sel);criteria.appendChild(wrap);
       });
-      const roleWrap=document.createElement('label');roleWrap.style.cssText='display:flex;align-items:center;gap:8px;margin-top:7px;padding:6px 7px;background:white;border:1px solid #e4eee8;border-radius:10px';
-      roleWrap.innerHTML='<div style="font-weight:700;flex:1">🧭 Rôle de prédilection</div>';
-      const role=document.createElement('select');role.style.cssText='width:auto;min-width:170px;padding:6px 7px;min-height:34px';
+      const roleWrap=document.createElement('label');roleWrap.className='player-rating-role';
+      roleWrap.innerHTML='<span class="player-rating-label">🧭 Rôle de prédilection</span>';
+      const role=document.createElement('select');role.className='player-rating-select';role.setAttribute('aria-label','Rôle de prédilection');
       role.innerHTML='<option value="">Choisir…</option><option value="defenseur">🛡️ Défenseur</option><option value="metronome">🎼 Métronome</option><option value="ratisseur">🧹 Ratisseur</option><option value="finisseur">🥅 Finisseur</option><option value="dribbleur">🪄 Dribbleur</option><option value="frappeur">💥 Frappeur</option><option value="top_player">⭐ Top player</option>';
       if(existing?.preferred_role)role.value=existing.preferred_role;roleWrap.appendChild(role);
+      const progress=document.createElement('div');progress.className='player-rating-progress';progress.innerHTML='<div><span>Préparation de l’évaluation</span><b>0/5</b></div><span class="player-rating-progress-track"><i></i></span>';
+      const updateProgress=()=>{const done=[...Object.values(values),role].filter(control=>control.value).length;progress.querySelector('b').textContent=done+'/5';progress.querySelector('i').style.width=(done*20)+'%';progress.classList.toggle('is-complete',done===5);Object.values(values).forEach(control=>control.closest('.player-rating-field')?.classList.toggle('is-filled',!!control.value));roleWrap.classList.toggle('is-filled',!!role.value);};
+      [...Object.values(values),role].forEach(control=>control.addEventListener('change',updateProgress));updateProgress();
       const send=document.createElement('button');send.textContent=existing?'💾 Mettre à jour mon évaluation':'💾 Enregistrer mon évaluation';send.className='primary';send.style.cssText='width:100%;margin-top:10px';
       send.onclick=async()=>{
         const payload={p_player_id:x.id,p_cardio:Number(values.cardio.value),p_dribble:Number(values.dribble.value),p_collectif:Number(values.collectif.value),p_frappe:Number(values.frappe.value),p_preferred_role:role.value};
@@ -2389,7 +2392,7 @@ function renderPlayers(){
         send.disabled=false;toast('Évaluation de '+x.name+' enregistrée 🔒 • moyenne mise à jour');
         renderPlayers();
       };
-      rate.append(title,criteria,roleWrap,send);d.appendChild(rate);
+      rate.append(title,criteria,roleWrap,progress,send);d.appendChild(rate);
     }
     box.appendChild(d);
   })
