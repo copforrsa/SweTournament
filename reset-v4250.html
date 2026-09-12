@@ -10,12 +10,6 @@
 </head>
 <body>
 <div class="box"><div class="spin"></div><h1>Actualisation SWÉ</h1><p>Suppression des anciennes versions en cache…</p><small>Ta connexion et tes préférences sont conservées.</small></div>
-<script>
-(async()=>{
-  try{if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}}catch(e){}
-  try{if(window.caches){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}}catch(e){}
-  setTimeout(()=>location.replace('/?refresh='+Date.now()),350);
-})();
-</script>
+<script src="/cache-recovery.js?v=4376" defer></script>
 <script src="/public-history-views-v4363.js?v=4376" defer></script></body>
 </html>
