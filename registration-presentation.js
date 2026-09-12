@@ -38,6 +38,8 @@ function mount(ctx){
  const donor=E('publicThirdHalfDonorCard');if(donor)body.querySelector('.sp-main').append(donor);
  const mission=document.createElement('section');mission.id='registrationMissions';mission.className='sp-missions';mission.hidden=true;E('publicSelectedStatus')?.after(mission);
  const playerPanel=document.createElement('section');playerPanel.id='registrationPlayerStats';playerPanel.className='sp-player-stats';playerPanel.hidden=true;E('publicSelectedStatus')?.after(playerPanel);
+ const participationActions=E('publicParticipationActions');
+ if(participationActions&&E('publicSelectedStatus')){E('publicSelectedStatus').after(participationActions);participationActions.after(playerPanel);playerPanel.after(mission);}
  let ratingResult=null,ratingPlayer=null,ratingState='',ratingSequence=0;
  async function loadSelectedRating(){
   const pid=select?.value,sequence=++ratingSequence;ratingResult=null;ratingPlayer=pid;ratingState=pid?'loading':'';updatePlayerStats();
@@ -86,15 +88,19 @@ function mount(ctx){
  function updateMissions(){
   const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
   const co=d.isCoorganizer===true||(d.coorganizers||[]).includes(pid);const items=[];
-  if(!co){mission.hidden=false;setHtml(mission,'<div class="sp-eyebrow">ÉQUIPE D’ORGANISATION</div><h3>Tu es co-gestionnaire ?</h3><p>Connecte-toi avec ton compte co-gestionnaire pour retrouver les consignes qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(ctx.appUrl)+'" target="_blank" rel="noopener">Me connecter à mon espace ↗</a>');return;}
+  const organizerUrl=(()=>{try{const u=new URL(ctx.appUrl,location.href);if(t.workspace_id)u.searchParams.set('workspace',t.workspace_id);u.searchParams.set('start','home');return u.toString()}catch(_){return ctx.appUrl}})();
+  if(!co){mission.hidden=false;setHtml(mission,'<div class="sp-eyebrow">ÉQUIPE D’ORGANISATION</div><h3>Tu es co-gestionnaire ?</h3><p>Connecte-toi avec ton compte co-gestionnaire pour retrouver les consignes qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Me connecter à mon espace →</a>');return;}
   if(co){
+   if(String(d.personalInstruction||'').trim())items.push('Consigne personnalisée : '+String(d.personalInstruction).trim());
    if(b.observe===true&&t.status!=='finished')items.push('Surveillez les nouveaux joueurs pour leur donner une note.');
    if(b.evening===true)items.push(t.team_review_status==='approved'?'La composition des équipes est validée.':t.team_review_status==='pending'?'Ton avis est demandé sur la composition proposée. Connecte-toi à ton espace pour participer à la validation.':'Ton avis sera demandé dans la soirée pour valider la composition des équipes.');
    if(b.rating===true){const w=d.ratingWindows?.find(w=>w.tournament_id===t.id),expired=w&&(w.status==='closed'||Date.parse(w.closes_at)<=Date.now());items.push(expired?'La période de notation de 48 h est terminée.':t.status==='finished'&&w?'Pense à te connecter pour noter les joueurs. La notation est ouverte jusqu’au '+dateTime(w.closes_at)+'.':'Pense à te connecter pour noter les joueurs à la fin du tournoi. Le lien sera valable 48 h après sa clôture officielle.');}
   }
   if(!items.length)items.push('Aucune consigne spécifique pour le moment. Consulte ton espace organisateur pour retrouver tes actions disponibles.');
   mission.hidden=false;
-  setHtml(mission,'<div class="sp-eyebrow">CO-GESTIONNAIRE</div><h3>Tes consignes pour ce tournoi</h3><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><a class="sp-button sp-secondary" href="'+esc(ctx.appUrl)+'" target="_blank" rel="noopener">Ouvrir mon espace organisateur ↗</a>');
+  const storageKey='swe-coorg-instructions-'+t.id;let open=true;try{open=localStorage.getItem(storageKey)!=='closed'}catch(_){}
+  setHtml(mission,'<details class="sp-coorg-instructions" '+(open?'open':'')+'><summary>📣 Tes consignes de co-gestionnaire</summary><div class="sp-coorg-instructions-body"><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace organisateur →</a></div></details>');
+  const details=mission.querySelector('.sp-coorg-instructions');if(details&&!details.dataset.wired){details.dataset.wired='1';details.addEventListener('toggle',()=>{try{localStorage.setItem(storageKey,details.open?'open':'closed')}catch(_){}});}
  }
  let kingRules=null,ruleKey='',ruleAt=0,ruleSequence=0;
  function refreshRules(d){
