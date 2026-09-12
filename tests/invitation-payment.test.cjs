@@ -11,7 +11,7 @@ function setup(){
   registrations:[{tournament_id:'tour',player_id:'alice',present:true},{tournament_id:'tour',player_id:'bob',present:true}],
   regTour:{id:'tour',status:'draft',entry_fee_cents:900},token:'public-token',
   sb:{rpc:async name=>({data:name.endsWith('choice_status')?{}:{available:true,entry_fee_cents:900,total_cents:950,payment_status:'unpaid'}})},
-  onsiteStandardPriceCents:()=>900,Number,Date,URL,location:{href:'https://example.invalid/'},toast:()=>{}
+  Number,Date,URL,location:{href:'https://example.invalid/'},toast:()=>{}
  });
  vm.runInContext(code,context);
  return {box,select,context,render:()=>context.renderPublicPaymentBox()};
@@ -50,4 +50,8 @@ test('legacy modules leave app-owned payment markup untouched',async()=>{
   const c=vm.createContext({document:{getElementById:()=>box}});vm.runInContext(source.slice(source.indexOf(start),source.indexOf(end)),c);
   const name=start.match(/function (\w+)/)[1];await assert.doesNotReject(()=>c[name]());assert.equal(box.innerHTML,'Paid');
  }
+});
+
+test('missing onsite price does not suppress checkout or invent a price',async()=>{
+ const p=setup();await p.render();assert.match(p.box.innerHTML,/id="publicPayEntry"/);assert.match(p.box.innerHTML,/Tarif à confirmer/);
 });
