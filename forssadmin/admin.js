@@ -75,9 +75,17 @@ async function renderMatchTests(){
  try{
   const [accounts,runs]=await Promise.all([rpc('super_admin_get_test_match_accounts'),rpc('super_admin_list_test_matches')]);if(active!=='matchtests'||!ready)return;
   E('content').innerHTML=head('Match test','Sélectionne de 2 à 12 comptes avec un ID SWÉ. Un seul match est créé, avec deux équipes. Les performances réelles des joueurs sont préservées.','<button class="btn ghost" id="testRefresh">↻ Actualiser</button>')+
-   '<div class="card"><label class="form-field"><span>Rechercher un compte</span><input id="testSearch" placeholder="Nom ou ID SWÉ"></label><div class="actions" style="margin:10px 0"><span id="testAccountCount" class="muted"></span><button type="button" class="btn ghost" id="testExpandAccounts" aria-controls="testAccounts" aria-expanded="false">Afficher tous les comptes</button></div><div id="testAccounts" style="max-height:260px;overflow:auto" tabindex="0" aria-label="Comptes disponibles pour le match test"></div><div class="actions" style="margin-top:12px"><b id="testSelectionCount"></b><button class="btn primary" id="testCreate">Créer 1 match test</button></div><div id="testCreateError" class="error"></div></div><div id="testMatchPanel"></div><div class="card" style="margin-top:16px"><h3>Matchs tests récents</h3><div id="testRuns">'+runs.map(r=>'<div class="pitch-row"><span>'+esc(dt(r.created_at))+' • '+r.player_count+' joueurs • '+esc(r.status)+' • '+r.home_score+' – '+r.away_score+'</span><button class="btn ghost" data-open-test="'+esc(r.id)+'">Ouvrir</button></div>').join('')+'</div></div>';
+   '<div class="card"><label class="form-field"><span>Rechercher un compte</span><input id="testSearch" placeholder="Nom ou ID SWÉ"></label><div class="actions" style="margin:10px 0"><span id="testAccountCount" class="muted"></span><button type="button" class="btn ghost" id="testExpandAccounts" aria-controls="testAccounts" aria-expanded="false">Afficher tous les comptes</button></div><div id="testAccounts" style="max-height:260px;overflow:auto" tabindex="0" aria-label="Comptes disponibles pour le match test"></div><div class="actions" style="margin-top:12px"><b id="testSelectionCount"></b><button type="button" class="btn primary" id="testCreate" aria-describedby="testCreateHint">Créer 1 match test</button></div><p id="testCreateHint" class="muted" role="status"></p><div id="testCreateError" class="error" role="alert"></div></div><div id="testMatchPanel"></div><div class="card" style="margin-top:16px"><h3>Matchs tests récents</h3><div id="testRuns">'+runs.map(r=>'<div class="pitch-row"><span>'+esc(dt(r.created_at))+' • '+r.player_count+' joueurs • '+esc(r.status)+' • '+r.home_score+' – '+r.away_score+'</span><button class="btn ghost" data-open-test="'+esc(r.id)+'">Ouvrir</button></div>').join('')+'</div></div>';
   const valid=new Set(accounts.map(a=>a.swe_id));testSelected=new Set([...testSelected].filter(id=>valid.has(id)));
-  const count=()=>{E('testSelectionCount').textContent=testSelected.size+' compte(s) sélectionné(s)';E('testCreate').disabled=testCreating||testSelected.size<2||testSelected.size>12};
+  const selectionHint=()=>testSelected.size<2?'Coche encore '+(2-testSelected.size)+' compte'+(testSelected.size===0?'s':'')+' dans la liste pour créer le match (2 à 12 participants).':testSelected.size>12?'Maximum 12 participants : décoche '+(testSelected.size-12)+' compte'+(testSelected.size>13?'s':'')+'.':'Prêt : '+testSelected.size+' participants seront répartis dans deux équipes.';
+  const count=()=>{
+   const button=E('testCreate');if(!button)return;
+   E('testSelectionCount').textContent=testSelected.size+' compte'+(testSelected.size>1?'s':'')+' sélectionné'+(testSelected.size>1?'s':'');
+   const hint=testCreating?'Création du match en cours…':selectionHint();
+   E('testCreateHint').textContent=hint;button.title=hint;button.disabled=testCreating;button.style.cursor=testCreating?'progress':'pointer';button.textContent=testCreating?'Création en cours…':'Créer 1 match test';button.setAttribute('aria-busy',String(testCreating));
+   E('testAccounts').querySelectorAll('input').forEach(input=>input.disabled=testCreating);
+   for(const id of ['testSearch','testRefresh','testExpandAccounts'])if(E(id))E(id).disabled=testCreating;
+  };
   let showAllAccounts=false;
   const draw=()=>{
    const q=E('testSearch').value.trim().toLocaleLowerCase('fr'),matching=accounts.filter(a=>(a.name+' '+a.swe_id).toLocaleLowerCase('fr').includes(q));
@@ -85,16 +93,24 @@ async function renderMatchTests(){
    const expand=E('testExpandAccounts');expand.hidden=matching.length<=6;expand.textContent=showAllAccounts?'Réduire la liste':'Afficher tous les comptes';expand.setAttribute('aria-expanded',String(showAllAccounts));
    E('testAccounts').style.maxHeight=showAllAccounts?'none':'260px';
    E('testAccounts').innerHTML=matching.map(a=>'<label class="check-line"><input type="checkbox" data-test-account="'+esc(a.swe_id)+'" '+(testSelected.has(a.swe_id)?'checked':'')+'><span>'+esc(a.name)+' <b>'+esc(a.swe_id)+'</b></span></label>').join('')||'<p>Aucun compte correspondant.</p>';
-   E('testAccounts').querySelectorAll('[data-test-account]').forEach(b=>b.onchange=()=>{if(b.checked)testSelected.add(b.dataset.testAccount);else testSelected.delete(b.dataset.testAccount);testRequestId=null;count()});count();
+   E('testAccounts').querySelectorAll('[data-test-account]').forEach(b=>b.onchange=()=>{if(b.checked)testSelected.add(b.dataset.testAccount);else testSelected.delete(b.dataset.testAccount);testRequestId=null;E('testCreateError').textContent='';count()});count();
   };
   E('testExpandAccounts').onclick=()=>{showAllAccounts=!showAllAccounts;draw()};
   E('testSearch').oninput=draw;E('testRefresh').onclick=renderMatchTests;draw();
   E('content').querySelectorAll('[data-open-test]').forEach(b=>b.onclick=()=>openTestMatch(b.dataset.openTest));
   E('testCreate').onclick=async()=>{
-   if(testCreating)return;testCreating=true;count();E('testCreateError').textContent='';testRequestId||=crypto.randomUUID();
-   try{const id=await rpc('super_admin_create_test_match',{p_swe_ids:[...testSelected],p_request_id:testRequestId});testRequestId=null;await renderMatchTests();await openTestMatch(id)}
+   if(testCreating)return;
+   E('testCreateError').textContent='';
+   if(testSelected.size<2||testSelected.size>12){E('testCreateError').textContent=selectionHint();E('testAccounts').focus();return}
+   testCreating=true;count();
+   try{
+    testRequestId||=crypto.randomUUID();
+    const id=await rpc('super_admin_create_test_match',{p_swe_ids:[...testSelected],p_request_id:testRequestId});
+    testRequestId=null;if(active!=='matchtests')return;
+    await renderMatchTests();await openTestMatch(id);
+   }
    catch(e){if(E('testCreateError'))E('testCreateError').textContent=e.message}
-   finally{testCreating=false;if(E('testCreate'))E('testCreate').disabled=testSelected.size<2||testSelected.size>12}
+   finally{testCreating=false;count()}
   };
  }catch(e){if(active==='matchtests')E('content').innerHTML='<div class="card error">'+esc(e.message)+'</div>'}
 }
