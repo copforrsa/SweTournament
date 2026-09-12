@@ -5010,15 +5010,17 @@ async function loadPublicPage(token,bootState){
   }
   const regBox=$('#publicRegistration');
   let registrationPresentation=null;
-  let registrationCoorganizers=[],registrationRatingWindows=[];
+  let registrationCoorganizers=[],registrationRatingWindows=[],registrationIsCoorganizer=false;
   let presentationMetadataAt=0;
   async function loadPresentationMetadata(){
     if(!regTour||regTour.format==='league'||Date.now()-presentationMetadataAt<30000)return;
     presentationMetadataAt=Date.now();
     const session=await sb.auth.getSession();
-    if(!session.data?.session)return;
+    registrationIsCoorganizer=false;registrationCoorganizers=[];registrationRatingWindows=[];
+    if(!session.data?.session){registrationPresentation?.updateMissions();return;}
     const {data,error}=await sb.rpc('get_my_tournament_presentation_v1',{p_tournament_id:regTour.id});
-    if(error||!data)return;
+    if(error||!data){registrationPresentation?.updateMissions();return;}
+    registrationIsCoorganizer=data.is_coorganizer===true;
     registrationCoorganizers=data.is_coorganizer&&data.my_player_id?[data.my_player_id]:[];registrationRatingWindows=data.tournament_rating_windows||[];
     registrationPresentation?.updateMissions();
   }
@@ -5211,7 +5213,7 @@ async function loadPublicPage(token,bootState){
       '<div class="space"></div><select id="publicPlayerSelect"><option value="">Choisis ton nom</option></select>'+
       '<div id="publicSelectedStatus" class="muted" style="margin-top:7px">Choisis ton nom pour voir ton statut.</div><div class="muted" style="margin-top:5px">Si un autre joueur t’a proposé une équipe, les boutons <b>Accepter</b> / <b>Refuser</b> apparaîtront ici après sélection de ton nom.</div><div id="publicTeamInvitationDecision" class="hidden" style="margin-top:10px"></div>'+
       '<div class="space"></div><div class="row"><button id="publicJoin" class="primary">✅ Je participe</button><button id="publicLeave">❌ Je ne participe pas</button></div>'+
-      '<div id="publicPaymentBox" class="hidden" style="margin-top:12px"></div>'+
+      '<div id="publicPaymentBox" data-payment-controller="app" class="hidden" style="margin-top:12px"></div>'+
       (regTour.format==='league'
         ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>🆕 Première fois ?</b><div class="muted" style="margin:5px 0 8px">Tu n’es pas encore membre du groupe ? Entre ton nom pour t’inscrire à cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton prénom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">M’inscrire pour la première fois</button></div>'
         : '<div class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa"><b>🤝 Tu ne participes pas mais tu invites quelqu’un ?</b><div class="muted" style="margin-top:6px;line-height:1.6">Aucun problème : <b>sélectionne simplement ton nom</b> dans la liste ci-dessus, sans cliquer sur « Je participe », puis saisis le nom de ton invité ci-dessous. Ton invité sera rattaché à ton nom et <b>toi, tu ne seras pas inscrit au tournoi</b>.</div></div>')+
@@ -5343,13 +5345,10 @@ async function loadPublicPage(token,bootState){
       const box=$('#publicPaymentBox');
       if(!box)return;
       const pid=$('#publicPlayerSelect')?.value;
-      if(!pid){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
+      if(!pid||regTour.status==='finished'){++publicPaymentSeq;publicPaymentLoadingFor=null;publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
       const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
       if(!reg){
-        if(options.backgroundRefresh&&publicPaymentCache.playerId===pid&&publicPaymentCache.html){
-          applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
-          return;
-        }
+        ++publicPaymentSeq;publicPaymentLoadingFor=null;
         publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;
       }
       if(publicPaymentLoadingFor===pid)return;
@@ -5366,8 +5365,8 @@ async function loadPublicPage(token,bootState){
           sb.rpc('public_tournament_payment_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid}),
           sb.rpc('public_tournament_payment_choice_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid})
         ]);
-        if(seq!==publicPaymentSeq)return;
-        if(error){if(!publicPaymentCache.html)box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
+        if(seq!==publicPaymentSeq||$('#publicPlayerSelect')?.value!==pid||!box.isConnected)return;
+        if(error||choiceError){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
         const st=data||{};
         if(st.reason==='waitlist'){
           const html='<b>🟠 Paiement en attente de confirmation</b><div class="muted" style="margin-top:5px;line-height:1.6">Tu es actuellement remplaçant. Le paiement sera proposé automatiquement lorsqu’une place confirmée se libérera.</div>';
@@ -5442,7 +5441,7 @@ async function loadPublicPage(token,bootState){
       }catch(e){
         if(seq===publicPaymentSeq&&!publicPaymentCache.html)box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';
       }finally{
-        if(publicPaymentLoadingFor===pid)publicPaymentLoadingFor=null;
+        if(seq===publicPaymentSeq&&publicPaymentLoadingFor===pid)publicPaymentLoadingFor=null;
       }
     }
 
@@ -6289,7 +6288,7 @@ async function loadPublicPage(token,bootState){
   });
   if(!finishedHistory.length)pubHist.innerHTML='<p class="muted">Aucun tournoi terminé dans cette saison.</p>';
   if(regTour&&regTour.format!=='league'&&window.SWERegistrationPresentation){
-    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},loadRules:async()=>{const {data,error}=await sb.rpc('get_public_tournament_king_rules',{p_token:token,p_tournament_id:regTour.id});if(error)throw error;return data;},standings:tournamentStandings,rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,seasons,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
+    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},loadRules:async()=>{const {data,error}=await sb.rpc('get_public_tournament_king_rules',{p_token:token,p_tournament_id:regTour.id});if(error)throw error;return data;},standings:tournamentStandings,rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,seasons,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,isCoorganizer:registrationIsCoorganizer,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
     refreshSeasonRankings();
     updateTournamentCountdowns();
     loadPresentationMetadata().catch(()=>{});

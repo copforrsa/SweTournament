@@ -68,3 +68,29 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 
 .swe-top-five{background:linear-gradient(145deg,#fffdf5,#f2f7fc);border:1px solid #dfcf9d!important;min-width:0;overflow:hidden}.swe-top-five .top-five-heading{background:linear-gradient(120deg,#102541,#164f6f);color:#fff;padding:18px;border-radius:14px;margin-bottom:16px}.top-five-heading small{color:#f4d46e;font-weight:800;letter-spacing:.12em}.top-five-heading h2{color:#fff!important;font-size:21px;margin:5px 0}.top-five-heading p{color:#d8e5ee;font-size:12px;margin:0;overflow-wrap:anywhere}.swe-top-five ol{list-style:none;padding:0;margin:0;display:grid;gap:10px}.swe-top-five li{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:13px 10px;border-radius:12px;background:#fff;border:1px solid #e2e9ed}.swe-top-five li:nth-child(1){background:#fff5cd;border-color:#e4c157}.swe-top-five li:nth-child(2){background:#f1f5f9;border-color:#bdcbd6}.swe-top-five li:nth-child(3){background:#fff0e5;border-color:#dec2a8}.swe-top-five .top-five-rank{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#153751;color:white;font-weight:900}.swe-top-five .top-five-name{font-weight:850;color:#153751;overflow-wrap:anywhere}.swe-top-five .top-five-detail{display:block;font-size:11px;color:#506779;margin-top:5px;font-weight:500}.swe-top-five .top-five-score{color:#123f5e;font-size:21px;font-weight:900;white-space:nowrap}.swe-top-five .top-five-score small{font-size:11px;font-weight:600}.swe-top-five .top-five-caption{font-size:11px;color:#607183;margin:14px 0 0}
 @media(min-width:621px) and (max-width:950px){.sp-season-rankings{grid-template-columns:repeat(2,minmax(0,1fr))}.swe-top-five{grid-column:1/-1}}
+
+/* Player passport: clear scores, a distinct season record, and staff guidance. */
+#publicView.swe-premium .sp-player-stats{padding:0;overflow:hidden;background:#fff;border:1px solid #ccdae6;box-shadow:0 12px 28px #142e4510}
+.sp-player-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px;background:linear-gradient(115deg,#102139,#164c61);color:#fff}
+.sp-player-heading .sp-eyebrow{color:#e7c879;font-size:.75rem;letter-spacing:.12em;margin-bottom:8px}
+#publicView.swe-premium .sp-player-heading h3{color:#fff;font-size:1.4rem;line-height:1.3;margin:0;overflow-wrap:anywhere}
+.sp-season-tag{max-width:45%;font-size:.75rem;line-height:1.5;color:#dceaf1;border:1px solid #628496;border-radius:8px;padding:7px 10px;overflow-wrap:anywhere}
+#publicView.swe-premium .sp-player-stats .sp-rating-grid{gap:12px;padding:18px 18px 0;grid-template-columns:repeat(2,minmax(0,1fr))}
+#publicView.swe-premium .sp-rating-grid .sp-score-card{padding:18px;background:#f1f4fd;border:1px solid #d9dff1;color:#353e83;min-width:0}
+#publicView.swe-premium .sp-rating-grid .sp-match-rating{background:#eef8f4;border-color:#cee7dd;color:#176348}
+#publicView.swe-premium .sp-score-card .sp-score-label{font-size:.875rem;font-weight:750;line-height:1.5;overflow-wrap:anywhere}
+.sp-score-value{font-size:2.5rem;font-weight:850;letter-spacing:-.05em;line-height:1.2;margin:14px 0;display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.sp-score-value small{font-size:1rem;font-weight:600;letter-spacing:0;opacity:.8}
+.sp-score-value.sp-score-empty{font-size:1.125rem;letter-spacing:0;min-height:3rem;align-items:center}
+.sp-score-track{height:5px;border-radius:8px;background:#d8dfee;overflow:hidden}.sp-score-track i{display:block;height:100%;background:currentColor;border-radius:8px}
+.sp-match-rating .sp-score-track{background:#cce6d9}.sp-score-card p{font-size:.75rem;line-height:1.5;margin:10px 0 0;color:#4f6075}
+.sp-season-heading{padding:22px 18px 12px;font-size:.875rem;font-weight:750;color:#30475d}
+.sp-player-stats .sp-player-numbers{margin:0 18px 18px;gap:0;border:1px solid #dfe7ed;border-radius:12px;overflow:hidden;background:#f8fafc}
+.sp-player-numbers>div{padding:14px 6px;min-width:0}.sp-player-numbers>div+div{border-left:1px solid #dfe7ed}
+.sp-player-stats .sp-player-numbers strong{font-size:1.4rem;color:#17394f;line-height:1.4}.sp-player-stats .sp-player-numbers span{font-size:.75rem;line-height:1.4;overflow-wrap:anywhere}
+#publicView.swe-premium .sp-missions{padding:20px;border:1px solid #d6dce8;border-top:3px solid #4463a0;background:#f3f6fc;border-radius:14px}
+.sp-missions .sp-eyebrow{font-size:.75rem;color:#415c88}#publicView.swe-premium .sp-missions h3{font-size:1rem;line-height:1.4;margin-bottom:12px}
+.sp-missions p,.sp-missions li{font-size:1rem;line-height:1.6;color:#354c66}.sp-missions p{margin:0 0 14px}.sp-missions li{margin:10px 0}
+#publicView.swe-premium .sp-missions .sp-button{font-size:.875rem;min-height:44px;background:#e3eaf7;color:#284b7c;border-color:#bdcde4}
+@media(max-width:620px){#publicView.swe-premium .sp-player-stats .sp-rating-grid{grid-template-columns:1fr}.sp-player-heading{align-items:flex-start;flex-direction:column;padding:18px}.sp-season-tag{max-width:100%}.sp-score-value{font-size:2.25rem}}
+@media(max-width:450px){.sp-player-stats .sp-player-numbers{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:0}.sp-player-numbers>div:nth-child(odd){border-left:0}.sp-player-numbers>div:nth-child(n+3){border-top:1px solid #dfe7ed}.sp-player-numbers>div:last-child{grid-column:1/-1}}

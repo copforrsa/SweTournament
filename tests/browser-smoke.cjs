@@ -50,6 +50,8 @@ function installMock(data,ids,ruleRows){
     if(name==='super_admin_list_test_tournaments')return {data:window.__tournamentDeleted?[]:[{workspace_id:ids.current,tournament_id:ids.current,short_code:'TEST30',workspace_name:'TEST SWÉ — 30 joueurs',player_count:30,tournament_date:'2026-09-13',status:'draft'}]};
     if(name==='super_admin_create_test_tournament')return {data:{workspace_id:ids.current,tournament_id:ids.current,short_code:'TEST30'}};
     if(name==='get_public_workspace_snapshot_v2')return {data:window.__snapshot};
+    if(name==='public_tournament_payment_status'){const result=structuredClone(window.__paymentStatus||{available:false,reason:'free',entry_fee_cents:0});if(window.__delayPayment)await new Promise(r=>setTimeout(r,500));return {data:result};}
+    if(name==='public_tournament_payment_choice_status')return {data:window.__paymentChoice||{}};
     if(name==='get_my_tournament_presentation_v1')return {data:{my_player_id:data.players[0].id,is_coorganizer:true,tournament_rating_windows:window.__ratingWindows||[]}};
     if(name==='public_register_tournament_guest'){let p=window.__snapshot.players.find(p=>p.name.toLowerCase()===args.p_guest_name.toLowerCase());if(!p){p={id:fakeId(200),name:args.p_guest_name,active:true,is_group_member:false,guest_of_player_id:args.p_host_player_id};window.__snapshot.players.push(p)}window.__snapshot.tournament_players.push({tournament_id:args.p_tournament_id,player_id:p.id,present:true,registration_status:'confirmed',registered_by_player_id:args.p_host_player_id});return {data:{player_id:p.id,status:'confirmed'}};}
     if(name==='public_tournament_registration'){const reg=window.__snapshot.tournament_players.find(r=>r.player_id===args.p_player_id&&r.tournament_id===args.p_tournament_id);if(reg)reg.present=args.p_action==='join';return {data:{position:1,is_substitute:false}};}
@@ -218,9 +220,9 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await page.locator('#publicPlayerSelect').selectOption(players[0].id);
    await page.locator('#registrationPlayerStats').filter({hasText:'3,3 / 5'}).waitFor();
    assert.match(await page.locator('#registrationPlayerStats').innerText(),/Chien Boul Academy/);
-   assert.match(await page.locator('#registrationPlayerStats h3').innerText(),/Résultats de la saison/);
+   assert.match(await page.locator('#registrationPlayerStats .sp-season-heading').innerText(),/résultats de la saison/);
    assert.deepEqual(await page.locator('.sp-player-numbers strong').allTextContents(),['2','1','0','0','1']);
-   assert.match(await page.locator('#registrationPlayerStats').innerText(),/5,5 \/ 10/);
+   assert.match(await page.locator('#registrationPlayerStats').textContent(),/5,5 \/ 10/);
    await page.locator('#publicPlayerSelect').selectOption(players[1].id);await page.locator('.sp-academy').filter({hasText:'Non noté'}).waitFor();await page.locator('#publicPlayerSelect').selectOption(players[0].id);
    await page.locator('#publicGuestName').fill('Texte conservé');
    await page.evaluate(async token=>{await Promise.all([bootPublic(token),bootPublic(token),bootPublic(token)]);},token);
@@ -237,7 +239,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await page.locator('#publicAddGuest').click();await page.locator('#publicPreviousGuest option[value="'+id(50)+'"]').waitFor({state:'attached'});await page.waitForFunction(pid=>document.querySelector('#publicPreviousGuest option[value="'+pid+'"]').disabled,id(50));
    assert.equal(await page.evaluate(pid=>window.__snapshot.players.filter(p=>p.id===pid).length,id(50)),1);
    await page.locator('#publicGuestName').fill('Nouvel invité');await page.locator('#publicAddGuest').click();await page.locator('#publicRegisteredList').filter({hasText:'Nouvel invité'}).waitFor();
-   assert.equal(await page.locator('#registrationMissions').isVisible(),false);
+   assert.match(await page.locator('#registrationMissions').innerText(),/Connecte-toi/);
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Premium has no page overflow');
    await page.locator('#publicJoin').click();await page.locator('#registrationConfirmOk').click();
    assert.ok(await page.evaluate(({current,token})=>window.__calls.some(c=>c.name==='public_tournament_registration'&&c.args.p_tournament_id===current&&c.args.p_token===token&&c.args.p_action==='join'),{current,token}));
@@ -339,13 +341,36 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
   },snapshot);
   await normal.addScriptTag({content:fs.readFileSync(path.join(root,'match-engine-v4300.js'),'utf8')});await normal.locator('.swe4300-edit input').first().fill('3');await normal.locator('.swe4300-edit button').click();assert.deepEqual(await normal.evaluate(()=>window.__normalWrites.map(x=>x.values)),[{home_score:3,away_score:0}]);await normal.close();console.log('Normal match module and test viewer permissions: OK');
 
-  const premium=await context.newPage();premium.on('pageerror',e=>errors.push(e.message));await premium.addInitScript(()=>{window.__publicSession=true});await premium.goto(base+'/?s=TESTCODE');await premium.locator('#publicPlayerSelect').selectOption(players[0].id);await premium.locator('#registrationMissions').filter({hasText:'dans la soirée'}).waitFor();
+  const payment=await context.newPage();payment.on('pageerror',e=>errors.push(e.message));
+  await payment.addInitScript(()=>{window.__paymentStatus={available:true,entry_fee_cents:900,total_cents:950,service_fee_cents:50,payment_status:'unpaid'};});
+  await payment.goto(base+'/?s=TESTCODE');await payment.locator('#publicPlayerSelect').waitFor();
+  assert.equal(await payment.locator('#publicPaymentBox').isVisible(),false);
+  await payment.locator('#publicPlayerSelect').selectOption(players[0].id);await payment.locator('#publicPayEntry').waitFor();
+  await payment.waitForFunction(()=>window.__SWE_4283_STABILITY===true);
+  assert.equal(await payment.locator('[id^="swePayOnline"]').count(),0,'Legacy payment renderers must not overwrite app controller');
+  await payment.evaluate(()=>{window.__paymentChoice={manual_paid_at:'2026-09-12T10:00:00Z'}});
+  await payment.locator('#publicPlayerSelect').selectOption(players[1].id);await payment.locator('#publicPaymentBox').filter({hasText:'payée sur place'}).waitFor();
+  assert.equal(await payment.locator('#publicPaymentBox button').count(),0);
+  await payment.evaluate(()=>{window.__paymentChoice={payment_preference:'onsite'}});
+  await payment.locator('#publicPlayerSelect').selectOption(players[0].id);await payment.locator('#publicSwitchOnline').waitFor();
+  assert.equal(await payment.locator('#publicPayEntry').count(),0);
+  await payment.evaluate(()=>{window.__paymentChoice={};window.__delayPayment=true;});
+  await payment.locator('#publicPlayerSelect').selectOption(players[1].id);
+  await payment.locator('#publicPlayerSelect').selectOption('');await payment.waitForTimeout(700);
+  assert.equal(await payment.locator('#publicPaymentBox').isVisible(),false);assert.equal(await payment.locator('#publicPaymentBox button').count(),0,'Late response after deselection stays hidden');
+  await payment.locator('#publicPlayerSelect').selectOption(players[0].id);
+  await payment.evaluate(()=>{window.__paymentStatus={available:false,reason:'free',entry_fee_cents:0};window.__delayPayment=false;});
+  await payment.locator('#publicPlayerSelect').selectOption(players[1].id);await payment.waitForTimeout(700);
+  assert.equal(await payment.locator('#publicPaymentBox').isVisible(),false,'Previous unpaid player cannot overwrite free player');
+  await payment.close();console.log('Payment ownership, paid onsite, preference and stale responses: OK');
+
+  const premium=await context.newPage();premium.on('pageerror',e=>errors.push(e.message));await premium.addInitScript(()=>{window.__publicSession=true});await premium.goto(base+'/?s=TESTCODE');await premium.locator('#registrationMissions').filter({hasText:'dans la soirée'}).waitFor();
   await premium.evaluate(current=>{const now=new Date();const t=window.__snapshot.tournaments.find(t=>t.id===current);t.tournament_date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');t.registration_deadline=new Date(now.getTime()+60000).toISOString();},current);
   await premium.locator('#registrationMeta').filter({hasText:'Aujourd’hui'}).waitFor({timeout:12000});assert.match(await premium.locator('#registrationSummary').innerText(),/Aujourd’hui à/);
   await premium.evaluate(current=>{window.__snapshot.tournaments.find(t=>t.id===current).registration_deadline='2099-09-19T17:00:00Z'},current);
   await premium.locator('#publicGuestFields summary').click();await premium.locator('#publicGuestName').fill('Saisie à préserver');
   await premium.evaluate(({current,a,b})=>{const t=window.__snapshot.tournaments.find(t=>t.id===current);t.registration_briefing.general='';t.registration_briefing.observe=false;t.registration_briefing.evening=false;t.registration_briefing.rating=false;window.__snapshot.matches.push({id:'live-check',tournament_id:current,home_team_id:a,away_team_id:b,home_score:0,away_score:0,status:'live'});}, {current,a,b});
-  await premium.locator('#registrationLiveLink').waitFor({timeout:12000});assert.equal(await premium.locator('#publicView').getAttribute('data-stage'),'orange');assert.match(await premium.locator('#registrationPhaseCard').innerText(),/0 – 0/);assert.equal(await premium.locator('#publicGuestName').inputValue(),'Saisie à préserver');assert.equal(await premium.locator('#registrationGeneral').isVisible(),false);assert.equal(await premium.locator('#registrationMissions').isVisible(),false);
+  await premium.locator('#registrationLiveLink').waitFor({timeout:12000});assert.equal(await premium.locator('#publicView').getAttribute('data-stage'),'orange');assert.match(await premium.locator('#registrationPhaseCard').innerText(),/0 – 0/);assert.equal(await premium.locator('#publicGuestName').inputValue(),'Saisie à préserver');assert.equal(await premium.locator('#registrationGeneral').isVisible(),false);assert.match(await premium.locator('#registrationMissions').innerText(),/Aucune consigne spécifique/);
   assert.equal(new URL(premium.url()).searchParams.get('s'),'TESTCODE');assert.match(await premium.locator('#registrationLiveLink').getAttribute('href'),new RegExp('tournament='+current));
   await premium.screenshot({path:path.join(screenshotDir,'premium-production-live.png'),fullPage:true});
   await premium.evaluate(current=>{window.__snapshot.tournaments.find(t=>t.id===current).registration_open=false},current);await premium.locator('#publicJoin').waitFor({state:'hidden',timeout:12000});assert.equal(await premium.locator('#publicLeave').isVisible(),true);

@@ -3,6 +3,8 @@ name: Build WWW package
 on:
   push:
     branches: [ main, work/v43.65-match-reports ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
