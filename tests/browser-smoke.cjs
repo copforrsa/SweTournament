@@ -210,6 +210,8 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await page.locator('#publicPlayerSelect').selectOption(players[0].id);
    await page.locator('#registrationPlayerStats').filter({hasText:'3,3 / 5'}).waitFor();
    assert.match(await page.locator('#registrationPlayerStats').innerText(),/Chien Boul Academy/);
+   assert.match(await page.locator('#registrationPlayerStats h3').innerText(),/Résultats de la saison/);
+   assert.deepEqual(await page.locator('.sp-player-numbers strong').allTextContents(),['2','1','0','0','1']);
    assert.match(await page.locator('#registrationPlayerStats').innerText(),/5,5 \/ 10/);
    await page.locator('#publicPlayerSelect').selectOption(players[1].id);await page.locator('.sp-academy').filter({hasText:'Non noté'}).waitFor();await page.locator('#publicPlayerSelect').selectOption(players[0].id);
    await page.locator('#publicGuestName').fill('Texte conservé');
@@ -307,6 +309,9 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
   await normal.addScriptTag({content:fs.readFileSync(path.join(root,'match-engine-v4300.js'),'utf8')});await normal.locator('.swe4300-edit input').first().fill('3');await normal.locator('.swe4300-edit button').click();assert.deepEqual(await normal.evaluate(()=>window.__normalWrites.map(x=>x.values)),[{home_score:3,away_score:0}]);await normal.close();console.log('Normal match module and test viewer permissions: OK');
 
   const premium=await context.newPage();premium.on('pageerror',e=>errors.push(e.message));await premium.addInitScript(()=>{window.__publicSession=true});await premium.goto(base+'/?s=TESTCODE');await premium.locator('#publicPlayerSelect').selectOption(players[0].id);await premium.locator('#registrationMissions').filter({hasText:'dans la soirée'}).waitFor();
+  await premium.evaluate(current=>{const now=new Date();const t=window.__snapshot.tournaments.find(t=>t.id===current);t.tournament_date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');t.registration_deadline=new Date(now.getTime()+60000).toISOString();},current);
+  await premium.locator('#registrationMeta').filter({hasText:'Aujourd’hui'}).waitFor({timeout:12000});assert.match(await premium.locator('#registrationSummary').innerText(),/Aujourd’hui à/);
+  await premium.evaluate(current=>{window.__snapshot.tournaments.find(t=>t.id===current).registration_deadline='2099-09-19T17:00:00Z'},current);
   await premium.locator('#publicGuestFields summary').click();await premium.locator('#publicGuestName').fill('Saisie à préserver');
   await premium.evaluate(({current,a,b})=>{const t=window.__snapshot.tournaments.find(t=>t.id===current);t.registration_briefing.general='';t.registration_briefing.observe=false;t.registration_briefing.evening=false;t.registration_briefing.rating=false;window.__snapshot.matches.push({id:'live-check',tournament_id:current,home_team_id:a,away_team_id:b,home_score:0,away_score:0,status:'live'});}, {current,a,b});
   await premium.locator('#registrationLiveLink').waitFor({timeout:12000});assert.equal(await premium.locator('#publicView').getAttribute('data-stage'),'orange');assert.match(await premium.locator('#registrationPhaseCard').innerText(),/0 – 0/);assert.equal(await premium.locator('#publicGuestName').inputValue(),'Saisie à préserver');assert.equal(await premium.locator('#registrationGeneral').isVisible(),false);assert.equal(await premium.locator('#registrationMissions').isVisible(),false);

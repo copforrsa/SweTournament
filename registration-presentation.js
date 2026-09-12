@@ -2,8 +2,9 @@
 (()=>{
 'use strict';
 const E=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const date=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return '';const d=new Date(v+'T12:00:00Z');return Number.isFinite(d.getTime())?d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}):''};
-const dateTime=v=>{const d=new Date(v);return v&&Number.isFinite(d.getTime())?d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''};
+const dayKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+const date=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return '';if(v===dayKey(new Date()))return 'Aujourd’hui';const d=new Date(v+'T12:00:00Z');return Number.isFinite(d.getTime())?d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}):''};
+const dateTime=v=>{const d=new Date(v);if(!v||!Number.isFinite(d.getTime()))return '';return dayKey(d)===dayKey(new Date())?'Aujourd’hui à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});};
 const closed=t=>t.status==='finished'||t.registration_open===false||!!(t.registration_deadline&&Date.parse(t.registration_deadline)<=Date.now());
 const started=m=>['live','playing','finished'].includes(m.status)||!!m.started_at||Number(m.home_score)>0||Number(m.away_score)>0;
 function setHtml(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html;}
@@ -46,8 +47,15 @@ function mount(ctx){
  }
  function updatePlayerStats(){
   const d=ctx.data(),pid=select?.value;playerPanel.hidden=!pid;if(!pid){playerPanel.replaceChildren();return;}
-  const stats={matches:0,wins:0,goals:0,assists:0},ratings=[];
-  for(const m of d.matches||[]){
+  const season=(d.seasons||[]).find(x=>x.id===d.tournament.season_id)||(d.seasons||[]).find(x=>x.is_active);
+  const tours=d.tournaments.filter(t=>t.format!=='league'&&season&&(t.season_id===season.id||(!t.season_id&&(!season.starts_on||t.tournament_date>=season.starts_on)&&(!season.ends_on||t.tournament_date<=season.ends_on))));
+  const seasonIds=new Set(tours.map(t=>t.id));
+  const stats={matches:0,wins:0,goals:0,assists:0,tournamentsWon:0},ratings=[],playedTeams=new Map();
+  const seasonMatches=(d.matches||[]).filter(m=>seasonIds.has(m.tournament_id));
+  const matchIds=new Set(seasonMatches.map(m=>m.id));
+  for(const g of (d.goals||[]).filter(g=>matchIds.has(g.match_id)&&!g.is_own_goal)){if(g.scorer_player_id===pid)stats.goals++;if(g.assister_player_id===pid)stats.assists++;}
+
+  for(const m of seasonMatches){
    const tour=d.tournaments.find(t=>t.id===m.tournament_id);
    const archived=tour?.status==='finished'&&m.status==='scheduled'&&!m.started_at&&!m.finished_at;
    if(!started(m)&&!archived)continue;
@@ -56,15 +64,18 @@ function mount(ctx){
    if(!team||![m.home_team_id,m.away_team_id].includes(team))continue;
    const final=m.status==='finished'||archived;
    if(final){const r=ctx.rateMatch?.(m,pid,team,d.goals||[]);if(r&&Number.isFinite(r.rating))ratings.push(r.rating);}
-   if(m.tournament_id!==d.tournament.id)continue;
+   if(!playedTeams.has(m.tournament_id))playedTeams.set(m.tournament_id,new Set());playedTeams.get(m.tournament_id).add(team);
    stats.matches++;
    if(final&&((team===m.home_team_id&&Number(m.home_score)>Number(m.away_score))||(team===m.away_team_id&&Number(m.away_score)>Number(m.home_score))))stats.wins++;
-   for(const g of (d.goals||[]).filter(g=>g.match_id===m.id&&!g.is_own_goal)){if(g.scorer_player_id===pid)stats.goals++;if(g.assister_player_id===pid)stats.assists++;}
+  }
+  for(const tour of tours.filter(t=>t.status==='finished')){
+   const champion=ctx.standings?.(tour.id)?.[0];
+   if(champion&&playedTeams.get(tour.id)?.has(champion.id))stats.tournamentsWon++;
   }
   const format=(n,scale)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' / '+scale;
   const academy=ratingPlayer===pid?ratingResult:null,group=academy?.rating_group_name||d.ratingGroupName||'Groupe de notation';
   const note=ratingState==='loading'?'Chargement…':ratingState==='unavailable'?'Note indisponible':academy?.avg_rating!=null?format(academy.avg_rating,5):'Non noté';
-  setHtml(playerPanel,'<div class="sp-rating-grid"><div class="sp-academy"><span>Note '+esc(group)+'</span><strong>'+esc(note)+'</strong></div><div class="sp-match-rating"><span>Note Match · historique du groupe</span><strong>'+(ratings.length?format(ratings.reduce((a,b)=>a+b,0)/ratings.length,10):'Non noté')+'</strong></div></div><h3>Dans ce tournoi</h3><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
+  setHtml(playerPanel,'<div class="sp-rating-grid"><div class="sp-academy"><span>Note '+esc(group)+'</span><strong>'+esc(note)+'</strong></div><div class="sp-match-rating"><span>Note Match · saison</span><strong>'+(ratings.length?format(ratings.reduce((a,b)=>a+b,0)/ratings.length,10):'Non noté')+'</strong></div></div><h3>'+esc(season?'Résultats de la saison · '+season.name:'Aucune saison active')+'</h3><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists],['Tournois remportés',stats.tournamentsWon]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
  }
  function updateMissions(){
   const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
