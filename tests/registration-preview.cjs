@@ -2,6 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES?process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright':'playwright');
 const root=path.resolve(__dirname,'..'),shots=path.join(__dirname,'screenshots');fs.mkdirSync(shots,{recursive:true});
 const headers=Object.fromEntries(fs.readFileSync(path.join(root,'_headers'),'utf8').split('\n\n')[0].split('\n').slice(1).filter(Boolean).map(l=>{const i=l.indexOf(':');return [l.slice(0,i).trim(),l.slice(i+1).trim()]}));
+const offlineFile=path.join(__dirname,'preview-inscription-swe.html');fs.writeFileSync(offlineFile,require('./registration-preview-artifact.cjs').build(root));
 const server=http.createServer((req,res)=>{const url=new URL(req.url,'http://localhost'),file=path.resolve(root,'.'+url.pathname);if(!file.startsWith(root+path.sep)){res.writeHead(403);return res.end()}try{for(const [k,v] of Object.entries(headers))res.setHeader(k,v);res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8');res.end(fs.readFileSync(file))}catch{res.writeHead(404);res.end()}});
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;const browser=await chromium.launch({headless:true});
@@ -32,5 +33,6 @@ const server=http.createServer((req,res)=>{const url=new URL(req.url,'http://loc
    assert.deepEqual(errors,[]);assert.ok(requests.every(r=>r.method==='GET'&&r.url.startsWith(base+'/')),'Preview must not send writes or external requests');
    console.log('Premium preview phases, empty instructions, coorganizer, fields and zero network writes:',viewport.width,'OK');await context.close();
   }
+  const offline=await browser.newPage();const offlineErrors=[];offline.on('pageerror',e=>offlineErrors.push(e.message));await offline.goto('file://'+offlineFile);await offline.locator('#pvRegistration').waitFor();assert.equal(await offline.locator('.pv-person').count(),14);await offline.locator('#previewPhase').selectOption('live');await offline.locator('#pvLiveLink').waitFor();assert.deepEqual(offlineErrors,[]);await offline.close();console.log('Standalone offline preview with script hash CSP: OK');
  }finally{await browser.close();await new Promise(r=>server.close(r))}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1});
