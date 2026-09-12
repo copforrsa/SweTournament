@@ -108,6 +108,26 @@ async function checkHomeShop(context,base,width){
  await page.locator('#homeModulesDisclosure>summary').click();assert.equal(await page.locator('#ecoRatingsModule').isVisible(),false);
  await page.close();console.log('Home shop disclosures, keyboard, preserved quantity, trial and disabled modules:',width,'OK');
 }
+async function checkMobileCoorgRights(context,base){
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ assert.ok(html.indexOf('data-swe-loader="mobile-coorg-rights-v4362"')<html.indexOf('hotfix-v4244.js'),'Mobile rights must load before the deferred module chain');
+ const page=await context.newPage();
+ await page.setContent('<!doctype html><meta name="viewport" content="width=device-width"><main><nav class="tabs"><button class="tab active" data-view="home">Accueil</button><button class="tab" data-view="myplayer">Profil</button><button class="tab" data-view="players">Joueurs</button><button class="tab" data-view="tournaments">Tournois</button><button class="tab" data-view="teams">Équipes</button><button class="tab" data-view="matches" style="display:none" disabled>Matchs</button><button class="tab disabled-tab" data-view="permissions" disabled>Droits</button><button class="tab" data-view="ranking">Classement</button></nav></main>');
+ await page.addScriptTag({content:'var S={session:{user:{id:"coorg"}},workspace:{role:"coorganizer"},myPermissions:{can_view_players:true,can_create_tournaments:false,can_generate_teams:false,can_enter_scores:false}};function isCoorg(){return S.workspace.role==="coorganizer"}'});
+ await page.addScriptTag({url:base+'/mobile-coorg-rights-v4362.js?v=test'});
+ await page.waitForFunction(()=>document.querySelector('[data-view="tournaments"]').classList.contains('swe-mobile-right-denied'));
+ assert.deepEqual(await page.locator('.swe-mobile-right-denied').evaluateAll(nodes=>nodes.map(n=>n.dataset.view)),['tournaments','teams','matches','permissions','ranking']);
+ assert.equal(await page.locator('[data-view="players"]').getAttribute('aria-disabled'),'false');
+ assert.notEqual(await page.locator('[data-view="matches"]').evaluate(e=>getComputedStyle(e).display),'none');
+ assert.ok(Number(await page.locator('[data-view="matches"]').evaluate(e=>getComputedStyle(e).opacity))<0.5);
+ assert.equal(await page.locator('[data-view="matches"]').isEnabled(),true,'Denied mobile tabs stay tappable for the explanation');
+ await page.locator('[data-view="matches"]').click();await page.locator('#sweMobileRightsToast4362').waitFor({state:'visible'});
+ await page.evaluate(()=>{S.myPermissions.can_create_tournaments=true;S.myPermissions.can_generate_teams=true;S.myPermissions.can_enter_scores=true;document.dispatchEvent(new Event('swe:rendered'))});
+ await page.waitForFunction(()=>!document.querySelector('[data-view="matches"]').classList.contains('swe-mobile-right-denied'));
+ assert.equal(await page.locator('[data-view="matches"]').getAttribute('aria-disabled'),'false');
+ assert.equal(await page.locator('[data-view="permissions"]').getAttribute('aria-disabled'),'true');
+ await page.close();console.log('Mobile co-manager tabs use live permissions, stay visible in grey and explain denied access: OK');
+}
 const sdk='('+installMock.toString()+')('+JSON.stringify(snapshot)+','+JSON.stringify({user:id(99),token,current,past,match})+','+JSON.stringify(require('./king-rule-fixtures.json'))+');';
 new (require('node:vm').Script)(sdk);
 async function checkScoreLayout(page){
@@ -221,6 +241,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
    await checkPlayerCards(context,base,viewport.width);
    await checkHomeShop(context,base,viewport.width);
+   if(viewport.width===360)await checkMobileCoorgRights(context,base);
    await page.goto(base+'/?s=TESTCODE');
    await page.locator('#chooseSoloMode').waitFor({state:'visible'});
    await page.locator('#chooseSoloMode').click();
