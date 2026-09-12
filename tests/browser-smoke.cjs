@@ -32,6 +32,8 @@ function installMock(data,ids){
    from:()=>query,channel:()=>({on(){return this},subscribe(){return this},unsubscribe(){}}),removeChannel:async()=>{},
    rpc:async(name,args)=>{
     window.__calls.push({name,args});
+    if(['get_my_player_card_stats_v1','get_public_player_card_by_short_code_v1','get_public_player_card_by_token_v1'].includes(name))return {data:window.__cardUnavailable?null:(window.__card||{display_name:'Forssa',public_player_id:'SWE-B2A9B0CB',matches:12,wins:3,goals:2,assists:0,tournaments:2,tournament_wins:0,rating:3.3,preferred_role:'finisseur'})};
+    if(name==='get_or_create_my_player_card_share_v1')return {data:{url:location.origin+'/c.html?s=80871023'}};
     if(name==='is_platform_super_admin')return {data:true};
     if(name==='get_public_workspace_snapshot_v2')return {data:window.__snapshot};
     if(name==='get_my_tournament_presentation_v1')return {data:{my_player_id:data.players[0].id,is_coorganizer:true,tournament_rating_windows:window.__ratingWindows||[]}};
@@ -80,6 +82,26 @@ async function checkScoreLayout(page){
  assert.equal(new Set(rows.map(r=>r.scoreWidth)).size,1);
 }
 const errors=[];
+async function checkPlayerCards(context,base,width){
+ const expected={'Matchs':'12','Victoires':'3','Buts':'2','Passes':'0','Tournois joués':'2','Tournois remportés':'0'};
+ const check=async(page,prefix)=>{
+  assert.deepEqual(await page.locator(prefix+'stat').evaluateAll(rows=>Object.fromEntries(rows.map(r=>[r.querySelector('small').textContent,r.querySelector('b').textContent]))),expected);
+  const stars=page.locator(prefix+'stars');assert.match(await stars.innerText(),/3,3 \/ 5/);assert.equal(await stars.evaluate(e=>e.style.getPropertyValue('--rating-fill')),'66%');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');
+ };
+ for(const route of ['/c.html?s=80871023','/carte-joueur.html?token='+token]){
+  const card=await context.newPage();card.on('pageerror',e=>errors.push(e.message));await card.goto(base+route);await card.locator('.stat').first().waitFor();await check(card,'.');
+  assert.equal(await card.locator('#shortUrl').inputValue(),base+route);await card.locator('#qrToggle').click();assert.equal(await card.locator('#qrbox').isVisible(),true);await card.locator('#qrToggle').click();assert.equal(await card.locator('#qrbox').isVisible(),false);
+  if(route.startsWith('/c.html'))await card.screenshot({path:path.join(screenshotDir,'player-card-public-'+width+'.png'),fullPage:true});
+  await card.close();
+ }
+ const own=await context.newPage();own.on('pageerror',e=>errors.push(e.message));await own.setContent('<style>body{margin:0;font-family:Arial}*{box-sizing:border-box}.hidden{display:none}</style><button id="swe4338CardBtn">Ma carte</button>');
+ await own.addScriptTag({content:sdk});await own.evaluate(()=>{window.S={session:{user:{id:'fixture'}},playerDashboard:{profile:{display_name:'Forssa',public_player_id:'SWE-B2A9B0CB'},stats:{matches:6,wins:1,rating:5}}};window.sb=window.supabase.createClient()});
+ await own.addScriptTag({content:fs.readFileSync(path.join(root,'player-card-v4344.js'),'utf8')});await own.waitForFunction(()=>typeof document.getElementById('swe4338CardBtn').onclick==='function');await own.locator('#swe4338CardBtn').click();await own.locator('.swe4344-stat').first().waitFor();await check(own,'.swe4344-');await own.screenshot({path:path.join(screenshotDir,'player-card-own-'+width+'.png'),fullPage:true});
+ await own.locator('#swe4344Close').click();await own.evaluate(()=>{window.__card={matches:12,wins:3,goals:2,assists:0,tournaments:2,tournament_wins:0,rating:null}});await own.locator('#swe4338CardBtn').click();assert.match(await own.locator('.swe4344-stars').innerText(),/Non noté/);assert.equal(await own.locator('.swe4344-stars').evaluate(e=>e.style.getPropertyValue('--rating-fill')),'0%');await own.close();
+ if(width===360){const missing=await context.newPage();await missing.addInitScript(()=>{window.__cardUnavailable=true});await missing.goto(base+'/c.html?s=INVALID');await missing.locator('#root').filter({hasText:'plus disponible'}).waitFor();assert.equal(await missing.locator('.card').count(),0);await missing.close()}
+ console.log('Fresh private/public card statistics, fractional rating, unrated state, share links and mobile:',width,'OK');
+}
 async function checkTestAccountPicker(page){
  await page.locator('#testOptionalAccounts summary').click();
  await page.locator('#testAccountCount').filter({hasText:'16 comptes disponibles'}).waitFor();
@@ -157,6 +179,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
   for(const viewport of [{width:1280,height:900},{width:768,height:1024},{width:360,height:800}]){
    const context=await browser.newContext({viewport});await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
    const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+   await checkPlayerCards(context,base,viewport.width);
    await page.goto(base+'/?s=TESTCODE');
    await page.locator('#chooseSoloMode').waitFor({state:'visible'});
    await page.locator('#chooseSoloMode').click();
