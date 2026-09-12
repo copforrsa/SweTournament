@@ -103,7 +103,7 @@ async function checkTestMatchCreation(page){
  assert.match(await page.getByRole('link',{name:'Ouvrir la saisie dans une nouvelle fenêtre'}).getAttribute('href'),/tab=matches/);
  console.log('Automatic match creation with no account selected, limit, busy state and retry: OK');
 }
-async function checkSharedMatchModule(page){
+async function checkSharedMatchModule(page,onLiveCheck){
  await page.locator('[data-test-tab="matches"]').click();await page.locator('#testModuleStart').click();
  await page.locator('.swe4301-goal-form').waitFor();
  const score=page.locator('.swe4300-result'),inputs=page.locator('.swe4300-edit input');
@@ -135,6 +135,7 @@ async function checkSharedMatchModule(page){
  // Assignment-only server refresh must keep the new scorer and the old goal history.
  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.locator('.swe4360-player').filter({hasText:'Remplaçant test 01'}).click();await score.filter({hasText:'5 - 2'}).waitFor();
  await page.locator('.swe4360-assist [data-undo]').click();await score.filter({hasText:'4 - 2'}).waitFor();
+ if(onLiveCheck)await onLiveCheck();
  await page.locator('#testModuleFinish').click();await page.locator('#testModuleState').filter({hasText:'terminé'}).waitFor();assert.equal(await page.locator('.swe4301-goal-form').count(),0);assert.equal(await page.getByRole('button',{name:'🔁 Remplacer',exact:true}).count(),0);
  await page.locator('[data-test-tab="direct"]').click();await page.locator('#liveMatches').filter({hasText:'4 - 2'}).waitFor();
  console.log('Shared Matchs module: quick scorer, passer, refresh, undo, manual score, finish and direct result: OK');
@@ -215,8 +216,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await bootAssigned();await assigned.locator('#matchCompetitionSelect').selectOption('test:'+match);await assigned.locator('#assignedTestFrame').waitFor();
    let assignedFrame=await (await assigned.locator('#assignedTestFrame').elementHandle()).contentFrame();
    assert.equal(new URL(assignedFrame.url()).searchParams.has('admin'),false);
-   await checkSharedMatchModule(assignedFrame);
-   await assigned.screenshot({path:path.join(screenshotDir,'screenshot-assigned-quick-'+viewport.width+'.png'),fullPage:true});
+   await checkSharedMatchModule(assignedFrame,()=>assigned.screenshot({path:path.join(screenshotDir,'screenshot-assigned-quick-'+viewport.width+'.png'),fullPage:true}));
    await assigned.evaluate(()=>window.SWE_RENDER_MATCHES_4302(false));assert.equal(await assigned.locator('#matchCompetitionSelect').inputValue(),'test:'+match);
    await bootAssigned();await assigned.locator('#assignedTestFrame').waitFor();assert.equal(await assigned.locator('#matchCompetitionSelect').inputValue(),'test:'+match);
    await assigned.locator('#matchCompetitionSelect').selectOption(current);await assigned.locator('#assignedWorkspaceTests').waitFor({state:'detached'});assert.equal(await assigned.evaluate(()=>S.activeTour),current);
