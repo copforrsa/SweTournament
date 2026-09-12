@@ -14,7 +14,7 @@ begin
   insert into public.tournament_players(tournament_id,player_id,present,registration_status,is_substitute) values(tid,pid,true,'confirmed',i=5);
   if i<5 then insert into public.team_players(team_id,player_id) values(case when i<=2 then ta else tb end,pid);end if;
  end loop;
- insert into public.matches(tournament_id,home_team_id,away_team_id,status,started_at) values(tid,ta,tb,'live',now()) returning id into mid;
+ insert into public.matches(tournament_id,home_team_id,away_team_id,status,started_at,pitch) values(tid,ta,tb,'live',now(),'Terrain de validation') returning id into mid;
  perform set_config('request.jwt.claim.sub',users[2]::text,true);execute 'set local role authenticated';
  perform public.set_match_player_assignment(mid,ids[5],ta,false,ids[1]);
  execute 'reset role';
