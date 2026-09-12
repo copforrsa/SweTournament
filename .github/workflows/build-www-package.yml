@@ -33,7 +33,9 @@ jobs:
       - name: Check registration, history, reports and live match
         env:
           CODEX_PRIMARY_RUNTIME_NODE_MODULES: /tmp/swe-browser-tests/node_modules
-        run: node tests/browser-smoke.cjs
+        run: |
+          node tests/browser-smoke.cjs
+          node tests/registration-preview.cjs
 
       - name: Prepare www directory
         shell: bash

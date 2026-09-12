@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <title>SWÉ • Studio de prévisualisation</title>
+  <link rel="stylesheet" href="./registration-preview.css?v=4370">
+  <script src="./registration-preview.js?v=4370" defer></script>
+</head>
+<body>
+  <header class="studio-header"><a class="studio-brand" href="#previewStage">SWÉ<span>STUDIO</span></a><div><strong>Une nouvelle feuille de tournoi</strong><p>Test visuel · joueurs fictifs · aucune inscription ni action réelle</p></div><span class="studio-badge">PRÉVISUALISATION</span></header>
+  <main class="studio">
+    <details class="studio-settings" id="previewSettings">
+      <summary><span>⚙ Personnaliser le test</span><small>Tournoi, format et consignes</small></summary>
+      <form id="previewConfig">
+        <div class="studio-fields">
+          <label>Nom du tournoi<input name="title" value="SWÉ du dimanche" maxlength="100" required></label>
+          <label>Lieu / complexe<input name="venue" value="Arena · Boulogne" maxlength="140"></label>
+          <label>Date<input name="date" type="date" value="2026-09-13" required></label>
+          <label>Heure<input name="time" type="time" value="09:00"></label>
+          <label>Format<select name="format"><option value="king_of_pitch">Roi du terrain</option><option value="classic">Tournoi classique</option><option value="pools">Poules + phases finales · concept</option></select></label>
+          <label>Joueurs par équipe<select name="teamSize"><option value="5">5</option><option value="4">4</option><option value="6">6</option></select></label>
+          <label>Inscrits fictifs<input name="count" type="number" value="14" min="0" max="60" required></label>
+          <label>Capacité<input name="capacity" type="number" value="35" min="2" max="60" required></label>
+          <label>Participation (€)<input name="fee" type="number" value="9" min="0" max="999" step="0.01"></label>
+          <label>Durée d’un match (min)<input name="duration" type="number" value="10" min="1" max="120"></label>
+          <label>Fin des inscriptions<input name="deadline" type="datetime-local" value="2026-09-12T22:00"></label>
+          <label>Référence de réservation<input name="reservation" maxlength="120" placeholder="Facultatif"></label>
+        </div>
+        <details class="studio-instructions" open><summary>Consignes pour tous les inscrits</summary><label>Message de l’administrateur<textarea name="general" maxlength="1500" rows="3" placeholder="Laisser vide pour masquer cet encart">Rendez-vous 15 minutes avant le début pour l’accueil et l’échauffement. Pensez à prendre une bouteille d’eau.</textarea></label><p>Ce message est un exemple pour la prévisualisation.</p></details>
+        <details class="studio-instructions" open><summary>Consignes aux co-gestionnaires</summary>
+          <label class="studio-check"><input name="observe" type="checkbox" checked> Surveillez les nouveaux joueurs pour leur donner une note.</label>
+          <label class="studio-check"><input name="evening" type="checkbox" checked> Leur avis sera demandé dans la soirée pour valider la composition des équipes.</label>
+          <label class="studio-check"><input name="rating" type="checkbox" checked> Pensez à vous connecter pour noter les joueurs à la fin du tournoi. Le lien est valable 48 h après la clôture.</label>
+          <label class="studio-check"><input name="redraw" type="checkbox"> Montrer le concept : une proposition de tirage par co-gestionnaire, décision finale de l’admin.</label>
+        </details>
+        <div class="studio-extra"><label class="studio-check"><input name="history" type="checkbox" checked> Exemple de résultats précédents</label><label class="studio-check"><input name="thirdHalf" type="checkbox"> Module 3e mi-temps</label><label class="studio-check"><input name="views" type="checkbox" checked> Compteur de vues de démonstration</label></div>
+        <div class="studio-config-actions"><button class="studio-primary" type="submit">Générer la prévisualisation</button><button type="button" id="emptyInstructions">Tester sans consigne</button></div><p id="configFeedback" role="status"></p>
+      </form>
+    </details>
+    <section class="studio-toolbar" aria-label="Scénario de test"><label>Étape du tournoi<select id="previewPhase"><option value="open">1 · Inscriptions ouvertes</option><option value="closed">2 · Inscriptions closes</option><option value="review">3 · Équipes en validation</option><option value="ready">4 · Équipes validées</option><option value="live">5 · Premier match commencé</option><option value="finished">6 · Tournoi terminé · notation ouverte</option><option value="expired">7 · Notation clôturée après 48 h</option></select></label><div class="studio-sizes" role="group" aria-label="Largeur de prévisualisation"><button type="button" data-size="full" aria-pressed="true">Ordinateur</button><button type="button" data-size="768" aria-pressed="false">Tablette</button><button type="button" data-size="390" aria-pressed="false">Mobile</button></div></section>
+    <div id="previewStage" class="preview-stage"><div id="previewPage" class="preview-page"></div></div>
+    <p class="studio-bottom">Aperçu indépendant du lien d’inscription en production. Les consignes et changements restent dans ce test.</p>
+  </main>
+  <dialog id="previewDialog"><button type="button" id="closePreviewDialog" aria-label="Fermer">×</button><div id="previewDialogBody"></div></dialog>
+</body>
+</html>
