@@ -10,4 +10,6 @@ Validation : génération avec 0, 1 et 4 comptes, équipes complétées à 10 jo
 
 Sauvegarde : `backup/v43.66-before-test-create-feedback-20260912` et `supabase/backups/pre_v4367_match_test_functions.sql`.
 
+Migration Supabase appliquée : `20260912022633_automatic_test_match_players_v4367.sql`.
+
 Déploiement : extraire `swe-www-v43.67.zip` puis copier le contenu de `www` dans `/home/swetouk/www/`.

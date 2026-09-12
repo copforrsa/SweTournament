@@ -1,4 +1,4 @@
--- Automatic isolated test players; existing RPC clients remain compatible.
+-- Applied as 20260912022633 in Supabase. Existing RPC clients remain compatible.
 CREATE OR REPLACE FUNCTION public.super_admin_create_test_match(p_swe_ids text[], p_request_id uuid)
  RETURNS uuid
  LANGUAGE plpgsql
