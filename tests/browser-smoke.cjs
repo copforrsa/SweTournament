@@ -109,6 +109,7 @@ async function checkSharedMatchModule(page,onLiveCheck){
  const score=page.locator('.swe4300-result'),inputs=page.locator('.swe4300-edit input');
  await inputs.nth(0).fill('0');await inputs.nth(1).fill('0');await page.getByRole('button',{name:'Enregistrer le score'}).click();await score.filter({hasText:'0 - 0'}).waitFor();
  assert.equal(await page.locator('.swe4360-player').count(),10);
+ assert.ok(await page.locator('.swe4360-player').evaluateAll(buttons=>buttons.every(b=>{const r=b.getBoundingClientRect(),p=b.parentElement.getBoundingClientRect();return r.left>=p.left-1&&r.right<=p.right+1})), 'Quick score buttons must remain inside their team column');
  await page.locator('.swe4360-player').filter({hasText:'Joueur test 01'}).click();await score.filter({hasText:'1 - 0'}).waitFor();
  await page.locator('.swe4360-assist.show').waitFor();assert.equal(await page.locator('.swe4360-assist [data-assist]').count(),5);
  // The next server refresh must preserve the pending passer choice.
@@ -201,7 +202,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    }
    // Use the real selector, renderer and CSP; the V43.68 iframe regression fails here.
    const assigned=await context.newPage();assigned.on('pageerror',e=>errors.push(e.message));
-   await assigned.route(base+'/tests/match-harness.html',route=>route.fulfill({contentType:'text/html',headers:securityHeaders,body:'<!doctype html><head><meta name="viewport" content="width=device-width">'+appCsp+'<link rel="stylesheet" href="/styles.css"></head><body><main class="app"><div class="tabs"><button data-view="matches" class="active">Matchs</button></div><section id="view-matches" class="view active"><div id="matchCompetitionSelectorCard" class="card"><h3>Matchs à saisir</h3><select id="matchCompetitionSelect"></select><p id="matchCompetitionStatus"></p></div><div id="matchCreateAdminCard"></div><div id="matchesList"></div></section></main></body>'}));
+   await assigned.route(base+'/tests/match-harness.html',route=>route.fulfill({contentType:'text/html',headers:securityHeaders,body:'<!doctype html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">'+appCsp+'<link rel="stylesheet" href="/styles.css"></head><body><main class="app"><div class="tabs"><button data-view="matches" class="active">Matchs</button></div><section id="view-matches" class="view active"><div id="matchCompetitionSelectorCard" class="card"><h3>Matchs à saisir</h3><select id="matchCompetitionSelect"></select><p id="matchCompetitionStatus"></p></div><div id="matchCreateAdminCard"></div><div id="matchesList"></div></section></main></body>'}));
    const bootAssigned=async()=>{
     await assigned.goto(base+'/tests/match-harness.html');
     await assigned.evaluate(({current,match,user})=>{
