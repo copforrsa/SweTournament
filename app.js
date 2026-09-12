@@ -450,6 +450,7 @@ async function authState(){
   }
   const {data}=await sb.auth.getSession();
   S.session=data.session;
+  if(S.session?.user?.id)window.SWEJournalSession?.(sb,S.session.user.id);
   const oauthProvider=new URLSearchParams(location.search).get('provider');
   if(!S.session&&(oauthProvider==='google'||oauthProvider==='apple')){
     const u=new URL(location.href);u.searchParams.delete('provider');history.replaceState({},'',u.toString());
