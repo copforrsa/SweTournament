@@ -44,7 +44,7 @@ function mount(ctx){
   if(!pid||!ctx.loadRating){ratingState='';return updatePlayerStats()}
   try{const value=await ctx.loadRating(pid);if(sequence!==ratingSequence)return;ratingResult=value;ratingState=value?'ready':'unavailable';}
   catch(_){if(sequence!==ratingSequence)return;ratingState='unavailable';}
-  updatePlayerStats();
+  updatePlayerStats();updateMissions();
  }
  function updatePlayerStats(){
   const d=ctx.data(),pid=select?.value;playerPanel.hidden=!pid;if(!pid){playerPanel.replaceChildren();return;}
@@ -76,11 +76,11 @@ function mount(ctx){
   const format=(n,scale)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' / '+scale;
   const academy=ratingPlayer===pid?ratingResult:null,group=academy?.rating_group_name||d.ratingGroupName||'Groupe de notation';
   const note=ratingState==='loading'?'Chargement…':ratingState==='unavailable'?'Note indisponible':academy?.avg_rating!=null?format(academy.avg_rating,5):'Non noté';
-  setHtml(playerPanel,'<div class="sp-rating-grid"><div class="sp-academy"><span>Note '+esc(group)+'</span><strong>'+esc(note)+'</strong></div><div class="sp-match-rating"><span>Note Match · saison</span><strong>'+(ratings.length?format(ratings.reduce((a,b)=>a+b,0)/ratings.length,10):'Non noté')+'</strong></div></div><h3>'+esc(season?'Résultats de la saison · '+season.name:'Aucune saison active')+'</h3><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists],['Tournois remportés',stats.tournamentsWon]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
+  setHtml(playerPanel,'<div class="sp-stats-heading"><span>✦ TON BILAN SWÉ</span><b>'+esc(d.players.find(p=>p.id===pid)?.name||'Ton profil')+'</b></div><div class="sp-rating-grid"><div class="sp-academy"><span>⭐ Note '+esc(group)+'</span><strong>'+esc(note)+'</strong></div><div class="sp-match-rating"><span>⚽ Note Match · saison</span><strong>'+(ratings.length?format(ratings.reduce((a,b)=>a+b,0)/ratings.length,10):'Non noté')+'</strong></div></div><h3>'+esc(season?'Résultats de la saison · '+season.name:'Aucune saison active')+'</h3><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists],['Tournois remportés',stats.tournamentsWon]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
  }
  function updateMissions(){
   const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
-  const co=(d.coorganizers||[]).includes(pid);const items=[];
+  const co=(ratingPlayer===pid&&ratingResult?.is_coorganizer===true)||(d.coorganizers||[]).includes(pid);const items=[];
   if(co){
    if(b.observe===true&&t.status!=='finished')items.push('Surveillez les nouveaux joueurs pour leur donner une note.');
    if(b.evening===true)items.push(t.team_review_status==='approved'?'La composition des équipes est validée.':t.team_review_status==='pending'?'Ton avis est demandé sur la composition proposée. Connecte-toi à ton espace pour participer à la validation.':'Ton avis sera demandé dans la soirée pour valider la composition des équipes.');

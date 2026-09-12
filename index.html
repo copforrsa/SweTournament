@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <script src="/build-version.js?v=4377"></script>
-  <script src="/session-journal.js?v=4377"></script>
+  <script src="/build-version.js?v=4378"></script>
+  <script src="/session-journal.js?v=4378"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#071b12">
@@ -11,13 +11,38 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Tournoi Foot">
-  <link rel="apple-touch-icon" href="./icon-192.png?v=4377">
+  <link rel="apple-touch-icon" href="./icon-192.png?v=4378">
   <link rel="manifest" href="./manifest.webmanifest">
-  <title>SWÉ TOURNAMENT 5/5 • V43.77</title>
-<link rel="icon" type="image/png" href="./favicon.png?v=4377">
-<link rel="apple-touch-icon" href="./icon-192.png?v=4377">
-  <link rel="stylesheet" href="./styles.css?v=4377">
-  <link rel="stylesheet" href="./registration-presentation.css?v=4377">
+  <title>SWÉ TOURNAMENT 5/5 • V43.78</title>
+<link rel="icon" type="image/png" href="./favicon.png?v=4378">
+<link rel="apple-touch-icon" href="./icon-192.png?v=4378">
+  <link rel="stylesheet" href="./styles.css?v=4378">
+  <link rel="stylesheet" href="./registration-presentation.css?v=4378">
+<style>
+#homeEcosystemCard .swe-offer-fold{border:1px solid #d6e5e7;border-radius:18px;overflow:hidden;margin-top:12px}
+.swe-offer-fold>summary{list-style:none;cursor:pointer;padding:17px 20px;font-weight:800;color:white;background:linear-gradient(115deg,#087957,#08a786)}
+.swe-offer-fold>summary::-webkit-details-marker{display:none}
+.swe-offer-fold>summary:focus-visible{outline:3px solid #f5bf35;outline-offset:-4px}
+.swe-offer-fold>summary .fold-open,.swe-offer-fold[open]>summary .fold-closed{display:none}
+.swe-offer-fold[open]>summary .fold-open{display:inline}
+#homeCoorgOfferCard .coorg-offer-head{padding:14px 18px}
+#homeCoorgOfferCard .coorg-offer-icon,#homeCoorgOfferCard .coorg-auto-badge,#homeCoorgOfferCard .coorg-benefits,#homeCoorgOfferCard .coorg-trust{display:none}
+#homeCoorgOfferCard .coorg-pricing-title{padding-top:10px;padding-bottom:8px}
+#homeCoorgOfferCard .coorg-billing-choice{padding:12px}
+#homeCoorgOfferCard .coorg-order-box{padding:12px;margin-top:12px}
+#homeCoorgOfferCard .coorg-cancel-box{padding:12px 18px;margin-top:12px}
+#homeModulesOffer{background:#f8faff}
+#homeModulesOffer>summary{background:linear-gradient(115deg,#214bab,#7052b8)}
+#homeEcosystemCard .swe-module-grid{padding:4px 14px 0;gap:12px}
+#homeEcosystemCard .swe-module-grid>.player{padding:20px 16px;border-radius:16px;box-shadow:0 5px 16px #12284b08}
+#homeEcosystemCard .swe-module-grid b{display:block;font-size:17px;margin-bottom:9px}
+#homeEcosystemCard .swe-module-grid .muted{line-height:1.6;color:#45556f}
+#homeEcosystemCard #ecoRatingsModule{background:linear-gradient(145deg,#fff8dd,#fff)!important;border-color:#efd477!important}
+#homeEcosystemCard #ecoThirdHalfModule{background:linear-gradient(145deg,#fff0e6,#fff)!important;border-color:#f3be99!important}
+#homeEcosystemCard #ecoTournamentModule{background:linear-gradient(145deg,#eaf0ff,#fff)!important;border-color:#b7c8f2!important}
+#homeModulesOffer #homeUpgradeCard{margin:14px;background:white}
+@media(max-width:640px){#homeEcosystemCard .swe-module-grid{grid-template-columns:1fr}.swe-offer-fold>summary{padding:15px}}
+</style>
 </head>
 <body>
 <div id="toast" class="toast"></div>
@@ -33,7 +58,7 @@
 </div>
 <div class="app">
   <section id="auth" class="auth">
-    <div class="top"><h1><img src="./favicon.png?v=4377" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:600">V43.77</span></h1><p class="muted">Gestion partagée des tournois.</p></div>
+    <div class="top"><h1><img src="./favicon.png?v=4378" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:600">V43.78</span></h1><p class="muted">Gestion partagée des tournois.</p></div>
     <div id="inviteLandingCard" class="card hidden">
       <h2 class="sectiontitle">🤝 Invitation co-organisateur</h2>
       <p id="inviteLandingText" class="muted">Tu as reçu une invitation pour rejoindre l’organisation du tournoi.</p>
@@ -48,7 +73,7 @@
       </div>
     </div>
     <div id="loginCard" class="card auth-login-card">
-      <div class="auth-login-brand"><img src="./favicon.png?v=4377" alt="SWÉ"><div><span>SWÉ TOURNAMENT</span><h2>Bienvenue 👋</h2><p>Connecte-toi pour retrouver tes Swés, tes équipes et ton profil joueur.</p></div></div>
+      <div class="auth-login-brand"><img src="./favicon.png?v=4378" alt="SWÉ"><div><span>SWÉ TOURNAMENT</span><h2>Bienvenue 👋</h2><p>Connecte-toi pour retrouver tes Swés, tes équipes et ton profil joueur.</p></div></div>
       <input id="email" type="email" placeholder="Email" autocomplete="email">
       <div class="space"></div>
       <input id="password" type="password" placeholder="Mot de passe" autocomplete="current-password">
@@ -79,7 +104,7 @@
   <section id="main" class="hidden">
     <header class="top">
       <div class="row" style="justify-content:space-between">
-        <div><h1><img src="./favicon.png?v=4377" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:700">V43.77</span></h1><div class="workspace-head-line"><div id="workspaceName" class="muted"></div><select id="workspaceSwitcher" class="workspace-switcher hidden" aria-label="Changer d’espace"></select></div><div class="build-badge" title="Version installée">MAJ 43.77</div></div>
+        <div><h1><img src="./favicon.png?v=4378" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:700">V43.78</span></h1><div class="workspace-head-line"><div id="workspaceName" class="muted"></div><select id="workspaceSwitcher" class="workspace-switcher hidden" aria-label="Changer d’espace"></select></div><div class="build-badge" title="Version installée">MAJ 43.78</div></div>
         <button id="logout">Déconnexion</button>
       </div>
     </header>
@@ -275,7 +300,7 @@
         <div id="homeSpecialAccessNotice" class="hidden" style="margin-top:12px"></div>
         <div id="homeTrialPricingNotice" class="hidden" style="margin-top:12px"></div>
 
-        <div id="homeCoorgOfferCard" class="coorg-offer-card" style="margin-top:12px">
+        <details id="homeCoorgOfferCard" class="coorg-offer-card swe-offer-fold" style="margin-top:12px"><summary><span class="fold-closed">👥 Acheter un accès co-gestionnaire ＋</span><span class="fold-open">👥 Accès co-gestionnaires — Masquer −</span></summary>
           <div class="coorg-offer-head">
             <div class="coorg-offer-icon">👥<span>+</span></div>
             <div class="coorg-offer-copy"><h3>Renforce ton équipe à petit prix</h3><p>Ajoute uniquement les co-gestionnaires dont tu as besoin. <b>1 accès = 1 co-gestionnaire</b>, activé automatiquement après paiement.</p></div>
@@ -301,18 +326,19 @@
           <button id="homeBuyCoorg" class="primary coorg-buy-btn">💳 Ajouter 1 accès équipe — 1,99 €/mois <span>→</span></button>
           <div class="coorg-trust"><span>🔒 Paiement sécurisé par Stripe</span><span>✅ Activation automatique</span><span>🕊️ Sans engagement</span><span>🚀 Tarif de lancement</span></div>
           <div class="coorg-cancel-box"><div><b>Sans engagement, résiliable à tout moment</b><div class="muted">La résiliation se fait directement ici, sans demande au support. Les accès mensuels sont arrêtés immédiatement. En annuel, le renouvellement est stoppé immédiatement et les accès restent actifs jusqu’à la fin de la période déjà payée.</div></div><button type="button" id="homeCancelCoorg" class="secondary coorg-cancel-btn">Gérer / résilier mes options équipe</button></div>
-        </div>
+        </details>
 
-        <div class="grid g3" style="margin-top:12px">
-          <div class="player" id="ecoRatingsModule"><b>⭐ Notation & équilibrage</b><div class="muted" style="margin-top:4px">Notation des joueurs, équipes générées automatiquement et équilibrées, Top Players.</div></div>
-          <div class="player" id="ecoThirdHalfModule"><b>🍻 Module 3e mi-temps</b><div class="muted" style="margin-top:4px">Organisation et suivi de la 3e mi-temps.</div></div>
-          <div class="player" id="ecoTournamentModule"><b>🏆 Module Tournoi</b><div class="muted" style="margin-top:4px">Création et gestion complète des tournois SWÉ.</div></div>
+        <details id="homeModulesOffer" class="swe-offer-fold"><summary><span class="fold-closed">✨ Voir nos modules ＋</span><span class="fold-open">✨ Nos modules — Masquer −</span></summary><div class="grid g3 swe-module-grid" style="margin-top:12px">
+          <div class="player" id="ecoRatingsModule"><b>⭐ Notation & équilibrage</b><div class="muted" style="margin-top:4px">Des équipes équilibrées, des notes utiles et tes Top Players à l’honneur.</div></div>
+          <div class="player" id="ecoThirdHalfModule"><b>🍻 Module 3e mi-temps</b><div class="muted" style="margin-top:4px">Prolonge le plaisir : organise la 3e mi-temps et suis la cagnotte du groupe.</div></div>
+          <div class="player" id="ecoTournamentModule"><b>🏆 Module Tournoi</b><div class="muted" style="margin-top:4px">Des inscriptions au coup de sifflet final : organise tes matchs et partage les résultats.</div></div>
         </div>
 
         <div id="homeUpgradeCard" class="workspace-upgrade-card">
           <div><b>🚀 Besoin de plus de fonctionnalités ?</b><div class="muted" style="margin-top:4px">Découvre les formules SWÉ uniquement quand ton organisation en a besoin.</div></div>
           <button id="homeRequestUpgrade" class="primary">Voir les formules SWÉ</button>
         </div>
+        </details>
         <div class="muted" style="margin-top:10px;font-size:12px">Les paiements des joueurs via Stripe restent distincts des options et formules de l’organisateur.</div>
       </div>
 
@@ -774,7 +800,7 @@
 
   <section id="publicView" class="hidden">
     <header class="top">
-      <h1 class="public-title"><img src="./favicon.png?v=4377" class="brand-mark" alt="SWÉ"><span id="publicWorkspaceName">SWÉ TOURNAMENT 5/5</span></h1>
+      <h1 class="public-title"><img src="./favicon.png?v=4378" class="brand-mark" alt="SWÉ"><span id="publicWorkspaceName">SWÉ TOURNAMENT 5/5</span></h1>
       <div class="public-sub">Consultation publique • lecture seule</div>
     </header>
 
@@ -885,9 +911,9 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="./registration-presentation.js?v=4377" defer></script>
-<script src="./app.js?v=4377" defer></script>
-<script src="./hotfix-v4227.js?v=4377" defer></script>
-<script src="./hotfix-v4228.js?v=4377" defer></script>
+<script src="./registration-presentation.js?v=4378" defer></script>
+<script src="./app.js?v=4378" defer></script>
+<script src="./hotfix-v4227.js?v=4378" defer></script>
+<script src="./hotfix-v4228.js?v=4378" defer></script>
 
-<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=4377" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4377" defer></script><script src="./hotfix-v4235.js?v=4377" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4377" defer></script><script src="./hotfix-v4244.js?v=4377" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script></body></html>
+<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4378" defer></script><script src="./hotfix-v4230.js?v=4378" defer></script><script src="./hotfix-v4231.js?v=4378" defer></script><script src="./hotfix-v4232.js?v=4378" defer></script><script src="./ui-stability-v4234.js?v=4378" defer></script><script src="./hotfix-v4235.js?v=4378" defer></script><script src="./hotfix-v4236.js?v=4378" defer></script><script src="./hotfix-v4237.js?v=4378" defer></script><script src="./hotfix-v4240.js?v=4378" defer></script><script src="./hotfix-v4239.js?v=4378" defer></script><script src="./hotfix-v4244.js?v=4378" defer></script><script src="/public-history-views-v4363.js?v=4378" defer></script></body></html>

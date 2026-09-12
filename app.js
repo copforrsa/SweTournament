@@ -1869,7 +1869,7 @@ function renderEcosystemCommercial(){
   }
   if(coorgOffer)coorgOffer.classList.toggle('hidden',trialActive);
   if(upgradeCard)upgradeCard.classList.toggle('hidden',trialActive);
-  const paint=(id,on)=>{const el=$(id);if(!el)return;el.style.borderColor=on?'#86d6a3':'#e3e7e5';el.style.background=on?'#f0fdf4':'#fff';const old=el.querySelector('[data-module-status]');if(old)old.remove();const st=document.createElement('div');st.dataset.moduleStatus='1';st.style.marginTop='7px';st.innerHTML=on?'<span class="guest-badge" style="background:#dcfce7;color:#166534">✓ ACTIF</span>':'<span class="guest-badge" style="background:#f3f4f6;color:#6b7280">À DÉBLOQUER</span>';el.appendChild(st)};
+  const paint=(id,on)=>{const el=$(id);if(!el)return;el.style.borderColor=on?'#86d6a3':'#e3e7e5';el.style.background=on?'#f0fdf4':'#fff';const old=el.querySelector('[data-module-status]');if(old)old.remove();const st=document.createElement('div');st.dataset.moduleStatus='1';st.style.marginTop='7px';st.innerHTML=on?'<span class="guest-badge" style="background:#dcfce7;color:#166534">'+(trialActive?'🎁 INCLUS DANS TON ESSAI':c.special_access_enabled?'🎁 ACCÈS OFFERT':'✓ ACTIF')+'</span>':'<span class="guest-badge" style="background:#e8edff;color:#354c91">✨ À DÉCOUVRIR</span>';el.appendChild(st)};
   paint('#ecoRatingsModule',!!S.workspaceFeatures.player_ratings_enabled);paint('#ecoThirdHalfModule',!!S.workspaceFeatures.third_half_enabled);paint('#ecoTournamentModule',!!S.workspaceFeatures.tournaments_enabled);
   const up=$('#homeRequestUpgrade');if(up){up.textContent=c.upgrade_requested_at?'⏳ Demande envoyée':'Voir les formules SWÉ';up.disabled=!!c.upgrade_requested_at;}
   refreshCoorgPurchasePrice();
@@ -5343,22 +5343,16 @@ async function loadPublicPage(token,bootState){
       const box=$('#publicPaymentBox');
       if(!box)return;
       const pid=$('#publicPlayerSelect')?.value;
-      if(!pid){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
+      if(!pid||regTour.status==='finished'){++publicPaymentSeq;publicPaymentLoadingFor=null;publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
       const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
-      if(!reg){
-        if(options.backgroundRefresh&&publicPaymentCache.playerId===pid&&publicPaymentCache.html){
-          applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
-          return;
-        }
-        publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;
-      }
+      if(!reg){++publicPaymentSeq;publicPaymentLoadingFor=null;publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
       if(publicPaymentLoadingFor===pid)return;
       const seq=++publicPaymentSeq;
       const samePlayer=publicPaymentCache.playerId===pid&&publicPaymentCache.html;
       if(samePlayer){
         applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
       }else{
-        applyPublicPaymentView(box,'<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Vérification du statut…</div>','#f8fbff','1px solid #cbdcf5');
+        box.className='hidden';box.innerHTML='';
       }
       publicPaymentLoadingFor=pid;
       try{
@@ -5366,15 +5360,15 @@ async function loadPublicPage(token,bootState){
           sb.rpc('public_tournament_payment_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid}),
           sb.rpc('public_tournament_payment_choice_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid})
         ]);
-        if(seq!==publicPaymentSeq)return;
-        if(error){if(!publicPaymentCache.html)box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
+        if(seq!==publicPaymentSeq||$('#publicPlayerSelect')?.value!==pid||regTour.status==='finished')return;
+        if(error){if(!publicPaymentCache.html){box.className='player';box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';}return;}
         const st=data||{};
         if(st.reason==='waitlist'){
           const html='<b>🟠 Paiement en attente de confirmation</b><div class="muted" style="margin-top:5px;line-height:1.6">Tu es actuellement remplaçant. Le paiement sera proposé automatiquement lorsqu’une place confirmée se libérera.</div>';
           publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
           return;
         }
-        if(st.reason==='online_disabled'){box.className='hidden';box.innerHTML='';return;}if(st.reason==='free'||Number(st.entry_fee_cents||0)<=0){box.className='hidden';box.innerHTML='';return;}
+        if(st.reason==='online_disabled'||st.reason==='free'||Number(st.entry_fee_cents||0)<=0){publicPaymentCache={playerId:pid,status:st,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
         if(st.payment_status==='paid'){
           const html='<b>✅ Participation payée en ligne</b><div class="muted" style="margin-top:5px">Paiement confirmé par Stripe'+(st.paid_at?' • '+new Date(st.paid_at).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'}):'')+'.</div>';
           publicPaymentCache={playerId:pid,status:st,html,bg:'#eef8f2',border:'1px solid #b7dfc4'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);

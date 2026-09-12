@@ -66,7 +66,7 @@ async function boot(){
   let venue=null;
   try{venue=await resolveVenue()}catch(_){}
   const links=mapLinks(venue);
-  [250,700,1400,2400].forEach(ms=>setTimeout(()=>{injectMapButtons(links);repairPaymentIfNeeded();},ms));
+  [250,700,1400,2400].forEach(ms=>setTimeout(()=>{injectMapButtons(links);},ms));
   document.getElementById('publicPlayerSelect')?.addEventListener('change',()=>setTimeout(repairPaymentIfNeeded,150));
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
