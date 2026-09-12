@@ -2,18 +2,19 @@
 (()=>{
 'use strict';
 const E=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const date=v=>{const d=new Date(v);return v&&Number.isFinite(d.getTime())?d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}):''};
+const date=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return '';const d=new Date(v+'T12:00:00Z');return Number.isFinite(d.getTime())?d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}):''};
 const dateTime=v=>{const d=new Date(v);return v&&Number.isFinite(d.getTime())?d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''};
 const closed=t=>t.status==='finished'||t.registration_open===false||!!(t.registration_deadline&&Date.parse(t.registration_deadline)<=Date.now());
 const started=m=>['live','playing','finished'].includes(m.status)||!!m.started_at||Number(m.home_score)>0||Number(m.away_score)>0;
 function setHtml(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html;}
 function mount(ctx){
  const root=E('publicView'),initial=ctx.data();if(!root||!initial.tournament||initial.tournament.format==='league')return null;
+ if(root.__registrationPresentation&&E('registrationProgress')){root.__registrationPresentation.setContext(ctx);return root.__registrationPresentation;}
  root.classList.add('swe-premium');document.body.classList.add('swe-premium-page');
  const header=root.querySelector(':scope > header');header.className='sp-hero';header.id='registrationHero';
  header.innerHTML='<div class="sp-brand">SWÉ <small>TOURNAMENT</small></div><div class="sp-pitch" aria-hidden="true"></div><div id="registrationState"></div><div id="registrationFormat" class="sp-eyebrow"></div><h1 id="publicWorkspaceName"></h1><p>Un terrain. Des équipes. Un moment à partager.</p><div id="registrationMeta" class="sp-meta"></div>';
  const progress=document.createElement('nav');progress.id='registrationProgress';progress.className='sp-progress';progress.setAttribute('aria-label','Progression du tournoi');header.after(progress);
- const body=document.createElement('div');body.className='sp-body';body.innerHTML='<main class="sp-main"><div id="registrationPhaseCard"></div><section id="registrationFormArea" class="sp-form-area"></section><section id="registrationTeams"></section><section id="registrationPeople" class="sp-card sp-people-card"><div class="sp-eyebrow">LE GROUPE PREND FORME</div><h2>Les inscrits</h2></section></main><aside class="sp-aside"><section id="registrationSummary" class="sp-card"></section><section id="registrationGeneral"></section><details id="registrationParticipationRules" class="sp-card sp-participation-rules"><summary>Règles d’inscription</summary><div></div></details><details id="registrationRules" class="sp-card sp-rules"><summary>Règles du tournoi</summary><div></div></details><div id="registrationHistoryArea"></div></aside>';
+ const body=document.createElement('div');body.className='sp-body';body.innerHTML='<main class="sp-main"><div id="registrationPhaseCard"></div><section id="registrationFormArea" class="sp-form-area"></section><section id="registrationTeams"></section><section id="registrationPeople" class="sp-card sp-people-card"><div class="sp-eyebrow">LE GROUPE PREND FORME</div><h2>Les inscrits</h2></section><section id="registrationSeasonRankings" class="sp-season-rankings"></section></main><aside class="sp-aside"><section id="registrationSummary" class="sp-card"></section><section id="registrationGeneral"></section><details id="registrationParticipationRules" class="sp-card sp-participation-rules"><summary>Règles d’inscription</summary><div></div></details><details id="registrationRules" class="sp-card sp-rules"><summary>Règles du tournoi</summary><div></div></details><div id="registrationHistoryArea"></div></aside>';
  progress.after(body);
  const form=E('registrationFormArea');['publicEntryChoiceCard','publicRegistrationCard','publicTeamBuilderCard'].forEach(id=>{const el=E(id);if(el)form.append(el)});
  const entry=E('publicEntryChoiceCard');entry.className='sp-tabs';
@@ -22,18 +23,49 @@ function mount(ctx){
  soloButton.removeAttribute('style');teamButton.removeAttribute('style');entry.replaceChildren(soloButton,teamButton);
  ['publicRegistrationCard','publicTeamBuilderCard'].forEach(id=>{const card=E(id);card?.classList.add('sp-card');const title=card?.querySelector('h2');if(title)title.textContent=id==='publicRegistrationCard'?'À toi de jouer.':'Ton équipe, ton groupe.';});
  const select=E('publicPlayerSelect');
- if(select){let node=E('publicRegistration').firstElementChild;while(node&&node!==select){node.classList.add('sp-legacy-intro');node=node.nextElementSibling}const label=document.createElement('label');label.htmlFor=select.id;label.className='sp-name-label';label.textContent='Ton nom';select.before(label);select.addEventListener('change',updateMissions);}
+ if(select){let node=E('publicRegistration').firstElementChild;while(node&&node!==select){node.classList.add('sp-legacy-intro');node=node.nextElementSibling}const label=document.createElement('label');label.htmlFor=select.id;label.className='sp-name-label';label.textContent='Ton nom';select.before(label);select.addEventListener('change',()=>{updateMissions();loadSelectedRating();});}
  const guest=E('publicGuestFields');if(guest){const preceding=guest.previousElementSibling;if(preceding?.textContent.includes('Tu ne participes pas mais'))guest.append(preceding);}
  const status=E('publicRegStatus');if(status){status.textContent='';status.setAttribute('role','status');status.classList.add('sp-feedback');}
  const people=E('registrationPeople'),list=E('publicRegisteredList');if(list){if(list.previousElementSibling?.tagName==='H3')list.previousElementSibling.remove();people.append(list)}if(E('publicWaitWrap'))people.append(E('publicWaitWrap'));
  const historyArea=E('registrationHistoryArea'),last=E('publicLastTournamentDetails')?.parentElement,history=E('publicHistory')?.closest('.card');
  if(last){last.classList.add('sp-history');historyArea.append(last)}
  if(history){const disclosure=document.createElement('details');disclosure.className='sp-card sp-history';disclosure.innerHTML='<summary>Historique des tournois</summary>';history.querySelector('h2')?.remove();disclosure.append(history);historyArea.append(disclosure);}
- // Season ranking panels stay available in the workspace/history pages.
- ['publicSeasonScorers','publicSeasonAssists','publicSeasonTopPlayers'].forEach(id=>E(id)?.closest('.card')?.classList.add('hidden'));
+ ['publicSeasonScorers','publicSeasonAssists'].forEach(id=>{const card=E(id)?.closest('.card');if(card){card.classList.remove('hidden');card.classList.add('sp-card');E('registrationSeasonRankings').append(card)}});
+ E('publicSeasonTopPlayers')?.closest('.card')?.classList.add('hidden');
  root.querySelectorAll(':scope > .grid').forEach(el=>{if(!el.querySelector('.card:not(.hidden)'))el.classList.add('hidden')});
  const donor=E('publicThirdHalfDonorCard');if(donor)body.querySelector('.sp-main').append(donor);
  const mission=document.createElement('section');mission.id='registrationMissions';mission.className='sp-missions';mission.hidden=true;E('publicSelectedStatus')?.after(mission);
+ const playerPanel=document.createElement('section');playerPanel.id='registrationPlayerStats';playerPanel.className='sp-player-stats';playerPanel.hidden=true;E('publicSelectedStatus')?.after(playerPanel);
+ let ratingResult=null,ratingPlayer=null,ratingState='',ratingSequence=0;
+ async function loadSelectedRating(){
+  const pid=select?.value,sequence=++ratingSequence;ratingResult=null;ratingPlayer=pid;ratingState=pid?'loading':'';updatePlayerStats();
+  if(!pid||!ctx.loadRating){ratingState='';return updatePlayerStats()}
+  try{const value=await ctx.loadRating(pid);if(sequence!==ratingSequence)return;ratingResult=value;ratingState=value?'ready':'unavailable';}
+  catch(_){if(sequence!==ratingSequence)return;ratingState='unavailable';}
+  updatePlayerStats();
+ }
+ function updatePlayerStats(){
+  const d=ctx.data(),pid=select?.value;playerPanel.hidden=!pid;if(!pid){playerPanel.replaceChildren();return;}
+  const stats={matches:0,wins:0,goals:0,assists:0},ratings=[];
+  for(const m of d.matches||[]){
+   const tour=d.tournaments.find(t=>t.id===m.tournament_id);
+   const archived=tour?.status==='finished'&&m.status==='scheduled'&&!m.started_at&&!m.finished_at;
+   if(!started(m)&&!archived)continue;
+   const assignments=(d.matchAssignments||[]).filter(a=>a.match_id===m.id),own=assignments.find(a=>a.player_id===pid);
+   const team=own?own.team_id:(!assignments.length||archived)?d.teamPlayers.find(tp=>tp.player_id===pid&&[m.home_team_id,m.away_team_id].includes(tp.team_id))?.team_id:null;
+   if(!team||![m.home_team_id,m.away_team_id].includes(team))continue;
+   const final=m.status==='finished'||archived;
+   if(final){const r=ctx.rateMatch?.(m,pid,team,d.goals||[]);if(r&&Number.isFinite(r.rating))ratings.push(r.rating);}
+   if(m.tournament_id!==d.tournament.id)continue;
+   stats.matches++;
+   if(final&&((team===m.home_team_id&&Number(m.home_score)>Number(m.away_score))||(team===m.away_team_id&&Number(m.away_score)>Number(m.home_score))))stats.wins++;
+   for(const g of (d.goals||[]).filter(g=>g.match_id===m.id&&!g.is_own_goal)){if(g.scorer_player_id===pid)stats.goals++;if(g.assister_player_id===pid)stats.assists++;}
+  }
+  const format=(n,scale)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' / '+scale;
+  const academy=ratingPlayer===pid?ratingResult:null,group=academy?.rating_group_name||d.ratingGroupName||'Groupe de notation';
+  const note=ratingState==='loading'?'Chargement…':ratingState==='unavailable'?'Note indisponible':academy?.avg_rating!=null?format(academy.avg_rating,5):'Non noté';
+  setHtml(playerPanel,'<div class="sp-rating-grid"><div class="sp-academy"><span>Note '+esc(group)+'</span><strong>'+esc(note)+'</strong></div><div class="sp-match-rating"><span>Note Match · historique du groupe</span><strong>'+(ratings.length?format(ratings.reduce((a,b)=>a+b,0)/ratings.length,10):'Non noté')+'</strong></div></div><h3>Dans ce tournoi</h3><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
+ }
  function updateMissions(){
   const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
   const co=(d.coorganizers||[]).includes(pid);const items=[];
@@ -53,7 +85,7 @@ function mount(ctx){
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
   setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
   const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',format=king?'Roi du terrain':'Tournoi classique';E('registrationFormat').textContent=format+' · '+(t.team_size||5)+' contre '+(t.team_size||5);
-  const fee=Number(t.entry_fee_cents||0)/100,fields=[['Date',date(t.tournament_date)],['Rendez-vous',t.start_time?String(t.start_time).slice(0,5):''],['Lieu',t.venue],['Participation',fee.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})]];
+  const fee=Number(t.entry_fee_cents||0)/100,fields=[['Date',date(t.tournament_date)],['Heure',t.start_time?String(t.start_time).slice(0,5):''],['Lieu',t.venue],['Participation',fee.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})]];
   setHtml(E('registrationMeta'),fields.filter(x=>x[1]).map(([label,value])=>'<span><b>'+label+'</b>'+esc(value)+'</span>').join(''));
   setHtml(progress,['Inscriptions','Équipes','Matchs en direct','Résultats'].map((s,i)=>'<span class="'+(i<stage?'done':i===stage?'current':'')+'"'+(i===stage?' aria-current="step"':'')+'><i>'+(i<stage?'✓':i+1)+'</i>'+s+'</span>').join(''));
   const regs=d.registrations.filter(r=>r.tournament_id===t.id&&r.present),confirmed=regs.filter(r=>r.registration_status!=='waitlist'),subs=confirmed.filter(r=>r.is_substitute).length,waiting=regs.length-confirmed.length,max=Number(t.max_players||35),remaining=Math.max(0,max-confirmed.length);
@@ -80,15 +112,17 @@ function mount(ctx){
   if(E('publicLeave'))E('publicLeave').hidden=finished;
   if(finished)E('publicPaymentBox')?.classList.add('hidden');
   const hasHistory=d.tournaments.some(x=>x.format!=='league'&&x.status==='finished'&&d.matches.some(m=>m.tournament_id===x.id));historyArea.hidden=!hasHistory;
-  updateMissions();
+  updateMissions();updatePlayerStats();
  }
- ctx.setEntryMode('solo');update();return {update,updateMissions};
+ const controller={update,updateMissions,setContext:next=>{ctx=next;update();}};root.__registrationPresentation=controller;
+ ctx.setEntryMode('solo');update();if(select?.value)loadSelectedRating();return controller;
 }
 function briefingEditor(container,t,context){
  const b=t.registration_briefing||{},details=document.createElement('details');details.className='sp-admin-briefing';
- details.innerHTML='<summary>📣 Consignes pour les inscrits et co-gestionnaires</summary><p>Les encarts sans consigne restent masqués sur le lien d’inscription.</p><label>Message pour tous les inscrits<textarea data-general maxlength="2000" rows="4" placeholder="Rendez-vous, équipement, organisation…">'+esc(b.general||'')+'</textarea></label><details><summary>Consignes des co-gestionnaires</summary>'+[['observe','Surveillez les nouveaux joueurs pour leur donner une note.'],['evening','Ton avis sera demandé dans la soirée pour valider la composition des équipes.'],['rating','Pense à te connecter pour noter les joueurs à la fin du tournoi — lien valable 48 h.']].map(([k,label])=>'<label class="sp-admin-check"><input type="checkbox" data-briefing="'+k+'" '+(b[k]===true?'checked':'')+'>'+label+'</label>').join('')+'</details><button type="button" class="primary">Enregistrer les consignes</button><p role="status" data-feedback></p>';
+ details.innerHTML='<summary>📣 Consignes et groupe de notation</summary><label>Nom du groupe de notation<input data-rating-group maxlength="120" placeholder="Ex. Chien Boul Academy" value="'+esc(context.ratingGroupName||'')+'"></label><button type="button" data-save-rating-group>Enregistrer le nom du groupe</button><p data-rating-feedback role="status"></p><p>Les encarts sans consigne restent masqués sur le lien d’inscription.</p><label>Message pour tous les inscrits<textarea data-general maxlength="2000" rows="4" placeholder="Rendez-vous, équipement, organisation…">'+esc(b.general||'')+'</textarea></label><details><summary>Consignes des co-gestionnaires</summary>'+[['observe','Surveillez les nouveaux joueurs pour leur donner une note.'],['evening','Ton avis sera demandé dans la soirée pour valider la composition des équipes.'],['rating','Pense à te connecter pour noter les joueurs à la fin du tournoi — lien valable 48 h.']].map(([k,label])=>'<label class="sp-admin-check"><input type="checkbox" data-briefing="'+k+'" '+(b[k]===true?'checked':'')+'>'+label+'</label>').join('')+'</details><button type="button" data-save-briefing class="primary">Enregistrer les consignes</button><p role="status" data-feedback></p>';
  let dirty=false;details.addEventListener('input',()=>{dirty=true;context.editing(true)});details.addEventListener('toggle',()=>{if(!details.open&&!dirty)context.editing(false)});
- details.querySelector('button').onclick=async()=>{const button=details.querySelector('button'),feedback=details.querySelector('[data-feedback]');button.disabled=true;feedback.textContent='Enregistrement…';const briefing={general:details.querySelector('[data-general]').value.trim()};details.querySelectorAll('[data-briefing]').forEach(cb=>briefing[cb.dataset.briefing]=cb.checked);try{await context.save(briefing);t.registration_briefing=briefing;dirty=false;context.editing(false);feedback.textContent='Consignes enregistrées sur le lien d’inscription.'}catch(e){feedback.textContent=e.message||'Enregistrement impossible.'}finally{button.disabled=false}};
+ details.querySelector('[data-save-briefing]').onclick=async()=>{const button=details.querySelector('[data-save-briefing]'),feedback=details.querySelector('[data-feedback]');button.disabled=true;feedback.textContent='Enregistrement…';const briefing={general:details.querySelector('[data-general]').value.trim()};details.querySelectorAll('[data-briefing]').forEach(cb=>briefing[cb.dataset.briefing]=cb.checked);try{await context.save(briefing);t.registration_briefing=briefing;dirty=false;context.editing(false);feedback.textContent='Consignes enregistrées sur le lien d’inscription.'}catch(e){feedback.textContent=e.message||'Enregistrement impossible.'}finally{button.disabled=false}};
+ details.querySelector('[data-save-rating-group]').onclick=async e=>{const button=e.currentTarget,feedback=details.querySelector('[data-rating-feedback]');button.disabled=true;try{await context.saveRatingGroupName(details.querySelector('[data-rating-group]').value.trim());feedback.textContent='Nom du groupe enregistré.';dirty=false;context.editing(false);}catch(error){feedback.textContent=error.message||'Enregistrement impossible.';}finally{button.disabled=false;}};
  container.append(details);
 }
 window.SWERegistrationPresentation={mount,briefingEditor};

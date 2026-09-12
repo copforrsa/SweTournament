@@ -31,7 +31,7 @@ Deno.serve(async(req)=>{
     const {data:member,error:memberError}=await admin.from('workspace_members').select('role,active').eq('workspace_id',workspaceId).eq('user_id',user.id).maybeSingle();
     if(memberError||!member||member.active!==true||member.role!=='admin') throw new Error('ACCESS_DENIED');
 
-    const appUrl=(Deno.env.get('SWE_APP_URL')||'').trim().replace(/\/$/,'');
+    const appUrl=(Deno.env.get('SWE_APP_URL')||'https://app.swetournament.fr').trim().replace(/\/$/,'');
     if(!/^https:\/\//.test(appUrl)) throw new Error('SECURITY_CONFIG_MISSING');
     const successUrl=`${appUrl}/?coorg=success`;
     const cancelUrl=`${appUrl}/?coorg=cancel`;
@@ -47,10 +47,6 @@ Deno.serve(async(req)=>{
 
     await admin.from('security_audit_log').insert({workspace_id:workspaceId,actor_user_id:user.id,actor_type:'user',action:'billing.coorganizer_checkout_created',target_type:'checkout_session',target_id:session.id,request_id:rid,metadata:{quantity,unit_amount_cents:unit,billing_period:billingPeriod}});
     return Response.json({url:session.url,request_id:rid},{headers:jsonHeaders(origin)});
-  }catch(e){
-    console.error('[stripe-create-coorganizer-checkout]',rid,e);
-    const headers=origin?jsonHeaders(origin):{'Content-Type':'application/json','Cache-Control':'no-store'};
-    const status=(e instanceof Error&&e.message==='ORIGIN_NOT_ALLOWED')?403:400;
-    return Response.json({error:safeErrorMessage(e),request_id:rid},{status,headers});
-  }
+  }catch(e){console.error('[stripe-create-coorganizer-checkout]',rid,e);const headers=origin?jsonHeaders(origin):{'Content-Type':'application/json','Cache-Control':'no-store'};const status=(e instanceof Error&&e.message==='ORIGIN_NOT_ALLOWED')?403:400;return Response.json({error:safeErrorMessage(e),request_id:rid},{status,headers});}
 });
+

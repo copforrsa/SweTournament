@@ -1174,7 +1174,7 @@ async function boot(){
   if(!currentUserId)return toast('Session utilisateur introuvable.');
   await loadOnboardingStatus();
   const {data,error}=await sb.from('workspace_members')
-    .select('workspace_id,role,workspaces(name,public_token,public_enabled)')
+    .select('workspace_id,role,workspaces(name,public_token,public_enabled,rating_group_name)')
     .eq('user_id',currentUserId)
     .eq('active',true)
     .limit(50);
@@ -1195,7 +1195,7 @@ async function boot(){
   }
   const stored=localStorage.getItem('swe_workspace_id');
   const chosen=S.memberships.find(x=>String(x.workspace_id)===String(stored))||S.memberships[0];
-  S.workspace={id:chosen.workspace_id,name:chosen.workspaces?.name||'SWÉ Tournament 5/5',role:chosen.role,public_token:chosen.workspaces?.public_token||null,public_enabled:chosen.workspaces?.public_enabled!==false};
+  S.workspace={id:chosen.workspace_id,name:chosen.workspaces?.name||'SWÉ Tournament 5/5',rating_group_name:chosen.workspaces?.rating_group_name||'',role:chosen.role,public_token:chosen.workspaces?.public_token||null,public_enabled:chosen.workspaces?.public_enabled!==false};
   localStorage.setItem('swe_workspace_id',S.workspace.id);
   $('#workspaceSetup').classList.add('hidden');$('#accountOnboarding')?.classList.add('hidden');
   const access=await sb.rpc('get_workspace_organizer_access',{p_workspace_id:S.workspace.id});
@@ -1807,7 +1807,7 @@ function coorgBillingPeriod(){
 function euroCents(c){return (Number(c||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'}
 function refreshCoorgPurchasePrice(){
   const input=$('#homeCoorgQty');
-  let q=Math.max(1,Math.min(1000,Number(input?.value||1)||1));if(input)input.value=q;
+  let q=Math.max(1,Math.min(100,Math.floor(Number(input?.value||1))||1));if(input)input.value=q;
   const period=coorgBillingPeriod(),unit=coorgUnitCents(period),total=unit*q;
   const suffix=period==='year'?'/an':'/mois';
   const periodLabel=period==='year'?'par an':'par mois';
@@ -1815,7 +1815,7 @@ function refreshCoorgPurchasePrice(){
   const u=$('#homeCoorgUnitPrice');if(u)u.textContent='Tarif unitaire : 1 accès équipe à '+euroCents(unit)+' '+periodLabel;
   const label=$('#homeCoorgTotalLabel');if(label)label.textContent=period==='year'?'Total annuel':'Total mensuel';
   const t=$('#homeCoorgTotal');if(t)t.innerHTML='<b>'+euroCents(total)+suffix+'</b><div class="muted">'+q+' accès × '+euroCents(unit)+' • '+frequencyLabel+'</div>';
-  const b=$('#homeBuyCoorg');if(b)b.innerHTML='💳 Ajouter '+q+' accès équipe — '+euroCents(total)+suffix+' <span>→</span>';
+  const b=$('#homeBuyCoorg');if(b&&!S.coorgCheckoutPending)b.innerHTML='💳 Ajouter '+q+' accès équipe — '+euroCents(total)+suffix+' <span>→</span>';
 }
 async function confirmCoorgCheckoutFromUrl(){
   const p=new URLSearchParams(location.search);
@@ -1971,7 +1971,7 @@ async function openCoorgOptionsManager(){
 document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
 document.addEventListener('click',async e=>{
   const stepBtn=e.target?.closest?.('[data-coorg-step]');
-  if(stepBtn){const input=$('#homeCoorgQty');if(input){input.value=Math.max(1,Math.min(1000,Number(input.value||1)+Number(stepBtn.dataset.coorgStep||0)));refreshCoorgPurchasePrice();}return;}
+  if(stepBtn){const input=$('#homeCoorgQty');if(input){input.value=Math.max(1,Math.min(100,Math.floor(Number(input.value||1))+Number(stepBtn.dataset.coorgStep||0)));refreshCoorgPurchasePrice();}return;}
   const billingBtn=e.target?.closest?.('[data-coorg-billing]');
   if(billingBtn){
     const period=billingBtn.dataset.coorgBilling==='year'?'year':'month';
@@ -1985,19 +1985,23 @@ document.addEventListener('click',async e=>{
     await openCoorgOptionsManager();
     return;
   }
-  if(e.target?.id==='homeBuyCoorg'){
+  const purchaseButton=e.target?.closest?.('#homeBuyCoorg');
+  if(purchaseButton){
     if(!isAdmin())return toast('Réservé à l’administrateur.');
-    const qty=Math.max(1,Number($('#homeCoorgQty')?.value||1));
-    const billingPeriod=coorgBillingPeriod();
-    const unit=coorgUnitCents(billingPeriod),total=unit*qty;
-    const periodLabel=billingPeriod==='year'?'an':'mois';
-    const periodText=billingPeriod==='year'?'Facturation annuelle : 19,90 € par accès équipe, soit 1,66 € / mois.':'Facturation mensuelle : 1,99 € par accès équipe.';
-    if(!confirm('Activer '+qty+' accès équipe supplémentaire(s) pour '+euroCents(total)+' / '+periodLabel+' ?\n\n'+periodText+'\nRésiliable à tout moment depuis ton espace administrateur.\nActivation automatique après paiement Stripe.'))return;
-    const b=e.target;b.disabled=true;b.textContent='Ouverture du paiement…';
-    const requestId=crypto.randomUUID();
-    const {data,error}=await sb.functions.invoke('stripe-create-coorganizer-checkout',{body:{workspace_id:S.workspace.id,quantity:qty,billing_period:billingPeriod,request_id:requestId}});
-    if(error||data?.error){b.disabled=false;refreshCoorgPurchasePrice();return toast(data?.error||error?.message||'Impossible d’ouvrir le paiement.');}
-    if(data?.url)location.href=data.url; else {b.disabled=false;refreshCoorgPurchasePrice();toast('Lien de paiement indisponible.');}
+    if(S.coorgCheckoutPending)return;
+    const qty=Math.max(1,Math.min(100,Math.floor(Number($('#homeCoorgQty')?.value||1))||1));
+    const billingPeriod=coorgBillingPeriod(),workspaceId=S.workspace.id;
+    const key=[workspaceId,qty,billingPeriod].join(':');
+    if(S.coorgCheckoutRequest?.key!==key)S.coorgCheckoutRequest={key,id:crypto.randomUUID()};
+    S.coorgCheckoutPending=true;purchaseButton.disabled=true;purchaseButton.textContent='Ouverture du paiement…';
+    try{
+      const {data,error}=await sb.functions.invoke('stripe-create-coorganizer-checkout',{body:{workspace_id:workspaceId,quantity:qty,billing_period:billingPeriod,request_id:S.coorgCheckoutRequest.id}});
+      if(error){let detail;try{detail=await error.context?.json()}catch(_){}throw new Error(detail?.error||'Le paiement ne peut pas être ouvert. Réessaie dans un instant.');}
+      if(data?.error)throw new Error(data.error);
+      if(!data?.url)throw new Error('Lien de paiement indisponible.');
+      location.href=data.url;
+    }catch(error){toast(error.message||'Impossible d’ouvrir le paiement.');}
+    finally{S.coorgCheckoutPending=false;purchaseButton.disabled=false;refreshCoorgPurchasePrice();}
     return;
   }
   if(e.target?.id==='endTrialToPay'){
@@ -2843,7 +2847,7 @@ function renderTournaments(){
 
       editDetails.append(editBtn,editBox);
       reg.appendChild(editDetails);
-      window.SWERegistrationPresentation?.briefingEditor(reg,t,{editing:active=>{S.editingTournamentId=active?t.id:null;},save:async briefing=>{const {error}=await sb.from('tournaments').update({registration_briefing:briefing}).eq('id',t.id);if(error)throw error;}});
+      window.SWERegistrationPresentation?.briefingEditor(reg,t,{ratingGroupName:S.workspace.rating_group_name,saveRatingGroupName:async name=>{const {error}=await sb.from('workspaces').update({rating_group_name:name||null}).eq('id',S.workspace.id).select('id').single();if(error)throw error;S.workspace.rating_group_name=name;},editing:active=>{S.editingTournamentId=active?t.id:null;},save:async briefing=>{const {error}=await sb.from('tournaments').update({registration_briefing:briefing}).eq('id',t.id);if(error)throw error;}});
 
       const publicUrl=registrationLink(t);
       const shareBox=document.createElement('div');shareBox.style.marginTop='10px';
@@ -4496,6 +4500,7 @@ function publicHistoryUrl(token,historyId){
   const out=new URLSearchParams();
   out.set('public',token);
   out.set('history',historyId);
+  const short=q.get('s')||remembered.s;if(/^[A-Za-z0-9]{1,32}$/.test(short||''))out.set('from_s',short);
   for(const key of ['tournament','view','mode','league']){
     const value=q.get(key)||remembered[key];
     if(value)out.set('from_'+key,value);
@@ -4505,6 +4510,7 @@ function publicHistoryUrl(token,historyId){
 function publicHistoryBackUrl(token){
   const q=swePublicParams();
   const remembered=sweStoredPublicRegistrationContext();
+  const short=q.get('from_s')||remembered.s;if(/^[A-Za-z0-9]{1,32}$/.test(short||''))return APP_URL+'?s='+encodeURIComponent(short);
   const out=new URLSearchParams();
   out.set('public',token);
   for(const key of ['tournament','view','mode','league']){
@@ -4528,7 +4534,7 @@ function sweRememberPublicRegistrationContext(){
   const q=swePublicParams();
   if(q.get('history'))return;
   const ctx={};
-  for(const key of ['tournament','view','mode','league']){
+  for(const key of ['s','tournament','view','mode','league']){
     const v=q.get(key);
     if(v)ctx[key]=v;
   }
@@ -4642,7 +4648,18 @@ async function bootPaymentDesk(token){
   await loadDesk();
 }
 
+let publicBootState=null;
 async function bootPublic(token){
+  const key=String(token)+'|'+location.search;
+  if(publicBootState?.key===key){
+    if(publicBootState.loading)return publicBootState.loading;
+    if(publicBootState.loaded)return publicBootState.refresh?.();
+  }
+  const state={key,loaded:false,refresh:null};publicBootState=state;
+  state.loading=loadPublicPage(token,state);
+  try{await state.loading;state.loaded=true;}finally{state.loading=null;}
+}
+async function loadPublicPage(token,bootState){
   S.publicMode=true;
   if(window.__sweResolvedShortLink){
     const r=window.__sweResolvedShortLink;
@@ -4675,6 +4692,8 @@ async function bootPublic(token){
     return;
   }
   const P=parsed;
+  let ratingGroupName='';
+  let refreshSeasonRankings=()=>{};
   const pageParams=swePublicParams();
   const viewedTournament=pageParams.get('history')||pageParams.get('tournament');
   const viewedLeague=pageParams.get('league');
@@ -5126,7 +5145,7 @@ async function bootPublic(token){
       const first=isFirstTimePublicPlayer(pl.id,regTour.id);
       const when=publicRegistrationDateTime(r.registered_at||r.created_at);
       return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b><span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">🆕 1ère fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">🕒 Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:'+(r.is_substitute?'#b45309':'#15803d')+'">'+(r.is_substitute?'Remplaçant':'Confirmé')+'</span></div>';
-    }).join('');
+    }).filter(Boolean);
     const waitRows=waiting.map((r,i)=>{
       const pl=playerMap.get(r.player_id);if(!pl)return '';
       const host=(pl?.is_group_member===false&&r.registered_by_player_id)?playerMap.get(r.registered_by_player_id):null;
@@ -5140,7 +5159,10 @@ async function bootPublic(token){
     const subsPublic=confirmed.filter(r=>r.is_substitute);
     const remainingPublic=Math.max(0,maxPublic-activePublic.length);
     const count=$('#publicRegCount');if(count)count.textContent=activePublic.length+'/'+maxPublic+' inscrits • '+remainingPublic+' place'+(remainingPublic>1?'s':'')+' restante'+(remainingPublic>1?'s':'')+(subsPublic.length?' • '+subsPublic.length+' remplaçant'+(subsPublic.length>1?'s':''):'')+(waiting.length?' • '+waiting.length+' en attente':'');
-    const list=$('#publicRegisteredList');if(list)list.innerHTML=publicRegistrationSummaryHtml();
+    const list=$('#publicRegisteredList');if(list){
+      const expanded=!!$('#publicMoreRegistrations')?.open;
+      list.innerHTML=listRows.slice(0,5).join('')+(listRows.length>5?'<details id="publicMoreRegistrations"'+(expanded?' open':'')+'><summary><span class="when-closed">Voir les '+(listRows.length-5)+' autres inscrits</span><span class="when-open">Masquer la suite de la liste</span></summary>'+listRows.slice(5).join('')+'</details>':'');
+    }
     const wlist=$('#publicWaitList');if(wlist){wlist.innerHTML=waitRows;wlist.parentElement.classList.toggle('hidden',!waiting.length)}
   }
 
@@ -5490,6 +5512,7 @@ async function bootPublic(token){
         const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
         if(error||!data||seq!==publicRefreshSeq)return;
         players=data.players||players;
+        seasons=data.seasons||seasons;
         const freshTour=(data.tournaments||[]).find(t=>t.id===regTour.id);
         if(freshTour)regTour=freshTour;
         tournaments=data.tournaments||tournaments;matches=data.matches||matches;goals=data.goals||goals;
@@ -5509,10 +5532,13 @@ async function bootPublic(token){
         // Ne pas reconstruire le formulaire équipe pendant que l’utilisateur le remplit.
         // Le rafraîchissement automatique de 8 s reste actif pour les données, mais ne reset plus l'inscription équipe.
         if(typeof renderPublicTeamBuilder==='function'&&!window.__swePublicTeamEditing)renderPublicTeamBuilder();
+        refreshSeasonRankings();
         registrationPresentation?.update();
         updateTournamentCountdowns();
       }catch(e){}
     }
+
+    bootState.refresh=refreshPublicRegistration;
 
     function showRegistrationConfirmation(playerName,data){
       const pos=Number(data?.position||0);
@@ -5989,15 +6015,17 @@ async function bootPublic(token){
   }
 
   const activeSeason=seasons.find(x=>x.is_active)||seasons[0];
-  const seasonTids=new Set(tournaments.filter(x=>x.format!=='league'&&(!activeSeason||x.season_id===activeSeason.id)).map(x=>x.id));
-  const seasonMatchIds=new Set(matches.filter(x=>seasonTids.has(x.tournament_id)).map(x=>x.id));
-  const gs=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false}]));
-  goals.filter(g=>seasonMatchIds.has(g.match_id)).forEach(g=>{
-    if(gs.has(g.scorer_player_id))gs.get(g.scorer_player_id).g++;
-    if(g.assister_player_id&&gs.has(g.assister_player_id))gs.get(g.assister_player_id).a++;
-  });
-  let scor=[...gs.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
-  let prev=null,rank=0;scor=scor.map((x,i)=>{if(x.g!==prev){rank=i+1;prev=x.g}return {...x,rank}});
+  let scor=[],seasonAss=[];
+  function collectSeasonRankings(){
+    const season=seasons.find(x=>x.is_active)||seasons[0];
+    const tids=new Set(tournaments.filter(x=>x.format!=='league'&&(!season||x.season_id===season.id)).map(x=>x.id));
+    const mids=new Set(matches.filter(x=>tids.has(x.tournament_id)).map(x=>x.id));
+    const gs=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false}]));
+    goals.filter(g=>mids.has(g.match_id)&&!g.is_own_goal).forEach(g=>{if(gs.has(g.scorer_player_id))gs.get(g.scorer_player_id).g++;if(gs.has(g.assister_player_id))gs.get(g.assister_player_id).a++;});
+    const rankBy=key=>{let previous=null,rank=0;return [...gs.values()].filter(x=>x[key]).sort((a,b)=>b[key]-a[key]||a.name.localeCompare(b.name)).map((x,i)=>{if(x[key]!==previous){previous=x[key];rank=i+1}return {...x,rank}})};
+    scor=rankBy('g');seasonAss=rankBy('a');
+  }
+  collectSeasonRankings();
   let publicScorersExpanded=false;
   const renderPublicSeasonScorers=()=>{
     const visible=publicScorersExpanded?scor:scor.slice(0,10);
@@ -6007,8 +6035,6 @@ async function bootPublic(token){
   renderPublicSeasonScorers();
   if($('#togglePublicSeasonScorers'))$('#togglePublicSeasonScorers').onclick=()=>{publicScorersExpanded=!publicScorersExpanded;renderPublicSeasonScorers();};
 
-  let seasonAss=[...gs.values()].filter(x=>x.a).sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
-  let aprev=null,arank=0;seasonAss=seasonAss.map((x,i)=>{if(x.a!==aprev){arank=i+1;aprev=x.a}return {...x,rank:arank}});
   let publicAssistsExpanded=false;
   const renderPublicSeasonAssists=()=>{
     const visible=publicAssistsExpanded?seasonAss:seasonAss.slice(0,10);
@@ -6017,6 +6043,8 @@ async function bootPublic(token){
   };
   renderPublicSeasonAssists();
   if($('#togglePublicSeasonAssists'))$('#togglePublicSeasonAssists').onclick=()=>{publicAssistsExpanded=!publicAssistsExpanded;renderPublicSeasonAssists();};
+
+  refreshSeasonRankings=()=>{collectSeasonRankings();renderPublicSeasonScorers();renderPublicSeasonAssists();};
 
   const seasonWinStats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,matchWins:0,tournamentWins:0,g:0,a:0,avg:0,ratingTotal:0,ratingMatches:0,guest:x.is_group_member===false}]));
   const seasonTours=tournaments.filter(t=>t.format!=='league'&&t.status==='finished'&&(!activeSeason||t.season_id===activeSeason.id));
@@ -6210,12 +6238,15 @@ async function bootPublic(token){
   if(toggleLast){toggleLast.disabled=!latest;toggleLast.setAttribute('aria-expanded','false');toggleLast.textContent=latest?'Développer les derniers résultats':'Aucun résultat';}
   if(toggleLast&&lastDetails){
     toggleLast.onclick=()=>{
+      if(regTour&&latest){location.href=publicHistoryUrl(token,latest.id);return;}
       const opening=lastDetails.classList.contains('hidden');
       lastDetails.classList.toggle('hidden',!opening);
       toggleLast.textContent=opening?'Réduire les derniers résultats':'Développer les derniers résultats';
       toggleLast.setAttribute('aria-expanded',String(opening));
     };
   }
+
+  if(regTour&&toggleLast&&latest){toggleLast.textContent='Voir les derniers résultats →';toggleLast.removeAttribute('aria-expanded');}
 
   const pubHist=$('#publicHistory');
   pubHist.innerHTML='';
@@ -6229,7 +6260,7 @@ async function bootPublic(token){
   });
   if(!finishedHistory.length)pubHist.innerHTML='<p class="muted">Aucun tournoi terminé dans cette saison.</p>';
   if(regTour&&regTour.format!=='league'&&window.SWERegistrationPresentation){
-    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,data:()=>({tournament:regTour,tournaments,players,registrations,teams,teamPlayers,matches,coorganizers:registrationCoorganizers,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
+    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
     updateTournamentCountdowns();
     loadPresentationMetadata().catch(()=>{});
   }
