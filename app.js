@@ -2843,6 +2843,7 @@ function renderTournaments(){
 
       editDetails.append(editBtn,editBox);
       reg.appendChild(editDetails);
+      window.SWERegistrationPresentation?.briefingEditor(reg,t,{editing:active=>{S.editingTournamentId=active?t.id:null;},save:async briefing=>{const {error}=await sb.from('tournaments').update({registration_briefing:briefing}).eq('id',t.id);if(error)throw error;}});
 
       const publicUrl=registrationLink(t);
       const shareBox=document.createElement('div');shareBox.style.marginTop='10px';
@@ -4971,6 +4972,19 @@ async function bootPublic(token){
     regTour=openTours.find(modeMatches)||null;
   }
   const regBox=$('#publicRegistration');
+  let registrationPresentation=null;
+  let registrationCoorganizers=[],registrationRatingWindows=[];
+  let presentationMetadataAt=0;
+  async function loadPresentationMetadata(){
+    if(!regTour||regTour.format==='league'||Date.now()-presentationMetadataAt<30000)return;
+    presentationMetadataAt=Date.now();
+    const session=await sb.auth.getSession();
+    if(!session.data?.session)return;
+    const {data,error}=await sb.rpc('get_my_tournament_presentation_v1',{p_tournament_id:regTour.id});
+    if(error||!data)return;
+    registrationCoorganizers=data.is_coorganizer&&data.my_player_id?[data.my_player_id]:[];registrationRatingWindows=data.tournament_rating_windows||[];
+    registrationPresentation?.updateMissions();
+  }
   if(requestedTournament&&!regTour){
     $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5</h1></header><div class="card"><h2 class="sectiontitle">Lien d’inscription indisponible</h2><p class="muted">Ce lien ne correspond pas à une inscription ouverte, ou le type de compétition ne correspond pas au lien généré. Aucun autre tournoi ni aucune Ligue ne sera affiché à sa place.</p></div>';
     return;
@@ -5165,7 +5179,7 @@ async function bootPublic(token){
         (regTour.format==='league'
           ? 'Sélectionne ton nom ci-dessus puis ajoute tes invités un par un. Tu peux en ajouter jusqu’à <b>5 au total</b> pour ce Swé.'
           : 'Pour un tournoi, une personne extérieure ne peut pas s’inscrire seule : elle doit être <b>invitée par un membre du groupe</b>. Sélectionne ton nom puis ajoute ton ou tes invités, même si toi-même tu ne participes pas. Tu peux en ajouter jusqu’à <b>5 au total</b>.')+
-      '</div><input id="publicGuestName" placeholder="Nom de l’invité"><label class="row" style="margin-top:8px;justify-content:flex-start"><input id="publicGuestMember" type="checkbox" style="width:auto"><span>Ajouter cet invité comme membre du groupe</span></label><div id="publicGuestPhoneWrap" class="hidden" style="margin-top:8px"><input id="publicGuestPhone" type="tel" inputmode="tel" placeholder="Numéro de mobile de l’invité"><div class="muted" style="margin-top:4px">Le numéro est demandé uniquement pour créer sa fiche membre. Il reste privé et visible uniquement par l’administrateur.</div></div><div class="space"></div><button id="publicAddGuest" class="primary">+ Ajouter mon invité</button></details>'+
+      '</div><div id="publicPreviousGuestsWrap" class="hidden"><label for="publicPreviousGuest"><b>Retrouver un ancien invité</b></label><select id="publicPreviousGuest"><option value="">Ajouter un nouvel invité</option></select><p class="muted">Les invités déjà inscrits à cette édition sont indiqués dans la liste.</p></div><label for="publicGuestName">Nom de l’invité</label><input id="publicGuestName" maxlength="60" placeholder="Nom du nouvel invité ou de l’invité sélectionné"><label class="row" style="margin-top:8px;justify-content:flex-start"><input id="publicGuestMember" type="checkbox" style="width:auto"><span>Ajouter cet invité comme membre du groupe</span></label><div id="publicGuestPhoneWrap" class="hidden" style="margin-top:8px"><input id="publicGuestPhone" type="tel" inputmode="tel" placeholder="Numéro de mobile de l’invité"><div class="muted" style="margin-top:4px">Le numéro est demandé uniquement pour créer sa fiche membre. Il reste privé et visible uniquement par l’administrateur.</div></div><div class="space"></div><button id="publicAddGuest" class="primary">+ Ajouter mon invité</button></details>'+
       '<div id="publicRegStatus" class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;line-height:1.6"><b>🟠 Comment fonctionne le statut « Remplaçant » ?</b><div class="muted" style="margin-top:6px">Le statut remplaçant est attribué uniquement lorsqu’il n’y a pas encore assez de joueurs pour constituer une équipe complète supplémentaire de <b>5 joueurs</b>.<br><br><b>Exemple :</b> avec <b>14 inscrits</b>, on peut former <b>2 équipes complètes de 5</b> : les joueurs classés de la 11e à la 14e place sont donc <b>4 remplaçants</b>. Dès qu’un <b>15e joueur</b> s’inscrit, ces 5 joueurs forment la <b>3e équipe complète</b> et ne sont plus remplaçants.<br><br>Même principe ensuite : 16 à 19 inscrits = remplaçants pour préparer la 4e équipe ; à 20 inscrits = 4 équipes complètes. L’ordre est basé sur la <b>date et l’heure d’inscription</b>, affichées sous le nom de chaque joueur dans la liste.</div></div>'+
       '<h3 style="margin-top:18px">👥 Liste des inscrits</h3><div id="publicRegisteredList"></div>'+
       '<div id="publicWaitWrap" class="'+(waiting?'':'hidden')+'"><h3 style="margin-top:14px">⏳ Liste d’attente</h3><div id="publicWaitList"></div></div>';
@@ -5202,6 +5216,9 @@ async function bootPublic(token){
       if(!sel)return;
       const previous=sel.value;
       const members=players.filter(x=>x.active&&x.is_group_member!==false).sort((a,b)=>a.name.localeCompare(b.name));
+      const signature=JSON.stringify(members.map(x=>[x.id,x.name]));
+      if(sel.dataset.memberSignature===signature||document.activeElement===sel)return;
+      sel.dataset.memberSignature=signature;
       sel.innerHTML='<option value="">Choisis ton nom</option>'+members.map(x=>{
         // La liste reste volontairement simple : le statut et les invités sont affichés juste en dessous après sélection.
         return '<option value="'+x.id+'">'+esc(x.name)+'</option>';
@@ -5209,7 +5226,20 @@ async function bootPublic(token){
       if([...sel.options].some(o=>o.value===previous))sel.value=previous;
     }
 
+    function renderPreviousGuests(){
+      const select=$('#publicPreviousGuest'),wrap=$('#publicPreviousGuestsWrap'),host=$('#publicPlayerSelect')?.value;
+      if(!select||!wrap)return;
+      const previousIds=new Set(registrations.filter(r=>r.tournament_id!==regTour.id&&(String(r.registered_by_player_id||'')===String(host)||players.some(p=>p.id===r.player_id&&String(p.guest_of_player_id||'')===String(host)))).map(r=>r.player_id));
+      const previous=host?players.filter(p=>p.is_group_member===false&&previousIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name)):[];
+      wrap.classList.toggle('hidden',!previous.length);
+      if(document.activeElement===select)return;
+      const old=select.value,html='<option value="">Ajouter un nouvel invité</option>'+previous.map(p=>{const present=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===p.id&&r.present);return '<option value="'+p.id+'" '+(present?'disabled':'')+'>'+esc(p.name)+(present?' — déjà inscrit':'')+'</option>';}).join('');
+      if(select.innerHTML!==html){select.innerHTML=html;if([...select.options].some(o=>o.value===old&&!o.disabled))select.value=old;}
+    }
+    $('#publicPreviousGuest').onchange=()=>{const p=players.find(p=>p.id===$('#publicPreviousGuest').value);$('#publicGuestName').value=p?.name||'';if(p){$('#publicGuestMember').checked=false;$('#publicGuestPhone').value='';$('#publicGuestPhoneWrap').classList.add('hidden');}};
+    $('#publicGuestName').addEventListener('input',()=>{$('#publicPreviousGuest').value='';});
     function updateSelectedRegistrationStatus(){
+      renderPreviousGuests();
       const pid=$('#publicPlayerSelect')?.value;
       const status=$('#publicSelectedStatus');
       if(!status)return;
@@ -5460,6 +5490,10 @@ async function bootPublic(token){
         const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
         if(error||!data||seq!==publicRefreshSeq)return;
         players=data.players||players;
+        const freshTour=(data.tournaments||[]).find(t=>t.id===regTour.id);
+        if(freshTour)regTour=freshTour;
+        tournaments=data.tournaments||tournaments;matches=data.matches||matches;goals=data.goals||goals;
+        loadPresentationMetadata().catch(()=>{});
         registrations=data.tournament_players||registrations;
         tournamentGroupLevels=data.tournament_group_levels||tournamentGroupLevels;
         renderPublicQuickStats();
@@ -5475,6 +5509,8 @@ async function bootPublic(token){
         // Ne pas reconstruire le formulaire équipe pendant que l’utilisateur le remplit.
         // Le rafraîchissement automatique de 8 s reste actif pour les données, mais ne reset plus l'inscription équipe.
         if(typeof renderPublicTeamBuilder==='function'&&!window.__swePublicTeamEditing)renderPublicTeamBuilder();
+        registrationPresentation?.update();
+        updateTournamentCountdowns();
       }catch(e){}
     }
 
@@ -5535,6 +5571,8 @@ async function bootPublic(token){
       const guestName=$('#publicGuestName').value.trim();
       if(!host)return $('#publicRegStatus').textContent='Choisis d’abord ton nom dans la liste ci-dessus. Tu peux ajouter un invité même si tu es déjà inscrit.';
       if(!guestName)return $('#publicRegStatus').textContent='Entre le nom de ton invité.';
+      const existingGuest=players.find(p=>p.id===$('#publicPreviousGuest')?.value);
+      if(existingGuest&&registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===existingGuest.id&&r.present))return $('#publicRegStatus').textContent='Cet invité est déjà inscrit à cette édition.';
       const usageBefore=publicGuestUsage(host);
       if(usageBefore.remaining<=0)return $('#publicRegStatus').textContent='Tu as déjà utilisé tes 5 invitations pour ce tournoi.';
       const phone=$('#publicGuestPhone').value.trim();
@@ -5543,7 +5581,7 @@ async function bootPublic(token){
       const b=$('#publicAddGuest');b.disabled=true;
       const {data,error}=await sb.rpc('public_register_tournament_guest',{p_token:token,p_tournament_id:regTour.id,p_host_player_id:host,p_guest_name:guestName,p_phone_number:phone||null,p_add_as_member:addMember});
       b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
-      $('#publicGuestName').value='';$('#publicGuestPhone').value='';$('#publicGuestMember').checked=false;
+      $('#publicGuestName').value='';$('#publicPreviousGuest').value='';$('#publicGuestPhone').value='';$('#publicGuestMember').checked=false;
       const used=publicGuestUsage(host).used+1;
       const remaining=Math.max(0,PUBLIC_GUEST_LIMIT-used);
       const hostIsRegistered=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===host&&r.present);
@@ -5571,7 +5609,11 @@ async function bootPublic(token){
   }
   function setPublicEntryMode(mode){
     if(!entryChoiceCard||!soloCard||!teamCard)return;
-    entryChoiceCard.classList.toggle('hidden',!!mode);
+    const premium=$('#publicView').classList.contains('swe-premium');
+    if(premium&&!mode)mode='solo';
+    entryChoiceCard.classList.toggle('hidden',!!mode&&!premium);
+    $('#chooseSoloMode')?.setAttribute('aria-pressed',String(mode==='solo'));
+    $('#chooseTeamMode')?.setAttribute('aria-pressed',String(mode==='team'));
     soloCard.classList.toggle('hidden',mode!=='solo');
     teamCard.classList.toggle('hidden',mode!=='team');
     if(mode)window.scrollTo({top:0,behavior:'smooth'});
@@ -6186,6 +6228,11 @@ async function bootPublic(token){
     d.appendChild(b);pubHist.appendChild(d);
   });
   if(!finishedHistory.length)pubHist.innerHTML='<p class="muted">Aucun tournoi terminé dans cette saison.</p>';
+  if(regTour&&regTour.format!=='league'&&window.SWERegistrationPresentation){
+    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,data:()=>({tournament:regTour,tournaments,players,registrations,teams,teamPlayers,matches,coorganizers:registrationCoorganizers,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
+    updateTournamentCountdowns();
+    loadPresentationMetadata().catch(()=>{});
+  }
 }
 authState();
 document.addEventListener('click',e=>{const t=e.target?.closest?.('.tab[data-view="cooler"]');if(t)setTimeout(loadThirdHalfFunds,0);});

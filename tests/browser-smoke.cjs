@@ -9,6 +9,9 @@ const token=id(1),current=id(2),past=id(3),season=id(4),match=id(5),a=id(6),b=id
 const players=[1,2,3,4].map(n=>({id:id(10+n),name:'Joueur '+n,active:true,is_group_member:true}));
 const snapshot={workspace:{id:id(30),name:'Groupe de vérification'},features:{rankings_enabled:true,player_ratings_enabled:false,top_player_enabled:false},players,seasons:[{id:season,name:'Saison de test',is_active:true}],leagues:[],tournaments:[{id:current,name:'Prochain tournoi',tournament_date:'2099-09-20',registration_open:true,status:'draft',format:'classic',max_players:20,team_size:5,season_id:season,registration_deadline:'2099-09-19T17:00:00Z'},{id:past,name:'Tournoi précédent',tournament_date:'2026-09-01',status:'finished',format:'classic',season_id:season}],tournament_players:players.map(p=>({tournament_id:current,player_id:p.id,present:true,registration_status:'confirmed'})),teams:[{id:a,tournament_id:past,name:'Bleus',color:'#2563eb'},{id:b,tournament_id:past,name:'Rouges',color:'#dc2626'}],team_players:players.map((p,i)=>({team_id:i%2?a:b,player_id:p.id})),matches:[{id:match,tournament_id:past,home_team_id:a,away_team_id:b,home_score:1,away_score:0,status:'finished',match_order:1}],goals:[{id:id(20),match_id:match,team_id:a,scorer_player_id:players[1].id,assister_player_id:players[3].id}],match_player_assignments:players.map((p,i)=>({match_id:match,team_id:i%2?a:b,player_id:p.id})),sports_complexes:[],sports_pitches:[]};
 snapshot.teams[0].name='Équipe Harry MC';
+snapshot.players.push({id:id(50),name:'Ancien invité',active:true,is_group_member:false,guest_of_player_id:players[0].id});
+snapshot.tournament_players.push({tournament_id:past,player_id:id(50),present:true,registration_status:'confirmed',registered_by_player_id:players[0].id});
+snapshot.tournaments[0].registration_briefing={general:'Rendez-vous 15 minutes avant le début.',observe:true,evening:true,rating:true};
 snapshot.matches.push({id:id(21),tournament_id:past,home_team_id:b,away_team_id:a,home_score:12,away_score:2,status:'finished',match_order:2});
 function installMock(data,ids){
  window.__calls=[];window.__snapshot=data;window.__testScore=0;window.__testCanEdit??=true;
@@ -22,7 +25,7 @@ function installMock(data,ids){
   const query=new Proxy(()=>query,{get:(_t,k)=>k==='then'?resolve=>Promise.resolve({data:[],error:null}).then(resolve):()=>query});
   return {
    auth:{
-    getSession:async()=>({data:{session:location.pathname.includes('forssadmin')||new URLSearchParams(location.search).has('test')?{user:{id:ids.user,email:'test@example.invalid'}}:null}}),
+    getSession:async()=>({data:{session:window.__publicSession||location.pathname.includes('forssadmin')||new URLSearchParams(location.search).has('test')?{user:{id:ids.user,email:'test@example.invalid'}}:null}}),
     getUser:async()=>({data:{user:null}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),
     signInWithPassword:async()=>({data:{},error:null}),signOut:async()=>({error:null})
    },
@@ -31,6 +34,9 @@ function installMock(data,ids){
     window.__calls.push({name,args});
     if(name==='is_platform_super_admin')return {data:true};
     if(name==='get_public_workspace_snapshot_v2')return {data:window.__snapshot};
+    if(name==='get_my_tournament_presentation_v1')return {data:{my_player_id:data.players[0].id,is_coorganizer:true,tournament_rating_windows:window.__ratingWindows||[]}};
+    if(name==='public_register_tournament_guest'){let p=window.__snapshot.players.find(p=>p.name.toLowerCase()===args.p_guest_name.toLowerCase());if(!p){p={id:fakeId(200),name:args.p_guest_name,active:true,is_group_member:false,guest_of_player_id:args.p_host_player_id};window.__snapshot.players.push(p)}window.__snapshot.tournament_players.push({tournament_id:args.p_tournament_id,player_id:p.id,present:true,registration_status:'confirmed',registered_by_player_id:args.p_host_player_id});return {data:{player_id:p.id,status:'confirmed'}};}
+    if(name==='public_tournament_registration'){const reg=window.__snapshot.tournament_players.find(r=>r.player_id===args.p_player_id&&r.tournament_id===args.p_tournament_id);if(reg)reg.present=args.p_action==='join';return {data:{position:1,is_substitute:false}};}
     if(name==='resolve_public_tournament_short_link')return {data:{public_token:ids.token,tournament_id:ids.current,view:'tournament'}};
     if(name==='super_admin_get_test_match_accounts')return {data:[...Array.from({length:15},(_,i)=>({swe_id:'SWE-TEST'+(i+1),name:'Compte '+(i+1)})),{swe_id:'SWE-E5DE3BA0',name:'Testing boy'}]};
     if(name==='super_admin_get_test_match_recipients')return {data:[{workspace_id:ids.current,user_id:ids.user,workspace_name:'Groupe du dimanche',role:'coorganizer',name:'Testing boy',swe_id:'SWE-E5DE3BA0'}]};
@@ -170,6 +176,18 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await page.locator('#publicPlayerSelect').selectOption(players[0].id);
    const chosen=await page.locator('#publicPlayerSelect').inputValue();await page.waitForTimeout(1300);assert.equal(await page.locator('#publicPlayerSelect').inputValue(),chosen);
    await page.screenshot({path:path.join(screenshotDir,'screenshot-registration-'+viewport.width+'.png'),fullPage:true});
+   assert.equal(await page.locator('#publicView').getAttribute('data-stage'),'green');
+   assert.equal(new URL(page.url()).searchParams.get('s'),'TESTCODE');
+   assert.equal(await page.locator('#registrationLiveLink').count(),0);
+   await page.locator('#publicPreviousGuestsWrap').waitFor({state:'visible'});
+   await page.locator('#publicPreviousGuest').selectOption(id(50));assert.equal(await page.locator('#publicGuestName').inputValue(),'Ancien invité');
+   await page.locator('#publicAddGuest').click();await page.locator('#publicPreviousGuest option[value="'+id(50)+'"]').waitFor({state:'attached'});await page.waitForFunction(pid=>document.querySelector('#publicPreviousGuest option[value="'+pid+'"]').disabled,id(50));
+   assert.equal(await page.evaluate(pid=>window.__snapshot.players.filter(p=>p.id===pid).length,id(50)),1);
+   await page.locator('#publicGuestName').fill('Nouvel invité');await page.locator('#publicAddGuest').click();await page.locator('#publicRegisteredList').filter({hasText:'Nouvel invité'}).waitFor();
+   assert.equal(await page.locator('#registrationMissions').isVisible(),false);
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Premium has no page overflow');
+   console.log('Production preview uses shared URL and real guest/registration callbacks:',viewport.width,'OK');
+
    await page.goto(base+'/?public='+token+'&history='+past+'&from_tournament='+current+'&from_view=tournament');
    await page.locator('#backPublic').waitFor({state:'visible'});await checkScoreLayout(page);
    await page.screenshot({path:path.join(screenshotDir,'screenshot-history-'+viewport.width+'.png'),fullPage:true});
@@ -242,6 +260,15 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    window.sb={from:table=>({update:values=>({eq:async(key,value)=>{window.__normalWrites.push({table,values,key,value});return {error:null}}})})};
   },snapshot);
   await normal.addScriptTag({content:fs.readFileSync(path.join(root,'match-engine-v4300.js'),'utf8')});await normal.locator('.swe4300-edit input').first().fill('3');await normal.locator('.swe4300-edit button').click();assert.deepEqual(await normal.evaluate(()=>window.__normalWrites.map(x=>x.values)),[{home_score:3,away_score:0}]);await normal.close();console.log('Normal match module and test viewer permissions: OK');
+
+  const premium=await context.newPage();premium.on('pageerror',e=>errors.push(e.message));await premium.addInitScript(()=>{window.__publicSession=true});await premium.goto(base+'/?s=TESTCODE');await premium.locator('#publicPlayerSelect').selectOption(players[0].id);await premium.locator('#registrationMissions').filter({hasText:'dans la soirée'}).waitFor();
+  await premium.locator('#publicGuestFields summary').click();await premium.locator('#publicGuestName').fill('Saisie à préserver');
+  await premium.evaluate(({current,a,b})=>{const t=window.__snapshot.tournaments.find(t=>t.id===current);t.registration_briefing.general='';t.registration_briefing.observe=false;t.registration_briefing.evening=false;t.registration_briefing.rating=false;window.__snapshot.matches.push({id:'live-check',tournament_id:current,home_team_id:a,away_team_id:b,home_score:0,away_score:0,status:'live'});}, {current,a,b});
+  await premium.locator('#registrationLiveLink').waitFor({timeout:12000});assert.equal(await premium.locator('#publicView').getAttribute('data-stage'),'orange');assert.match(await premium.locator('#registrationPhaseCard').innerText(),/0 – 0/);assert.equal(await premium.locator('#publicGuestName').inputValue(),'Saisie à préserver');assert.equal(await premium.locator('#registrationGeneral').isVisible(),false);assert.equal(await premium.locator('#registrationMissions').isVisible(),false);
+  assert.equal(new URL(premium.url()).searchParams.get('s'),'TESTCODE');assert.match(await premium.locator('#registrationLiveLink').getAttribute('href'),new RegExp('tournament='+current));
+  await premium.screenshot({path:path.join(screenshotDir,'premium-production-live.png'),fullPage:true});
+  await premium.evaluate(current=>{window.__snapshot.tournaments.find(t=>t.id===current).status='finished'},current);await premium.waitForFunction(()=>document.querySelector('#publicView').dataset.stage==='purple',{timeout:12000});assert.equal(await premium.locator('#publicJoin').isVisible(),false);assert.equal(await premium.locator('#publicPlayerSelect').isVisible(),true);assert.equal(await premium.locator('#publicRegisteredList').isVisible(),true);await premium.close();
+  console.log('Personal briefing, empty cards, automatic 0–0 live transition, completed signup and preserved fields: OK');
   await context.close();assert.deepEqual(errors,[]);
  }finally{await browser.close();await new Promise(r=>server.close(r))}
 })().catch(e=>{console.error(e);console.error('Page errors:',errors);server.close();process.exitCode=1});
