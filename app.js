@@ -1858,6 +1858,8 @@ function renderEcosystemCommercial(){
   const c=S.commercialAccess||{};
   const a=S.organizerAccess||{};
   const trialActive=!!a.trial_active&&!c.special_access_enabled;
+  const hasLockedModules=['player_ratings_enabled','third_half_enabled','tournaments_enabled'].some(key=>!S.workspaceFeatures[key]);
+  for(const id of ['#homeCoorgOfferCard','#homeModulesDisclosure']){const section=$(id);if(section&&section.dataset.workspace!==String(S.workspace?.id||'')){section.open=false;section.dataset.workspace=String(S.workspace?.id||'');}}
   const badge=$('#homePlanBadge');if(badge)badge.textContent=trialActive?('ESSAI • '+Number(a.days_remaining||0)+' J'):(c.special_access_enabled?'ACCÈS SPÉCIAL • ':'')+String(c.subscription_plan||'free').toUpperCase();
   const special=$('#homeSpecialAccessNotice');if(special){special.classList.toggle('hidden',!c.special_access_enabled);special.innerHTML=c.special_access_enabled?'<div class="player" style="background:#ecfdf3;border-color:#86d6a3"><b>🎁 Autorisation spéciale SWÉ active</b><div class="muted" style="margin-top:4px">Tous les modules sont débloqués pour faire découvrir la solution, sans modifier ton abonnement commercial.</div></div>':'';}
   const trialNotice=$('#homeTrialPricingNotice');
@@ -1865,13 +1867,13 @@ function renderEcosystemCommercial(){
   const upgradeCard=$('#homeUpgradeCard');
   if(trialNotice){
     trialNotice.classList.toggle('hidden',!trialActive);
-    trialNotice.innerHTML=trialActive?'<div class="player" style="background:#f8fbff;border-color:#c8d8ee"><b>🎁 Profite de ton essai, on ne te parle pas encore prix</b><div class="muted" style="margin-top:5px;line-height:1.55">Toutes les fonctions organisateur sont disponibles pendant encore <b>'+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+'</b>. Les tarifs et options payantes restent masqués pendant cette période.</div><button type="button" id="endTrialToPay" class="secondary" style="margin-top:10px">Je veux arrêter mon essai et voir les offres payantes</button></div>':'';
+    trialNotice.innerHTML=trialActive?'<div class="home-trial-strip"><b>🎁 Offre découverte · '+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+' restant'+(Number(a.days_remaining||0)>1?'s':'')+'</b><span>Retrouve le statut de chaque option dans « Voir nos modules ».</span><details><summary>Gérer mon essai</summary><button type="button" id="endTrialToPay" class="secondary">Arrêter mon essai et voir les offres payantes</button></details></div>':'';
   }
   if(coorgOffer)coorgOffer.classList.toggle('hidden',trialActive);
-  if(upgradeCard)upgradeCard.classList.toggle('hidden',trialActive);
-  const paint=(id,on)=>{const el=$(id);if(!el)return;el.style.borderColor=on?'#86d6a3':'#e3e7e5';el.style.background=on?'#f0fdf4':'#fff';const old=el.querySelector('[data-module-status]');if(old)old.remove();const st=document.createElement('div');st.dataset.moduleStatus='1';st.style.marginTop='7px';st.innerHTML=on?'<span class="guest-badge" style="background:#dcfce7;color:#166534">✓ ACTIF</span>':'<span class="guest-badge" style="background:#f3f4f6;color:#6b7280">À DÉBLOQUER</span>';el.appendChild(st)};
+  if(upgradeCard)upgradeCard.classList.toggle('hidden',!hasLockedModules);
+  const paint=(id,on)=>{const el=$(id);if(!el)return;el.dataset.moduleState=on?(trialActive?'trial':'active'):'locked';let st=el.querySelector('[data-module-status]');if(!st){st=document.createElement('div');st.dataset.moduleStatus='1';el.appendChild(st);}st.className='home-module-status';st.textContent=on?(trialActive?'🎁 Offert pendant l’essai':'✓ Module actif'):'＋ À débloquer';};
   paint('#ecoRatingsModule',!!S.workspaceFeatures.player_ratings_enabled);paint('#ecoThirdHalfModule',!!S.workspaceFeatures.third_half_enabled);paint('#ecoTournamentModule',!!S.workspaceFeatures.tournaments_enabled);
-  const up=$('#homeRequestUpgrade');if(up){up.textContent=c.upgrade_requested_at?'⏳ Demande envoyée':'Voir les formules SWÉ';up.disabled=!!c.upgrade_requested_at;}
+  const up=$('#homeRequestUpgrade');if(up){up.textContent=c.upgrade_requested_at?'⏳ Demande envoyée':'Demander une activation';up.disabled=!!c.upgrade_requested_at;}
   refreshCoorgPurchasePrice();
 }
 

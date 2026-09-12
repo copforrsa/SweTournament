@@ -84,6 +84,30 @@ function installMock(data,ids,ruleRows){
   };
  }};
 }
+async function checkHomeShop(context,base,width){
+ const page=await context.newPage();
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),start=html.indexOf('<div class="card" id="homeEcosystemCard"'),end=html.indexOf('<div class="card" id="homeCoorgVotesCard"',start);
+ await page.setContent('<!doctype html><html><head><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="'+base+'/styles.css"><link rel="stylesheet" href="'+base+'/home-commerce.css"></head><body><main class="app">'+html.slice(start,end)+'</main></body></html>');
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),render=app.slice(app.indexOf('function renderEcosystemCommercial(){'),app.indexOf('function renderHome(){'));
+ await page.addScriptTag({content:'const $=s=>document.querySelector(s);const S={workspace:{id:"test"},workspaceFeatures:{player_ratings_enabled:false,third_half_enabled:false,tournaments_enabled:false},commercialAccess:{subscription_plan:"free"},organizerAccess:{trial_active:false}};function isAdmin(){return true}function refreshCoorgPurchasePrice(){};'+render+';renderEcosystemCommercial();'});
+ assert.equal(await page.locator('#homeCoorgOfferCard').getAttribute('open'),null);
+ assert.equal(await page.locator('#homeBuyCoorg').isVisible(),false);
+ assert.equal(await page.locator('#ecoRatingsModule').isVisible(),false);
+ await page.locator('#homeCoorgOfferCard>summary').click();await page.locator('#homeBuyCoorg').waitFor();await page.locator('#homeCoorgQty').fill('3');
+ await page.locator('#homeCoorgOfferCard>summary').click();assert.equal(await page.locator('#homeBuyCoorg').isVisible(),false);
+ await page.locator('#homeCoorgOfferCard>summary').click();assert.equal(await page.locator('#homeCoorgQty').inputValue(),'3');await page.locator('#homeCoorgOfferCard>summary').click();
+ await page.screenshot({path:path.join(screenshotDir,'home-shop-collapsed-'+width+'.png'),fullPage:true});
+ await page.locator('#homeModulesDisclosure>summary').focus();await page.keyboard.press('Enter');await page.locator('#ecoRatingsModule').waitFor();
+ assert.equal(await page.locator('[data-module-state="locked"]').count(),3);assert.equal(await page.locator('#homeRequestUpgrade').isVisible(),true);
+ await page.screenshot({path:path.join(screenshotDir,'home-shop-unpurchased-'+width+'.png'),fullPage:true});
+ await page.evaluate(()=>{S.organizerAccess={trial_active:true,days_remaining:60};S.workspaceFeatures={player_ratings_enabled:true,third_half_enabled:true,tournaments_enabled:true};renderEcosystemCommercial()});
+ assert.equal(await page.locator('#homeCoorgOfferCard').isVisible(),false);assert.equal(await page.locator('[data-module-state="trial"]').count(),3);assert.equal(await page.locator('#homeRequestUpgrade').isVisible(),false);
+ await page.evaluate(()=>{S.workspaceFeatures.third_half_enabled=false;renderEcosystemCommercial()});assert.equal(await page.locator('#ecoThirdHalfModule').getAttribute('data-module-state'),'locked');assert.equal(await page.locator('#homeRequestUpgrade').isVisible(),true);
+ await page.evaluate(()=>{S.organizerAccess.trial_active=false;renderEcosystemCommercial()});assert.equal(await page.locator('#homeCoorgOfferCard').isVisible(),true);assert.equal(await page.locator('#homeTrialPricingNotice').isVisible(),false);assert.equal(await page.locator('[data-module-state="active"]').count(),2);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Home shop has no horizontal overflow');
+ await page.locator('#homeModulesDisclosure>summary').click();assert.equal(await page.locator('#ecoRatingsModule').isVisible(),false);
+ await page.close();console.log('Home shop disclosures, keyboard, preserved quantity, trial and disabled modules:',width,'OK');
+}
 const sdk='('+installMock.toString()+')('+JSON.stringify(snapshot)+','+JSON.stringify({user:id(99),token,current,past,match})+','+JSON.stringify(require('./king-rule-fixtures.json'))+');';
 new (require('node:vm').Script)(sdk);
 async function checkScoreLayout(page){
@@ -196,6 +220,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    const context=await browser.newContext({viewport,timezoneId:'America/Martinique'});await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
    const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
    await checkPlayerCards(context,base,viewport.width);
+   await checkHomeShop(context,base,viewport.width);
    await page.goto(base+'/?s=TESTCODE');
    await page.locator('#chooseSoloMode').waitFor({state:'visible'});
    await page.locator('#chooseSoloMode').click();

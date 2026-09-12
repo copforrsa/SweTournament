@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <script src="/build-version.js?v=4377"></script>
+  <script src="/build-version.js?v=4378"></script>
   <script src="/session-journal.js?v=4377"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -17,6 +17,7 @@
 <link rel="icon" type="image/png" href="./favicon.png?v=4377">
 <link rel="apple-touch-icon" href="./icon-192.png?v=4377">
   <link rel="stylesheet" href="./styles.css?v=4377">
+  <link rel="stylesheet" href="./home-commerce.css?v=4378">
   <link rel="stylesheet" href="./registration-presentation.css?v=4377-invitation1">
 </head>
 <body>
@@ -275,17 +276,17 @@
         <div id="homeSpecialAccessNotice" class="hidden" style="margin-top:12px"></div>
         <div id="homeTrialPricingNotice" class="hidden" style="margin-top:12px"></div>
 
-        <div id="homeCoorgOfferCard" class="coorg-offer-card" style="margin-top:12px">
+        <details id="homeCoorgOfferCard" class="coorg-offer-card home-shop-disclosure" style="margin-top:12px">
+          <summary><span class="shop-closed">⚽ Acheter un accès co-gestionnaire</span><span class="shop-open">Masquer les détails de l’accès co-gestionnaire</span></summary>
+          <div class="home-shop-content">
           <div class="coorg-offer-head">
             <div class="coorg-offer-icon">👥<span>+</span></div>
-            <div class="coorg-offer-copy"><h3>Renforce ton équipe à petit prix</h3><p>Ajoute uniquement les co-gestionnaires dont tu as besoin. <b>1 accès = 1 co-gestionnaire</b>, activé automatiquement après paiement.</p></div>
+            <div class="coorg-offer-copy"><h3>Recrute ton adjoint</h3><p>Partage l’organisation, garde la main sur les droits. <b>1 accès = 1 co-gestionnaire.</b></p></div>
             <div class="coorg-auto-badge launch">🚀 <b>Tarif de lancement</b><span>simple et accessible</span></div>
           </div>
           <div class="coorg-benefits">
-            <div><span>👤</span><b>Gestion des joueurs</b><small>Ajout, modification, suivi</small></div>
-            <div><span>📅</span><b>Organisation</b><small>Résultats, classements, stats</small></div>
-            <div><span>🛡️</span><b>Droits personnalisés</b><small>Selon les besoins de ton équipe</small></div>
-            <div><span>⚡</span><b>Accès immédiat</b><small>Dès confirmation Stripe</small></div>
+            <div><span>📋</span><b>Un adjoint sur le banc</b><small>Joueurs, scores et organisation</small></div>
+            <div><span>🛡️</span><b>Tu gardes le brassard</b><small>Tu choisis ses permissions</small></div>
           </div>
           <div class="coorg-pricing-title"><span>🏷️</span><div><b>Choisis ton rythme de paiement</b><small>Le même accès équipe, au mois ou à l’année. L’annuel t’offre l’équivalent de 2 mois.</small></div></div>
           <input type="hidden" id="homeCoorgBillingPeriod" value="month">
@@ -301,18 +302,25 @@
           <button id="homeBuyCoorg" class="primary coorg-buy-btn">💳 Ajouter 1 accès équipe — 1,99 €/mois <span>→</span></button>
           <div class="coorg-trust"><span>🔒 Paiement sécurisé par Stripe</span><span>✅ Activation automatique</span><span>🕊️ Sans engagement</span><span>🚀 Tarif de lancement</span></div>
           <div class="coorg-cancel-box"><div><b>Sans engagement, résiliable à tout moment</b><div class="muted">La résiliation se fait directement ici, sans demande au support. Les accès mensuels sont arrêtés immédiatement. En annuel, le renouvellement est stoppé immédiatement et les accès restent actifs jusqu’à la fin de la période déjà payée.</div></div><button type="button" id="homeCancelCoorg" class="secondary coorg-cancel-btn">Gérer / résilier mes options équipe</button></div>
-        </div>
+          </div>
+        </details>
 
-        <div class="grid g3" style="margin-top:12px">
-          <div class="player" id="ecoRatingsModule"><b>⭐ Notation & équilibrage</b><div class="muted" style="margin-top:4px">Notation des joueurs, équipes générées automatiquement et équilibrées, Top Players.</div></div>
-          <div class="player" id="ecoThirdHalfModule"><b>🍻 Module 3e mi-temps</b><div class="muted" style="margin-top:4px">Organisation et suivi de la 3e mi-temps.</div></div>
-          <div class="player" id="ecoTournamentModule"><b>🏆 Module Tournoi</b><div class="muted" style="margin-top:4px">Création et gestion complète des tournois SWÉ.</div></div>
-        </div>
+        <details id="homeModulesDisclosure" class="home-shop-disclosure home-modules-disclosure">
+          <summary><span class="shop-closed">⚽ Voir nos modules</span><span class="shop-open">Masquer nos modules</span></summary>
+          <div class="home-shop-content">
+            <div class="home-modules-intro"><b>Trois renforts pour ton collectif.</b><span>À toi de composer ton SWÉ.</span></div>
+            <div class="home-modules-grid">
+              <article class="player home-module" id="ecoRatingsModule" data-tone="blue"><span class="home-module-icon" aria-hidden="true">⚖️</span><h3>Notation & équilibrage</h3><p>Des équipes qui se répondent.</p><ul><li>Évalue les qualités de tes joueurs</li><li>Compose des équipes équilibrées</li></ul></article>
+              <article class="player home-module" id="ecoThirdHalfModule" data-tone="amber"><span class="home-module-icon" aria-hidden="true">🧊</span><h3>3e mi-temps</h3><p>Le match finit. Le groupe reste.</p><ul><li>Organise le moment d’après-match</li><li>Suis les participations à la glacière</li></ul></article>
+              <article class="player home-module" id="ecoTournamentModule" data-tone="green"><span class="home-module-icon" aria-hidden="true">🏆</span><h3>Tournoi</h3><p>Du coup d’envoi au dernier score.</p><ul><li>Organise tes équipes et tes matchs</li><li>Retrouve résultats et classements</li></ul></article>
+            </div>
+            <div id="homeUpgradeCard" class="workspace-upgrade-card">
+              <div><b>Complète ta feuille de match.</b><div class="muted" style="margin-top:4px">Un module te manque ? Demande son activation pour ton groupe.</div></div>
+              <button id="homeRequestUpgrade" class="primary">Demander une activation</button>
+            </div>
+          </div>
+        </details>
 
-        <div id="homeUpgradeCard" class="workspace-upgrade-card">
-          <div><b>🚀 Besoin de plus de fonctionnalités ?</b><div class="muted" style="margin-top:4px">Découvre les formules SWÉ uniquement quand ton organisation en a besoin.</div></div>
-          <button id="homeRequestUpgrade" class="primary">Voir les formules SWÉ</button>
-        </div>
         <div class="muted" style="margin-top:10px;font-size:12px">Les paiements des joueurs via Stripe restent distincts des options et formules de l’organisateur.</div>
       </div>
 
@@ -886,7 +894,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
 <script src="./registration-presentation.js?v=4377-invitation1" defer></script>
-<script src="./app.js?v=4377-invitation1" defer></script>
+<script src="./app.js?v=4378" defer></script>
 <script src="./hotfix-v4227.js?v=4377" defer></script>
 <script src="./hotfix-v4228.js?v=4377" defer></script>
 
