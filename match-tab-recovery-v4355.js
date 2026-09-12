@@ -48,7 +48,7 @@ window.addEventListener('message',event=>{
 });
 function emptyState(){
  const box=E('matchesList');if(!box)return;
- box.innerHTML='<div class="readonly-note" style="padding:18px 20px"><b>⚽ Aucun match créé</b><div class="muted" style="margin-top:5px">Crée ou génère les équipes puis les matchs pour les afficher ici.</div></div>';
+ box.innerHTML='<div class="readonly-note" style="padding:18px 20px"><b>⚽ Aucun match de compétition créé</b><div class="muted" style="margin-top:5px">Crée ou génère les équipes puis les matchs pour les afficher ici.</div></div>';
 }
 function render(){
  const box=E('matchesList');if(box){box.classList.remove('hidden');box.style.removeProperty('display');box.style.removeProperty('visibility')}

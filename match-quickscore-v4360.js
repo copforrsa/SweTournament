@@ -6,7 +6,7 @@ const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const vibrate=p=>{try{navigator.vibrate?.(p)}catch(_){}};
 let busy=false,timer=null,lastGoal=null,pendingAssist=null;
 const context=window.SWE_MATCH_CONTEXT||null;
-const notify=message=>{if(context)context.notify(message);else if(typeof toast==='function')toast(message)};
+const notify=(message,isError=true)=>{if(context)context.notify(message,isError);else if(typeof toast==='function')toast(message)};
 
 function state(){if(context)return context.state;try{return typeof S!=='undefined'?S:null}catch(_){return null}}
 function editable(match){
@@ -72,7 +72,7 @@ function showAssist(match,teamId,scorerId,goal,card,quick){
     try{
       if(context){await context.setAssist(match,goal,assist);pendingAssist=null;enhance()}
       else{const up=await sb.from('goals').update({assister_player_id:assist}).eq('id',goal.id);if(up.error)throw up.error;goal.assister_player_id=assist;zone.classList.remove('show');zone.innerHTML='';refreshGoalPanel(card,match)}
-      vibrate(assist?[20,35,20]:20);notify(assist?'🎯 Passe de '+playerName(assist)+' ajoutée !':'✅ But enregistré sans passeur');
+      vibrate(assist?[20,35,20]:20);notify(assist?'🎯 Passe de '+playerName(assist)+' ajoutée !':'✅ But enregistré sans passeur',false);
     }catch(error){notify(error.message)}finally{zone.classList.remove('swe4360-busy')}
   };
 }

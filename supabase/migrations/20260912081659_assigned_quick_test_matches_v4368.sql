@@ -11,7 +11,7 @@ returns boolean language sql stable security definer set search_path='' as $$
   select 1 from public.workspace_members wm
   left join public.coorganizer_permissions cp on cp.workspace_id=wm.workspace_id and cp.user_id=wm.user_id
   where wm.workspace_id=p_workspace_id and wm.user_id=p_user_id and coalesce(wm.active,true)
-  and (wm.role='admin' or (wm.role='coorganizer' and (coalesce(cp.can_enter_scores,true) or cp.temporary_admin_until>now())))
+  and ((wm.role='admin' and wm.active=true) or (wm.role='coorganizer' and (coalesce(cp.can_enter_scores,true) or cp.temporary_admin_until>now())))
  );
 $$;
 revoke all on function private.test_match_recipient_allowed(uuid,uuid) from public,anon,authenticated;

@@ -26,11 +26,11 @@ function testControls(){
  $('#testModuleStart').hidden=!testCanEdit;$('#testModuleFinish').hidden=!testCanEdit;
  $('#testModuleStart').disabled=testActionBusy||m.status!=='scheduled';
  $('#testModuleFinish').disabled=testActionBusy||m.status!=='live';
- $('#testModuleState').textContent=testActionBusy?'Enregistrement…':m.status==='finished'?'Match test terminé':m.status==='live'?'Match test en cours':testCanEdit?'Clique sur Démarrer pour tester les scores, buteurs et passeurs.':'En attente du démarrage par le Super Admin.';
+ $('#testModuleState').textContent=testActionBusy?'Enregistrement…':m.status==='finished'?'Match test terminé':m.status==='live'?'Match test en cours':testCanEdit?'Clique sur Démarrer pour tester les scores, buteurs et passeurs.':'En attente du démarrage par le gestionnaire du test.';
 }
 async function testAction(action,extra={}){
  if(testActionBusy)throw new Error('Une action est déjà en cours.');
- testActionBusy=true;testRevision++;$('#testModuleError').textContent='';
+ testActionBusy=true;testRevision++;$('#testModuleError').textContent='';$('#testModuleError').style.color='';
  $('#testMatchModule').querySelectorAll('button,input,select').forEach(el=>el.disabled=true);testControls();
  try{
   const r=await sb.rpc('super_admin_test_match_action',{p_match_id:testMatchId,p_action:action,...extra});
@@ -55,7 +55,7 @@ async function updateTestModule(data){
   $('#testModuleStart').onclick=()=>testAction('start').catch(()=>{});
   $('#testModuleFinish').onclick=()=>testAction('finish').catch(()=>{});
   window.SWE_MATCH_CONTEXT={
-   state:testState,current:()=>testState.tournaments.find(t=>t.id===testState.activeTour),notify:message=>{$('#testModuleError').textContent=message},
+   state:testState,current:()=>testState.tournaments.find(t=>t.id===testState.activeTour),notify:(message,isError=true)=>{$('#testModuleError').textContent=message;$('#testModuleError').style.color=isError?'#9f1239':'#087748'},
    canEditScores:()=>testCanEdit&&!testActionBusy&&testState.matches[0]?.status==='live',adminUser:()=>false,refresh:sync,
    saveScore:(m,home,away)=>testAction('set_score',{p_home_score:home,p_away_score:away}),
    addGoal:(m,team,scorer,assister)=>testAction('goal',{p_scorer_id:scorer,p_assister_id:assister}),
