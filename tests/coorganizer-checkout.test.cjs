@@ -19,3 +19,16 @@ test('checkout preserves admin authentication, quantity, prices and Stripe idemp
  for(const period of ['month','year']){const h=harness();const r=await h.invoke({workspace_id:id,quantity:2,billing_period:period,request_id:id});assert.equal(r.status,200);const {body,options}=h.calls[0];assert.equal(body.mode,'subscription');assert.equal(body.line_items[0].quantity,2);assert.equal(body.line_items[0].price_data.unit_amount,period==='year'?1990:199);assert.equal(body.success_url,origin+'/?coorg=success');assert.equal(options.idempotencyKey,'swe-coorg-'+id+'-'+id)}
  for(const opts of [{role:'coorganizer'},{authenticated:false}]){const h=harness(opts);const r=await h.invoke({workspace_id:id,quantity:1,request_id:id});assert.equal(r.status,400);assert.equal(h.calls.length,0);assert.equal(r.headers.get('access-control-allow-origin'),origin)}
 });
+
+test('purchase click opens checkout without confirmation, blocks duplicates and keeps retry idempotency',async()=>{
+ const app=fs.readFileSync(path.resolve(__dirname,'../app.js'),'utf8');
+ const click=app.slice(app.indexOf("  const purchaseButton=e.target?.closest?.('#homeBuyCoorg');"),app.indexOf("  if(e.target?.id==='endTrialToPay'){"));
+ const calls=[],notices=[],button={disabled:false},state={workspace:{id}};let finish;
+ const sandbox={S:state,crypto:{randomUUID:()=>id},isAdmin:()=>true,$:()=>({value:'2'}),coorgBillingPeriod:()=> 'year',refreshCoorgPurchasePrice:()=>{},toast:m=>notices.push(m),confirm:()=>{throw Error('Unexpected native confirmation')},location:{href:''},sb:{functions:{invoke:async(name,args)=>{calls.push({name,args});return new Promise(r=>{finish=r})}}}};
+ const handler=vm.runInNewContext('(async e=>{'+click+'})',sandbox),event={target:{closest:()=>button}};
+ const pending=handler(event);await handler(event);assert.equal(calls.length,1);assert.equal(button.disabled,true);
+ finish({error:{context:{json:async()=>({error:'Service momentanément indisponible'})}}});await pending;
+ assert.equal(button.disabled,false);assert.equal(notices[0],'Service momentanément indisponible');
+ const retry=handler(event);assert.equal(calls[1].args.body.request_id,calls[0].args.body.request_id);assert.equal(calls[1].args.body.billing_period,'year');assert.equal(calls[1].args.body.quantity,2);
+ finish({data:{url:'https://checkout.stripe.com/c/pay/test'}});await retry;assert.equal(sandbox.location.href,'https://checkout.stripe.com/c/pay/test');
+});

@@ -1399,9 +1399,10 @@ function ratingForMatchPlayer(match,playerId,teamId,goalRows=S.goals){
   const isHome=String(teamId)===String(match.home_team_id),isAway=String(teamId)===String(match.away_team_id);
   if(!isHome&&!isAway)return null;
   const own=isHome?hs:as,opp=isHome?as:hs;
-  const base=own>opp?6:(own===opp?5:4);
+  const difference=own-opp;
+  const base=difference>2?7:difference>0?6:difference===0?5:difference>=-2?4:difference>=-5?3:2;
   const mg=(goalRows||[]).filter(g=>String(g.match_id)===String(match.id));
-  const goals=mg.filter(g=>String(g.scorer_player_id)===String(playerId)).length;
+  const goals=mg.filter(g=>String(g.scorer_player_id)===String(playerId)&&!g.is_own_goal).length;
   const assists=mg.filter(g=>String(g.assister_player_id||'')===String(playerId)).length;
   return {rating:Math.min(10,base+goals+(assists*.5)),base,goals,assists,result:own>opp?'V':(own===opp?'N':'D')};
 }
