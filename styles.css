@@ -208,13 +208,30 @@ select{background-color:#fff} textarea{resize:vertical}
 }
 .history-scoreline{
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  grid-template-columns:minmax(0,1fr) 88px minmax(0,1fr);
   gap:12px;
-  align-items:start;
+  align-items:center;
 }
-.history-scoreline>div:last-child{
-  text-align:right;
+.history-team-name{
+  grid-row:1;
+  min-width:0;
+  max-width:100%;
+  justify-self:center;
+  padding:10px 15px;
+  border-radius:14px;
+  background:#0f172a;
+  color:#fff;
+  font-size:2.25rem;
+  font-weight:950;
+  line-height:1.1;
+  text-align:center;
+  overflow-wrap:anywhere;
+  box-shadow:0 5px 15px rgba(15,23,42,.18);
 }
+.history-scoreline>.score{grid-column:2;grid-row:1;width:88px;min-width:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+.history-goals{grid-row:2;align-self:start;min-width:0;text-align:left;overflow-wrap:anywhere}
+.history-goals.home{grid-column:1}
+.history-goals.away{grid-column:3}
 .notes-columns{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -237,7 +254,9 @@ select{background-color:#fff} textarea{resize:vertical}
 @media(max-width:650px){
   .rank{grid-template-columns:38px minmax(0,1fr) 86px}
   .rank>.right{min-width:76px}
-  .history-scoreline{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px}
+  .history-scoreline{grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr);gap:8px}
+  .history-team-name{font-size:1.15rem;padding:9px 6px;border-radius:10px}
+  .history-scoreline>.score{width:78px;font-size:1.35rem;padding:4px 6px}
   .notes-columns{grid-template-columns:1fr 1fr;gap:8px}
   .card p,.card .muted,.player .muted,.readonly-note,.public-sub{text-align:left}
 }

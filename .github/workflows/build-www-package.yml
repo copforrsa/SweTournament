@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  PACKAGE_NAME: swe-www-v43.65
+  PACKAGE_NAME: swe-www-v43.66
 
 jobs:
   build:
@@ -58,5 +58,15 @@ jobs:
         with:
           name: ${{ env.PACKAGE_NAME }}
           path: ${{ env.PACKAGE_NAME }}.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload visual checks
+        uses: actions/upload-artifact@v4
+        with:
+          name: swe-visual-checks-v43.66
+          path: |
+            ../screenshot-registration-*.png
+            ../screenshot-history-*.png
           if-no-files-found: error
           retention-days: 7

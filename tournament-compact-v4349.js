@@ -6,15 +6,62 @@ function st(){try{return typeof S!=='undefined'?S:null}catch(_){return null}}
 function cli(){try{return typeof sb!=='undefined'?sb:null}catch(_){return null}}
 let counts={},timer=null,busy=false;
 function css(){if(E('swe4349CompactCss'))return;const s=document.createElement('style');s.id='swe4349CompactCss';s.textContent=`
-#sweTournamentCompactPanel{margin-top:12px}#sweTournamentCompactPanel .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:11px}#sweTournamentCompactGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.swe-tournament-chip{border:1px solid #d7e3ec;border-radius:16px;padding:14px;background:#fff;box-shadow:0 5px 16px rgba(11,43,84,.06)}.swe-tournament-chip.active{border-color:#70c99a;background:#f5fcf8}.swe-tournament-chip .title{font-weight:950;color:#0b2b54;margin-bottom:7px}.swe-tournament-chip .meta{font-size:.80rem;color:#62758a;line-height:1.5}.swe-tournament-chip .line{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:9px}.swe-tournament-chip .reg{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:.70rem;font-weight:900}.swe-tournament-chip .reg.open{background:#dcfce7;color:#166534}.swe-tournament-chip .reg.closed{background:#fee2e2;color:#991b1b}.swe-tournament-chip .players{font-size:.78rem;font-weight:850;color:#30465c}.swe-tournament-chip button{width:100%;margin-top:10px;min-height:38px}.swe4349-full-list-hidden{display:none!important}@media(max-width:920px){#sweTournamentCompactGrid{grid-template-columns:1fr 1fr}}@media(max-width:620px){#sweTournamentCompactGrid{grid-template-columns:1fr}}
+#sweTournamentCompactPanel{margin-top:12px}#sweTournamentCompactPanel .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:11px}#sweTournamentCompactGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.swe-tournament-chip{border:1px solid #d7e3ec;border-radius:16px;padding:14px;background:#fff;box-shadow:0 5px 16px rgba(11,43,84,.06)}.swe-tournament-chip.active{border-color:#70c99a;background:#f5fcf8}.swe-tournament-chip .title{font-weight:950;color:#0b2b54;margin-bottom:7px}.swe-tournament-chip .meta{font-size:.80rem;color:#62758a;line-height:1.5}.swe-tournament-chip .line{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:9px}.swe-tournament-chip .reg{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:.70rem;font-weight:900}.swe-tournament-chip .reg.open{background:#dcfce7;color:#166534}.swe-tournament-chip .reg.closed{background:#fee2e2;color:#991b1b}.swe-tournament-chip .players{font-size:.78rem;font-weight:850;color:#30465c}.swe-tournament-chip button{width:100%;margin-top:10px;min-height:38px}.swe-tournament-collapse{display:block;min-height:44px;margin:12px 0}.swe4349-full-list-hidden{display:none!important}@media(max-width:920px){#sweTournamentCompactGrid{grid-template-columns:1fr 1fr}}@media(max-width:620px){#sweTournamentCompactGrid{grid-template-columns:1fr}}
 `;document.head.appendChild(s)}
 function openNow(t){if(!t.registration_open)return false;if(t.registration_deadline&&new Date(t.registration_deadline).getTime()<=Date.now())return false;return true}
 async function loadCounts(rows){const c=cli();if(!c||!rows.length||busy)return;busy=true;try{const ids=rows.map(x=>x.id);const {data,error}=await c.from('tournament_players').select('tournament_id,present,registration_status').in('tournament_id',ids);if(error)return;const out={};(data||[]).forEach(r=>{if(r.present===false||r.registration_status==='cancelled'||r.registration_status==='waitlist')return;out[r.tournament_id]=(out[r.tournament_id]||0)+1});counts=out}finally{busy=false}}
 function originalCard(){return E('tournamentList')?.closest('.card')||null}
+let detailsRequest=0;
+function detailsExpanded(){return document.documentElement.dataset.sweTournamentExpanded==='1'}
+function syncDetails(){
+ const card=originalCard(),s=st();if(!card||!s)return;
+ const expanded=detailsExpanded();if(!card.id)card.id='sweTournamentDetails';
+ card.classList.toggle('swe4349-full-list-hidden',!expanded);
+ for(const position of ['top','bottom']){
+  let button=card.querySelector('[data-swe-collapse="'+position+'"]');
+  if(!button){button=document.createElement('button');button.type='button';button.dataset.sweCollapse=position;button.className='swe-tournament-collapse';button.textContent='Masquer les détails';}
+  button.setAttribute('aria-controls',card.id);
+  if(position==='top'&&card.firstElementChild!==button)card.prepend(button);
+  if(position==='bottom'&&card.lastElementChild!==button)card.append(button);
+ }
+ const close=E('sweCompactCollapse');if(close){close.hidden=!expanded;close.setAttribute('aria-controls',card.id)}
+ document.querySelectorAll('[data-swe-manage-tour]').forEach(button=>{
+  const opened=expanded&&String(s.activeTour)===button.dataset.sweManageTour;
+  button.textContent=opened?'Masquer':'Gérer';
+  button.setAttribute('aria-expanded',String(opened));
+  button.setAttribute('aria-controls',card.id);
+ });
+}
 function renderGrid(rows){const s=st(),canGenerate=typeof hasAdminOps==='function'&&(hasAdminOps()||(typeof isCoorg==='function'&&isCoorg()&&s?.myPermissions?.can_generate_teams)),grid=E('sweTournamentCompactGrid');if(!s||!grid)return;grid.innerHTML=rows.length?rows.map(t=>{const c=counts[t.id]??(String(s.activeTour)===String(t.id)?(s.tPlayers||[]).filter(r=>r.present&&r.registration_status!=='waitlist').length:'—');const max=Number(t.max_players||10),open=openNow(t),venue=t.complex_id&&s.sportsComplexes?.find(v=>String(v.id)===String(t.complex_id));return '<div class="swe-tournament-chip '+(String(s.activeTour)===String(t.id)?'active':'')+'"><div class="title">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</div><div class="meta">📅 '+esc(t.tournament_date||'')+(t.start_time?' • '+esc(String(t.start_time).slice(0,5)):'')+'<br>📍 '+esc(venue?.name||t.venue||'Lieu à confirmer')+'</div><div class="line"><span class="reg '+(open?'open':'closed')+'">'+(open?'● Inscriptions ouvertes':'● Inscriptions fermées')+'</span><span class="players">👥 '+esc(c)+' / '+esc(max)+'</span></div><button type="button" data-swe-manage-tour="'+esc(t.id)+'">Gérer</button><button type="button" data-swe-generate-tour="'+esc(t.id)+'" '+(canGenerate?'':'disabled title="Autorisation de génération requise"')+'>⚖️ Générer les équipes équilibrées</button></div>'}).join(''):'<div class="muted">Aucun tournoi en cours.</div>'}
-async function manage(id){const s=st(),card=originalCard();if(!s||!id)return;document.documentElement.dataset.sweTournamentExpanded='1';card?.classList.remove('swe4349-full-list-hidden');s.activeTour=id;try{if(typeof loadTournament==='function')await loadTournament();if(typeof renderAll==='function')renderAll()}catch(e){console.warn('SWÉ compact open',e)}setTimeout(()=>{originalCard()?.classList.remove('swe4349-full-list-hidden');const active=[...E('tournamentList')?.children||[]].find(x=>x.textContent?.includes((s.tournaments||[]).find(t=>String(t.id)===String(id))?.name||'__none__'));active?.scrollIntoView({behavior:'smooth',block:'start'})},120)}
-function collapse(){document.documentElement.dataset.sweTournamentExpanded='0';originalCard()?.classList.add('swe4349-full-list-hidden');E('sweTournamentCompactPanel')?.scrollIntoView({behavior:'smooth',block:'start'})}
-async function apply(){css();const s=st(),list=E('tournamentList');if(!s||!list)return;E('sweSimpleCurrentPanel')?.remove();const card=originalCard();let panel=E('sweTournamentCompactPanel');if(!panel&&card){panel=document.createElement('div');panel.id='sweTournamentCompactPanel';panel.className='card';card.insertAdjacentElement('beforebegin',panel)}if(!panel)return;const rows=(s.tournaments||[]).filter(t=>t.format!=='league'&&t.status!=='finished').slice(0,12);const expanded=document.documentElement.dataset.sweTournamentExpanded==='1';panel.innerHTML='<div class="head"><div><h2 class="sectiontitle" style="margin:0">🏆 Tournois en cours</h2><div class="muted">Les informations essentielles, sans surcharger la page.</div></div>'+(expanded?'<button type="button" id="sweCompactCollapse">Réduire les détails</button>':'')+'</div><div id="sweTournamentCompactGrid"></div>';renderGrid(rows);if(card)card.classList.toggle('swe4349-full-list-hidden',!expanded);await loadCounts(rows);renderGrid(rows);if(E('sweCompactCollapse'))E('sweCompactCollapse').onclick=collapse}
+async function manage(id){
+ const s=st();if(!s||!id)return;
+ if(detailsExpanded()&&String(s.activeTour)===String(id)){collapse();return}
+ const request=++detailsRequest;
+ document.documentElement.dataset.sweTournamentExpanded='1';s.activeTour=id;syncDetails();
+ try{if(typeof loadTournament==='function')await loadTournament();if(request!==detailsRequest)return;if(typeof renderAll==='function')renderAll()}
+ catch(e){console.warn('SWÉ compact open',e)}
+ if(request!==detailsRequest)return;syncDetails();
+ setTimeout(()=>{
+  if(request!==detailsRequest||!detailsExpanded()||String(s.activeTour)!==String(id))return;
+  const active=[...E('tournamentList')?.children||[]].find(x=>x.textContent?.includes((s.tournaments||[]).find(t=>String(t.id)===String(id))?.name||'__none__'));
+  active?.scrollIntoView({behavior:'smooth',block:'start'});
+ },120);
+}
+function collapse(){
+ ++detailsRequest;document.documentElement.dataset.sweTournamentExpanded='0';syncDetails();
+ const button=[...document.querySelectorAll('[data-swe-manage-tour]')].find(b=>b.dataset.sweManageTour===String(st()?.activeTour));
+ button?.focus({preventScroll:true});
+ E('sweTournamentCompactPanel')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function apply(){
+ css();const s=st(),list=E('tournamentList');if(!s||!list)return;
+ E('sweSimpleCurrentPanel')?.remove();const card=originalCard();let panel=E('sweTournamentCompactPanel');
+ if(!panel&&card){panel=document.createElement('div');panel.id='sweTournamentCompactPanel';panel.className='card';card.insertAdjacentElement('beforebegin',panel)}
+ if(!panel)return;
+ const rows=(s.tournaments||[]).filter(t=>t.format!=='league'&&t.status!=='finished').slice(0,12);
+ panel.innerHTML='<div class="head"><div><h2 class="sectiontitle" style="margin:0">🏆 Tournois en cours</h2><div class="muted">Les informations essentielles, sans surcharger la page.</div></div><button type="button" id="sweCompactCollapse" data-swe-collapse="panel" hidden>Masquer les détails</button></div><div id="sweTournamentCompactGrid"></div>';
+ renderGrid(rows);syncDetails();await loadCounts(rows);renderGrid(rows);syncDetails();
+}
 let generating=false;
 async function generateFromTournament(button){
  if(generating)return;const s=st(),id=button.dataset.sweGenerateTour;
@@ -25,6 +72,6 @@ async function generateFromTournament(button){
  finally{generating=false;button.disabled=false;soon()}
 }
 function soon(){clearTimeout(timer);timer=setTimeout(apply,120)}
-document.addEventListener('click',e=>{const g=e.target?.closest?.('[data-swe-generate-tour]');if(g){generateFromTournament(g);return}const b=e.target?.closest?.('[data-swe-manage-tour]');if(b){manage(b.dataset.sweManageTour);return}},true);
+document.addEventListener('click',e=>{const close=e.target?.closest?.('[data-swe-collapse]');if(close){collapse();return}const g=e.target?.closest?.('[data-swe-generate-tour]');if(g){generateFromTournament(g);return}const b=e.target?.closest?.('[data-swe-manage-tour]');if(b){manage(b.dataset.sweManageTour);return}},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',soon,{once:true});else soon();document.addEventListener('swe:rendered',soon);window.addEventListener('pageshow',soon);setTimeout(soon,550);
 })();

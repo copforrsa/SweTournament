@@ -4926,9 +4926,11 @@ async function bootPublic(token){
         '</div>':'';
       return '<div class="player"><div class="muted">Match '+(i+1)+(m.pitch?' • '+esc(m.pitch):'')+'</div>'+
         '<div class="history-scoreline" style="margin-top:6px">'+
-          '<div style="flex:1"><b>'+esc(tmap2.get(m.home_team_id)||'?')+'</b>'+goalBlock(m.home_team_id)+'</div>'+
+          '<b class="history-team-name">'+esc(tmap2.get(m.home_team_id)||'?')+'</b>'+
           '<div class="score">'+m.home_score+' - '+m.away_score+'</div>'+
-          '<div style="flex:1;text-align:right"><b>'+esc(tmap2.get(m.away_team_id)||'?')+'</b><div style="text-align:left">'+goalBlock(m.away_team_id)+'</div></div>'+
+          '<b class="history-team-name">'+esc(tmap2.get(m.away_team_id)||'?')+'</b>'+
+          '<div class="history-goals home">'+goalBlock(m.home_team_id)+'</div>'+
+          '<div class="history-goals away">'+goalBlock(m.away_team_id)+'</div>'+
         '</div>'+notesHtml+'</div>';
     }).join('');
     const standingOrder=new Map(standings.map((x,i)=>[x.id,i]));
@@ -6148,9 +6150,11 @@ async function bootPublic(token){
         '</div>':'';
       return '<div class="player"><div class="muted">Match '+(i+1)+(m.pitch?' • '+esc(m.pitch):'')+'</div>'+
         '<div class="history-scoreline" style="margin-top:6px">'+
-          '<div><b>'+esc(tmap.get(m.home_team_id)?.name||'?')+'</b>'+goalBlock(m.home_team_id)+'</div>'+
+          '<b class="history-team-name">'+esc(tmap.get(m.home_team_id)?.name||'?')+'</b>'+
           '<div class="score">'+m.home_score+' - '+m.away_score+'</div>'+
-          '<div><b>'+esc(tmap.get(m.away_team_id)?.name||'?')+'</b><div style="text-align:left">'+goalBlock(m.away_team_id)+'</div></div>'+
+          '<b class="history-team-name">'+esc(tmap.get(m.away_team_id)?.name||'?')+'</b>'+
+          '<div class="history-goals home">'+goalBlock(m.home_team_id)+'</div>'+
+          '<div class="history-goals away">'+goalBlock(m.away_team_id)+'</div>'+
         '</div>'+notesHtml+'</div>';
     }).join('')||'<p class="muted">Aucun résultat.</p>';
   } else {

@@ -7,6 +7,8 @@ const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const token=id(1),current=id(2),past=id(3),season=id(4),match=id(5),a=id(6),b=id(7);
 const players=[1,2,3,4].map(n=>({id:id(10+n),name:'Joueur '+n,active:true,is_group_member:true}));
 const snapshot={workspace:{id:id(30),name:'Groupe de vérification'},features:{rankings_enabled:true,player_ratings_enabled:false,top_player_enabled:false},players,seasons:[{id:season,name:'Saison de test',is_active:true}],leagues:[],tournaments:[{id:current,name:'Prochain tournoi',tournament_date:'2099-09-20',registration_open:true,status:'draft',format:'classic',max_players:20,team_size:5,season_id:season,registration_deadline:'2099-09-19T17:00:00Z'},{id:past,name:'Tournoi précédent',tournament_date:'2026-09-01',status:'finished',format:'classic',season_id:season}],tournament_players:players.map(p=>({tournament_id:current,player_id:p.id,present:true,registration_status:'confirmed'})),teams:[{id:a,tournament_id:past,name:'Bleus',color:'#2563eb'},{id:b,tournament_id:past,name:'Rouges',color:'#dc2626'}],team_players:players.map((p,i)=>({team_id:i%2?a:b,player_id:p.id})),matches:[{id:match,tournament_id:past,home_team_id:a,away_team_id:b,home_score:1,away_score:0,status:'finished',match_order:1}],goals:[{id:id(20),match_id:match,team_id:a,scorer_player_id:players[1].id,assister_player_id:players[3].id}],match_player_assignments:players.map((p,i)=>({match_id:match,team_id:i%2?a:b,player_id:p.id})),sports_complexes:[],sports_pitches:[]};
+snapshot.teams[0].name='Équipe Harry MC';
+snapshot.matches.push({id:id(21),tournament_id:past,home_team_id:b,away_team_id:a,home_score:12,away_score:2,status:'finished',match_order:2});
 function installMock(data,ids){
  window.__calls=[];window.__snapshot=data;window.__testScore=0;
  window.supabase={createClient:()=>{
@@ -35,6 +37,17 @@ function installMock(data,ids){
 }
 const sdk='('+installMock.toString()+')('+JSON.stringify(snapshot)+','+JSON.stringify({user:id(99),token,current,past,match})+');';
 new (require('node:vm').Script)(sdk);
+async function checkScoreLayout(page){
+ await page.locator('.swe-live-match4306 .history-team-name').first().waitFor();
+ const rows=await page.locator('.history-scoreline').evaluateAll(lines=>lines.map(line=>{
+  const names=[...line.querySelectorAll('.history-team-name')],score=line.querySelector('.score');
+  const boxes=names.map(n=>n.getBoundingClientRect()),box=score.getBoundingClientRect(),row=line.getBoundingClientRect();
+  return {fonts:names.map(n=>getComputedStyle(n).fontSize),backgrounds:names.map(n=>getComputedStyle(n).backgroundColor),scoreWidth:box.width,centered:Math.abs((box.x+box.width/2)-(row.x+row.width/2))<1,noOverlap:boxes[0].right<=box.left&&box.right<=boxes[1].left,contained:line.scrollWidth<=line.clientWidth,goalsBelow:[...line.querySelectorAll('.history-goals')].every(g=>g.getBoundingClientRect().top>=Math.max(box.bottom,...boxes.map(b=>b.bottom)))};
+ }));
+ assert.ok(rows.length);
+ for(const row of rows){assert.equal(row.fonts.length,2);assert.equal(row.fonts[0],row.fonts[1]);assert.deepEqual(row.backgrounds,['rgb(15, 23, 42)','rgb(15, 23, 42)']);assert.ok(row.centered&&row.noOverlap&&row.contained&&row.goalsBelow,JSON.stringify(row));}
+ assert.equal(new Set(rows.map(r=>r.scoreWidth)).size,1);
+}
 const errors=[];
 const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!target.startsWith(root+path.sep)&&target!==root){res.writeHead(403);return res.end()}try{if(fs.statSync(target).isDirectory())target=path.join(target,'index.html');res.setHeader('Content-Type',target.endsWith('.html')?'text/html':target.endsWith('.js')?'text/javascript':target.endsWith('.css')?'text/css':'application/octet-stream');res.end(fs.readFileSync(target))}catch{res.writeHead(404);res.end()}});
 (async()=>{
@@ -55,6 +68,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    await page.locator('#toggleLastTournamentPublic').click();
    await page.locator('#publicResults').waitFor({state:'visible'});
    assert.match(await page.locator('#publicResults').innerText(),/Bleus|Rouges/);
+   await checkScoreLayout(page);
    await page.locator('#toggleLastTournamentPublic').click();
    assert.equal(await page.locator('#publicLastTournamentDetails').isVisible(),false);
    const href=await page.locator('#publicHistory a').getAttribute('href');assert.match(href,/history=/);assert.match(href,/from_tournament=/);
@@ -63,8 +77,10 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    const chosen=await page.locator('#publicPlayerSelect').inputValue();await page.waitForTimeout(1300);assert.equal(await page.locator('#publicPlayerSelect').inputValue(),chosen);
    await page.screenshot({path:path.join(root,'..','screenshot-registration-'+viewport.width+'.png'),fullPage:true});
    await page.goto(base+'/?public='+token+'&history='+past+'&from_tournament='+current+'&from_view=tournament');
-   await page.locator('#backPublic').waitFor({state:'visible'});await page.locator('#backPublic').click();await page.locator('#chooseSoloMode').waitFor({state:'visible'});assert.equal(new URL(page.url()).searchParams.get('tournament'),current);
-   if(viewport.width===1280){
+   await page.locator('#backPublic').waitFor({state:'visible'});await checkScoreLayout(page);
+   await page.screenshot({path:path.join(root,'..','screenshot-history-'+viewport.width+'.png'),fullPage:true});
+   await page.locator('#backPublic').click();await page.locator('#chooseSoloMode').waitFor({state:'visible'});assert.equal(new URL(page.url()).searchParams.get('tournament'),current);
+   {
     const organizer=await context.newPage();organizer.on('pageerror',e=>errors.push(e.message));
     await organizer.setContent('<main><div class="card"><div id="tournamentList"></div></div></main>');
     await organizer.evaluate(({current,past})=>{
@@ -74,6 +90,17 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
       window.__generated=[];window.loadTournament=async()=>{};window.runSmartTeamGeneration=async()=>{window.__generated.push(S.activeTour)};window.renderAll=()=>{};window.toast=()=>{};
     },{current,past});
     await organizer.addScriptTag({content:fs.readFileSync(path.join(root,'tournament-compact-v4349.js'),'utf8')});
+    const manage=organizer.locator('[data-swe-manage-tour="'+current+'"]'),details=organizer.locator('#sweTournamentDetails');
+    await manage.waitFor();assert.equal(await details.isVisible(),false);
+    await manage.click();await details.waitFor({state:'visible'});assert.equal(await manage.getAttribute('aria-expanded'),'true');assert.equal(await manage.innerText(),'Masquer');
+    await organizer.locator('[data-swe-collapse="bottom"]').click();assert.equal(await details.isVisible(),false);assert.equal(await manage.innerText(),'Gérer');assert.equal(await organizer.evaluate(()=>S.activeTour),current);
+    await manage.click();await details.waitFor({state:'visible'});await manage.click();assert.equal(await details.isVisible(),false);assert.equal(await manage.getAttribute('aria-expanded'),'false');
+    await organizer.evaluate(()=>{window.loadTournament=()=>new Promise(resolve=>{window.__finishLoad=resolve})});
+    await organizer.locator('[data-swe-manage-tour="'+past+'"]').click();await details.waitFor({state:'visible'});
+    await organizer.locator('[data-swe-collapse="top"]').click();assert.equal(await details.isVisible(),false);
+    await organizer.evaluate(()=>{window.__finishLoad();window.loadTournament=async()=>{};document.dispatchEvent(new Event('swe:rendered'))});
+    await organizer.waitForTimeout(300);assert.equal(await details.isVisible(),false);assert.equal(await organizer.locator('[data-swe-collapse="panel"]').isVisible(),false);
+    console.log('Tournament details open, close and remain closed after loading:',viewport.width,'OK');
     await organizer.locator('[data-swe-generate-tour="'+current+'"]').click();await organizer.waitForFunction(()=>window.__generated.length===1);assert.deepEqual(await organizer.evaluate(()=>window.__generated),[current]);
     await organizer.evaluate(()=>{S.workspace.role='coorganizer';S.myPermissions.can_generate_teams=false;document.dispatchEvent(new Event('swe:rendered'))});
     await organizer.waitForFunction(id=>document.querySelector('[data-swe-generate-tour="'+id+'"]').disabled,current);
