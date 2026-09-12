@@ -6,16 +6,20 @@ window.__SWE_MATCH_ENGINE_4302=true;
 const E=id=>document.getElementById(id);
 const safe=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 let hydrating=false;
+// The test view supplies data and actions; the match cards keep the same renderer.
+const context=window.SWE_MATCH_CONTEXT||null;
+const state=context?context.state:S;
+const notify=message=>{if(context)context.notify(message);else if(typeof toast==='function')toast(message)};
 
-function teamById(id){return (S.teams||[]).find(t=>String(t.id)===String(id))||null}
-function playerById(id){return (S.players||[]).find(p=>String(p.id)===String(id))||null}
+function teamById(id){return (state.teams||[]).find(t=>String(t.id)===String(id))||null}
+function playerById(id){return (state.players||[]).find(p=>String(p.id)===String(id))||null}
 function playersForTeam(teamId){
-  const ids=(S.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(teamId)).map(tp=>tp.player_id);
+  const ids=(state.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(teamId)).map(tp=>tp.player_id);
   return ids.map(playerById).filter(Boolean).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
 }
-function canEditScores(){try{return typeof canEditCurrentMatches==='function'?!!canEditCurrentMatches():false}catch(_){return false}}
-function adminUser(){try{return typeof isAdmin==='function'?!!isAdmin():false}catch(_){return false}}
-function current(){try{return typeof currentTour==='function'?currentTour():null}catch(_){return null}}
+function canEditScores(){if(context)return !!context.canEditScores();try{return typeof canEditCurrentMatches==='function'?!!canEditCurrentMatches():false}catch(_){return false}}
+function adminUser(){if(context)return !!context.adminUser();try{return typeof isAdmin==='function'?!!isAdmin():false}catch(_){return false}}
+function current(){if(context)return context.current();try{return typeof currentTour==='function'?currentTour():null}catch(_){return null}}
 function scoreFieldForGoal(m,g){
   if(String(g.team_id)===String(m.home_team_id))return 'home_score';
   if(String(g.team_id)===String(m.away_team_id))return 'away_score';
@@ -47,6 +51,7 @@ function installCss(){
 }
 
 async function hydrate(tid){
+  if(context)return context.refresh();
   if(hydrating||!tid)return;hydrating=true;
   try{
     const [mr,tr,tpr]=await Promise.all([
@@ -54,12 +59,12 @@ async function hydrate(tid){
       sb.from('teams').select('*').eq('tournament_id',tid).order('created_at'),
       sb.from('teams').select('id').eq('tournament_id',tid)
     ]);
-    if(!mr.error)S.matches=mr.data||[];
-    if(!tr.error)S.teams=tr.data||[];
+    if(!mr.error)state.matches=mr.data||[];
+    if(!tr.error)state.teams=tr.data||[];
     const teamIds=(tpr.data||[]).map(x=>x.id);
-    if(teamIds.length){const tp=await sb.from('team_players').select('*').in('team_id',teamIds);if(!tp.error)S.teamPlayers=tp.data||[]}
-    const mids=(S.matches||[]).map(x=>x.id);
-    if(mids.length){const gr=await sb.from('goals').select('*').in('match_id',mids);if(!gr.error)S.goals=gr.data||[]}
+    if(teamIds.length){const tp=await sb.from('team_players').select('*').in('team_id',teamIds);if(!tp.error)state.teamPlayers=tp.data||[]}
+    const mids=(state.matches||[]).map(x=>x.id);
+    if(mids.length){const gr=await sb.from('goals').select('*').in('match_id',mids);if(!gr.error)state.goals=gr.data||[]}
   }catch(e){console.error('SWÉ V43.02 hydrate matchs',e)}
   finally{hydrating=false;renderStableMatches(false)}
 }
@@ -68,6 +73,7 @@ async function saveScore(m,homeInput,awayInput,btn){
   const home=Math.max(0,parseInt(homeInput.value||'0',10)||0),away=Math.max(0,parseInt(awayInput.value||'0',10)||0);
   btn.disabled=true;
   try{
+    if(context){await context.saveScore(m,home,away);return}
     const r=await sb.from('matches').update({home_score:home,away_score:away}).eq('id',m.id);
     if(r.error)throw r.error;
     m.home_score=home;m.away_score=away;syncCardScore(m);
@@ -82,6 +88,7 @@ async function deleteGoalAndSyncScore(m,g,button,panel){
   const previous=field?Number(m[field]||0):null;
   const next=field?Math.max(0,previous-1):null;
   try{
+    if(context){await context.deleteGoal(m,g);return}
     const del=await sb.from('goals').delete().eq('id',g.id);
     if(del.error)throw del.error;
     if(field){
@@ -90,7 +97,7 @@ async function deleteGoalAndSyncScore(m,g,button,panel){
       m[field]=next;
       syncCardScore(m);
     }
-    S.goals=(S.goals||[]).filter(x=>String(x.id)!==String(g.id));
+    state.goals=(state.goals||[]).filter(x=>String(x.id)!==String(g.id));
     renderGoalPanel(panel,m);
     if(typeof toast==='function')toast('But annulé • score corrigé ✅');
   }catch(e){
@@ -117,14 +124,15 @@ function renderGoalPanel(panel,m){
     teamSel.onchange=refill;
     addBtn.type='button';addBtn.className='primary';addBtn.textContent='➕ Ajouter';
     addBtn.onclick=async()=>{
-      if(!teamSel.value)return toast('Choisis l’équipe.');
-      if(!scorerSel.value)return toast('Choisis le buteur.');
-      if(assistSel.value&&assistSel.value===scorerSel.value)return toast('Buteur et passeur doivent être différents.');
+      if(!teamSel.value)return notify('Choisis l’équipe.');
+      if(!scorerSel.value)return notify('Choisis le buteur.');
+      if(assistSel.value&&assistSel.value===scorerSel.value)return notify('Buteur et passeur doivent être différents.');
       addBtn.disabled=true;
       try{
+        if(context){await context.addGoal(m,teamSel.value,scorerSel.value,assistSel.value||null);return}
         const r=await sb.from('goals').insert({match_id:m.id,team_id:teamSel.value,scorer_player_id:scorerSel.value,assister_player_id:assistSel.value||null}).select('*').single();
         if(r.error)throw r.error;
-        S.goals=S.goals||[];S.goals.push(r.data);
+        state.goals=state.goals||[];state.goals.push(r.data);
         scorerSel.value='';assistSel.value='';renderGoalPanel(panel,m);
         if(typeof toast==='function')toast('Buteur / passeur ajouté ✅');
       }catch(e){if(typeof toast==='function')toast(e?.message||'Impossible d’ajouter le buteur')}
@@ -133,7 +141,7 @@ function renderGoalPanel(panel,m){
     form.append(teamSel,scorerSel,assistSel,addBtn);panel.appendChild(form);
   }
   const hist=document.createElement('div');hist.className='swe4301-goal-history';
-  const rows=(S.goals||[]).filter(g=>String(g.match_id)===String(m.id));
+  const rows=(state.goals||[]).filter(g=>String(g.match_id)===String(m.id));
   if(!rows.length){const empty=document.createElement('div');empty.className='swe4300-note';empty.textContent='Aucun buteur enregistré.';hist.appendChild(empty)}
   rows.forEach(g=>{
     const line=document.createElement('div');line.className='swe4301-goal-line';
@@ -169,14 +177,14 @@ function renderStableMatches(allowHydrate=true){
   installCss();
   const t=current(),box=E('matchesList'),selector=E('matchCompetitionSelect'),status=E('matchCompetitionStatus');
   if(!box)return;
-  const eligible=(S.tournaments||[]).filter(x=>x.status!=='finished').sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
+  const eligible=(state.tournaments||[]).filter(x=>x.status!=='finished').sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
   if(selector){
     const selected=t?.id||'';
     selector.innerHTML='<option value="">Choisir une compétition</option>'+eligible.map(x=>'<option value="'+safe(x.id)+'"'+(String(x.id)===String(selected)?' selected':'')+'>'+safe(x.name||x.tournament_date||'Compétition')+'</option>').join('');
-    selector.onchange=async()=>{S.activeTour=selector.value||null;try{await loadTournament()}catch(e){console.error('SWÉ V43.02 changement tournoi',e)}renderStableMatches(true)};
+    selector.onchange=async()=>{state.activeTour=selector.value||null;try{await loadTournament()}catch(e){console.error('SWÉ V43.02 changement tournoi',e)}renderStableMatches(true)};
   }
   if(!t){box.innerHTML='<div class="card"><p class="muted">Choisis d’abord un tournoi ou un Swé de Ligue.</p></div>';if(status)status.textContent='Aucune compétition sélectionnée';return}
-  const rows=[...(S.matches||[])].sort((a,b)=>{const af=String(a.status||'')==='finished'?1:0,bf=String(b.status||'')==='finished'?1:0;return af-bf||Number(a.match_order||0)-Number(b.match_order||0)});
+  const rows=[...(state.matches||[])].sort((a,b)=>{const af=String(a.status||'')==='finished'?1:0,bf=String(b.status||'')==='finished'?1:0;return af-bf||Number(a.match_order||0)-Number(b.match_order||0)});
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');
   box.innerHTML='';
   if(!rows.length){box.innerHTML='<div class="card"><p class="muted">Chargement des matchs…</p></div>';if(allowHydrate)hydrate(t.id);return}
@@ -184,7 +192,7 @@ function renderStableMatches(allowHydrate=true){
 }
 
 window.SWE_MATCH_COMMON_4302={hydrate,saveScore,deleteGoalAndSyncScore,renderGoalPanel,buildCard,renderStableMatches,teamById,playerById,playersForTeam,canEditScores,adminUser,current,syncCardScore};
-try{window.__SWE_NATIVE_RENDER_MATCHES=typeof renderMatches==='function'?renderMatches:null;renderMatches=renderStableMatches}catch(e){console.error('SWÉ V43.02 remplacement renderMatches',e)}
+if(!context)try{window.__SWE_NATIVE_RENDER_MATCHES=typeof renderMatches==='function'?renderMatches:null;renderMatches=renderStableMatches}catch(e){console.error('SWÉ V43.02 remplacement renderMatches',e)}
 window.SWE_RENDER_MATCHES_4302=renderStableMatches;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>renderStableMatches(true),100),{once:true});else setTimeout(()=>renderStableMatches(true),100);
 document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="matches"]'))setTimeout(()=>renderStableMatches(true),80)},true);

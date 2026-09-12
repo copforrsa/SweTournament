@@ -9,6 +9,63 @@ const params=new URLSearchParams(location.search);
 let token=params.get('public')||null;
 let tournamentId=params.get('tournament')||null;
 let timer=null,busy=false,lastSnapshotKey='';
+
+const testState={players:[],teams:[],teamPlayers:[],matches:[],goals:[],tournaments:[],activeTour:null};
+let testCanEdit=false,testActionBusy=false,testEnginePromise=null;
+function testTab(name){
+ document.querySelectorAll('[data-test-direct]').forEach(el=>el.classList.toggle('hidden',name==='matches'));
+ $('#testMatchModule')?.classList.toggle('hidden',name!=='matches');
+ document.querySelectorAll('[data-test-tab]').forEach(b=>{b.classList.toggle('primary',b.dataset.testTab===name);b.setAttribute('aria-pressed',String(b.dataset.testTab===name))});
+}
+function testControls(){
+ const m=testState.matches[0];if(!m)return;
+ $('#testModuleStart').hidden=!testCanEdit;$('#testModuleFinish').hidden=!testCanEdit;
+ $('#testModuleStart').disabled=testActionBusy||m.status!=='scheduled';
+ $('#testModuleFinish').disabled=testActionBusy||m.status!=='live';
+ $('#testModuleState').textContent=testActionBusy?'Enregistrement…':m.status==='finished'?'Match test terminé':m.status==='live'?'Match test en cours':testCanEdit?'Clique sur Démarrer pour tester les scores, buteurs et passeurs.':'En attente du démarrage par le Super Admin.';
+}
+async function testAction(action,extra={}){
+ if(testActionBusy)throw new Error('Une action est déjà en cours.');
+ testActionBusy=true;$('#testModuleError').textContent='';
+ $('#testMatchModule').querySelectorAll('button,input,select').forEach(el=>el.disabled=true);testControls();
+ try{
+  const r=await sb.rpc('super_admin_test_match_action',{p_match_id:testMatchId,p_action:action,...extra});
+  if(r.error)throw r.error;
+  render(r.data);await updateTestModule(r.data);lastSnapshotKey='';
+ }catch(e){$('#testModuleError').textContent=e.message||'Impossible d’enregistrer';throw e}
+ finally{testActionBusy=false;window.SWE_RENDER_MATCHES_4302?.(false);testControls()}
+}
+async function updateTestModule(data){
+ testCanEdit=data.can_edit===true;
+ Object.assign(testState,{players:data.players||[],teams:data.teams||[],teamPlayers:data.team_players||[],matches:data.matches||[],goals:data.goals||[],tournaments:data.tournaments||[],activeTour:data.tournament_id});
+ if(!$('#testMatchModule')){
+  document.querySelector('.live-hero h1').textContent='🧪 Match test';
+  document.querySelectorAll('.live-shell > section.card').forEach(el=>el.dataset.testDirect='1');
+  const nav=document.createElement('nav');nav.id='testMatchTabs';nav.className='row';nav.style.margin='12px 0';nav.setAttribute('aria-label','Vues du match test');
+  nav.innerHTML='<button type="button" data-test-tab="matches">⚽ Matchs</button><button type="button" data-test-tab="direct">Résultats en direct</button>';
+  $('#liveError').insertAdjacentElement('afterend',nav);
+  const module=document.createElement('section');module.id='testMatchModule';module.className='card hidden';
+  module.innerHTML='<h2 class="sectiontitle">⚽ Matchs — mode test</h2><p class="muted">Simulation isolée • les joueurs fictifs servent à tester la saisie du match.</p><div class="row"><button type="button" class="primary" id="testModuleStart">Démarrer</button><button type="button" id="testModuleFinish">Terminer le match</button></div><p id="testModuleState" class="muted" role="status"></p><p id="testModuleError" class="live-error" role="alert" style="padding:0;border:0;background:transparent"></p><div id="matchesList"></div>';
+  nav.insertAdjacentElement('afterend',module);
+  nav.querySelectorAll('[data-test-tab]').forEach(b=>b.onclick=()=>testTab(b.dataset.testTab));
+  $('#testModuleStart').onclick=()=>testAction('start').catch(()=>{});
+  $('#testModuleFinish').onclick=()=>testAction('finish').catch(()=>{});
+  window.SWE_MATCH_CONTEXT={
+   state:testState,current:()=>testState.tournaments.find(t=>t.id===testState.activeTour),notify:message=>{$('#testModuleError').textContent=message},
+   canEditScores:()=>testCanEdit&&testState.matches[0]?.status==='live',adminUser:()=>false,refresh:sync,
+   saveScore:(m,home,away)=>testAction('set_score',{p_home_score:home,p_away_score:away}),
+   addGoal:(m,team,scorer,assister)=>testAction('goal',{p_scorer_id:scorer,p_assister_id:assister}),
+   deleteGoal:(m,goal)=>testAction('delete_goal',{p_goal_id:goal.id})
+  };
+  testTab(params.get('tab')==='matches'?'matches':'direct');
+ }
+ if(!testEnginePromise)testEnginePromise=new Promise((resolve,reject)=>{
+  const script=document.createElement('script');script.src='/match-engine-v4300.js?v='+String(window.SWE_BUILD_VERSION).replaceAll('.','');
+  script.onload=resolve;script.onerror=()=>{script.remove();testEnginePromise=null;reject(new Error('Impossible de charger le module Matchs. Actualise la page.'))};document.body.appendChild(script);
+ });
+ await testEnginePromise;window.SWE_RENDER_MATCHES_4302(false);testControls();
+}
+
 function setStatus(text,ok=true){$('#liveStatus').textContent=text;const dot=document.querySelector('.live-dot');if(dot)dot.style.background=ok?'#4ade80':'#fb923c'}
 function teamColor(t){const n=String(t?.name||'').toLowerCase();return t?.color||(/noir/.test(n)?'#111827':/bleu/.test(n)?'#2563eb':/rouge/.test(n)?'#dc2626':/vert/.test(n)?'#16a34a':/blanc|rocket/.test(n)?'#f8fafc':'#64748b')}
 function teamFg(bg){return ['#111827','#2563eb','#dc2626','#16a34a','#64748b'].includes(String(bg).toLowerCase())?'#fff':'#111827'}
@@ -47,10 +104,10 @@ function showTestLogin(){
  setStatus('Connexion requise pour le match test',false);
  if(document.getElementById('testLiveLogin'))return;
  const form=document.createElement('form');form.id='testLiveLogin';form.className='card';
- form.innerHTML='<h2>Connexion au match test</h2><p>Utilise le compte SWÉ sélectionné par le Super Admin.</p><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" required></label><button type="submit" class="primary">Se connecter</button><p class="muted" id="testLoginError"></p>';
+ form.innerHTML='<h2>Connexion au match test</h2><p>Utilise le Super Admin ou un compte SWÉ autorisé pour ce test.</p><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" required></label><button type="submit" class="primary">Se connecter</button><p class="muted" id="testLoginError"></p>';
  document.querySelector('.live-hero').insertAdjacentElement('afterend',form);
  form.onsubmit=async e=>{e.preventDefault();const b=form.querySelector('button');b.disabled=true;const {error}=await sb.auth.signInWithPassword({email:form.elements.email.value.trim(),password:form.elements.password.value});form.elements.password.value='';b.disabled=false;if(error){document.getElementById('testLoginError').textContent=error.message;return}form.remove();sync()};
 }
-async function sync(){if(busy)return;busy=true;try{if(testMatchId){const {data:session}=await sb.auth.getSession();if(!session.session){showTestLogin();return}}else{await resolve();if(!token||!tournamentId)throw new Error('Paramètres du lien Live incomplets.')}const r=testMatchId?await sb.rpc('get_test_match_snapshot',{p_match_id:testMatchId}):await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(r.error)throw r.error;const data=r.data||{};if(testMatchId){tournamentId=data.tournament_id;document.getElementById('testLiveLogin')?.remove()}window.swePageViewContext={page:testMatchId?'test_live':'live',token:testMatchId?null:token,id:testMatchId?null:tournamentId};document.dispatchEvent(new Event('swe:page-view'));const key=JSON.stringify([data.matches||[],data.goals||[],data.players||[],data.teams||[],data.team_players||[],data.tournament_players||[]]);if(key!==lastSnapshotKey){lastSnapshotKey=key;render(data)}else{const now=new Date();$('#liveUpdated').textContent='Vérifié '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setStatus(navigator.onLine?'Live connecté • à jour':'Hors connexion • dernier état affiché',navigator.onLine)}$('#liveError').classList.add('hidden')}catch(e){$('#liveError').textContent=e.message||'Impossible de charger le tournoi.';$('#liveError').classList.remove('hidden');setStatus(navigator.onLine?'Synchronisation impossible':'Hors connexion',false)}finally{busy=false}}
+async function sync(){if(busy)return;busy=true;try{if(testMatchId){const {data:session}=await sb.auth.getSession();if(!session.session){showTestLogin();return}}else{await resolve();if(!token||!tournamentId)throw new Error('Paramètres du lien Live incomplets.')}const r=testMatchId?await sb.rpc('get_test_match_snapshot',{p_match_id:testMatchId}):await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});if(r.error)throw r.error;const data=r.data||{};if(testMatchId){tournamentId=data.tournament_id;document.getElementById('testLiveLogin')?.remove()}window.swePageViewContext={page:testMatchId?'test_live':'live',token:testMatchId?null:token,id:testMatchId?null:tournamentId};document.dispatchEvent(new Event('swe:page-view'));const key=JSON.stringify([data.matches||[],data.goals||[],data.players||[],data.teams||[],data.team_players||[],data.tournament_players||[],data.can_edit]);if(key!==lastSnapshotKey){render(data);if(testMatchId)await updateTestModule(data);lastSnapshotKey=key}else{const now=new Date();$('#liveUpdated').textContent='Vérifié '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setStatus(navigator.onLine?'Live connecté • à jour':'Hors connexion • dernier état affiché',navigator.onLine)}$('#liveError').classList.add('hidden')}catch(e){$('#liveError').textContent=e.message||'Impossible de charger le tournoi.';$('#liveError').classList.remove('hidden');setStatus(navigator.onLine?'Synchronisation impossible':'Hors connexion',false)}finally{busy=false}}
 window.addEventListener('online',()=>{setStatus('Connexion retrouvée • synchronisation…',true);sync()});window.addEventListener('offline',()=>setStatus('Hors connexion • dernier état affiché',false));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});sync();timer=setInterval(()=>{if(navigator.onLine&&document.visibilityState==='visible')sync()},15000);
 })();

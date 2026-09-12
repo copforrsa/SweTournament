@@ -19,7 +19,7 @@ end loop;
 if v_n=0 then raise exception 'Aucun compte non Super Admin testé';end if;
 perform set_config('request.jwt.claim.sub',v_participant::text,true);
 execute 'set local role authenticated';
-perform public.get_test_match_snapshot(v_match);
+if (public.get_test_match_snapshot(v_match)->>'can_edit')::boolean is not false then raise exception 'Un participant peut modifier le test';end if;
 execute 'reset role';
 perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
 execute 'set local role authenticated';

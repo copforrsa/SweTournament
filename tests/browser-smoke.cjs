@@ -11,7 +11,12 @@ const snapshot={workspace:{id:id(30),name:'Groupe de vérification'},features:{r
 snapshot.teams[0].name='Équipe Harry MC';
 snapshot.matches.push({id:id(21),tournament_id:past,home_team_id:b,away_team_id:a,home_score:12,away_score:2,status:'finished',match_order:2});
 function installMock(data,ids){
- window.__calls=[];window.__snapshot=data;window.__testScore=0;
+ window.__calls=[];window.__snapshot=data;window.__testScore=0;window.__testCanEdit??=true;
+ const fakeId=n=>'10000000-0000-4000-8000-'+String(n).padStart(12,'0');
+ const testPlayers=Array.from({length:10},(_,i)=>({id:fakeId(i+1),name:'Joueur test '+String(i+1).padStart(2,'0'),is_group_member:false}));
+ const testTeams=data.teams.map(t=>({...t}));
+ window.__testSnapshot={is_test:true,can_edit:window.__testCanEdit,tournament_id:ids.past,tournaments:[{id:ids.past,name:'Match test automatique',status:'draft',format:'classic',team_size:5}],players:testPlayers,teams:testTeams,team_players:testPlayers.map((p,i)=>({team_id:testTeams[i%2].id,player_id:p.id})),matches:[{...data.matches[0],status:'scheduled',home_score:0,away_score:0}],goals:[],tournament_players:testPlayers.map(p=>({tournament_id:ids.past,player_id:p.id,present:true,registration_status:'confirmed'})),match_player_assignments:testPlayers.map((p,i)=>({match_id:ids.match,team_id:testTeams[i%2].id,player_id:p.id}))};
+ let goalIndex=100;
  window.supabase={createClient:()=>{
   const query=new Proxy(()=>query,{get:(_t,k)=>k==='then'?resolve=>Promise.resolve({data:[],error:null}).then(resolve):()=>query});
   return {
@@ -34,7 +39,17 @@ function installMock(data,ids){
      if(window.__failTestCreate){window.__failTestCreate=false;return {data:null,error:{message:'Création temporairement indisponible'}}}
      return {data:ids.match,error:null};
     }
-    if(name==='get_test_match_snapshot'){const d=structuredClone(window.__snapshot);d.is_test=true;d.tournament_id=ids.past;d.matches[0].home_score=window.__testScore;return {data:d}}
+    if(name==='get_test_match_snapshot'){const d=structuredClone(window.__testSnapshot);d.matches[0].home_score=window.__testScore;d.can_edit=window.__testCanEdit;return window.__denyTest?{error:{message:'Ce compte ne participe pas au match test'}}:{data:d}}
+    if(name==='super_admin_test_match_action'){
+     if(!window.__testCanEdit)return {error:{message:'Accès Super Admin requis'}};
+     const d=window.__testSnapshot,m=d.matches[0];m.home_score=window.__testScore;
+     if(args.p_action==='start'){m.status='live';d.tournaments[0].status='live'}
+     if(args.p_action==='finish'){m.status='finished';d.tournaments[0].status='finished'}
+     if(args.p_action==='set_score'){m.home_score=args.p_home_score;m.away_score=args.p_away_score}
+     if(args.p_action==='goal'){const team=d.match_player_assignments.find(p=>p.player_id===args.p_scorer_id).team_id;d.goals.push({id:fakeId(goalIndex++),match_id:m.id,team_id:team,scorer_player_id:args.p_scorer_id,assister_player_id:args.p_assister_id});if(team===m.home_team_id)m.home_score++;else m.away_score++}
+     if(args.p_action==='delete_goal'){const goal=d.goals.find(g=>g.id===args.p_goal_id);if(goal.team_id===m.home_team_id)m.home_score--;else m.away_score--;d.goals=d.goals.filter(g=>g.id!==args.p_goal_id)}
+     window.__testScore=m.home_score;return {data:structuredClone(d)};
+    }
     if(name.includes('platform_settings'))return {data:{footer_enabled:false,consent_gate_enabled:false}};
     return {data:[],error:null};
    }
@@ -56,6 +71,7 @@ async function checkScoreLayout(page){
 }
 const errors=[];
 async function checkTestAccountPicker(page){
+ await page.locator('#testOptionalAccounts summary').click();
  await page.locator('#testAccountCount').filter({hasText:'16 comptes disponibles'}).waitFor();
  await page.locator('#testExpandAccounts').click();assert.equal(await page.locator('#testAccounts').evaluate(e=>e.style.maxHeight),'none');
  await page.locator('#testExpandAccounts').click();assert.equal(await page.locator('#testAccounts').evaluate(e=>e.style.maxHeight),'260px');
@@ -65,13 +81,11 @@ async function checkTestAccountPicker(page){
 }
 async function checkTestMatchCreation(page){
  const create=page.locator('#testCreate'),accounts=page.locator('[data-test-account]');
- await create.click();await page.locator('#testCreateError').filter({hasText:'Coche encore 2 comptes'}).waitFor();assert.equal(await create.isEnabled(),true);
- await accounts.first().check();await create.click();await page.locator('#testCreateError').filter({hasText:'Coche encore 1 compte'}).waitFor();
- for(let i=1;i<13;i++)await accounts.nth(i).check();
- await create.click();await page.locator('#testCreateError').filter({hasText:'Maximum 12 participants'}).waitFor();
+ await page.locator('#testCreateHint').filter({hasText:'10 joueurs fictifs'}).waitFor();
+ for(let i=0;i<13;i++)await accounts.nth(i).check();
+ await create.click();await page.locator('#testCreateError').filter({hasText:'Maximum 12 comptes'}).waitFor();
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c.name==='super_admin_create_test_match').length),0);
- for(let i=2;i<13;i++)await accounts.nth(i).uncheck();
- await page.locator('#testCreateHint').filter({hasText:'Prêt : 2 participants'}).waitFor();
+ for(let i=0;i<13;i++)await accounts.nth(i).uncheck();
  await page.evaluate(()=>{window.__failTestCreate=true});
  await create.click();assert.equal(await create.isDisabled(),true);assert.equal(await create.getAttribute('aria-busy'),'true');
  await page.locator('#testCreateError').filter({hasText:'Création temporairement indisponible'}).waitFor();
@@ -79,8 +93,27 @@ async function checkTestMatchCreation(page){
  await create.click();await page.locator('#testScorer').waitFor();
  await page.waitForFunction(()=>document.getElementById('testCreate')?.getAttribute('aria-busy')==='false');
  const calls=await page.evaluate(()=>window.__calls.filter(c=>c.name==='super_admin_create_test_match'));
- assert.equal(calls.length,2);assert.deepEqual(calls[0].args.p_swe_ids,['SWE-TEST1','SWE-TEST2']);assert.equal(calls[0].args.p_request_id,calls[1].args.p_request_id);
- console.log('Match test: selection limits, create request, busy state, error recovery and retry: OK');
+ assert.equal(calls.length,2);assert.deepEqual(calls[0].args.p_swe_ids,[]);assert.equal(calls[0].args.p_request_id,calls[1].args.p_request_id);
+ assert.match(await page.getByRole('link',{name:'Ouvrir l’onglet Matchs'}).getAttribute('href'),/tab=matches/);
+ console.log('Automatic match creation with no account selected, limit, busy state and retry: OK');
+}
+async function checkSharedMatchModule(page){
+ await page.locator('[data-test-tab="matches"]').click();await page.locator('#testModuleStart').click();
+ await page.locator('.swe4301-goal-form').waitFor();
+ const score=page.locator('.swe4300-result'),inputs=page.locator('.swe4300-edit input');
+ await inputs.nth(0).fill('0');await inputs.nth(1).fill('0');await page.getByRole('button',{name:'Enregistrer le score'}).click();await score.filter({hasText:'0 - 0'}).waitFor();
+ const addGoal=async()=>{
+  const selects=page.locator('.swe4301-goal-form select');
+  await selects.nth(0).selectOption(a);await selects.nth(1).selectOption({label:'Joueur test 01'});await selects.nth(2).selectOption({label:'Joueur test 03'});
+  await page.locator('.swe4301-goal-form button').click();
+ };
+ await addGoal();await score.filter({hasText:'1 - 0'}).waitFor();assert.match(await page.locator('.swe4301-goal-history').innerText(),/Joueur test 01 ← Joueur test 03/);
+ await page.getByRole('button',{name:'Annuler',exact:true}).click();await score.filter({hasText:'0 - 0'}).waitFor();
+ await inputs.nth(0).fill('3');await inputs.nth(1).fill('2');await page.getByRole('button',{name:'Enregistrer le score'}).click();await score.filter({hasText:'3 - 2'}).waitFor();
+ await addGoal();await score.filter({hasText:'4 - 2'}).waitFor();
+ await page.locator('#testModuleFinish').click();await page.locator('#testModuleState').filter({hasText:'terminé'}).waitFor();assert.equal(await page.locator('.swe4301-goal-form').count(),0);
+ await page.locator('[data-test-tab="direct"]').click();await page.locator('#liveMatches').filter({hasText:'4 - 2'}).waitFor();
+ console.log('Shared Matchs module: start, manual score, scorer, assister, delete, finish and direct result: OK');
 }
 const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!target.startsWith(root+path.sep)&&target!==root){res.writeHead(403);return res.end()}try{if(fs.statSync(target).isDirectory())target=path.join(target,'index.html');res.setHeader('Content-Type',target.endsWith('.html')?'text/html':target.endsWith('.js')?'text/javascript':target.endsWith('.css')?'text/css':'application/octet-stream');res.end(fs.readFileSync(target))}catch{res.writeHead(404);res.end()}});
 (async()=>{
@@ -139,11 +172,21 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
     await organizer.waitForFunction(id=>document.querySelector('[data-swe-generate-tour="'+id+'"]').disabled,current);
     console.log('Tournament shortcut targets the selected tournament and respects permissions: OK');await organizer.close();
    }
+   await page.goto(base+'/live.html?test='+match+'&admin=1&tab=matches');await checkSharedMatchModule(page);
    console.log('Registration, history, guest disclosure and selection:',viewport.width,'OK');await context.close();
   }
   const context=await browser.newContext();await context.route('**/*',route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/live.html?test='+match+'&admin=1');await page.locator('#liveMatches').filter({hasText:'0 - 0'}).waitFor();await page.evaluate(()=>{window.__testScore=2;document.dispatchEvent(new Event('visibilitychange'))});await page.locator('#liveMatches').filter({hasText:'2 - 0'}).waitFor();console.log('Existing live renderer refreshes test scores: OK');
-  await page.goto(base+'/forssadmin/');await page.locator('[data-view="reports"]').click();await page.locator('#reportRows').filter({hasText:'42'}).waitFor();await page.locator('[data-view="matchtests"]').click();await checkTestAccountPicker(page);await checkTestMatchCreation(page);await page.locator('#testScorer').waitFor();assert.equal(await page.locator('#testAssister option').count(),2);console.log('Super Admin reports and match-test screen: OK');
+  await page.goto(base+'/forssadmin/');await page.locator('[data-view="reports"]').click();await page.locator('#reportRows').filter({hasText:'42'}).waitFor();await page.locator('[data-view="matchtests"]').click();await checkTestAccountPicker(page);await checkTestMatchCreation(page);await page.locator('#testScorer').waitFor();assert.equal(await page.locator('#testAssister option').count(),5);console.log('Super Admin reports and match-test screen: OK');
+  const reader=await context.newPage();reader.on('pageerror',e=>errors.push(e.message));await reader.addInitScript(()=>{window.__testCanEdit=false});await reader.goto(base+'/live.html?test='+match+'&tab=matches');await reader.locator('.swe4300-result').waitFor();assert.equal(await reader.locator('#testModuleStart').isVisible(),false);assert.equal(await reader.locator('.swe4301-goal-form').count(),0);assert.equal(await reader.locator('.swe4300-edit').count(),0);await reader.close();
+  const denied=await context.newPage();denied.on('pageerror',e=>errors.push(e.message));await denied.addInitScript(()=>{window.__denyTest=true});await denied.goto(base+'/live.html?test='+match+'&tab=matches');await denied.locator('#liveError').filter({hasText:'ne participe pas'}).waitFor();assert.equal(await denied.locator('.swe4300-match').count(),0);await denied.close();
+  const normal=await context.newPage();normal.on('pageerror',e=>errors.push(e.message));await normal.setContent('<div id="matchesList"></div>');
+  await normal.evaluate(data=>{
+   window.S={players:data.players,teams:data.teams,teamPlayers:data.team_players,matches:[data.matches[0]],goals:[],tournaments:[data.tournaments[1]],activeTour:data.tournaments[1].id};window.__normalWrites=[];
+   window.currentTour=()=>S.tournaments[0];window.canEditCurrentMatches=()=>true;window.isAdmin=()=>true;window.renderMatches=()=>{};window.toast=()=>{};
+   window.sb={from:table=>({update:values=>({eq:async(key,value)=>{window.__normalWrites.push({table,values,key,value});return {error:null}}})})};
+  },snapshot);
+  await normal.addScriptTag({content:fs.readFileSync(path.join(root,'match-engine-v4300.js'),'utf8')});await normal.locator('.swe4300-edit input').first().fill('3');await normal.locator('.swe4300-edit button').click();assert.deepEqual(await normal.evaluate(()=>window.__normalWrites.map(x=>x.values)),[{home_score:3,away_score:0}]);await normal.close();console.log('Normal match module and test viewer permissions: OK');
   await context.close();assert.deepEqual(errors,[]);
  }finally{await browser.close();await new Promise(r=>server.close(r))}
 })().catch(e=>{console.error(e);console.error('Page errors:',errors);server.close();process.exitCode=1});
