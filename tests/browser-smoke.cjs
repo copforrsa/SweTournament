@@ -9,7 +9,7 @@ const token=id(1),current=id(2),past=id(3),season=id(4),match=id(5),a=id(6),b=id
 const players=[1,2,3,4].map(n=>({id:id(10+n),name:'Joueur '+n,active:true,is_group_member:true}));
 const snapshot={workspace:{id:id(30),name:'Groupe de vérification'},features:{rankings_enabled:true,player_ratings_enabled:false,top_player_enabled:false},players,seasons:[{id:season,name:'Saison de test',is_active:true}],leagues:[],tournaments:[{id:current,name:'Prochain tournoi',tournament_date:'2099-09-20',registration_open:true,status:'draft',format:'classic',max_players:20,team_size:5,season_id:season,registration_deadline:'2099-09-19T17:00:00Z'},{id:past,name:'Tournoi précédent',tournament_date:'2026-09-01',status:'finished',format:'classic',season_id:season}],tournament_players:players.map(p=>({tournament_id:current,player_id:p.id,present:true,registration_status:'confirmed'})),teams:[{id:a,tournament_id:past,name:'Bleus',color:'#2563eb'},{id:b,tournament_id:past,name:'Rouges',color:'#dc2626'}],team_players:players.map((p,i)=>({team_id:i%2?a:b,player_id:p.id})),matches:[{id:match,tournament_id:past,home_team_id:a,away_team_id:b,home_score:1,away_score:0,status:'finished',match_order:1}],goals:[{id:id(20),match_id:match,team_id:a,scorer_player_id:players[1].id,assister_player_id:players[3].id}],match_player_assignments:players.map((p,i)=>({match_id:match,team_id:i%2?a:b,player_id:p.id})),sports_complexes:[],sports_pitches:[]};
 snapshot.teams[0].name='Équipe Harry MC';
-snapshot.tournaments[0].tournament_date='2026-09-13';
+snapshot.tournaments[0].tournament_date='2026-09-13';snapshot.tournaments[0].max_players=35;snapshot.tournaments[0].start_time='09:00';snapshot.tournaments[0].venue='Arena — Carrefour, Mercedes, Boulogne';snapshot.tournaments[0].entry_fee_cents=900;
 for(let i=5;i<=30;i++){const p={id:id(100+i),name:'Joueur '+i,active:true,is_group_member:true};snapshot.players.push(p);snapshot.tournament_players.push({tournament_id:current,player_id:p.id,present:true,registration_status:'confirmed',registered_at:'2026-09-12T12:00:00Z'});}
 
 snapshot.players.push({id:id(50),name:'Ancien invité',active:true,is_group_member:false,guest_of_player_id:players[0].id});
@@ -199,10 +199,10 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    assert.match(page.url(),/history=/);assert.match(page.url(),/from_s=TESTCODE/);
    await page.locator('#backPublic').click();await page.locator('#publicPlayerSelect').waitFor({state:'visible'});
    assert.equal(new URL(page.url()).searchParams.get('s'),'TESTCODE');
-   assert.match(await page.locator('#registrationMeta').innerText(),/dimanche 13 septembre/);
+   assert.match(await page.locator('#registrationMeta').innerText(),/dimanche 13 septembre/);assert.match(await page.locator('#registrationMeta').innerText(),/09:00/);assert.match(await page.locator('#registrationMeta').innerText(),/Arena/);
    assert.equal(await page.locator('#publicRegisteredList > .player').count(),5);
    const more=page.locator('#publicMoreRegistrations');assert.equal(await more.getAttribute('open'),null);await more.locator('summary').click();assert.ok(await page.locator('#publicMoreRegistrations > .player:visible').count()>=25);await more.locator('summary').click();
-   assert.equal(await page.locator('#registrationSeasonRankings #publicSeasonScorers').isVisible(),true);
+   assert.equal(await page.locator('#registrationSeasonRankings #publicSeasonScorers').isVisible(),true);assert.ok((await page.locator('#registrationSeasonRankings').boundingBox()).y>(await page.locator('#registrationPeople').boundingBox()).y,'Season rankings follow registrations on every screen');
    assert.match(await page.locator('#publicSeasonScorers').innerText(),/Joueur 2/);
    assert.match(await page.locator('#publicSeasonAssists').innerText(),/Joueur 4/);
    const href=await page.locator('#publicHistory a').getAttribute('href');assert.match(href,/history=/);assert.match(href,/from_tournament=/);

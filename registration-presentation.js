@@ -30,7 +30,7 @@ function mount(ctx){
  const historyArea=E('registrationHistoryArea'),last=E('publicLastTournamentDetails')?.parentElement,history=E('publicHistory')?.closest('.card');
  if(last){last.classList.add('sp-history');historyArea.append(last)}
  if(history){const disclosure=document.createElement('details');disclosure.className='sp-card sp-history';disclosure.innerHTML='<summary>Historique des tournois</summary>';history.querySelector('h2')?.remove();disclosure.append(history);historyArea.append(disclosure);}
- ['publicSeasonScorers','publicSeasonAssists'].forEach(id=>{const card=E(id)?.closest('.card');if(card){card.classList.remove('hidden');card.classList.add('sp-card');E('registrationSeasonRankings').append(card)}});
+ ['publicSeasonScorers','publicSeasonAssists'].forEach(id=>{const card=E(id)?.closest('.card');if(card){card.classList.add('sp-card');E('registrationSeasonRankings').append(card)}});
  E('publicSeasonTopPlayers')?.closest('.card')?.classList.add('hidden');
  root.querySelectorAll(':scope > .grid').forEach(el=>{if(!el.querySelector('.card:not(.hidden)'))el.classList.add('hidden')});
  const donor=E('publicThirdHalfDonorCard');if(donor)body.querySelector('.sp-main').append(donor);
