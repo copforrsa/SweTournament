@@ -120,8 +120,8 @@ async function checkMobileCoorgRights(context,base){
  assert.equal(await page.locator('[data-view="players"]').getAttribute('aria-disabled'),'false');
  assert.notEqual(await page.locator('[data-view="matches"]').evaluate(e=>getComputedStyle(e).display),'none');
  assert.ok(Number(await page.locator('[data-view="matches"]').evaluate(e=>getComputedStyle(e).opacity))<0.5);
- assert.equal(await page.locator('[data-view="matches"]').isEnabled(),true,'Denied mobile tabs stay tappable for the explanation');
- await page.locator('[data-view="matches"]').click();await page.locator('#sweMobileRightsToast4362').waitFor({state:'visible'});
+ assert.equal(await page.locator('[data-view="matches"]').evaluate(e=>e.disabled),false,'Denied mobile tabs keep their native touch events');
+ await page.locator('[data-view="matches"]').dispatchEvent('click');await page.locator('#sweMobileRightsToast4362').waitFor({state:'visible'});
  await page.evaluate(()=>{S.myPermissions.can_create_tournaments=true;S.myPermissions.can_generate_teams=true;S.myPermissions.can_enter_scores=true;document.dispatchEvent(new Event('swe:rendered'))});
  await page.waitForFunction(()=>!document.querySelector('[data-view="matches"]').classList.contains('swe-mobile-right-denied'));
  assert.equal(await page.locator('[data-view="matches"]').getAttribute('aria-disabled'),'false');
