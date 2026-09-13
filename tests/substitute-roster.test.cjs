@@ -43,3 +43,14 @@ test('manual attendance changes immediately recalculate substitute status',()=>{
   assert.match(attendance,/await syncTournamentSubstitutes\(t\.id\)/);
   assert.match(attendance,/fresh\?\.registration_status==='waitlist'\|\|fresh\?\.is_substitute/);
 });
+
+test('admin quick registration recalculates players added after team creation',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
+  const start=app.indexOf("if(e.target?.id==='manualRegisterPlayer')");
+  const end=app.indexOf("if(e.target?.id==='managerAddGuest')",start);
+  const manualRegistration=app.slice(start,end);
+  assert.match(manualRegistration,/add_registered_member_to_tournament/);
+  assert.match(manualRegistration,/S\.teams\.length/);
+  assert.match(manualRegistration,/await syncTournamentSubstitutes\(t\.id\)/);
+  assert.match(manualRegistration,/fresh\?\.is_substitute/);
+});
