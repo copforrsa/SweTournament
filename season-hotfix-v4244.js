@@ -17,12 +17,12 @@ function draw(rows){
       const joined=!currentGuest&&x.wasGuest;
       const cls=currentGuest||joined?'guest-row':'';
       const badge=currentGuest?'<span class="guest-badge">Invité • hors groupe</span>':joined?'<span class="guest-badge" style="background:#dcfce7;color:#166534">A rejoint le groupe</span>':'<span class="guest-badge">Nouveau</span>';
-      return '<div class="rank '+cls+'"><b>'+(x.rank===1?'👑':x.rank)+'</b><span><b>'+esc(x.name)+'</b> '+badge+'<div class="muted">'+x.matches+' match'+(x.matches>1?'s':'')+'</div></span><b class="right">'+Number(x.avg).toFixed(1)+' points</b></div>';
+      return '<div class="rank '+cls+'"><span class="rank-position">'+(x.rank===1?'♛':x.rank)+'</span><span class="rank-copy"><span class="rank-name">'+esc(x.name)+'</span> '+badge+'<span class="rank-detail">'+x.matches+' match'+(x.matches>1?'s':'')+'</span></span><span class="rank-value">'+Number(x.avg).toFixed(1)+' points<small>moyenne / 10</small></span></div>';
     }).join(''):'<p class="muted">Aucun nouveau joueur noté pour cette saison.</p>';
     btn.classList.toggle('hidden',rows.length<=10);btn.textContent=expanded?'Réduire au Top 10':'Voir tous les nouveaux joueurs ('+Math.max(0,rows.length-10)+' autres)';btn.onclick=()=>{expanded=!expanded;paint()};
   };
   paint();
-  const section=box.closest('.card');if(section&&!section.querySelector('[data-newcomer-legend44]')){const p=section.querySelector('p.muted');const n=document.createElement('div');n.dataset.newcomerLegend44='1';n.className='readonly-note';n.style.marginBottom='10px';n.innerHTML='ℹ️ Les lignes grisées correspondent aux <b>invités</b>, qui ne font pas partie du groupe. Un invité devenu membre reste dans ce classement avec la mention <b>« A rejoint le groupe »</b>.';(p||section.firstElementChild)?.insertAdjacentElement('afterend',n)}
+  const section=box.closest('.season-card,.card');if(section&&!section.querySelector('[data-newcomer-legend44]')){const n=document.createElement('div');n.dataset.newcomerLegend44='1';n.className='readonly-note';n.style.margin='10px 18px';n.innerHTML='ℹ️ Les lignes grisées correspondent aux <b>invités</b>, qui ne font pas partie du groupe. Un invité devenu membre reste dans ce classement avec la mention <b>« A rejoint le groupe »</b>.';box.insertAdjacentElement('beforebegin',n)}
 }
 async function resolveToken(){const p=new URLSearchParams(location.search);let token=p.get('public')||null,tournamentId=null;if(token)return {token,tournamentId};const code=(p.get('s')||'').trim().toUpperCase();if(!code)return {token:null,tournamentId:null};const r=await sb44.rpc('resolve_public_tournament_short_link',{p_code:code});if(r.error)return {token:null,tournamentId:null};return {token:r.data?.public_token||null,tournamentId:r.data?.tournament_id||null}}
 async function refreshNewcomers44(){

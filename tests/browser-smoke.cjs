@@ -57,6 +57,8 @@ function installMock(data,ids,ruleRows){
     if(name==='super_admin_list_test_tournaments')return {data:window.__tournamentDeleted?[]:[{workspace_id:ids.current,tournament_id:ids.current,short_code:'TEST30',workspace_name:'TEST SWÉ — 30 joueurs',player_count:30,tournament_date:'2026-09-13',status:'draft'}]};
     if(name==='super_admin_create_test_tournament')return {data:{workspace_id:ids.current,tournament_id:ids.current,short_code:'TEST30'}};
     if(name==='get_public_workspace_snapshot_v2')return {data:window.__snapshot};
+    if(name==='get_public_season_rankings')return {data:{players:[{id:data.players[0].id,name:data.players[0].name,g:4,a:1},{id:data.players[1].id,name:data.players[1].name,g:2,a:3},{id:data.players[2].id,name:data.players[2].name,g:1,a:1}]}};
+    if(name==='get_public_player_membership_history_flags')return {data:[]};
     if(name==='public_tournament_payment_status'){const result=structuredClone(window.__paymentStatus||{available:false,reason:'free',entry_fee_cents:0});if(window.__delayPayment)await new Promise(r=>setTimeout(r,500));return {data:result};}
     if(name==='public_tournament_payment_choice_status')return {data:window.__paymentChoice||{}};
     if(name==='get_my_tournament_presentation_v1')return {data:{my_player_id:data.players[0].id,is_coorganizer:true,personal_instructions:'Vérifie les présences avant le tirage.',tournament_rating_windows:window.__ratingWindows||[]}};
@@ -147,6 +149,19 @@ async function checkPlayerRatingMobile(context,base){
  assert.ok(await page.locator('.player-rating-progress-track').evaluate(e=>Math.abs(e.firstElementChild.getBoundingClientRect().width-e.getBoundingClientRect().width*.8)<1));
  await page.screenshot({path:path.join(screenshotDir,'player-rating-mobile-360.png'),fullPage:true});await page.close();
  console.log('Mobile player rating tiles, selects, balance cue and progress: OK');
+}
+async function checkSeasonPremium(context,base,width){
+ const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base+'/season.html?public='+token+'&season='+season);
+ await page.locator('.podium-player').first().waitFor();
+ assert.equal(await page.locator('.podium-player').count(),3);
+ assert.match(await page.locator('.podium-card').innerText(),/Les 3 Top Players/);
+ assert.match(await page.locator('#seasonTitle').innerText(),/Saison de test/);
+ assert.equal(await page.locator('.season-ranking-card').count(),4);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Premium season page has no horizontal overflow');
+ if(width===360)assert.equal(await page.locator('.podium-player.first').evaluate(e=>getComputedStyle(e).gridColumnEnd),'-1');
+ await page.screenshot({path:path.join(screenshotDir,'season-premium-'+width+'.png'),fullPage:true});
+ await page.close();console.log('Premium season podium and rankings:',width,'OK');
 }
 const sdk='('+installMock.toString()+')('+JSON.stringify(snapshot)+','+JSON.stringify({user:id(99),token,current,past,season,match})+','+JSON.stringify(require('./king-rule-fixtures.json'))+');';
 new (require('node:vm').Script)(sdk);
@@ -261,6 +276,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
    await checkPlayerCards(context,base,viewport.width);
    await checkHomeShop(context,base,viewport.width);
+   await checkSeasonPremium(context,base,viewport.width);
    if(viewport.width===360)await checkMobileCoorgRights(context,base);
    if(viewport.width===360)await checkPlayerRatingMobile(context,base);
    await page.goto(base+'/?s=TESTCODE');
