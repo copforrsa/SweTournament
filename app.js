@@ -1774,6 +1774,9 @@ async function renderRegisteredPlayersAdmin(){
       if(!confirm('Retirer '+r.player_name+' de cette inscription ?'))return;
       const {error}=await sb.rpc('remove_registered_member_from_tournament',{p_tournament_id:t.id,p_player_id:r.player_id});
       if(error)return toast(error.message);
+      if(t.format!=='league'&&S.teams.length){
+        try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
+      }
       await loadTournament();renderRegisteredPlayersAdmin();renderHome();toast('Inscription retirée.');
     };
     d.appendChild(remove);box.appendChild(d);
@@ -1936,8 +1939,12 @@ document.addEventListener('click',async e=>{
     const b=e.target;b.disabled=true;
     const {data,error}=await sb.rpc('add_registered_member_to_tournament',{p_tournament_id:t.id,p_player_id:pid});
     b.disabled=false;if(error)return toast(error.message);
+    if(t.format!=='league'&&S.teams.length){
+      try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
+    }
     await loadTournament();renderRegisteredPlayersAdmin();renderHome();
-    toast(data==='waitlist'?'Joueur ajouté comme remplaçant.':'Joueur ajouté aux inscrits ✅');
+    const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(pid));
+    toast(data==='waitlist'||fresh?.is_substitute?'Joueur ajouté comme remplaçant 🟠':'Joueur ajouté aux inscrits ✅');
   }
   if(e.target?.id==='managerAddGuest'){
     const t=currentTour(),name=$('#managerGuestName')?.value.trim();
@@ -1947,8 +1954,12 @@ document.addEventListener('click',async e=>{
     const {data,error}=await sb.rpc('manager_register_tournament_guest',{p_tournament_id:t.id,p_guest_name:name});
     b.disabled=false;if(error)return toast(error.message);
     $('#managerGuestName').value='';
+    if(t.format!=='league'&&S.teams.length){
+      try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
+    }
     await loadTournament();renderRegisteredPlayersAdmin();renderHome();renderTeams();
-    toast(data?.status==='waitlist'?'Invité ajouté comme remplaçant.':'Invité ajouté ✅');
+    const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(data?.player_id));
+    toast(data?.status==='waitlist'||fresh?.is_substitute?'Invité ajouté comme remplaçant 🟠':'Invité ajouté ✅');
   }
 });
 
