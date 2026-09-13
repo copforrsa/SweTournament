@@ -8,6 +8,7 @@ const cli=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}}
 const admin=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
 const labelStatus=s=>({expected:'À confirmer',on_time:'À l’heure',late:'En retard',absent:'Absent',late_withdrawal:'Désistement dernière minute'})[s]||'À confirmer';
 let timer=0,publicBusy=false,evalMatrix=[],evalProgress=[],evalMatrixWorkspace='',evalProgressWorkspace='',evalMatrixAt=0,evalMatrixBusy=false,stableEvaluationHtml='';
+const setHtml=(node,html)=>{if(node&&node.innerHTML!==html)node.innerHTML=html};
 
 function styles(){
  if(E('swe4393Styles'))return;const x=document.createElement('style');x.id='swe4393Styles';x.textContent=`
@@ -34,15 +35,15 @@ function evaluationMarkup(s,workspaceId){
 async function renderEvaluation(){
  const s=st(),box=E('homeCoorgVotes'),card=E('homeCoorgVotesCard');if(!admin()||!s||!box||!card)return;
  const workspaceId=String(s.workspace?.id||''),c=cli();card.classList.remove('hidden');
- if((evalMatrixWorkspace===workspaceId||evalProgressWorkspace===workspaceId)&&stableEvaluationHtml)box.innerHTML=stableEvaluationHtml;
- else if(!box.querySelector('.swe-eval-summary.swe4393'))box.innerHTML='<div class="swe-eval-loading">Actualisation des votes des co-organisateurs…</div>';
+ if((evalMatrixWorkspace===workspaceId||evalProgressWorkspace===workspaceId)&&stableEvaluationHtml)setHtml(box,stableEvaluationHtml);
+ else if(!box.querySelector('.swe-eval-summary.swe4393'))setHtml(box,'<div class="swe-eval-loading">Actualisation des votes des co-organisateurs…</div>');
  if(!c||!workspaceId||evalMatrixBusy||((evalMatrixWorkspace===workspaceId||evalProgressWorkspace===workspaceId)&&Date.now()-evalMatrixAt<=12000))return;
  evalMatrixBusy=true;
  try{
    const [matrix,progress]=await Promise.all([c.rpc('get_admin_evaluation_matrix_v1',{p_workspace_id:workspaceId}),c.rpc('get_admin_evaluation_progress_v1',{p_workspace_id:workspaceId})]);
    if(!progress.error){evalProgress=Array.isArray(progress.data)?progress.data:[];evalProgressWorkspace=workspaceId;evalMatrixAt=Date.now()}
    if(!matrix.error){evalMatrix=Array.isArray(matrix.data)?matrix.data:[];evalMatrixWorkspace=workspaceId;evalMatrixAt=Date.now()}
-   stableEvaluationHtml=evaluationMarkup(s,workspaceId);box.innerHTML=stableEvaluationHtml;
+   stableEvaluationHtml=evaluationMarkup(s,workspaceId);setHtml(box,stableEvaluationHtml);
  }finally{evalMatrixBusy=false}
 }
 
@@ -50,7 +51,7 @@ function decoratePlayerActivity(){
  const s=st(),list=E('playersList');if(!admin()||!s||!list)return;
  let overview=E('sweActivityOverview');if(!overview){overview=document.createElement('div');overview.id='sweActivityOverview';overview.className='swe-activity-overview';list.before(overview)}
  const members=(s.players||[]).filter(p=>p.is_group_member!==false),active=members.filter(p=>p.active!==false).length;
- overview.innerHTML='<span><b>'+active+'</b> actifs</span><span>•</span><span><b>'+(members.length-active)+'</b> inactifs</span><span class="muted">Automatique après 4 tournois consécutifs manqués. L’admin garde la main avec Réactiver / Désactiver.</span>';
+ setHtml(overview,'<span><b>'+active+'</b> actifs</span><span>•</span><span><b>'+(members.length-active)+'</b> inactifs</span><span class="muted">Automatique après 4 tournois consécutifs manqués. L’admin garde la main avec Réactiver / Désactiver.</span>');
  [...list.children].forEach((row,i)=>{const p=(s.players||[])[i];if(!p||row.dataset.activity4393)return;row.dataset.activity4393='1';const info=row.querySelector('.row > span:first-child')||row.querySelector('span');if(!info)return;const badge=document.createElement('span');badge.className='swe-activity-pill '+(p.active===false?'inactive':'active');badge.textContent=p.active===false?'Joueur inactif':'Joueur actif';badge.title=p.inactivity_reason||(p.activity_status_source==='automatic_missed_4'?'4 tournois consécutifs manqués':'Statut défini par l’administrateur');info.querySelector('b')?.after(badge);if(p.active===false&&p.inactivity_reason){const reason=document.createElement('div');reason.className='muted';reason.textContent='Motif : '+p.inactivity_reason;info.appendChild(reason)}});
 }
 
@@ -76,9 +77,7 @@ async function renderPublicAlerts(){
  try{const r=await c.rpc('get_public_workspace_snapshot_v2',{p_token:ctx.token});if(r.error||!r.data)return;const regs=(r.data.tournament_players||[]).filter(x=>String(x.tournament_id)===String(ctx.id)&&['late','late_withdrawal'].includes(x.attendance_status));let box=E('swePublicAttendanceAlerts');if(!regs.length){box?.remove();return}const players=new Map((r.data.players||[]).map(p=>[String(p.id),p]));if(!box){box=document.createElement('section');box.id='swePublicAttendanceAlerts';box.className='sp-card swe-public-alerts';E('registrationPeople')?.before(box)}box.innerHTML='<div class="sp-eyebrow">INFO DE DERNIÈRE MINUTE</div><h2>Arrivées & désistements</h2>'+regs.map(x=>'<div class="swe-public-alert"><span><b>'+esc(players.get(String(x.player_id))?.name||'Joueur')+'</b></span><b>'+(x.attendance_status==='late'?'⏱️ Retard annoncé • '+Number(x.delay_minutes||0)+' min':'🚫 Désistement de dernière minute')+'</b></div>').join('');}finally{publicBusy=false}
 }
 function apply(){clearTimeout(timer);timer=setTimeout(()=>{styles();renderEvaluation();decoratePlayerActivity();renderAttendance();renderPublicAlerts()},90)}
-function watchLegacyEvaluation(){const box=E('homeCoorgVotes');if(!box||box.dataset.watch4393)return;box.dataset.watch4393='1';new MutationObserver(()=>{if(box.querySelector('.swe-eval-summary.swe4393'))return;if(stableEvaluationHtml){box.innerHTML=stableEvaluationHtml;return}renderEvaluation()}).observe(box,{childList:true})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',watchLegacyEvaluation,{once:true});else watchLegacyEvaluation();
 document.addEventListener('swe:rendered',apply);document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="home"],[data-view="players"],[data-view="teams"]'))apply()});
 setInterval(renderPublicAlerts,10000);
 })();

@@ -8,6 +8,7 @@ const client=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return nul
 const isAdminUser=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
 let busy=false;
 async function render(){
+ if(window.__SWE_PLAYER_ACTIVITY_ATTENDANCE_4393)return;
  if(busy||!isAdminUser())return;
  const st=appState(),c=client(),box=E('homeCoorgVotes'),card=E('homeCoorgVotesCard');
  if(!st?.workspace?.id||!c||!box||!card)return;
