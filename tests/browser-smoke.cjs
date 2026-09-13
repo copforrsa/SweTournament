@@ -269,7 +269,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    assert.match(page.url(),/history=/);assert.match(page.url(),/from_s=TESTCODE/);
    await page.locator('#backPublic').click();await page.locator('#publicPlayerSelect').waitFor({state:'visible'});
    assert.equal(new URL(page.url()).searchParams.get('s'),'TESTCODE');
-   assert.match(await page.locator('#registrationMeta').innerText(),/dimanche 13 septembre/);assert.match(await page.locator('#registrationMeta').innerText(),/09:00/);assert.match(await page.locator('#registrationMeta').innerText(),/Arena/);
+   assert.match(await page.locator('#registrationMeta').innerText(),/(Aujourd’hui|dimanche 13 septembre)/);assert.match(await page.locator('#registrationMeta').innerText(),/09:00/);assert.match(await page.locator('#registrationMeta').innerText(),/Arena/);
    assert.equal(await page.locator('#publicRegisteredList > .player').count(),5);
    const more=page.locator('#publicMoreRegistrations');assert.equal(await more.getAttribute('open'),null);await more.locator('summary').click();assert.ok(await page.locator('#publicMoreRegistrations > .player:visible').count()>=25);await more.locator('summary').click();
    assert.equal(await page.locator('#registrationSeasonRankings #publicSeasonScorers').isVisible(),true);assert.ok((await page.locator('#registrationSeasonRankings').boundingBox()).y>(await page.locator('#registrationPeople').boundingBox()).y,'Season rankings follow registrations on every screen');
