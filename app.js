@@ -239,6 +239,13 @@ function setView(v){
   if(v==='teams'){
     if(previousView!=='teams'&&!S.teamCompetitionId&&S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
     renderTeams();
+    if(previousView!=='teams'&&S.teamCompetitionId&&(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams))){
+      const tournamentId=S.teamCompetitionId;
+      syncTournamentSubstitutes(tournamentId).then(async()=>{
+        if(String(S.activeTour)!==String(tournamentId))return;
+        await loadTournament();renderTeams();
+      }).catch(error=>console.warn('substitute synchronization',error));
+    }
   }
   if(v==='ranking')renderRanking();
   S.lastView=v;
@@ -3282,6 +3289,9 @@ function renderTeams(){
       S.activeTour=id;
       compSel.disabled=true;
       await loadTournament();
+      if(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams)){
+        try{await syncTournamentSubstitutes(id);await loadTournament()}catch(error){console.warn('substitute synchronization',error)}
+      }
       compSel.disabled=false;
       renderTeams();
       renderHome();
@@ -3338,6 +3348,7 @@ function renderTeams(){
         const l=document.createElement('label');l.className='player row';
         const c=document.createElement('input');c.type='checkbox';c.style.width='auto';c.checked=prs.has(x.id);
         c.onchange=async()=>{
+          const joining=c.checked;
           if(c.checked){
             const confirmed=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist'&&tp.player_id!==x.id).length;
             const status=confirmed<(t.max_players||20)?'confirmed':'waitlist';
@@ -3347,12 +3358,19 @@ function renderTeams(){
             const {error}=await sb.from('tournament_players').update({present:false,registration_status:'cancelled',deregistered_at:new Date().toISOString()}).eq('tournament_id',t.id).eq('player_id',x.id);
             if(error)return toast(error.message);
           }
+          try{await syncTournamentSubstitutes(t.id)}catch(error){c.checked=!joining;return toast(error.message)}
           await loadTournament();renderAll();
+          const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(x.id));
+          toast(joining?(fresh?.registration_status==='waitlist'||fresh?.is_substitute?'Joueur ajouté comme remplaçant 🟠':'Joueur ajouté aux confirmés ✅'):'Joueur retiré du tournoi.');
         };
         const tp=S.tPlayers.find(z=>z.player_id===x.id);
         const label=document.createElement('span');label.style.flex='1';label.textContent=playerDisplayName(x);
         if(tp?.registration_status==='waitlist'&&tp?.present){
           const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='Liste d’attente';
+          label.appendChild(document.createTextNode(' '));label.appendChild(badge);
+        }else if(tp?.is_substitute&&tp?.present){
+          const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='Remplaçant';
+          badge.style.background='#fff7ed';badge.style.borderColor='#fed7aa';badge.style.color='#b45309';
           label.appendChild(document.createTextNode(' '));label.appendChild(badge);
         }else if(tp&&!tp.present&&tp.registration_status==='cancelled'){
           const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='Désinscrit';

@@ -36,3 +36,10 @@ test('the roster synchronization migration recalculates substitutes and schedule
   assert.match(sql,/set is_substitute=\(v_capacity>0 and u\.position>v_free\)/);
   assert.match(sql,/m\.status='scheduled'/);
 });
+
+test('manual attendance changes immediately recalculate substitute status',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
+  const attendance=app.slice(app.indexOf("c.onchange=async()=>{"),app.indexOf("const tp=S.tPlayers.find",app.indexOf("c.onchange=async()=>{")));
+  assert.match(attendance,/await syncTournamentSubstitutes\(t\.id\)/);
+  assert.match(attendance,/fresh\?\.registration_status==='waitlist'\|\|fresh\?\.is_substitute/);
+});
