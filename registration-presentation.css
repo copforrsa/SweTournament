@@ -98,3 +98,9 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 .sp-coorg-instructions>summary{cursor:pointer;font-weight:900;color:#29476f;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px}.sp-coorg-instructions>summary::-webkit-details-marker{display:none}.sp-coorg-instructions>summary::after{content:'Afficher';font-size:.75rem;color:#526b91}.sp-coorg-instructions[open]>summary::after{content:'Masquer'}.sp-coorg-instructions-body{padding-top:10px}.sp-coorg-instructions-body li{white-space:pre-line}
 @media(max-width:620px){#publicView.swe-premium .sp-player-stats .sp-rating-grid{grid-template-columns:1fr}.sp-player-heading{align-items:flex-start;flex-direction:column;padding:18px}.sp-season-tag{max-width:100%}.sp-score-value{font-size:2.25rem}}
 @media(max-width:450px){.sp-player-stats .sp-player-numbers{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:0}.sp-player-numbers>div:nth-child(odd){border-left:0}.sp-player-numbers>div:nth-child(n+3){border-top:1px solid #dfe7ed}.sp-player-numbers>div:last-child{grid-column:1/-1}}
+
+/* Final title alignment: override generic card heading rules on every viewport. */
+#publicView.swe-premium .sp-team-callout,#publicView.swe-premium .sp-team-callout .sp-eyebrow,#publicView.swe-premium .sp-team-callout h2,#publicView.swe-premium .sp-team-callout p{text-align:center}
+#publicView.swe-premium .sp-team-callout h2,#publicView.swe-premium .sp-team-callout p{width:100%;margin-left:auto;margin-right:auto}
+#publicView.swe-premium .sp-royal-head,#publicView.swe-premium .sp-royal-head .sp-royal-format,#publicView.swe-premium .sp-royal-head h2,#publicView.swe-premium .sp-royal-head p{text-align:center}
+#publicView.swe-premium .sp-royal-head h2,#publicView.swe-premium .sp-royal-head p{width:100%;margin-left:auto;margin-right:auto}

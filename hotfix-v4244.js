@@ -10,7 +10,7 @@ function mobileClient(){return matchMedia('(max-width: 760px)').matches||navigat
 async function boot(){
  applyBuild();purgeLegacyClient();loadCss('/desktop-layout-v4328.css?v=4377','desktop-layout-v4328');document.documentElement.dataset.sweMatchClient=mobileClient()?'mobile':'desktop';
  await load('/brand-refresh-v4347.js?v=4377','brand-refresh-v4347');
- await load('/version-notice-v4346.js?v=4384','version-notice-v4346');
+ await load('/version-notice-v4346.js?v=4385','version-notice-v4346');
  await load('/admin-access-gate-v4258.js?v=4377','admin-access-gate');
  await load('/hotfix-v4250-invite-auth.js?v=4377','invite-auth');
  await load('/legacy-hotfix-v4244.js?v=4377','legacy4244');await load('/hotfix-v4246.js?v=4377','v4246');await load('/hotfix-v4248.js?v=4377','v4248');await load('/hotfix-v4250.js?v=4377','v4250');await load('/hotfix-v4254-auth-stability.js?v=4377','v4254-auth-stability');
