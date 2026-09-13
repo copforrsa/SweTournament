@@ -13,6 +13,10 @@ test('evaluation dashboard counts members and guests with one denominator',()=>{
   assert.match(js,/membres \+ invités/);
   assert.match(js,/Guest de/);
   assert.match(js,/r\.missing\.length/);
+  assert.match(js,/get_admin_evaluation_progress_v1/);
+  assert.match(js,/evalProgressWorkspace/);
+  assert.match(js,/stableEvaluationHtml/);
+  assert.ok(js.includes("+pct+' %</strong>"));
 });
 
 test('attendance controls are admin-only and publish delay incidents',()=>{

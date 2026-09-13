@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  PACKAGE_NAME: swe-www-v43.95
+  PACKAGE_NAME: swe-www-v43.96
 
 jobs:
   build:
@@ -68,7 +68,7 @@ jobs:
       - name: Upload visual checks
         uses: actions/upload-artifact@v4
         with:
-          name: swe-visual-checks-v43.95
+          name: swe-visual-checks-v43.96
           path: tests/screenshots/*.png
           if-no-files-found: error
           retention-days: 7
