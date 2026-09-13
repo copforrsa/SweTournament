@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const migration=fs.readFileSync(path.join(root,'supabase/migrations/20260913143000_coorganizer_billing_and_member_link_v4388.sql'),'utf8');
+const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const admin=fs.readFileSync(path.join(root,'forssadmin/admin.js'),'utf8');
+
+assert.match(migration,/private\.is_platform_super_admin\(\)/);
+assert.match(migration,/private\.is_workspace_admin\(p_workspace_id\)/);
+assert.match(migration,/revoke all on function public\.super_admin_get_coorganizer_billing_v1\(\) from public,anon,authenticated/);
+assert.match(migration,/revoke all on function public\.admin_link_coorganizer_player_v1\(uuid,uuid,uuid\) from public,anon,authenticated/);
+assert.match(migration,/payment_source='invitee'/);
+assert.match(migration,/payment_responsibility='invitee'/);
+assert.match(migration,/payment_status<>'paid'/);
+assert.doesNotMatch(migration,/delete\s+from/i);
+assert.doesNotMatch(migration,/update public\.(tournaments|tournament_players|teams|team_players|matches|goals|tournament_team_reviews)/i);
+assert.match(app,/admin_link_coorganizer_player_v1/);
+assert.match(app,/Rattacher ce membre/);
+assert.match(admin,/super_admin_get_coorganizer_billing_v1/);
+assert.match(admin,/Payé par orga/);
+assert.match(admin,/Payé par lui-même/);
+assert.match(admin,/En attente de paiement/);
+console.log('Co-organizer billing visibility and isolated member linking contract: OK');
