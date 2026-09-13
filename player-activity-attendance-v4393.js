@@ -7,7 +7,7 @@ const st=()=>{try{return typeof S!=='undefined'?S:null}catch(_){return null}};
 const cli=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
 const admin=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
 const labelStatus=s=>({expected:'À confirmer',on_time:'À l’heure',late:'En retard',absent:'Absent',late_withdrawal:'Désistement dernière minute'})[s]||'À confirmer';
-let timer=0,publicBusy=false;
+let timer=0,publicBusy=false,evalMatrix=[],evalMatrixWorkspace='',evalMatrixAt=0,evalMatrixBusy=false;
 
 function styles(){
  if(E('swe4393Styles'))return;const x=document.createElement('style');x.id='swe4393Styles';x.textContent=`
@@ -16,15 +16,23 @@ function styles(){
  `;document.head.appendChild(x);
 }
 
-function renderEvaluation(){
+async function renderEvaluation(){
  const s=st(),box=E('homeCoorgVotes'),card=E('homeCoorgVotesCard');if(!admin()||!s||!box||!card)return;
+ const workspaceId=String(s.workspace?.id||''),c=cli();
+ if(c&&workspaceId&&(!evalMatrixBusy)&&(evalMatrixWorkspace!==workspaceId||Date.now()-evalMatrixAt>12000)){
+   evalMatrixBusy=true;
+   try{const r=await c.rpc('get_admin_evaluation_matrix_v1',{p_workspace_id:workspaceId});if(!r.error){evalMatrix=Array.isArray(r.data)?r.data:[];evalMatrixWorkspace=workspaceId;evalMatrixAt=Date.now()}}finally{evalMatrixBusy=false}
+ }
  const players=(s.players||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'fr'));
  const displayName=p=>{if(p.is_group_member!==false)return p.name;const host=(s.players||[]).find(x=>String(x.id)===String(p.guest_of_player_id||''));return host?p.name+' • Guest de '+host.name:p.name+' • Guest — invitant non renseigné'};
  const ids=new Set(players.map(p=>String(p.id))),reviews=(s.skillReviews||[]).filter(r=>ids.has(String(r.player_id)));
  const ever=new Set(reviews.map(r=>String(r.player_id))),never=players.filter(p=>!ever.has(String(p.id)));
  const adminId=s.session?.user?.id,adminPlayer=(s.players||[]).find(p=>String(p.id)===String(s.myLinkedPlayerId||''));
  const staff=[{user_id:adminId,label:(adminPlayer?.name||'Administrateur')+' • Président'},...(s.coorgs||[]).filter(c=>c.active!==false).map(c=>({user_id:c.user_id,label:(s.players||[]).find(p=>String(p.id)===String(c.linked_player_id||''))?.name||String(c.email||'Co-gestionnaire').split('@')[0]}))].filter(x=>x.user_id);
- const rows=staff.map(person=>{const done=new Set(reviews.filter(r=>String(r.evaluator_user_id)===String(person.user_id)).map(r=>String(r.player_id)));return {...person,count:done.size,missing:players.filter(p=>!done.has(String(p.id)))}}).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,'fr'));
+ // Le contenu des notes des autres évaluateurs reste anonyme. Cette matrice ne contient
+ // que les couples évaluateur/joueur nécessaires au suivi de couverture par l'admin.
+ const coverage=evalMatrixWorkspace===workspaceId?evalMatrix:reviews;
+ const rows=staff.map(person=>{const done=new Set(coverage.filter(r=>String(r.evaluator_user_id)===String(person.user_id)).map(r=>String(r.player_id)));return {...person,count:done.size,missing:players.filter(p=>!done.has(String(p.id)))}}).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,'fr'));
  const chips=list=>'<div class="swe-eval-chips">'+list.map(p=>'<span>'+esc(displayName(p))+'</span>').join('')+'</div>';
  card.classList.remove('hidden');box.innerHTML='<div class="swe-eval-summary swe4393"><div class="swe-eval-kpi"><b>'+ever.size+'</b><small>joueurs et guests notés</small></div><div class="swe-eval-kpi"><b>'+never.length+'</b><small>profils jamais notés</small></div><div class="swe-eval-kpi"><b>'+players.length+'</b><small>membres + invités</small></div><div class="swe-eval-kpi"><b>'+reviews.length+'</b><small>évaluations enregistrées</small></div></div>'+(never.length?'<details class="swe-eval-missing"><summary>⚠️ Identifier les '+never.length+' profil'+(never.length>1?'s':'')+' sans aucune note</summary>'+chips(never)+'</details>':'<div class="muted" style="margin:7px 0">✅ Tous les membres et invités ont au moins une évaluation.</div>')+rows.map(r=>{const pct=players.length?Math.round(100*r.count/players.length):0;return '<div class="swe-eval-row4393"><div class="swe-eval-row"><div><b>'+esc(r.label)+'</b></div><div><div class="swe-eval-bar"><span style="width:'+pct+'%"></span></div></div><div><b>'+r.count+'</b> / '+players.length+'</div></div>'+(r.missing.length?'<details class="swe-eval-missing"><summary>'+r.missing.length+' non noté'+(r.missing.length>1?'s':'')+' par '+esc(r.label)+'</summary>'+chips(r.missing)+'</details>':'')+'</div>'}).join('');
 }
