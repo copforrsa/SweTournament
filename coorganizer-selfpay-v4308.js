@@ -23,6 +23,7 @@ function style(){
 function isAdminSafe(){try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}}
 function state(){try{return typeof S!=='undefined'?S:null}catch(_){return null}}
 function client(){try{return typeof sb!=='undefined'?sb:null}catch(_){return null}}
+function feedback(message,error=false){const el=q('#coorgInviteFeedback');if(el){el.textContent=message;el.classList.remove('hidden');el.style.color=error?'#b42318':'#176b4f';el.style.fontWeight='750'}if(typeof toast==='function')toast(message)}
 
 function paintPriceWording(){
  const u=q('#homeCoorgUnitPrice');if(u&&/accès équipe/i.test(u.textContent||''))u.textContent=(u.textContent||'').replace(/1 accès équipe/i,'1 accès co-gestionnaire');
@@ -41,17 +42,17 @@ async function createSelfPaidInvite(e){
  const box=q('#sweCoorgPayer4308');if(!box||box.querySelector('input:checked')?.value!=='invitee')return;
  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
  if(busy)return;const st=state(),c=client();if(!st?.workspace?.id||!c)return;
- const email=(q('#inviteEmail')?.value||'').trim().toLowerCase();if(!email){if(typeof toast==='function')toast('Saisis l’adresse e-mail du co-gestionnaire.');return;}
+ const input=q('#inviteEmail'),email=(input?.value||'').trim().toLowerCase();if(!email||!input?.checkValidity()){feedback('Saisis une adresse e-mail valide.',true);return;}
  busy=true;send.disabled=true;send.textContent='Création de l’invitation…';
  try{
    const {data,error}=await c.rpc('create_self_paid_coorganizer_invite',{p_workspace_id:st.workspace.id,p_email:email});if(error)throw error;
    const inv=Array.isArray(data)?data[0]:data;st.lastCreatedInvite=inv||null;if(st.lastCreatedInvite)st.lastCreatedInvite.payment_responsibility='invitee';
    if(q('#inviteEmail'))q('#inviteEmail').value='';
-   try{if(typeof renderAccess==='function')renderAccess()}catch(_){}
+   if(typeof loadAll==='function')await loadAll();else{try{if(Array.isArray(st.invites)&&inv&&!st.invites.some(x=>String(x.id)===String(inv.id)))st.invites.unshift({...inv,payment_responsibility:'invitee'});if(typeof renderAccess==='function')renderAccess()}catch(_){}}
    const link=inv?(typeof coorgInviteLink==='function'?coorgInviteLink(inv):location.origin+location.pathname+'?invite='+encodeURIComponent(inv.id)+'&email='+encodeURIComponent(inv.email||email)):'';
    try{if(link)await navigator.clipboard.writeText(link)}catch(_){}
-   if(typeof toast==='function')toast('Invitation créée ✅ L’invité paiera son propre accès. Lien copié.');
- }catch(err){if(typeof toast==='function')toast(err?.message||'Impossible de créer l’invitation.');}
+   feedback('Invitation créée ✅ Elle apparaît ci-dessous et le lien est copié. L’invité paiera son propre accès.');
+ }catch(err){feedback(err?.message||'Impossible de créer l’invitation.',true);}
  finally{busy=false;send.disabled=false;send.textContent='📨 Inviter — paiement à sa charge';}
 }
 

@@ -1,5 +1,5 @@
 // Single source for the loaded build and all visible version labels.
-window.SWE_BUILD_VERSION='43.91';
+window.SWE_BUILD_VERSION='43.92';
 (()=>{
 'use strict';
 const build=window.SWE_BUILD_VERSION;
