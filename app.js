@@ -1531,7 +1531,27 @@ function renderAccess(){
 
   S.coorgs.forEach(c=>{
     const d=document.createElement('div');d.className='player';
-    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(c.email||'Co-organisateur')+'</b><div class="muted">Co-organisateur depuis le '+fmt(c.created_at)+'</div></span><span style="font-weight:700;color:'+(c.active?'#15803d':'#b45309')+'">'+(c.active?'🟢 Actif':'⏸️ Suspendu')+'</span></div>';
+    const linked=(S.players||[]).find(p=>String(p.id)===String(c.linked_player_id||''));
+    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(c.email||'Co-organisateur')+'</b><div class="muted">Co-organisateur depuis le '+fmt(c.created_at)+'</div></span><span style="font-weight:700;color:'+(c.active?'#15803d':'#b45309')+'">'+(c.active?'🟢 Actif':'⏸️ Suspendu')+'</span></div>'+
+      '<div style="margin-top:9px;padding:10px;border:1px solid '+(linked?'#b7ddc9':'#dbe7f5')+';border-radius:12px;background:'+(linked?'#f2faf6':'#f7faff')+'"><b>👤 Membre du groupe associé</b><div class="muted" style="margin-top:4px">'+(linked?'✅ '+esc(linked.name)+' • liaison active avec son ID SWÉ':'Aucun membre rattaché. Associe son compte au joueur correspondant dans ton groupe.')+'</div></div>';
+    if(!linked){
+      const used=new Set(S.coorgs.map(x=>x.linked_player_id).filter(Boolean).map(String));
+      const eligible=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&!used.has(String(p.id)));
+      const linkRow=document.createElement('div');linkRow.className='row';linkRow.style.cssText='margin-top:8px;align-items:stretch;flex-wrap:wrap';
+      const playerSelect=document.createElement('select');playerSelect.style.cssText='flex:1;min-width:210px';
+      playerSelect.innerHTML='<option value="">Choisir le membre correspondant…</option>'+eligible.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+      const linkButton=document.createElement('button');linkButton.className='primary';linkButton.textContent='🔗 Rattacher ce membre';linkButton.disabled=!eligible.length;
+      linkButton.onclick=async()=>{
+        const playerId=playerSelect.value;if(!playerId)return toast('Choisis d’abord le membre correspondant.');
+        const player=eligible.find(p=>String(p.id)===String(playerId));
+        if(!confirm('Rattacher définitivement '+(c.email||'ce co-organisateur')+' à '+(player?.name||'ce membre')+' ?\n\nLes statistiques seront réunies sous le même ID SWÉ.'))return;
+        linkButton.disabled=true;playerSelect.disabled=true;
+        const {error}=await sb.rpc('admin_link_coorganizer_player_v1',{p_workspace_id:S.workspace.id,p_user_id:c.user_id,p_player_id:playerId});
+        if(error){linkButton.disabled=false;playerSelect.disabled=false;return toast(error.message);}
+        c.linked_player_id=playerId;toast('Co-organisateur rattaché au membre ✅');renderPermissions();renderAccess();
+      };
+      linkRow.append(playerSelect,linkButton);d.appendChild(linkRow);
+    }
     const actions=document.createElement('div');actions.className='row';actions.style.marginTop='8px';actions.style.flexWrap='wrap';
     const suspend=document.createElement('button');suspend.textContent=c.active?'⏸️ Suspendre':'▶️ Réactiver';
     suspend.onclick=async()=>{
