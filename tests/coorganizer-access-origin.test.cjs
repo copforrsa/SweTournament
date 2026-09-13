@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const migration=fs.readFileSync(path.join(root,'supabase/migrations/20260913204500_coorganizer_access_origin_v4389.sql'),'utf8');
+const admin=fs.readFileSync(path.join(root,'forssadmin/admin.js'),'utf8');
+
+assert.match(migration,/update public\.workspace_members\s+set coorganizer_access_origin='gifted'\s+where role='coorganizer'/s);
+assert.match(migration,/payment_responsibility='invitee' then 'self_paid' else 'gifted'/);
+assert.match(migration,/'admin','paid','organizer_paid'/);
+assert.match(migration,/'invitee','pending','self_paid'/);
+assert.match(migration,/payment_responsibility='invitee' and i\.payment_status<>'paid' then 'pending_payment'/);
+assert.match(migration,/else coalesce\(i\.coorganizer_access_origin,'gifted'\)/);
+assert.match(migration,/private\.is_platform_super_admin\(\)/);
+assert.match(migration,/revoke all on function public\.super_admin_set_coorganizer_access_origin_v1\(uuid,uuid,uuid,text\) from public,anon,authenticated/);
+assert.doesNotMatch(migration,/delete\s+from/i);
+assert.doesNotMatch(migration,/update public\.(tournaments|tournament_players|teams|team_players|matches|goals|tournament_team_reviews)/i);
+assert.match(admin,/gifted:\['Offert','ok'\]/);
+assert.match(admin,/Invitation envoyée — non acceptée/);
+assert.match(admin,/super_admin_set_coorganizer_access_origin_v1/);
+console.log('Co-organizer access origin and invitation lifecycle contract: OK');
