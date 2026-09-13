@@ -6,12 +6,13 @@ const root=path.resolve(__dirname,'..');
 
 test('administrator invite trusts the server quota and exposes progress',()=>{
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  const app=fs.readFileSync(path.join(root,'coorganizer-invite-reliability-v4392.js'),'utf8');
   assert.match(html,/id="coorgInviteFeedback"[^>]+role="status"[^>]+aria-live="polite"/);
   assert.match(app,/button\.disabled=true;button\.textContent='Création…'/);
   assert.match(app,/if\(!inv\?\.id\)throw new Error/);
   assert.match(app,/Elle apparaît ci-dessous/);
-  assert.doesNotMatch(app,/S\.coorgCount>=Number\(S\.workspaceFeatures\.max_coorganizers\|\|0\).*Limite de co-organisateurs atteinte/);
+  assert.doesNotMatch(app,/coorgCount>=/);
+  assert.match(fs.readFileSync(path.join(root,'hotfix-v4244.js'),'utf8'),/coorganizer-invite-reliability-v4392\.js\?v=4392/);
 });
 
 test('self-paid invite reloads organizer data before confirming success',()=>{
