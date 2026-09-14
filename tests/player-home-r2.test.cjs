@@ -40,11 +40,20 @@ test('leaving player restores administrator and co-manager routes, including exi
 });
 test('account uses the existing logout and workspace switch handlers; offers use existing entry',async()=>{
  const {w,d,dom}=await setup('admin');try{
-  let logout=0,offer=0,switched='';d.getElementById('logout').onclick=()=>logout++;d.getElementById('becomeOrganizer').onclick=()=>offer++;
+  let logout=0,offer=0,switched='';d.getElementById('logout').onclick=()=>logout++;d.getElementById('becomeOrganizer').onclick=()=>{offer++;d.getElementById('workspaceSetup').classList.remove('hidden')};
   w.S.memberships.push({workspace_id:'workspace-2',role:'coorganizer',workspaces:{name:'Second groupe'}});
   const sw=d.getElementById('workspaceSwitcher');sw.innerHTML='<option value="workspace-1">Un</option><option value="workspace-2">Deux</option>';sw.addEventListener('change',()=>switched=sw.value);
   d.dispatchEvent(new w.Event('swe:rendered'));await wait();
-  d.getElementById('swePlayerLogout').click();d.getElementById('swePlayerOffers').click();d.querySelector('#swePlayerProfiles button:nth-child(3)').click();assert.equal(logout,1);assert.equal(offer,1);assert.equal(switched,'workspace-2');
+  d.getElementById('swePlayerAccountToggle').click();assert.equal(d.getElementById('swePlayerAccountMenu').classList.contains('hidden'),false);d.getElementById('swePlayerSwitchToggle').click();assert.equal(d.getElementById('swePlayerProfiles').classList.contains('hidden'),false);
+  d.getElementById('swePlayerLogout').click();d.getElementById('swePlayerOffers').click();assert.equal(d.documentElement.classList.contains('swe-organizer-setup-active'),true);assert.equal(d.getElementById('workspaceSetup').classList.contains('hidden'),false);assert.ok(d.getElementById('swePlayerOfferBack'));d.getElementById('swePlayerOfferBack').click();assert.equal(d.documentElement.classList.contains('swe-organizer-setup-active'),false);
+  d.getElementById('swePlayerAccountToggle').click();d.getElementById('swePlayerSwitchToggle').click();d.querySelector('#swePlayerProfiles button:nth-child(3)').click();assert.equal(logout,1);assert.equal(offer,1);assert.equal(switched,'workspace-2');
+ }finally{dom.window.close()}
+});
+test('profile menus and native invitation acceptance remain clickable after layout moves',async()=>{
+ const {w,d,dom}=await setup();try{
+  const fold=d.getElementById('sweCompact-identity'),summary=fold.querySelector('summary');assert.equal(fold.open,false);summary.click();assert.equal(fold.open,true);summary.click();assert.equal(fold.open,false);
+  let accepted=0;const button=d.createElement('button');button.textContent='Accepter';button.onclick=()=>accepted++;d.getElementById('inviteList').append(button);d.querySelector('#swePlayerNav [data-player-panel="registrations"]').click();button.click();assert.equal(accepted,1);assert.equal(d.getElementById('inviteBox').parentElement.id,'view-myplayer');
+  assert.equal(d.getElementById('swePlayerManage').textContent,'＋ Créer un SWÉ rapide');
  }finally{dom.window.close()}
 });
 test('rapid SWE creator keeps its native tab and supports return to player home',async()=>{

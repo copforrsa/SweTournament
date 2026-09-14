@@ -57,9 +57,12 @@ Deno.serve(async(req)=>{
     const stripe=new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!,{apiVersion:'2024-12-18.acacia'});
     const meta={type:'swe_organizer_subscription',intent_id:intent.id,plan_code:plan,billing_period:billing,user_id:user.id};
     const subscriptionData:any={metadata:meta};
-    if(trialDays===60){subscriptionData.trial_period_days=60;subscriptionData.trial_settings={end_behavior:{missing_payment_method:'cancel'}};}
+    const trialEnd=trialDays===60?Math.floor(Date.now()/1000)+(60*24*60*60):null;
+    const firstDebitDate=trialEnd?new Intl.DateTimeFormat('fr-FR',{timeZone:'America/Martinique',day:'numeric',month:'long',year:'numeric'}).format(new Date(trialEnd*1000)):null;
+    if(trialEnd){subscriptionData.trial_end=trialEnd;subscriptionData.trial_settings={end_behavior:{missing_payment_method:'cancel'}};}
     const session=await stripe.checkout.sessions.create({
       mode:'subscription',
+      locale:'fr',
       customer_email:user.email||undefined,
       line_items:[{quantity:1,price_data:{currency:'eur',unit_amount:amount,recurring:{interval:billing==='annual'?'year':'month'},product_data:{name:`SWÉ Tournament — ${cfg.name}`,description:trialDays===60?'60 jours offerts puis renouvellement automatique':'Abonnement '+(billing==='annual'?'annuel':'mensuel')+' SWÉ Tournament'}}}],
       ...(trialDays===60?{payment_method_collection:'always'}:{}),
@@ -67,10 +70,11 @@ Deno.serve(async(req)=>{
       cancel_url:`https://app.swetournament.fr/?start=player&organizer_setup=1&organizer_checkout=cancelled&intent=${intent.id}`,
       allow_promotion_codes:false,
       billing_address_collection:'auto',
+      ...(firstDebitDate?{custom_text:{submit:{message:`Aucun prélèvement aujourd’hui. Premier prélèvement prévu le ${firstDebitDate}, sauf résiliation avant cette date. Le lien Retour vers SWÉ permet de revenir aux offres.`}}}:{}),
       metadata:{...meta,trial_days:String(trialDays)},
       subscription_data:subscriptionData
     });
     await admin.from('organizer_checkout_intents').update({stripe_checkout_session_id:session.id,updated_at:new Date().toISOString()}).eq('id',intent.id).eq('user_id',user.id);
-    return Response.json({url:session.url,intent_id:intent.id},{headers:headers(origin)});
+    return Response.json({url:session.url,intent_id:intent.id,first_debit_at:trialEnd?new Date(trialEnd*1000).toISOString():null},{headers:headers(origin)});
   }catch(e){console.error('[organizer-checkout]',e);return fail('Paiement momentanément indisponible',500,origin)}
 });

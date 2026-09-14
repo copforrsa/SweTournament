@@ -29,31 +29,44 @@ function nativeView(view){
 function creator(){if(typeof window.openSimpleSweCreator==='function')window.openSimpleSweCreator('private');else E('simpleSweTab')?.click();syncMode()}
 function ensure(view){
  if(E('swePlayerHeader'))return;
- const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+panels.slice(0,5).map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+labels[i]+'</button>').join('')+'</nav><details id="swePlayerAccount"><summary aria-label="Ouvrir le menu du compte"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></summary><div class="swe-player-account-menu"><button type="button" data-player-panel="profile">Mon profil</button><details id="swePlayerSwitch"><summary>⇄ Changer de profil</summary><div id="swePlayerProfiles"></div></details><button type="button" id="swePlayerLogout">Se déconnecter</button></div></details>');
+ const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+panels.slice(0,5).map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+labels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
  view.prepend(header);
  header.querySelector('a').onclick=e=>{e.preventDefault();choose('home')};
  E('swePlayerLogout').onclick=()=>E('logout')?.click();
+ E('swePlayerAccountToggle').onclick=e=>{e.stopPropagation();const open=!E('swePlayerAccountMenu').classList.contains('hidden');closeAccount();if(!open){E('swePlayerAccountMenu').classList.remove('hidden');e.currentTarget.setAttribute('aria-expanded','true')}};
+ E('swePlayerSwitchToggle').onclick=e=>{e.stopPropagation();const open=E('swePlayerProfiles').classList.toggle('hidden')===false;e.currentTarget.setAttribute('aria-expanded',String(open))};
  const hero=node('section','swePlayerQuick','<div><span class="swe-player-kicker">LE FOOT PLUS SIMPLE, ENTRE NOUS</span><h2>Un SWÉ, et c’est parti.</h2><p>Crée un match rapide ou rejoins tes amis.</p><div class="swe-player-actions"><button type="button" id="swePlayerCreateQuick">＋ Créer un SWÉ rapide</button><button type="button" data-player-panel="discover">Découvrir les SWÉs publics</button></div><small>Match rapide · Sans abonnement organisateur</small></div>');
  view.append(hero);E('swePlayerCreateQuick').onclick=creator;
- const mine=node('section','swePlayerMine','<div class="swe-player-section-head"><h2>Mes SWÉs</h2><button type="button" data-player-panel="mine">Tout voir →</button></div><div id="swePlayerMineRows" aria-live="polite"></div><div class="swe-player-actions"><button type="button" id="swePlayerManage">Gérer mes SWÉs rapides →</button><button type="button" id="swePlayerMineRefresh">Actualiser</button></div>');
+ const mine=node('section','swePlayerMine','<div class="swe-player-section-head"><h2>Mes SWÉs</h2><button type="button" data-player-panel="mine">Tout voir →</button></div><div id="swePlayerMineRows" aria-live="polite"></div><div class="swe-player-actions"><button type="button" id="swePlayerManage">＋ Créer un SWÉ rapide</button><button type="button" id="swePlayerMineRefresh">Actualiser</button></div>');
  mine.className='card';view.append(mine);
  E('swePlayerManage').onclick=()=>{creator();E('swe4351Mine')?.scrollIntoView({behavior:'smooth',block:'center'})};
  E('swePlayerMineRefresh').onclick=()=>loadCommunity(true);
  const commercial=node('section','swePlayerCommercial','<div><span class="swe-player-kicker">ESPACE ORGANISATEUR</span><h2>Envie d’organiser plus grand ?</h2><p>Tournois, groupes et modules avancés.</p></div><button type="button" id="swePlayerOffers">Découvrir les offres →</button>');
- view.append(commercial);E('swePlayerOffers').onclick=()=>E('becomeOrganizer')?.click();
- view.addEventListener('click',e=>{const b=e.target.closest('[data-player-panel]');if(!b||!view.contains(b))return;e.preventDefault();choose(b.dataset.playerPanel,true);if(E('swePlayerAccount'))E('swePlayerAccount').open=false});
- header.addEventListener('keydown',e=>{if(e.key==='Escape'){E('swePlayerAccount').open=false;E('swePlayerAccount').querySelector('summary').focus()}});
- document.addEventListener('click',e=>{const account=E('swePlayerAccount');if(account?.open&&!account.contains(e.target))account.open=false});
+ view.append(commercial);E('swePlayerOffers').onclick=openOffers;
+ view.addEventListener('click',e=>{const b=e.target.closest('[data-player-panel]');if(!b||!view.contains(b))return;e.preventDefault();choose(b.dataset.playerPanel,true);closeAccount()});
+ header.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAccount();E('swePlayerAccountToggle').focus()}});
+ document.addEventListener('click',e=>{const account=E('swePlayerAccount');if(account&&!account.contains(e.target))closeAccount()});
+ document.addEventListener('click',e=>{const summary=e.target.closest?.('.swe-profile-fold>summary');if(!summary)return;e.preventDefault();const details=summary.parentElement;details.open=!details.open;summary.setAttribute('aria-expanded',String(details.open))},true);
 }
+function closeAccount(){E('swePlayerAccountMenu')?.classList.add('hidden');E('swePlayerProfiles')?.classList.add('hidden');E('swePlayerAccountToggle')?.setAttribute('aria-expanded','false');E('swePlayerSwitchToggle')?.setAttribute('aria-expanded','false')}
+function offerMode(on){
+ document.documentElement.classList.toggle('swe-organizer-setup-active',on);
+ if(!on)return;
+ const setup=E('workspaceSetup');if(!setup)return;
+ let back=E('swePlayerOfferBack');if(!back){back=document.createElement('button');back.id='swePlayerOfferBack';back.type='button';back.textContent='← Retour à mon espace joueur';setup.prepend(back);back.onclick=closeOffers}
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+function openOffers(){E('becomeOrganizer')?.click();offerMode(true)}
+function closeOffers(){E('workspaceSetup')?.classList.add('hidden');offerMode(false);if(typeof setView==='function')setView('myplayer');choose('home')}
 function updateAccount(){
  const s=state(),p=s?.playerDashboard?.profile||{},name=p.nickname||p.first_name||p.display_name||'Mon compte';
  E('swePlayerName').textContent=name;E('swePlayerAvatar').textContent=name.slice(0,1).toUpperCase();
  const list=E('swePlayerProfiles'),rows=s?.memberships||[],key=JSON.stringify([s?.workspace?.id,rows.map(r=>[r.workspace_id,r.role,r.workspaces?.name])]);
  if(list.dataset.key===key)return;list.dataset.key=key;list.replaceChildren();
- const player=node('button','swePlayerSwitchSelf');player.type='button';player.textContent='⚽ Profil joueur';player.onclick=()=>{choose('home');E('swePlayerAccount').open=false};list.append(player);
+ const player=node('button','swePlayerSwitchSelf');player.type='button';player.textContent='⚽ Profil joueur';player.onclick=()=>{choose('home');closeAccount()};list.append(player);
  // The existing switcher's change handler keeps workspace persistence and reload semantics.
  rows.forEach(r=>{const b=document.createElement('button');b.type='button';b.textContent=(r.workspaces?.name||'Mon groupe')+' · '+(r.role==='admin'?'Organisateur':'Co-gestionnaire');b.onclick=()=>{
-   E('swePlayerAccount').open=false;
+   closeAccount();
    if(String(r.workspace_id)===String(state()?.workspace?.id)){nativeView('home');syncMode();return}
    const sw=E('workspaceSwitcher');if(sw&&[...sw.options].some(o=>o.value===String(r.workspace_id))){sw.value=r.workspace_id;sw.dispatchEvent(new Event('change',{bubbles:true}))}
  };list.append(b)});
@@ -84,7 +97,7 @@ function decorate(view){
  group(card('myPlayerInvites'),'registrations',31);
  group(E('swePlayerCommercial'),'home mine',70);
  // Keep native invitation nodes and handlers; restore their original location outside player view.
- const inv=E('inviteBox');if(inv){if(!inviteAnchor){inviteAnchor=document.createComment('player-invite-home');inv.before(inviteAnchor)}if(inv.parentNode!==view)view.append(inv);group(inv,'home registrations profile',60)}
+ const inv=E('inviteBox');if(inv){if(!inviteAnchor){inviteAnchor=document.createComment('player-invite-home');inv.before(inviteAnchor)}if(inv.parentNode!==view)view.append(inv);group(inv,'home registrations',60);let refresh=E('swePlayerInviteRefresh');if(!refresh){refresh=document.createElement('button');refresh.id='swePlayerInviteRefresh';refresh.type='button';refresh.textContent='Actualiser';refresh.onclick=async()=>{refresh.disabled=true;try{if(typeof loadInvites==='function')await loadInvites()}finally{refresh.disabled=false}};inv.querySelector('.sectiontitle')?.after(refresh)}}
  const originalCta=shell(E('playerOrganizerCta'));if(originalCta)group(originalCta,'profile',55);
  const summary=E('swePlayerCommunityRegistrations');
  if(regs&&!summary){const n=node('div','swePlayerCommunityRegistrations');regs.append(n)}
@@ -120,7 +133,7 @@ function syncMode(){
 function paint(){
  const active=syncMode(),s=state(),view=E('view-myplayer');if(!active||!view)return;
  const uid=s.session.user.id;if(uid!==userId){userId=uid;selected='home';community=null;busy=false;loadedAt=0;generation++}
- ensure(view);updateAccount();decorate(view);view.dataset.playerPanel=selected;
+ ensure(view);updateAccount();decorate(view);if(!E('workspaceSetup')?.classList.contains('hidden'))offerMode(true);view.dataset.playerPanel=selected;
  view.querySelectorAll('[data-player-sections]').forEach(n=>n.classList.toggle('swe-player-filtered',!n.dataset.playerSections.split(' ').includes(selected)));
  view.querySelectorAll('#swePlayerNav button').forEach(b=>{const yes=b.dataset.playerPanel===selected;b.setAttribute('aria-current',yes?'page':'false')});
  renderCommunity();loadCommunity();
@@ -130,6 +143,8 @@ function schedule(){syncMode();clearTimeout(timer);timer=setTimeout(paint,260)}
 document.addEventListener('swe:page-view',()=>{if(state()?.lastView==='simple-swe')loadedAt=0});
 document.addEventListener('click',e=>{if(e.target.closest?.('.tabs button,[data-swe-go]'))schedule()});
 window.addEventListener('pageshow',schedule);
+document.addEventListener('click',e=>{if(e.target.closest?.('#cancelWorkspaceSetup')){offerMode(false);setTimeout(()=>{if(state()?.session&&typeof setView==='function')setView('myplayer')},0)}},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 setTimeout(paint,900);setTimeout(paint,2600);
+window.SWEPlayerHome={openOffers,closeOffers,refreshInvites:()=>{if(typeof loadInvites==='function')loadInvites()}};
 })();

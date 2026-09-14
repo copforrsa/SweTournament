@@ -4,7 +4,7 @@ if(window.__SWE_COORG_SELFPAY_4308)return;
 window.__SWE_COORG_SELFPAY_4308=true;
 const q=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
-let busy=false,paintBusy=false;
+let busy=false,paintBusy=false,paintQueued=false;
 const checkoutRequests=new Map();
 let returnBusy=false;
 
@@ -59,10 +59,10 @@ async function createSelfPaidInvite(e){
 }
 
 async function renderSelfPaidInvites(){
- if(paintBusy||busy)return;const c=client(),st=state();if(!c||!st?.session?.user)return;paintBusy=true;
+ if(paintBusy||busy){paintQueued=true;return}const c=client(),st=state();if(!c||!st?.session?.user)return;paintBusy=true;paintQueued=false;
  const userId=st.session.user.id;
  try{
-   const {data,error}=await c.rpc('get_my_self_paid_coorganizer_invites');
+   let timeout;const {data,error}=await Promise.race([c.rpc('get_my_self_paid_coorganizer_invites'),new Promise(resolve=>{timeout=setTimeout(()=>resolve({data:null,error:{message:'Délai de chargement dépassé'}}),10000)})]);clearTimeout(timeout);
    if(state()?.session?.user?.id!==userId||busy)return;
    const box=q('#inviteList'),wrap=q('#inviteBox');if(!box||!wrap)return;
    if(error){
@@ -71,7 +71,7 @@ async function renderSelfPaidInvites(){
        const retry=document.createElement('button');retry.type='button';retry.textContent='Réessayer';retry.onclick=()=>renderSelfPaidInvites();card.appendChild(retry);
      });return;
    }
-   const rows=Array.isArray(data)?data:[],ids=new Set(rows.map(i=>String(i.id)));
+   const rows=Array.isArray(data)?data:[],ids=new Set(rows.map(i=>String(i.id)));box.querySelectorAll('[data-invite-load-error]').forEach(card=>card.remove());
    box.querySelectorAll('[data-selfpay-invite]').forEach(card=>{if(!ids.has(card.dataset.selfpayInvite))card.remove()});
    for(const i of rows){
      let card=[...box.querySelectorAll('[data-selfpay-invite]')].find(el=>el.dataset.selfpayInvite===String(i.id));
@@ -84,7 +84,11 @@ async function renderSelfPaidInvites(){
    }
    wrap.classList.toggle('hidden',!box.children.length);
    if(rows.length){const title=wrap.querySelector('h2');if(title)title.textContent='Invitations à co-gérer un groupe'}
- }finally{paintBusy=false;}
+ }catch(error){
+   const box=q('#inviteList'),wrap=q('#inviteBox');
+   if(box&&wrap){box.querySelectorAll('[data-selfpay-invite]').forEach(card=>{card.innerHTML='<p role="status">Impossible de charger cette invitation pour le moment.</p><button type="button" data-selfpay-retry="1">Réessayer</button>'});wrap.classList.toggle('hidden',!box.children.length)}
+   console.warn('[coorganizer-invites]',error);
+ }finally{paintBusy=false;if(paintQueued)setTimeout(renderSelfPaidInvites,0)}
 }
 async function checkoutError(error,data){
  if(data?.error)return data.error;
@@ -138,6 +142,6 @@ window.SWECoorganizerInvites={refresh:()=>{renderSelfPaidInvites();handleReturn(
 function paint(){style();paintPriceWording();installPayerChoice();renderSelfPaidInvites();}
 function boot(){paint();setTimeout(paint,400);setTimeout(paint,1200);handleReturn();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-document.addEventListener('click',createSelfPaidInvite,true);document.addEventListener('click',startInviteCheckout);
-document.addEventListener('swe:rendered',()=>setTimeout(paint,80));window.addEventListener('pageshow',()=>setTimeout(paint,120));
+document.addEventListener('click',createSelfPaidInvite,true);document.addEventListener('click',startInviteCheckout);document.addEventListener('click',e=>{if(e.target.closest?.('[data-selfpay-retry]'))renderSelfPaidInvites()});
+document.addEventListener('swe:rendered',()=>setTimeout(paint,80));document.addEventListener('swe:invites-loaded',()=>setTimeout(renderSelfPaidInvites,0));window.addEventListener('pageshow',()=>setTimeout(paint,120));
 })();
