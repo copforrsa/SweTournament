@@ -49,6 +49,7 @@ html.swe-player-home-active #myPlayerStats b{font-size:22px;color:inherit!import
 html.swe-player-home-active #myPlayerStats small{font-size:11px;color:inherit!important}
 html.swe-player-home-active #view-myplayer[data-player-panel=home] #swe4338StatsScope{max-width:180px!important;min-width:120px!important;font-size:11px}
 html.swe-player-home-active .swe4338-stats-head{padding-right:70px}
+#swePlayerCardShortcut{margin-left:auto!important;background:linear-gradient(120deg,#ffdc62,#f5bd26)!important;color:#142546!important;border:0!important;border-radius:10px!important;font-weight:850!important;min-height:40px!important;padding:9px 14px!important;white-space:nowrap}
 #swePlayerMine .swe-player-actions{margin-top:12px}
 #swePlayerMine .swe-player-actions button{font-size:12px;padding:9px;background:#f0f6ff;color:#155cc3;border-color:#d0e1fb;border-radius:10px;min-height:40px}
 #swePlayerMine #swePlayerManage{background:linear-gradient(120deg,#ffdc62,#f5bd26)!important;color:#142546!important;border:0!important;font-weight:850!important;padding:10px 16px!important}

@@ -9,7 +9,7 @@ async function setup(role=null,rpc){
  w.matchMedia=()=>({matches:false});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};
  w.S={session:{user:{id:'player-1'}},workspace:role?{id:'workspace-1',role}:null,memberships:role?[{workspace_id:'workspace-1',role,workspaces:{name:'Mon groupe'}}]:[],workspaceFeatures:{tournaments_enabled:true,league_enabled:true,rankings_enabled:true},myPermissions:{can_view_players:true,can_enter_scores:true},lastView:'myplayer',playerDashboard:{profile:{nickname:'Nayasarah'},stats:{},requests:[]},tournaments:[]};
  w.isAdmin=()=>w.S.workspace?.role==='admin';w.isCoorg=()=>w.S.workspace?.role==='coorganizer';w.hasTemporaryAdmin=()=>false;w.hasAdminOps=w.isAdmin;
- w.renderTeams=()=>{};w.renderRanking=()=>{};
+ w.renderTeams=()=>{};w.renderRanking=()=>{};w.__cardOpens=0;w.SWEPlayerCard={open:()=>w.__cardOpens++};
  let calls=0;w.sb={rpc:async(name)=>{calls++;return rpc?rpc(name):{data:{created:[],participations:[]}}}};
  const app=read('app.js');w.eval(app.slice(app.indexOf('function setView(v){'),app.indexOf('let recoveryMode=')));
  d.getElementById('main').classList.remove('hidden');d.getElementById('myPlayerDashboard').classList.remove('hidden');d.getElementById('myPlayerCreateCard').classList.add('hidden');
@@ -53,7 +53,7 @@ test('profile menus and native invitation acceptance remain clickable after layo
  const {w,d,dom}=await setup();try{
   const fold=d.getElementById('sweCompact-identity'),summary=fold.querySelector('summary');assert.equal(fold.open,false);summary.click();assert.equal(fold.open,true);summary.click();assert.equal(fold.open,false);
   let accepted=0;const button=d.createElement('button');button.textContent='Accepter';button.onclick=()=>accepted++;d.getElementById('inviteList').append(button);d.querySelector('#swePlayerNav [data-player-panel="registrations"]').click();button.click();assert.equal(accepted,1);assert.equal(d.getElementById('inviteBox').parentElement.id,'view-myplayer');
-  assert.equal(d.getElementById('swePlayerManage').textContent,'＋ Créer un SWÉ rapide');
+  assert.equal(d.getElementById('swePlayerManage').textContent,'＋ Créer un SWÉ rapide');const shortcut=d.getElementById('swePlayerCardShortcut');assert.ok(shortcut);shortcut.click();assert.equal(w.__cardOpens,1);
  }finally{dom.window.close()}
 });
 test('rapid SWE creator keeps its native tab and supports return to player home',async()=>{

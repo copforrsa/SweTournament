@@ -27,6 +27,7 @@ function nativeView(view){
  if(b&&!b.disabled&&!b.classList.contains('disabled-tab'))b.click();
 }
 function creator(){if(typeof window.openSimpleSweCreator==='function')window.openSimpleSweCreator('private');else E('simpleSweTab')?.click();syncMode()}
+function openPlayerCard(){if(typeof window.SWEPlayerCard?.open==='function'){window.SWEPlayerCard.open();return}const native=E('swe4338CardBtn');if(native){native.click();return}if(typeof toast==='function')toast('Ta carte de joueur est encore en cours de chargement.')}
 function ensure(view){
  if(E('swePlayerHeader'))return;
  const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+panels.slice(0,5).map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+labels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
@@ -83,6 +84,7 @@ function decorate(view){
  group(E('myPlayerCreateCard'),'home profile',1);
  const stats=card('myPlayerStats');group(stats,'home stats',10);more(stats,'stats');
  const title=stats?.querySelector('.sectiontitle');if(title)title.textContent='Mes stats';
+ if(stats&&!E('swePlayerCardShortcut')){const b=document.createElement('button');b.id='swePlayerCardShortcut';b.type='button';b.textContent='⭐ Ma carte de joueur';b.onclick=openPlayerCard;(stats.querySelector('.swe4338-stats-head')||title?.parentElement||stats).appendChild(b)}
  const regs=card('myPlayerMySwes');group(regs,'home registrations',20,true);more(regs,'registrations');
  const regTitle=regs?.querySelector('.sectiontitle');if(regTitle)regTitle.textContent='Mes inscriptions';
  group(E('swePlayerMine'),'home mine',21,true);
@@ -146,5 +148,5 @@ window.addEventListener('pageshow',schedule);
 document.addEventListener('click',e=>{if(e.target.closest?.('#cancelWorkspaceSetup')){offerMode(false);setTimeout(()=>{if(state()?.session&&typeof setView==='function')setView('myplayer')},0)}},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 setTimeout(paint,900);setTimeout(paint,2600);
-window.SWEPlayerHome={openOffers,closeOffers,refreshInvites:()=>{if(typeof loadInvites==='function')loadInvites()}};
+window.SWEPlayerHome={openOffers,closeOffers,openPlayerCard,refreshInvites:()=>{if(typeof loadInvites==='function')loadInvites()}};
 })();
