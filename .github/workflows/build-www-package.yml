@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  PACKAGE_NAME: swe-www-v43.98
+  PACKAGE_NAME: swe-www-v43.99
 
 jobs:
   build:
@@ -38,6 +38,7 @@ jobs:
         run: |
           node tests/browser-smoke.cjs
           node tests/registration-preview.cjs
+          node tests/coorganizer-dashboard-preview.cjs
 
       - name: Prepare www directory
         shell: bash
@@ -68,7 +69,7 @@ jobs:
       - name: Upload visual checks
         uses: actions/upload-artifact@v4
         with:
-          name: swe-visual-checks-v43.98
+          name: swe-visual-checks-v43.99
           path: tests/screenshots/*.png
           if-no-files-found: error
           retention-days: 7

@@ -1,0 +1,2 @@
+create index if not exists coorganizer_tournament_onboarding_tournament_idx
+  on private.coorganizer_tournament_onboarding(tournament_id);
