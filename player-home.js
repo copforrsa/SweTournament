@@ -50,6 +50,15 @@ function ensure(view){
  document.addEventListener('click',e=>{const summary=e.target.closest?.('.swe-profile-fold>summary');if(!summary)return;e.preventDefault();const details=summary.parentElement;details.open=!details.open;summary.setAttribute('aria-expanded',String(details.open))},true);
 }
 function closeAccount(){E('swePlayerAccountMenu')?.classList.add('hidden');E('swePlayerProfiles')?.classList.add('hidden');E('swePlayerAccountToggle')?.setAttribute('aria-expanded','false');E('swePlayerSwitchToggle')?.setAttribute('aria-expanded','false')}
+function openPlayerProfile(){closeAccount();if(typeof setView==='function')setView('myplayer');choose('home')}
+function openWorkspaceProfile(workspaceId){
+ closeAccount();const s=state();if(!workspaceId)return;
+ localStorage.setItem('swe_workspace_id',workspaceId);
+ if(String(workspaceId)===String(s?.workspace?.id)){document.documentElement.classList.remove('swe-player-home-active');if(typeof setView==='function')setView('home');return}
+ const u=new URL(location.href);u.searchParams.set('workspace',workspaceId);u.searchParams.set('start','home');
+ const sw=E('workspaceSwitcher');if(sw&&[...sw.options].some(o=>o.value===String(workspaceId))){history.replaceState({},'',u.pathname+u.search);sw.value=workspaceId;sw.dispatchEvent(new Event('change',{bubbles:true}));return}
+ location.assign(u.toString());
+}
 function offerMode(on){
  document.documentElement.classList.toggle('swe-organizer-setup-active',on);
  if(!on)return;
@@ -64,13 +73,9 @@ function updateAccount(){
  E('swePlayerName').textContent=name;E('swePlayerAvatar').textContent=name.slice(0,1).toUpperCase();
  const list=E('swePlayerProfiles'),rows=s?.memberships||[],key=JSON.stringify([s?.workspace?.id,rows.map(r=>[r.workspace_id,r.role,r.workspaces?.name])]);
  if(list.dataset.key===key)return;list.dataset.key=key;list.replaceChildren();
- const player=node('button','swePlayerSwitchSelf');player.type='button';player.textContent='⚽ Profil joueur';player.onclick=()=>{choose('home');closeAccount()};list.append(player);
+ const player=node('button','swePlayerSwitchSelf');player.type='button';player.textContent='⚽ Profil joueur';player.onclick=openPlayerProfile;list.append(player);
  // The existing switcher's change handler keeps workspace persistence and reload semantics.
- rows.forEach(r=>{const b=document.createElement('button');b.type='button';b.textContent=(r.workspaces?.name||'Mon groupe')+' · '+(r.role==='admin'?'Organisateur':'Co-gestionnaire');b.onclick=()=>{
-   closeAccount();
-   if(String(r.workspace_id)===String(state()?.workspace?.id)){nativeView('home');syncMode();return}
-   const sw=E('workspaceSwitcher');if(sw&&[...sw.options].some(o=>o.value===String(r.workspace_id))){sw.value=r.workspace_id;sw.dispatchEvent(new Event('change',{bubbles:true}))}
- };list.append(b)});
+ rows.forEach(r=>{const b=document.createElement('button');b.type='button';b.textContent=(r.workspaces?.name||'Mon groupe')+' · '+(r.role==='admin'?'Organisateur':'Co-gestionnaire');b.onclick=()=>openWorkspaceProfile(r.workspace_id);list.append(b)});
  if(!rows.length){const hint=document.createElement('small');hint.textContent='Tes autres profils apparaîtront ici après activation.';list.append(hint)}
 }
 function more(n,panel){

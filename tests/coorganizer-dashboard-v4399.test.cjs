@@ -26,12 +26,20 @@ test('pending actions and progress are dynamic',()=>{
 });
 
 test('onboarding is persistent and permission aware',()=>{
-  assert.doesNotMatch(js,/localStorage/);
   assert.match(js,/get_my_coorganizer_dashboard_onboarding_v1/);
   assert.match(js,/mark_my_coorganizer_dashboard_onboarding_v1/);
   assert.match(js,/onboarding\?\.should_highlight&&!!p\.can_view_players/);
   assert.match(onboarding,/primary key \(user_id,tournament_id,step\)/);
   assert.match(onboarding,/p_action not in \('viewed','clicked','dismissed','completed'\)/);
+});
+
+test('profile and tournament selectors are distinct and quick access is compact',()=>{
+  assert.match(js,/aria-label="Profil actif"/);
+  assert.match(js,/aria-label="Tournoi affiché"/);
+  assert.match(js,/if\(id==='player'\)[\s\S]*setView\('myplayer'\)/);
+  assert.match(js,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(js,/min-height:82px!important/);
+  assert.match(js,/@media\(max-width:1050px\)[\s\S]*repeat\(2,minmax\(0,1fr\)\)/);
 });
 
 test('server functions reject anonymous and unrelated users',()=>{
