@@ -1,0 +1,89 @@
+/* Scoped to the active player view: native workspace tabs retain their DOM and rules. */
+html.swe-player-home-active body{background:#f1f6fd!important;color:#102344}
+html.swe-player-home-active .app{width:min(1220px,calc(100% - 36px))!important;max-width:1220px!important;padding:14px 0 30px!important;margin:0 auto!important}
+html.swe-player-home-active #main>.top,html.swe-player-home-active .tabs{display:none!important}
+html.swe-player-home-active #view-myplayer.active{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+html.swe-player-home-active #myPlayerDashboard:not(.hidden),html.swe-player-home-active #view-myplayer .player-hub-grid{display:contents!important}
+html.swe-player-home-active #view-myplayer [data-player-sections]{order:var(--player-order,0);grid-column:1/-1;min-width:0;margin:0!important}
+html.swe-player-home-active #view-myplayer[data-player-panel=home] .swe-player-half{grid-column:auto}
+html.swe-player-home-active #view-myplayer .swe-player-filtered,html.swe-player-home-active #swe4350LaunchCard{display:none!important}
+html.swe-player-home-active #view-myplayer .card{padding:18px!important;border:1px solid #d5e5fb!important;border-radius:16px!important;box-shadow:0 5px 20px #16366806!important;min-width:0}
+html.swe-player-home-active #view-myplayer .sectiontitle{font-size:18px;color:#102344;margin:0 0 12px}
+html.swe-player-home-active #view-myplayer .muted{font-size:12px;line-height:1.5;color:#526b88}
+#swePlayerHeader{order:-100;grid-column:1/-1;display:flex;align-items:center;gap:20px;background:white;border:1px solid #d5e5fb;border-radius:16px;padding:10px 18px;position:relative;z-index:20;min-width:0}
+#swePlayerHeader .swe-player-brand{display:flex;align-items:center;gap:9px;color:#102344;text-decoration:none;font-size:11px;font-weight:700;max-width:155px}
+#swePlayerHeader .swe-player-brand img{width:64px;height:70px;object-fit:contain;flex:none}
+#swePlayerNav{display:flex;flex:1;align-items:center;gap:4px;justify-content:center}
+#swePlayerNav button{background:transparent!important;box-shadow:none!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;color:#344d6e!important;white-space:nowrap;font-size:12px;font-weight:750;padding:17px 9px!important;min-height:44px}
+#swePlayerNav button[aria-current=page]{border-bottom-color:#2167ea!important;color:#1357d9!important}
+#swePlayerAccount{position:relative;margin-left:auto;flex:none}
+#swePlayerAccount>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;min-height:44px;font-size:12px;font-weight:750;color:#102344}
+#swePlayerAccount>summary::-webkit-details-marker{display:none}
+#swePlayerAvatar{width:36px;height:36px;background:linear-gradient(140deg,#14346a,#1676ce);border-radius:50%;display:grid;place-items:center;color:white}
+#swePlayerAccount .swe-player-account-menu{position:absolute;top:calc(100% + 12px);right:0;width:min(280px,80vw);padding:10px;background:white;border:1px solid #d5e5fb;border-radius:14px;box-shadow:0 12px 32px #10234430;max-height:65vh;overflow:auto}
+#swePlayerAccount button,#swePlayerSwitch summary{display:block;width:100%;text-align:left;background:white!important;color:#102344!important;border:0!important;border-radius:9px!important;box-shadow:none!important;padding:12px!important;font-size:13px!important;cursor:pointer;min-height:44px}
+#swePlayerAccount button:hover,#swePlayerSwitch summary:hover{background:#edf5ff!important}
+#swePlayerProfiles{padding-left:10px;border-left:2px solid #dfebff}
+#swePlayerProfiles small{display:block;padding:8px;color:#526b88;line-height:1.4}
+#swePlayerLogout{border-top:1px solid #e0e9f5!important}
+#swePlayerQuick{position:relative;overflow:hidden;background:linear-gradient(115deg,#102344,#174dd0 75%,#087eaf);color:white;border-radius:18px;padding:28px}
+#swePlayerQuick:after{content:'';position:absolute;right:-60px;top:-80px;width:300px;height:300px;border:1px solid #ffffff1a;border-radius:50%;box-shadow:0 0 0 45px #ffffff08,0 0 0 90px #ffffff06;pointer-events:none}
+#swePlayerQuick h2{color:#fff;font-size:clamp(25px,3.2vw,38px);line-height:1.15;letter-spacing:-.025em;margin:9px 0}
+#swePlayerQuick p{margin:0 0 18px;color:#e2eeff;font-size:15px}
+#swePlayerQuick small{display:block;margin-top:14px;color:#dceaff;font-size:11px}
+.swe-player-kicker{font-size:10px;font-weight:850;letter-spacing:.07em;color:#f8d15b}
+.swe-player-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#swePlayerQuick button,#swePlayerCommercial button{border-radius:10px;border:0;min-height:44px;padding:12px 18px;font-size:13px;font-weight:800;background:#fff;color:#102344;position:relative;z-index:1}
+#swePlayerQuick #swePlayerCreateQuick,#swePlayerCommercial button{background:linear-gradient(120deg,#ffdc62,#f5bd26);color:#142546}
+.swe-player-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.swe-player-section-head h2{font-size:18px;margin:0;color:#102344}
+#swePlayerMine .swe-player-section-head button,.swe-player-more{background:transparent!important;border:0!important;box-shadow:none!important;color:#165fe6!important;font-size:12px!important;padding:4px 0!important;min-height:30px}
+.swe-player-more{float:right;margin-top:-36px}
+html.swe-player-home-active #myPlayerStats{grid-template-columns:repeat(8,minmax(0,1fr))!important;gap:8px!important}
+html.swe-player-home-active #view-myplayer[data-player-panel=home] #myPlayerStats{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+html.swe-player-home-active #view-myplayer[data-player-panel=home] [data-player-metric=detail]{display:none!important}
+html.swe-player-home-active #myPlayerStats>div{padding:11px 6px!important;border:0!important;border-radius:11px!important;background:#e9f3ff!important;color:#164998!important;min-height:70px}
+html.swe-player-home-active #myPlayerStats>div:nth-child(4n){background:#fff5d9!important;color:#986609!important}
+html.swe-player-home-active #myPlayerStats>div:nth-child(6){background:#e5f8ef!important;color:#086b4d!important}
+html.swe-player-home-active #myPlayerStats>div:nth-child(7){background:#f0eaff!important;color:#6b36b1!important}
+html.swe-player-home-active #myPlayerStats b{font-size:22px;color:inherit!important}
+html.swe-player-home-active #myPlayerStats small{font-size:11px;color:inherit!important}
+html.swe-player-home-active #view-myplayer[data-player-panel=home] #swe4338StatsScope{max-width:180px!important;min-width:120px!important;font-size:11px}
+html.swe-player-home-active .swe4338-stats-head{padding-right:70px}
+#swePlayerMine .swe-player-actions{margin-top:12px}
+#swePlayerMine .swe-player-actions button{font-size:12px;padding:9px;background:#f0f6ff;color:#155cc3;border-color:#d0e1fb;border-radius:10px;min-height:40px}
+.swe-player-match{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #dfebfa;background:#fbfdff;border-radius:11px;padding:12px;margin:8px 0;font-size:13px}
+.swe-player-match>div{min-width:0;overflow-wrap:anywhere}
+.swe-player-pill{background:#e3f4ff;color:#1264a5;font-weight:750;padding:6px 9px;border-radius:9px;font-size:11px;white-space:nowrap}
+.swe-player-small-title{font-size:13px;margin-top:16px}
+html.swe-player-home-active #view-myplayer[data-player-panel=home] #myPlayerMySwes>.player:nth-child(n+3),html.swe-player-home-active #view-myplayer[data-player-panel=home] #myPlayerOpportunities>.player:nth-child(n+3){display:none}
+html.swe-player-home-active #myPlayerOpportunities{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+html.swe-player-home-active #myPlayerOpportunities .player{padding:14px;background:#f8fbff;border:1px solid #dfeafa}
+html.swe-player-home-active #myPlayerOpportunities h3{font-size:15px;margin:8px 0}
+html.swe-player-home-active #myPlayerOpportunities .primary{background:linear-gradient(120deg,#2168eb,#0499bf);color:white}
+#swePlayerCommercial{display:flex;justify-content:space-between;align-items:center;gap:16px;background:#102344;border-radius:16px;padding:22px 26px;color:white}
+#swePlayerCommercial h2{font-size:20px;color:white;margin:7px 0}
+#swePlayerCommercial p{font-size:13px;color:#d7e4f6;margin:0}
+html.swe-player-home-active #inviteBox{border:1px solid #d5e5fb!important}
+html.swe-player-home-active #swePlayerHeader button:focus-visible,html.swe-player-home-active #view-myplayer summary:focus-visible{outline:3px solid #327aff;outline-offset:2px}
+@media(max-width:1050px){#swePlayerHeader{flex-wrap:wrap;gap:5px 12px}#swePlayerNav{order:3;flex-basis:100%;justify-content:space-between}#swePlayerHeader .swe-player-brand{max-width:none}}
+@media(max-width:760px){
+ html.swe-player-home-active .app{width:calc(100% - 24px)!important;padding:10px 0 86px!important}
+ html.swe-player-home-active #view-myplayer.active{grid-template-columns:minmax(0,1fr);gap:12px}
+ #swePlayerHeader{padding:8px 12px;border-radius:13px}
+ #swePlayerHeader .swe-player-brand img{width:44px;height:52px}
+ #swePlayerHeader .swe-player-brand span{font-size:10px;max-width:68px}
+ #swePlayerName{display:none}
+ #swePlayerNav{position:fixed;bottom:0;left:0;right:0;z-index:80;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding:5px 4px max(8px,env(safe-area-inset-bottom));background:#fff;box-shadow:0 -4px 20px #10234412;border-top:1px solid #d5e5fb}
+ #swePlayerNav button{white-space:normal;font-size:10px;padding:10px 2px!important;min-height:52px}
+ #swePlayerNav button:before{display:block;font-size:19px;margin-bottom:4px;content:'⌂'}
+ #swePlayerNav button:nth-child(2):before{content:'▣'}#swePlayerNav button:nth-child(3):before{content:'⚽'}#swePlayerNav button:nth-child(4):before{content:'▥'}#swePlayerNav button:nth-child(5):before{content:'♙'}
+ #swePlayerQuick{padding:22px 18px}
+ #swePlayerQuick .swe-player-actions{display:grid}
+ html.swe-player-home-active #myPlayerStats{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+ html.swe-player-home-active #view-myplayer .card{padding:14px!important}
+ html.swe-player-home-active #view-myplayer .sectiontitle{font-size:16px}
+ html.swe-player-home-active #myPlayerOpportunities{grid-template-columns:minmax(0,1fr)}
+ #swePlayerCommercial{padding:20px;flex-direction:column;align-items:stretch}
+ #swePlayerCommercial h2{font-size:18px}
+}
