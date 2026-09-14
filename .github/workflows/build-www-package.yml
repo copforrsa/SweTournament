@@ -20,11 +20,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install DOM test dependencies
+        run: npm ci --prefix tests --ignore-scripts
+
       - name: Check JavaScript syntax
         shell: bash
         run: |
           set -euo pipefail
-          find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+          find . -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
           node --test tests/*.test.cjs
 
       - name: Install browser test runner
