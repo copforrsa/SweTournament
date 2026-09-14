@@ -8,6 +8,7 @@ let busy=false,paintBusy=false,paintQueued=false;
 const checkoutRequests=new Map();
 let returnBusy=false;
 const startupTimers=[];
+let inviteObserver=null,observerStop=null,observerDebounce=null;
 
 function style(){
  if(q('#sweCoorgSelfPay4308Style'))return;
@@ -73,7 +74,7 @@ async function renderSelfPaidInvites(){
      });return;
    }
    const rows=Array.isArray(data)?data:[],ids=new Set(rows.map(i=>String(i.id)));box.querySelectorAll('[data-invite-load-error]').forEach(card=>card.remove());
-   box.querySelectorAll('[data-selfpay-invite]').forEach(card=>{if(!ids.has(card.dataset.selfpayInvite))card.remove()});
+   const seen=new Set();box.querySelectorAll('[data-selfpay-invite]').forEach(card=>{const id=String(card.dataset.selfpayInvite||'');if(!ids.has(id)||seen.has(id))card.remove();else seen.add(id)});
    for(const i of rows){
      let card=[...box.querySelectorAll('[data-selfpay-invite]')].find(el=>el.dataset.selfpayInvite===String(i.id));
      if(!card){card=document.createElement('div');card.className='swe-selfpay-invite';card.dataset.selfpayInvite=i.id;box.appendChild(card)}
@@ -142,9 +143,10 @@ async function handleReturn(){
 window.SWECoorganizerInvites={refresh:()=>{renderSelfPaidInvites();handleReturn()}};
 function paint(){style();paintPriceWording();installPayerChoice();renderSelfPaidInvites();}
 function scheduleStartup(){startupTimers.splice(0).forEach(clearTimeout);[0,300,900,1800,3500,7000].forEach(delay=>startupTimers.push(setTimeout(paint,delay)))}
+function watchInviteList(){const list=q('#inviteList');if(!list||inviteObserver)return;inviteObserver=new MutationObserver(()=>{const pending=[...list.querySelectorAll('[data-selfpay-invite]')].some(card=>/Chargement de ton invitation/i.test(card.textContent||''));if(!pending)return;clearTimeout(observerDebounce);observerDebounce=setTimeout(renderSelfPaidInvites,40)});inviteObserver.observe(list,{childList:true,subtree:true,characterData:true});clearTimeout(observerStop);observerStop=setTimeout(()=>{inviteObserver?.disconnect();inviteObserver=null},45000)}
 function toggleInvite(e){const summary=e.target.closest?.('.swe-selfpay-invite summary');if(!summary)return;e.preventDefault();e.stopPropagation();const details=summary.closest('details');if(!details)return;details.open=!details.open;summary.setAttribute('aria-expanded',String(details.open))}
-function boot(){scheduleStartup();handleReturn();}
+function boot(){watchInviteList();scheduleStartup();handleReturn();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 document.addEventListener('click',toggleInvite,true);document.addEventListener('click',createSelfPaidInvite,true);document.addEventListener('click',startInviteCheckout);document.addEventListener('click',e=>{if(e.target.closest?.('[data-selfpay-retry]'))renderSelfPaidInvites()});
-document.addEventListener('swe:rendered',()=>setTimeout(paint,80));document.addEventListener('swe:invites-loaded',()=>setTimeout(renderSelfPaidInvites,0));document.addEventListener('swe:player-ui-ready',()=>setTimeout(renderSelfPaidInvites,0));document.addEventListener('swe:page-view',()=>setTimeout(renderSelfPaidInvites,80));window.addEventListener('pageshow',scheduleStartup);
+document.addEventListener('swe:rendered',()=>setTimeout(()=>{watchInviteList();paint()},80));document.addEventListener('swe:invites-loaded',()=>setTimeout(renderSelfPaidInvites,0));document.addEventListener('swe:player-ui-ready',()=>setTimeout(renderSelfPaidInvites,0));document.addEventListener('swe:page-view',()=>setTimeout(renderSelfPaidInvites,80));window.addEventListener('pageshow',()=>{watchInviteList();scheduleStartup()});
 })();

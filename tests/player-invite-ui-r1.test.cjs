@@ -20,6 +20,11 @@ test('a player event reloads invitations that arrived after module startup',asyn
  w.S={session:null};w.toast=()=>{};w.isAdmin=()=>false;w.sb={rpc:async()=>({data:[{id,workspace_name:'Groupe tardif',payment_status:'pending'}]})};w.eval(source);await tick();assert.equal(w.document.querySelector('[data-selfpay-invite]'),null);
  w.S.session={user:{id,email:'invitee@example.invalid'}};w.document.dispatchEvent(new w.Event('swe:player-ui-ready'));await tick();assert.match(w.document.body.textContent,/Groupe tardif/);dom.window.close();
 });
+test('a late rewrite with loading placeholders is repaired without manual refresh',async()=>{
+ const h=harness([{id,workspace_name:'Tournoi du dimanche',payment_status:'pending'}]);await tick();const list=h.w.document.getElementById('inviteList');
+ list.innerHTML='<div class="swe-selfpay-invite" data-selfpay-invite="'+id+'">Chargement de ton invitation co-gestionnaire…</div><div class="swe-selfpay-invite" data-selfpay-invite="'+id+'">Chargement de ton invitation co-gestionnaire…</div>';
+ await new Promise(r=>setTimeout(r,100));assert.equal(list.querySelectorAll('[data-selfpay-invite]').length,1);assert.equal(list.querySelectorAll('summary').length,1);assert.doesNotMatch(list.textContent,/Chargement de ton invitation/);h.dom.window.close();
+});
 test('checkout prevents duplicates and retains request ID after failure, with a readable error',async()=>{
  const h=harness([{id,workspace_name:'Sunday',payment_status:'pending'}]);await tick();const button=h.w.document.querySelector('[data-selfpay-period="month"]');
  button.click();button.click();assert.equal(h.calls.length,1);assert.ok(button.disabled);
