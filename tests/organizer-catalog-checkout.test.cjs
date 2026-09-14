@@ -1,0 +1,12 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {stripTypeScriptTypes}=require('node:module');
+const raw=fs.readFileSync(require('node:path').join(__dirname,'../supabase/functions/stripe-create-organizer-checkout/index.ts'),'utf8').replace(/^import .*;\n/gm,'');
+function harness({active=true,validUser=true}={}){let handler,checkout,inserted;
+ const cfg={name:'Titre modifié par admin',monthly_price_cents:350,annual_price_cents:4000,is_free:false,third_half_enabled:true};
+ const db={auth:{getUser:async()=>({data:{user:validUser?{id:'test-user',email:'test@example.invalid'}:null}})},rpc:async()=>({data:true}),from:table=>({select(){return this},eq(){return this},single:async()=>table==='platform_subscription_plans'?{data:active?cfg:null,error:active?null:Error('inactive')}:{data:{id:'intent-test'}},insert(v){inserted=v;return this},update(){return this}})};
+ class Stripe{constructor(){this.checkout={sessions:{create:async body=>{checkout=body;return {id:'cs_test',url:'https://checkout.stripe.com/test'}}}}}}
+ const ctx={Deno:{env:{get:()=>''},serve:f=>handler=f},Stripe,createClient:()=>db,Request,Response,console};vm.runInNewContext(stripTypeScriptTypes(raw,{mode:'strip'}),ctx);
+ return {call:body=>handler(new Request('https://example.invalid',{method:'POST',headers:{origin:'https://app.swetournament.fr',authorization:'Bearer test','Content-Type':'application/json'},body:JSON.stringify({plan:'standard',workspace_name:'Test',...body})})),state:()=>({checkout,inserted})};
+}
+test('checkout takes name, amount and permission snapshot from server catalogue',async()=>{const h=harness();const r=await h.call({billing_period:'annual',expected_amount_cents:4000});assert.equal(r.status,200);const s=h.state();assert.equal(s.inserted.amount_cents,4000);assert.equal(s.inserted.plan_snapshot.third_half_enabled,true);assert.equal(s.checkout.line_items[0].price_data.unit_amount,4000);assert.match(s.checkout.line_items[0].price_data.product_data.name,/Titre modifié/)});
+test('stale price, inactive offer and unauthenticated checkout fail before Stripe',async()=>{for(const [opts,body,status] of [[{},{expected_amount_cents:1},409],[{active:false},{},400],[{validUser:false},{},401]]){const h=harness(opts);assert.equal((await h.call(body)).status,status);assert.equal(h.state().checkout,undefined)}});
