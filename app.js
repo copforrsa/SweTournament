@@ -1271,7 +1271,7 @@ async function loadInvites(){
   const userEmail=(S.session?.user?.email||'').trim().toLowerCase();
   if(!userEmail){$('#inviteBox').classList.add('hidden');return}
   const {data,error}=await sb.from('workspace_invites')
-    .select('id,email,role,workspace_id,workspaces(name)')
+    .select('id,email,role,workspace_id,payment_responsibility,payment_status,workspaces(name)')
     .is('accepted_at',null)
     .ilike('email',userEmail);
   if(error){$('#inviteBox').classList.add('hidden');return}
@@ -1279,6 +1279,11 @@ async function loadInvites(){
   if(inviteIdFromUrl)mine=mine.sort((a,b)=>(a.id===inviteIdFromUrl?-1:0)-(b.id===inviteIdFromUrl?-1:0));
   $('#inviteBox').classList.toggle('hidden',!mine.length);
   mine.forEach(i=>{
+    // A paid invitation has its own checkout; never show the free acceptance action.
+    if(i.role==='coorganizer'&&i.payment_responsibility==='invitee'){
+      const d=document.createElement('div');d.className='swe-selfpay-invite';d.dataset.selfpayInvite=i.id;
+      d.textContent='Chargement de ton invitation co-gestionnaire…';box.appendChild(d);return;
+    }
     const d=document.createElement('div');d.className='player';
     d.innerHTML='<b>Invitation à rejoindre '+esc(i.workspaces?.name||'SWÉ TOURNAMENT 5/5')+'</b><div class="muted" style="margin-top:4px">Connecté avec '+esc(userEmail)+'. Clique ci-dessous pour devenir co-organisateur.</div>';
     const b=document.createElement('button');b.textContent='✅ Accepter l’invitation';b.className='primary';b.style.marginTop='8px';
@@ -1291,7 +1296,8 @@ async function loadInvites(){
       await boot();setView('home');
     };
     d.appendChild(b);box.appendChild(d)
-  })
+  });
+  window.SWECoorganizerInvites?.refresh();
 }
 async function loadAll(){
   if(!S.workspace)return;const w=S.workspace.id;let r;
@@ -1890,6 +1896,8 @@ async function confirmCoorgCheckoutFromUrl(){
 function renderEcosystemCommercial(){
   const ecosystemCard=$('#homeEcosystemCard');
   if(ecosystemCard) ecosystemCard.classList.toggle('hidden',!isAdmin());
+  const purchaseCard=$('#homeCoorgOfferCard');
+  if(purchaseCard&&!isAdmin())purchaseCard.classList.add('hidden');
   if(!isAdmin()) return;
   const c=S.commercialAccess||{};
   const a=S.organizerAccess||{};

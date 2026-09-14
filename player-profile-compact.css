@@ -1,0 +1,55 @@
+/* Profil personnel compact — R1. Keep player actions separate from workspace billing. */
+html:not([data-swe-purchase-role="admin"]) #homeEcosystemCard,
+html:not([data-swe-purchase-role="admin"]) #homeCoorgOfferCard,
+#view-myplayer #homeCoorgOfferCard{display:none!important}
+#view-myplayer .card{padding:16px;margin-top:10px;margin-bottom:10px;border-radius:16px}
+#view-myplayer .sectiontitle{font-size:16px;margin-bottom:8px}
+#view-myplayer .muted{font-size:12px;line-height:1.45}
+#view-myplayer.view .player-hub-hero{padding:16px!important;border-radius:18px!important}
+#view-myplayer .player-hub-title{gap:14px!important;align-items:center!important}
+#view-myplayer .player-hub-title h2{font-size:20px;margin:3px 0}
+#view-myplayer .player-hub-title p{margin:4px 0;font-size:12px;max-width:550px}
+#view-myplayer .player-hub-title .player-hub-avatar{width:64px!important;height:64px!important;min-width:64px!important;border-radius:14px!important;font-size:12px!important}
+#view-myplayer #sweCompactPlayerName{font-size:17px;font-weight:850;color:#0d2b52;margin:2px 0}
+#view-myplayer #myPlayerIdentity{margin-top:10px!important;font-size:11px}
+#view-myplayer #swe4338Summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0!important}
+#view-myplayer #swe4338Summary .swe4338-summary-card{padding:8px 12px!important;border-radius:12px!important;box-shadow:none!important;min-height:0!important}
+#view-myplayer #swe4338Summary strong{font-size:18px!important;margin-top:2px!important}
+#view-myplayer #swe4338CardBtn{padding:8px 12px!important;min-height:36px}
+#view-myplayer #myPlayerStats{display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important;gap:6px!important}
+#view-myplayer #myPlayerStats>div{padding:8px 4px!important;min-height:65px!important;border-radius:10px!important}
+#view-myplayer #myPlayerStats small{font-size:10px!important}
+#view-myplayer #myPlayerStats b{font-size:17px!important}
+#view-myplayer #myPlayerStats span{font-size:17px!important}
+#view-myplayer .swe4338-stats-head{margin-bottom:8px!important;gap:8px!important}
+#view-myplayer #swe4338StatsScope{min-width:150px!important;max-width:100%!important;font-size:12px;padding:7px 9px}
+#view-myplayer .swe-profile-fold{margin:8px 0;border:1px solid #d7e4f1;border-radius:13px;background:#fff;color:#102746;overflow:hidden}
+#view-myplayer .swe-profile-fold>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:13px 14px;font-size:13px;font-weight:850;min-height:46px}
+#view-myplayer .swe-profile-fold>summary::-webkit-details-marker{display:none}
+#view-myplayer .swe-profile-fold>summary:after{content:'＋';font-size:18px;color:#127bb8;margin-left:auto}
+#view-myplayer .swe-profile-fold[open]>summary:after{content:'−'}
+#view-myplayer .swe-profile-fold>summary:focus-visible{outline:3px solid #1c70dd;outline-offset:-3px}
+#view-myplayer .swe-profile-fold-hint{font-size:11px;font-weight:500;color:#597089}
+#view-myplayer .swe-profile-fold>.card,#view-myplayer .swe-profile-fold>#swe4338Health{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0 14px 14px!important}
+#view-myplayer .swe-profile-fold>.card>.sectiontitle,#view-myplayer .swe-profile-fold>#swe4338Health>h3{display:none}
+#view-myplayer #sweCompact-identity{background:#f8fbff;margin-top:12px}
+#view-myplayer #swePlayerIdentity4321{margin:0!important;padding:0 14px 14px!important;border:0!important}
+#view-myplayer #swePlayerIdentity4321 .swe4321-subtitle{display:none}
+#view-myplayer .swe4321-grid{gap:10px 14px}
+#view-myplayer .swe4321-field input{min-height:38px;padding:8px 10px}
+#view-myplayer #swe4348SimpleBtn{display:none!important}
+#view-myplayer #swe4340IdentityName{display:none!important}
+#view-myplayer .player-hub-grid{gap:10px}
+#view-myplayer .player-hub-grid>.card{margin:0}
+#main #inviteBox{padding:14px;border-radius:16px;margin:10px 0}
+#main #inviteBox>.sectiontitle{font-size:15px;margin-bottom:8px}
+@media(max-width:720px){
+ #view-myplayer #myPlayerStats{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+ #view-myplayer .swe-profile-fold>summary{flex-wrap:wrap;gap:5px 10px}
+ #view-myplayer .swe-profile-fold-hint{flex-basis:calc(100% - 30px);order:2}
+ #view-myplayer .player-hub-title p{font-size:11px}
+ #view-myplayer .swe4321-grid{grid-template-columns:1fr!important}
+ #view-myplayer .player-hub-grid{grid-template-columns:1fr!important}
+ #view-myplayer #swe4338Summary strong{font-size:16px!important}
+ #main #inviteBox .swe-selfpay-invite summary{flex-wrap:wrap}
+}

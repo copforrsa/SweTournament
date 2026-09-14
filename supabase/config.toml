@@ -1,0 +1,5 @@
+# Authentication is performed inside this handler with auth.getUser(token),
+# followed by recipient, invitation, payer and rate-limit checks.
+# The legacy gateway JWT check is incompatible with newer signing keys.
+[functions.stripe-create-invite-coorganizer-checkout]
+verify_jwt = false

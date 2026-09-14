@@ -17,9 +17,9 @@ Deno.serve(async(req)=>{
 
     const body=await req.json();
     const inviteId=String(body.invite_id||'');
-    const period=body.billing_period==='year'?'year':'month';
+    const period=body.billing_period;
     const clientRequestId=String(body.request_id||'');
-    if(!uuid.test(inviteId)||!uuid.test(clientRequestId))throw new Error('INVALID_REQUEST');
+    if(!uuid.test(inviteId)||!uuid.test(clientRequestId)||!['month','year'].includes(period))throw new Error('INVALID_REQUEST');
 
     const {data:inv,error:invErr}=await admin.from('workspace_invites').select('id,workspace_id,email,role,accepted_at,payment_responsibility,payment_status').eq('id',inviteId).maybeSingle();
     if(invErr||!inv||inv.role!=='coorganizer'||inv.accepted_at||inv.payment_responsibility!=='invitee')throw new Error('INVALID_INVITE');
@@ -30,7 +30,7 @@ Deno.serve(async(req)=>{
     const {data:ok,error:rlErr}=await admin.rpc('consume_security_rate_limit',{p_bucket_key:bucket,p_limit:8,p_window_seconds:600});
     if(rlErr||ok!==true)throw new Error('RATE_LIMIT');
 
-    const appUrl=(Deno.env.get('SWE_APP_URL')||'').trim().replace(/\/$/,'');
+    const appUrl=(Deno.env.get('SWE_APP_URL')||'https://app.swetournament.fr').trim().replace(/\/$/,'');
     if(!/^https:\/\//.test(appUrl))throw new Error('SECURITY_CONFIG_MISSING');
     const unit=period==='year'?1990:199;
     const stripe=new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!,{apiVersion:'2024-12-18.acacia'});
@@ -52,7 +52,7 @@ Deno.serve(async(req)=>{
     const headers=origin?jsonHeaders(origin):{'Content-Type':'application/json','Cache-Control':'no-store'};
     const code=e instanceof Error?e.message:String(e);
     const friendly:Record<string,string>={INVALID_INVITE:'Invitation invalide ou déjà utilisée',ALREADY_PAID:'Cet accès est déjà payé'};
-    const status=code==='ORIGIN_NOT_ALLOWED'?403:400;
+    const status=code==='AUTH_REQUIRED'?401:['ORIGIN_NOT_ALLOWED','ACCESS_DENIED'].includes(code)?403:400;
     return Response.json({error:friendly[code]||safeErrorMessage(e),request_id:rid},{status,headers});
   }
 });
