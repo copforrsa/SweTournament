@@ -45,7 +45,7 @@ Deno.serve(async(req)=>{
     },{idempotencyKey:`swe-coorg-invite-${inviteId}-${clientRequestId}`});
 
     await admin.from('workspace_invites').update({preferred_billing_period:period,payment_started_at:new Date().toISOString()}).eq('id',inviteId);
-    await admin.from('security_audit_log').insert({workspace_id:inv.workspace_id,actor_user_id:user.id,actor_type:'user',action:'billing.coorganizer_invitee_checkout_created',target_type:'workspace_invite',target_id:inviteId,request_id:rid,metadata:{billing_period:period,unit_amount_cents:unit}});
+    await admin.from('security_audit_log').insert({workspace_id:inv.workspace_id,actor_user_id:user.id,actor_type:'user',action:'billing.coorganizer_invitee_checkout_created',target_type:'workspace_invite',target_id:inviteId,request_id:rid,metadata:{billing_period:period,unit_amount_cents:unit,stripe_checkout_session_id:session.id}});
     return Response.json({url:session.url,request_id:rid},{headers:jsonHeaders(origin)});
   }catch(e){
     console.error('[stripe-create-invite-coorganizer-checkout]',rid,e);

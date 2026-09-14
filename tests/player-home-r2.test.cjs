@@ -53,6 +53,7 @@ test('profile menus and native invitation acceptance remain clickable after layo
  const {w,d,dom}=await setup();try{
   const fold=d.getElementById('sweCompact-identity'),summary=fold.querySelector('summary');assert.equal(fold.open,false);summary.click();assert.equal(fold.open,true);summary.click();assert.equal(fold.open,false);
   let accepted=0;const button=d.createElement('button');button.textContent='Accepter';button.onclick=()=>accepted++;d.getElementById('inviteList').append(button);d.querySelector('#swePlayerNav [data-player-panel="registrations"]').click();button.click();assert.equal(accepted,1);assert.equal(d.getElementById('inviteBox').parentElement.id,'view-myplayer');
+  assert.equal(d.getElementById('inviteBox').style.getPropertyValue('--player-order'),'-10');
   assert.equal(d.getElementById('swePlayerManage').textContent,'＋ Créer un SWÉ rapide');const shortcut=d.getElementById('swePlayerCardShortcut');assert.ok(shortcut);shortcut.click();assert.equal(w.__cardOpens,1);
  }finally{dom.window.close()}
 });

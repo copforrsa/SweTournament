@@ -6,6 +6,7 @@ const q=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 let busy=false,paintBusy=false,paintQueued=false;
 const checkoutRequests=new Map();
+const reconcileAttempts=new Set();
 let returnBusy=false;
 const startupTimers=[];
 let inviteObserver=null,observerStop=null,observerDebounce=null;
@@ -19,7 +20,7 @@ function style(){
  #sweCoorgPayer4308 label{display:flex;gap:8px;align-items:flex-start;padding:10px;border:1px solid #dce7e1;border-radius:12px;background:#fff;cursor:pointer}
  #sweCoorgPayer4308 label:has(input:checked){border-color:#16835a;box-shadow:0 0 0 2px rgba(22,131,90,.08)}
  #sweCoorgPayer4308 input{width:auto;margin-top:3px}#sweCoorgPayer4308 small{display:block;color:#65776e;margin-top:3px;line-height:1.35}
- .swe-selfpay-invite{padding:12px;border:1px solid #ccdeef;border-radius:14px;background:linear-gradient(130deg,#f6faff,#fff);margin:6px 0;color:#102746}.swe-selfpay-invite p{margin:5px 0;font-size:13px}.swe-selfpay-invite summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px;align-items:center;font-weight:850}.swe-selfpay-invite summary::-webkit-details-marker{display:none}.swe-selfpay-invite summary span{font-size:12px;color:#145ba9}.swe-selfpay-invite summary span:after{content:' ＋'}.swe-selfpay-invite details[open] summary span:after{content:' −'}.swe-selfpay-invite [role=status]{font-size:13px;margin-top:8px;color:#9c3328}
+ .swe-selfpay-invite{padding:12px;border:1px solid #ccdeef;border-radius:14px;background:linear-gradient(130deg,#f6faff,#fff);margin:6px 0;color:#102746}.swe-selfpay-invite p{margin:5px 0;font-size:13px}.swe-selfpay-invite summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px;align-items:center;font-weight:850}.swe-selfpay-invite summary::-webkit-details-marker{display:none}.swe-selfpay-invite summary span{font-size:12px;color:#fff;background:linear-gradient(120deg,#16834f,#20a566);padding:9px 12px;border-radius:10px;white-space:nowrap}.swe-selfpay-invite summary span:after{content:' ＋'}.swe-selfpay-invite details[open] summary span:after{content:' −'}.swe-selfpay-invite [role=status]{font-size:13px;margin-top:8px;color:#9c3328}
  .swe-selfpay-price{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.swe-selfpay-price button{padding:11px;border-radius:11px;font-weight:900}.swe-selfpay-price button.primary{background:linear-gradient(110deg,#1859d1,#08a8cc);color:#fff}
  @media(max-width:560px){#sweCoorgPayer4308 .opts,.swe-selfpay-price{grid-template-columns:1fr}}
  `;document.head.appendChild(s);
@@ -86,11 +87,31 @@ async function renderSelfPaidInvites(){
    }
    wrap.classList.toggle('hidden',!box.children.length);
    if(rows.length){const title=wrap.querySelector('h2');if(title)title.textContent='Invitations à co-gérer un groupe'}
+   rows.filter(i=>i.payment_status==='pending'&&i.preferred_billing_period).forEach(i=>reconcileInvite(i.id,{silent:true}));
  }catch(error){
    const box=q('#inviteList'),wrap=q('#inviteBox');
    if(box&&wrap){box.querySelectorAll('[data-selfpay-invite]').forEach(card=>{card.innerHTML='<p role="status">Impossible de charger cette invitation pour le moment.</p><button type="button" data-selfpay-retry="1">Réessayer</button>'});wrap.classList.toggle('hidden',!box.children.length)}
    console.warn('[coorganizer-invites]',error);
  }finally{paintBusy=false;if(paintQueued)setTimeout(renderSelfPaidInvites,0)}
+}
+function activateWorkspace(workspaceId){
+ if(workspaceId)localStorage.setItem('swe_workspace_id',workspaceId);
+ const u=new URL(location.href);['coorg_invite','invite','email'].forEach(k=>u.searchParams.delete(k));
+ history.replaceState({},'',u.pathname+u.search);location.reload();
+}
+async function reconcileInvite(inviteId,{silent=false,reload=true}={}){
+ const c=client(),st=state(),key=String(st?.session?.user?.id||'')+':'+String(inviteId||'');
+ if(!c||!st?.session?.user||!inviteId||reconcileAttempts.has(key))return null;
+ reconcileAttempts.add(key);
+ try{
+   const {data,error}=await c.functions.invoke('stripe-reconcile-invite-coorganizer',{body:{invite_id:inviteId}});
+   if(error||data?.error)throw new Error(await checkoutError(error,data));
+   if(data?.activated&&reload){if(typeof toast==='function')toast('Paiement confirmé. Ton accès co-gestionnaire est activé.');activateWorkspace(data.workspace_id)}
+   return data||null;
+ }catch(error){
+   if(!silent&&typeof toast==='function')toast(error?.message||'Impossible de vérifier le paiement.');
+   return null;
+ }
 }
 async function checkoutError(error,data){
  if(data?.error)return data.error;
@@ -127,13 +148,13 @@ async function handleReturn(){
  const userId=state().session.user.id;
  if(typeof toast==='function')toast('Vérification du paiement et de ton invitation…');
  try{
+   const recovery=await reconcileInvite(p.get('invite'),{reload:false});
+   if(recovery?.activated){activateWorkspace(recovery.workspace_id);return}
    for(let n=0;n<8;n++){
      if(state()?.session?.user?.id!==userId)return;
      const {data,error}=await c.from('workspace_invites').select('workspace_id,payment_status,accepted_at').eq('id',p.get('invite')).maybeSingle();
      if(!error&&data?.payment_status==='paid'&&data.accepted_at){
-       localStorage.setItem('swe_workspace_id',data.workspace_id);
-       const u=new URL(location.href);['coorg_invite','invite','email'].forEach(k=>u.searchParams.delete(k));
-       history.replaceState({},'',u.pathname+u.search);location.reload();return;
+       activateWorkspace(data.workspace_id);return;
      }
      await new Promise(r=>setTimeout(r,1200));
    }

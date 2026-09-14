@@ -99,7 +99,7 @@ function decorate(view){
  group(card('myPlayerInvites'),'registrations',31);
  group(E('swePlayerCommercial'),'home mine',70);
  // Keep native invitation nodes and handlers; restore their original location outside player view.
- const inv=E('inviteBox');if(inv){if(!inviteAnchor){inviteAnchor=document.createComment('player-invite-home');inv.before(inviteAnchor)}if(inv.parentNode!==view)view.append(inv);group(inv,'home registrations',60);let refresh=E('swePlayerInviteRefresh');if(!refresh){refresh=document.createElement('button');refresh.id='swePlayerInviteRefresh';refresh.type='button';refresh.textContent='Actualiser';refresh.onclick=async()=>{refresh.disabled=true;try{if(typeof loadInvites==='function')await loadInvites()}finally{refresh.disabled=false}};inv.querySelector('.sectiontitle')?.after(refresh)}}
+ const inv=E('inviteBox');if(inv){if(!inviteAnchor){inviteAnchor=document.createComment('player-invite-home');inv.before(inviteAnchor)}if(inv.parentNode!==view)view.append(inv);group(inv,'home registrations',-10);let refresh=E('swePlayerInviteRefresh');if(!refresh){refresh=document.createElement('button');refresh.id='swePlayerInviteRefresh';refresh.type='button';refresh.textContent='Actualiser';refresh.onclick=async()=>{refresh.disabled=true;try{if(typeof loadInvites==='function')await loadInvites()}finally{refresh.disabled=false}};inv.querySelector('.sectiontitle')?.after(refresh)}}
  const originalCta=shell(E('playerOrganizerCta'));if(originalCta)group(originalCta,'profile',55);
  const summary=E('swePlayerCommunityRegistrations');
  if(regs&&!summary){const n=node('div','swePlayerCommunityRegistrations');regs.append(n)}

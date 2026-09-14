@@ -67,6 +67,7 @@ html.swe-player-home-active #myPlayerOpportunities .primary{background:linear-gr
 #swePlayerCommercial p{font-size:13px;color:#d7e4f6;margin:0}
 html.swe-player-home-active #inviteBox{border:1px solid #d5e5fb!important}
 html.swe-player-home-active #inviteBox button,html.swe-player-home-active #inviteBox summary{position:relative;z-index:2;pointer-events:auto!important}
+html.swe-player-home-active #inviteBox .primary,html.swe-player-home-active #inviteBox .swe-invite-action{background:linear-gradient(120deg,#16834f,#20a566)!important;color:#fff!important;border-color:#16834f!important}
 #swePlayerInviteRefresh{float:right;margin-top:-38px!important;min-height:34px!important;padding:7px 10px!important;background:#eef5ff!important;color:#155cc3!important;border-color:#d0e1fb!important;font-size:11px!important}
 html.swe-player-home-active #swePlayerHeader button:focus-visible,html.swe-player-home-active #view-myplayer summary:focus-visible{outline:3px solid #327aff;outline-offset:2px}
 html.swe-organizer-setup-active #view-myplayer,html.swe-organizer-setup-active #swePlayerHeader{display:none!important}

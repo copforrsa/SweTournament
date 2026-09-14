@@ -25,6 +25,11 @@ test('a late rewrite with loading placeholders is repaired without manual refres
  list.innerHTML='<div class="swe-selfpay-invite" data-selfpay-invite="'+id+'">Chargement de ton invitation co-gestionnaire…</div><div class="swe-selfpay-invite" data-selfpay-invite="'+id+'">Chargement de ton invitation co-gestionnaire…</div>';
  await new Promise(r=>setTimeout(r,100));assert.equal(list.querySelectorAll('[data-selfpay-invite]').length,1);assert.equal(list.querySelectorAll('summary').length,1);assert.doesNotMatch(list.textContent,/Chargement de ton invitation/);h.dom.window.close();
 });
+test('a started pending payment is reconciled once without manual refresh',async()=>{
+ const h=harness([{id,workspace_name:'Tournoi du dimanche',payment_status:'pending',preferred_billing_period:'year'}]);await tick();
+ assert.equal(h.calls.length,1);assert.equal(h.calls[0].name,'stripe-reconcile-invite-coorganizer');assert.equal(h.calls[0].args.body.invite_id,id);
+ h.finish({data:{activated:false,status:'pending'}});await tick();h.w.document.dispatchEvent(new h.w.Event('swe:rendered'));await tick();assert.equal(h.calls.length,1);h.dom.window.close();
+});
 test('checkout prevents duplicates and retains request ID after failure, with a readable error',async()=>{
  const h=harness([{id,workspace_name:'Sunday',payment_status:'pending'}]);await tick();const button=h.w.document.querySelector('[data-selfpay-period="month"]');
  button.click();button.click();assert.equal(h.calls.length,1);assert.ok(button.disabled);

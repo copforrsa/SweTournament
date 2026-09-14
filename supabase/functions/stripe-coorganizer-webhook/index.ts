@@ -11,11 +11,20 @@ Deno.serve(async(req)=>{
 
   const admin=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
   const {error:ledgerErr}=await admin.from('stripe_webhook_events').insert({stripe_event_id:event.id,event_type:event.type,processing_status:'processing'});
-  if(ledgerErr){if((ledgerErr as any).code==='23505')return new Response('ok',{status:200});console.error('Webhook ledger error',ledgerErr);return new Response('Server Error',{status:500});}
+  if(ledgerErr){
+    if((ledgerErr as any).code!=='23505'){console.error('Webhook ledger error',ledgerErr);return new Response('Server Error',{status:500});}
+    const {data:previous,error:readErr}=await admin.from('stripe_webhook_events').select('processing_status,received_at').eq('stripe_event_id',event.id).maybeSingle();
+    if(readErr){console.error('Webhook ledger read error',readErr);return new Response('Server Error',{status:500});}
+    if(previous?.processing_status==='processed'||previous?.processing_status==='ignored')return new Response('ok',{status:200});
+    const age=Date.now()-new Date(previous?.received_at||0).getTime();
+    if(previous?.processing_status==='processing'&&age<120000)return new Response('Still processing',{status:500});
+    const {error:resumeErr}=await admin.from('stripe_webhook_events').update({processing_status:'processing',processed_at:null,last_error:null}).eq('stripe_event_id',event.id);
+    if(resumeErr){console.error('Webhook ledger resume error',resumeErr);return new Response('Server Error',{status:500});}
+  }
 
   try{
     let handled=false;
-    if(event.type==='checkout.session.completed'){
+    if(event.type==='checkout.session.completed'||event.type==='checkout.session.async_payment_succeeded'){
       const s=event.data.object as Stripe.Checkout.Session;
       if((s.metadata?.type==='swe_coorganizers'||s.metadata?.type==='swe_coorganizer_invitee')&&s.payment_status==='paid'){
         const subscriptionId=typeof s.subscription==='string'?s.subscription:s.subscription?.id;
