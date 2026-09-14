@@ -7,6 +7,7 @@ const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let busy=false,paintBusy=false,paintQueued=false;
 const checkoutRequests=new Map();
 let returnBusy=false;
+const startupTimers=[];
 
 function style(){
  if(q('#sweCoorgSelfPay4308Style'))return;
@@ -140,8 +141,10 @@ async function handleReturn(){
 }
 window.SWECoorganizerInvites={refresh:()=>{renderSelfPaidInvites();handleReturn()}};
 function paint(){style();paintPriceWording();installPayerChoice();renderSelfPaidInvites();}
-function boot(){paint();setTimeout(paint,400);setTimeout(paint,1200);handleReturn();}
+function scheduleStartup(){startupTimers.splice(0).forEach(clearTimeout);[0,300,900,1800,3500,7000].forEach(delay=>startupTimers.push(setTimeout(paint,delay)))}
+function toggleInvite(e){const summary=e.target.closest?.('.swe-selfpay-invite summary');if(!summary)return;e.preventDefault();e.stopPropagation();const details=summary.closest('details');if(!details)return;details.open=!details.open;summary.setAttribute('aria-expanded',String(details.open))}
+function boot(){scheduleStartup();handleReturn();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-document.addEventListener('click',createSelfPaidInvite,true);document.addEventListener('click',startInviteCheckout);document.addEventListener('click',e=>{if(e.target.closest?.('[data-selfpay-retry]'))renderSelfPaidInvites()});
-document.addEventListener('swe:rendered',()=>setTimeout(paint,80));document.addEventListener('swe:invites-loaded',()=>setTimeout(renderSelfPaidInvites,0));window.addEventListener('pageshow',()=>setTimeout(paint,120));
+document.addEventListener('click',toggleInvite,true);document.addEventListener('click',createSelfPaidInvite,true);document.addEventListener('click',startInviteCheckout);document.addEventListener('click',e=>{if(e.target.closest?.('[data-selfpay-retry]'))renderSelfPaidInvites()});
+document.addEventListener('swe:rendered',()=>setTimeout(paint,80));document.addEventListener('swe:invites-loaded',()=>setTimeout(renderSelfPaidInvites,0));document.addEventListener('swe:player-ui-ready',()=>setTimeout(renderSelfPaidInvites,0));document.addEventListener('swe:page-view',()=>setTimeout(renderSelfPaidInvites,80));window.addEventListener('pageshow',scheduleStartup);
 })();

@@ -13,7 +13,12 @@ function harness(rows=[]){
 test('player without invitation gets no subscription; self-paid and free invitations coexist',async()=>{
  const h=harness();await tick();assert.equal(h.w.document.querySelectorAll('[data-selfpay-period]').length,0);h.dom.window.close();
  const b=harness([{id,workspace_name:'Sunday <script>danger</script>',payment_status:'pending'}]);await tick();
- assert.ok(b.w.document.getElementById('free-invite'));assert.equal(b.w.document.querySelectorAll('[data-selfpay-period]').length,2);assert.equal(b.w.document.querySelector('details').open,false);assert.equal(b.w.document.querySelector('script'),null);assert.match(b.w.document.body.textContent,/profil joueur reste gratuit/);b.dom.window.close();
+ assert.ok(b.w.document.getElementById('free-invite'));assert.equal(b.w.document.querySelectorAll('[data-selfpay-period]').length,2);const details=b.w.document.querySelector('details'),summary=details.querySelector('summary');assert.equal(details.open,false);summary.click();assert.equal(details.open,true);summary.click();assert.equal(details.open,false);assert.equal(b.w.document.querySelector('script'),null);assert.match(b.w.document.body.textContent,/profil joueur reste gratuit/);b.dom.window.close();
+});
+test('a player event reloads invitations that arrived after module startup',async()=>{
+ const dom=new JSDOM('<div id="inviteBox" class="hidden"><h2>Invitation reçue</h2><div id="inviteList"></div></div>',{url:'https://app.swetournament.fr/',runScripts:'outside-only'}),w=dom.window;
+ w.S={session:null};w.toast=()=>{};w.isAdmin=()=>false;w.sb={rpc:async()=>({data:[{id,workspace_name:'Groupe tardif',payment_status:'pending'}]})};w.eval(source);await tick();assert.equal(w.document.querySelector('[data-selfpay-invite]'),null);
+ w.S.session={user:{id,email:'invitee@example.invalid'}};w.document.dispatchEvent(new w.Event('swe:player-ui-ready'));await tick();assert.match(w.document.body.textContent,/Groupe tardif/);dom.window.close();
 });
 test('checkout prevents duplicates and retains request ID after failure, with a readable error',async()=>{
  const h=harness([{id,workspace_name:'Sunday',payment_status:'pending'}]);await tick();const button=h.w.document.querySelector('[data-selfpay-period="month"]');
