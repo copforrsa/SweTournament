@@ -30,6 +30,8 @@ async function boot(){
  await load('/player-profile-compact.js?v=4399-player-r1','player-profile-compact');
  await load('/player-home.js?v=4400','player-home-v4400');
  await load('/coorganizer-insights-v4400.js?v=4401','coorganizer-insights-v4401');
+ await load('/coorganizer-experience-v4402.js?v=4402','coorganizer-experience-v4402');
+ await load('/football-avatar-picker-v4402.js?v=4402','football-avatar-picker-v4402');
  await load('/superadmin-rating-correction-v4400.js?v=4400','superadmin-rating-correction-v4400');
  await load('/navigation-ranking-r9.js?v=4399-player-r11','navigation-ranking-r11');
  applyBuild();setTimeout(applyBuild,250);setTimeout(applyBuild,1200);
