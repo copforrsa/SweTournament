@@ -17,7 +17,7 @@ test('three signature football avatars are available to players and super admins
     assert.ok(fs.statSync(path.join(root,'assets/avatars-v4405',file)).size>10000);
   }
   assert.match(read('football-avatar-picker-v4404.js'),/Ballon Inferno/);
-  assert.match(read('forssadmin/admin-player-identity-v4321.js'),/super_admin_set_player_avatar_v1/);
+  assert.match(read('forssadmin/admin-player-identity-v4321.js'),/super_admin_set_player_photo_v2/);
   assert.match(read('forssadmin/admin-player-identity-v4321.js'),/getElementById\('playersBody'\)/);
   assert.doesNotMatch(read('forssadmin/admin-player-identity-v4321.js'),/querySelector\('#content table'\)/);
 });
@@ -38,8 +38,9 @@ test('premium visuals use the selected tournament data',()=>{
 });
 
 test('super admin photo functions enforce platform authorization',()=>{
-  const sql=read('supabase/migrations/20260915104500_super_admin_player_photos_v4405.sql');
+  const sql=read('supabase/migrations/20260915133000_super_admin_all_player_photos_v4407.sql');
   assert.match(sql,/private\.is_platform_super_admin\(\)/);
-  assert.match(sql,/revoke all on function public\.super_admin_set_player_avatar_v1/);
+  assert.match(sql,/revoke all on function public\.super_admin_set_player_photo_v2/);
+  assert.match(sql,/add column if not exists avatar_url/);
   assert.match(sql,/to authenticated/);
 });
