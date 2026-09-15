@@ -60,11 +60,11 @@ test('modify photo opens the premium gallery even when an avatar already exists'
 });
 
 test('co-organizer profile has no creation warning and linked groups are deduplicated',()=>{
-  const guard=read('profile-coorg-photo-guard-v4354.js'),app=read('app.js');
+  const guard=read('profile-coorg-photo-guard-v4354.js'),fix=read('player-profile-fixes-v4404.js');
   assert.doesNotMatch(guard,/Création de SWÉ indisponible en mode co-gestionnaire/);
   assert.match(guard,/stop\?\.remove\(\)/);
-  assert.match(app,/seenGroups\.has\(key\)/);
-  assert.match(app,/otherGroups=groups\.filter/);
+  assert.match(fix,/seen\.has\(k\)/);
+  assert.match(fix,/row\.remove\(\)/);
 });
 
 test('enhancement layer renders rights and the latest pending rating without replacing navigation',async()=>{
