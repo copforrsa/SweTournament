@@ -30,7 +30,7 @@ window.addEventListener('error', (e) => {
   if(t){t.textContent='Erreur de chargement de l’application. Recharge la page.';t.style.display='block';}
 });
 
-const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
+const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
 
 let safeSyncTimer=null;
 let safeSyncBusy=false;
@@ -290,6 +290,17 @@ const shortCodeFromUrl=(urlParams.get('s')||'').trim().toUpperCase();
 const paymentShortCodeFromUrl=(urlParams.get('pay')||'').trim().toUpperCase();
 const inviteIdFromUrl=urlParams.get('invite');
 const inviteEmailFromUrl=(urlParams.get('email')||'').trim().toLowerCase();
+const coolerTournamentFromUrl=(urlParams.get('joinSwe')||'').trim();
+const coolerOwnerFromUrl=(urlParams.get('coolerOwner')||'').trim();
+const coolerActionFromUrl=(urlParams.get('coolerAction')||'').trim();
+const coolerReturnFromUrl=(()=>{
+  const raw=(urlParams.get('coolerReturn')||'').trim();if(!raw)return '';
+  try{const u=new URL(raw,location.origin);return u.origin===location.origin&&u.searchParams.has('public')&&u.searchParams.has('tournament')?u.toString():'';}catch(_e){return '';}
+})();
+function coolerContinuationUrl(action){
+  const q=new URLSearchParams({start:'player',joinSwe:coolerTournamentFromUrl||'',coolerOwner:coolerOwnerFromUrl||'',coolerReturn:coolerReturnFromUrl||'',coolerAction:action||coolerActionFromUrl||'login'});
+  return APP_URL+'?'+q.toString();
+}
 function isAdmin(){return S.workspace?.role==='admin'}
 function isCoorg(){return S.workspace?.role==='coorganizer'}
 function hasTemporaryAdmin(){
@@ -417,6 +428,17 @@ async function authState(){
   try{const cfg=await sb.rpc('get_platform_public_settings');if(!cfg.error&&cfg.data)S.platformSettings={...S.platformSettings,...cfg.data};renderPlatformFooter();}catch(_e){}
   const consentEnabled=!!S.platformSettings.consent_gate_enabled;
   $('#signupConsentRow')?.classList.toggle('hidden',!consentEnabled);
+  const coolerCard=$('#coolerAccountCard');
+  if(coolerCard){
+    const active=!!(coolerTournamentFromUrl&&coolerReturnFromUrl);
+    coolerCard.classList.toggle('hidden',!active);
+    if(active){
+      $('#coolerAccountTitle').textContent=(coolerOwnerFromUrl||'Tu')+', configure ta glacière';
+      $('#coolerAccountText').textContent='Crée gratuitement ton compte joueur ou connecte-toi. Ton profil sera rattaché de façon sécurisée à cette mission. Aucun abonnement organisateur n’est nécessaire.';
+      $('#signup')?.classList.toggle('primary',coolerActionFromUrl==='signup');
+      $('#login')?.classList.toggle('primary',coolerActionFromUrl!=='signup');
+    }
+  }
   if(paymentShortCodeFromUrl){
     try{
       const {data,error}=await sb.rpc('resolve_payment_desk_short_link',{p_code:paymentShortCodeFromUrl});
@@ -463,6 +485,17 @@ async function authState(){
   }
   const {data}=await sb.auth.getSession();
   S.session=data.session;
+  if(S.session&&coolerTournamentFromUrl&&coolerReturnFromUrl){
+    try{
+      await sb.rpc('ensure_my_global_player_profile',{p_display_name:null});
+      const claim=await sb.rpc('request_my_third_half_owner_link_v1',{p_tournament_id:coolerTournamentFromUrl});
+      const target=new URL(coolerReturnFromUrl);
+      if(claim.error)target.searchParams.set('coolerLink','error');
+      else if(claim.data?.status==='pending')target.searchParams.set('coolerLink','pending');
+      else target.searchParams.delete('coolerLink');
+      location.replace(target.toString());return;
+    }catch(_e){const target=new URL(coolerReturnFromUrl);target.searchParams.set('coolerLink','error');location.replace(target.toString());return;}
+  }
   if(S.session?.user?.id)window.SWEJournalSession?.(sb,S.session.user.id);
   const oauthProvider=new URLSearchParams(location.search).get('provider');
   if(!S.session&&(oauthProvider==='google'||oauthProvider==='apple')){
@@ -509,7 +542,7 @@ $('#signup').onclick=async()=>{
   const email=$('#email').value.trim().toLowerCase();
   if(S.platformSettings.consent_gate_enabled&&!$('#signupConsent')?.checked)return toast('Tu dois accepter les conditions SWÉ Tournament pour créer ton compte.');
   if(inviteEmailFromUrl&&email!==inviteEmailFromUrl)return toast('Utilise l’adresse e-mail indiquée dans l’invitation : '+inviteEmailFromUrl);
-  const redirect=inviteIdFromUrl?APP_URL+'?invite='+encodeURIComponent(inviteIdFromUrl)+'&email='+encodeURIComponent(email):APP_URL;
+  const redirect=inviteIdFromUrl?APP_URL+'?invite='+encodeURIComponent(inviteIdFromUrl)+'&email='+encodeURIComponent(email):(coolerReturnFromUrl?coolerContinuationUrl('login'):APP_URL);
   const {data,error}=await sb.auth.signUp({email,password:$('#password').value,options:{emailRedirectTo:redirect,data:S.platformSettings.consent_gate_enabled?{swe_consent_accepted:true,swe_terms_version:'2026-09-05-beta',swe_privacy_version:'2026-09-05-beta'}:{}}});
   if(error)return toast(friendlyAuthError(error));
   toast(data.session?'Compte créé. Ton ID SWÉ est rattaché à ton email.':'Compte créé : vérifie ton email puis reconnecte-toi avec la même adresse. Ton ID SWÉ sera retrouvé automatiquement.');
@@ -517,7 +550,7 @@ $('#signup').onclick=async()=>{
 $('#authGoogle').onclick=()=>startSocialAuth('google');
 $('#authApple').onclick=()=>startSocialAuth('apple');
 async function startSocialAuth(provider){
-  const redirectTo=APP_URL+'?oauth=done';
+  const redirectTo=coolerReturnFromUrl?coolerContinuationUrl('login'):APP_URL+'?oauth=done';
   const {error}=await sb.auth.signInWithOAuth({provider,options:{redirectTo}});
   if(error)toast('Connexion '+(provider==='google'?'Google':'Apple')+' indisponible pour le moment : '+friendlyAuthError(error));
 }
@@ -1341,12 +1374,13 @@ async function loadAll(){
   const commercial=await sb.rpc('get_workspace_commercial_access',{p_workspace_id:w});
   if(!commercial.error){const c=Array.isArray(commercial.data)?commercial.data[0]:commercial.data;if(c)S.commercialAccess={...S.commercialAccess,...c};}
   if(S.commercialAccess.special_access_enabled){S.workspaceFeatures={...S.workspaceFeatures,tournaments_enabled:true,league_enabled:true,rankings_enabled:true,third_half_enabled:true,player_ratings_enabled:true,top_player_enabled:true,match_ratings_enabled:true,team_review_enabled:true};}
-  S.billingStatus=null;S.organizerSettings=null;S.playerRequests=[];
+  S.billingStatus=null;S.organizerSettings=null;S.playerRequests=[];S.identityLinkRequests=[];
   if(isAdmin()){
     r=await sb.rpc('get_workspace_billing_status',{p_workspace_id:w});
     if(!r.error){const b=Array.isArray(r.data)?r.data[0]:r.data;S.billingStatus=b||null;}
     r=await sb.rpc('get_my_organizer_settings',{p_workspace_id:w});if(!r.error)S.organizerSettings=r.data||null;
     r=await sb.rpc('list_workspace_player_requests',{p_workspace_id:w});if(!r.error)S.playerRequests=Array.isArray(r.data)?r.data:[];
+    r=await sb.rpc('admin_get_identity_link_requests',{p_workspace_id:w});if(!r.error)S.identityLinkRequests=Array.isArray(r.data)?r.data:[];
   }
   S.myRatings=[];
   if(isAdmin()){
@@ -1967,10 +2001,25 @@ function renderHome(){
     if(isAdmin()) quotaBox.innerHTML='<div class="muted" style="font-size:12px">🤝 Capacité actuelle : <b>'+activeCoorg+' / '+allowedCoorg+'</b>. Pour ajouter des accès, utilise la section <b>Mon abonnement & options SWÉ</b>.</div>';
   }
   renderHomeCoorgVotes();
+  const identityCard=$('#homeIdentityRequestsCard'),identityBox=$('#homeIdentityRequests');
+  if(identityCard&&identityBox){
+    const rows=isAdmin()?(S.identityLinkRequests||[]):[];
+    identityCard.classList.toggle('hidden',!rows.length);
+    identityBox.innerHTML=rows.map(r=>'<div class="player identity-link-request"><div><b>'+esc(r.player_name)+'</b><div class="muted">Compte demandé : '+esc(r.display_name)+' • '+esc(r.public_player_id)+'</div></div><div class="row"><button class="primary" data-identity-approve="'+esc(r.request_id)+'">✓ Confirmer</button><button data-identity-reject="'+esc(r.request_id)+'">Refuser</button></div></div>').join('');
+  }
 }
 
 document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
 document.addEventListener('click',async e=>{
+  const identityDecision=e.target?.closest?.('[data-identity-approve],[data-identity-reject]');
+  if(identityDecision){
+    if(!isAdmin())return toast('Réservé à l’administrateur.');
+    const id=identityDecision.dataset.identityApprove||identityDecision.dataset.identityReject;
+    const approve=!!identityDecision.dataset.identityApprove;
+    if(!confirm(approve?'Confirmer que ce compte appartient bien à ce joueur ?':'Refuser ce rattachement ?'))return;
+    identityDecision.disabled=true;const {error}=await sb.rpc('admin_decide_identity_link_request',{p_request_id:id,p_approve:approve,p_note:approve?'Validation mission Glacière':'Rattachement refusé par l’administrateur'});identityDecision.disabled=false;
+    if(error)return toast(error.message);await loadAll();renderHome();toast(approve?'Profil rattaché ✅':'Demande refusée.');return;
+  }
   if(e.target?.id==='homeRequestMoreCoorg'){
     const n=Number($('#homeRequestedCoorgLimit')?.value||0);
     const current=Number(S.workspaceFeatures.max_coorganizers||0);
@@ -5419,7 +5468,12 @@ async function loadPublicPage(token,bootState){
           '<div class="third-half-owner-section"><b>2. Qui apporte quoi ?</b><div class="muted">Les trois missions sont pour toi par défaut. Tu peux en confier une à un autre joueur déjà inscrit.</div><div class="third-half-delegation-grid"><label>🧊 Glacière<select id="publicCoolerTaskCooler">'+playerOptions(assigned('cooler'))+'</select></label><label>❄️ Glaçons<select id="publicCoolerTaskIce">'+playerOptions(assigned('ice'))+'</select></label><label>🍺 12 bières minimum<select id="publicCoolerTaskBeers">'+playerOptions(assigned('beers'))+'</select></label></div><button id="publicSaveCoolerPlan" class="third-half-plan-button" type="button">Enregistrer ma participation et les missions</button></div>'+
           '<div class="third-half-owner-section third-half-payment-config"><b>3. Ton lien pour les participations du groupe</b><div class="muted">Le lien est personnel et l’argent arrive directement sur ton compte. Le montant demandé à chaque membre reste plafonné à 5 €.</div><div class="grid g2"><label><span class="muted">Solution</span><select id="publicCoolerProvider"><option value="">Choisir…</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option '+(state.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Montant demandé</span><select id="publicCoolerAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(amount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label></div><label><span class="muted">Ton lien HTTPS</span><input id="publicCoolerLink" type="url" maxlength="500" placeholder="https://..." value="'+esc(state.payment_link||'')+'"></label><button id="publicSaveCoolerLink" class="primary" type="button">'+(state.payment_link_ready?'Mettre à jour mon lien':'Activer mon lien pour les inscrits')+'</button></div></div>';
       }else if(owner&&!state.can_manage){
-        action='<div class="third-half-owner-locked"><b>'+esc(ownerName)+', tu es responsable de la glacière.</b><p>Connecte-toi avec le compte SWÉ lié à ton profil pour indiquer ta participation, répartir les missions et ajouter ton lien de paiement.</p><a href="'+esc(APP_URL+'?start=player&joinSwe='+encodeURIComponent(regTour.id))+'">Se connecter et configurer la glacière →</a></div>'+logistics;
+        const back=new URL(location.href);back.searchParams.delete('coolerLink');
+        const authBase={start:'player',joinSwe:String(regTour.id),coolerOwner:ownerName,coolerReturn:back.toString()};
+        const signup=new URLSearchParams({...authBase,coolerAction:'signup'}),login=new URLSearchParams({...authBase,coolerAction:'login'});
+        const linkState=new URLSearchParams(location.search).get('coolerLink');
+        const lockedMessage=linkState==='pending'?'<div class="third-half-link-pending"><b>⏳ Rattachement en attente</b><span>L’organisateur doit confirmer que ce profil t’appartient. Dès validation, recharge cette page pour configurer la glacière.</span></div>':linkState==='error'?'<div class="third-half-link-pending error"><b>Rattachement à vérifier</b><span>Connecte-toi puis demande à l’organisateur de confirmer ton profil joueur.</span></div>':'';
+        action='<div class="third-half-owner-locked"><b>'+esc(ownerName)+', tu es responsable de la glacière.</b><p>Crée gratuitement ton compte joueur ou connecte-toi pour indiquer ta participation, répartir les missions et ajouter ton lien de paiement. Aucun abonnement organisateur n’est nécessaire.</p>'+lockedMessage+'<div class="third-half-account-actions"><a href="'+esc(APP_URL+'?'+signup.toString())+'">Créer mon compte gratuitement →</a><a class="secondary" href="'+esc(APP_URL+'?'+login.toString())+'">J’ai déjà un compte</a></div><small>Tu ne peux pas assurer cette mission ? Préviens l’organisateur afin qu’il désigne un autre inscrit.</small></div>'+logistics;
       }else if(state.payment_link_ready&&state.payment_link){
         action=logistics+'<a class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
       }else{

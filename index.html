@@ -16,7 +16,7 @@
   <title>SWÉ TOURNAMENT 5/5 • V43.99</title>
 <link rel="icon" type="image/png" href="./favicon.png?v=4377">
 <link rel="apple-touch-icon" href="./icon-192.png?v=4377">
-  <link rel="stylesheet" href="./styles.css?v=4411-glaciere">
+  <link rel="stylesheet" href="./styles.css?v=4412-glaciere-compte">
   <link rel="stylesheet" href="./home-commerce.css?v=4378">
   <link rel="stylesheet" href="./player-rating-ui.css?v=4385">
   <link rel="stylesheet" href="./registration-presentation.css?v=4386-substitutes">
@@ -50,6 +50,14 @@
           <div>3. Sinon, crée ton compte avec cette même adresse e-mail.</div>
           <div>4. Une fois connecté, clique sur <b>Accepter l’invitation</b>.</div>
         </div>
+      </div>
+    </div>
+    <div id="coolerAccountCard" class="card cooler-account-card hidden">
+      <div class="cooler-account-icon">🧊</div>
+      <div>
+        <div class="sa-eyebrow">MISSION GLACIÈRE</div>
+        <h2 id="coolerAccountTitle" class="sectiontitle">Configure ta 3e mi-temps</h2>
+        <p id="coolerAccountText">Crée gratuitement ton compte joueur ou connecte-toi. Aucun abonnement organisateur n’est nécessaire.</p>
       </div>
     </div>
     <div id="loginCard" class="card auth-login-card">
@@ -271,6 +279,11 @@
         <h2 class="sectiontitle">📊 Vue d’ensemble</h2>
         <div id="homeWorkspaceStats" class="grid g2" style="margin-top:12px"></div>
         <div id="homeCoorgQuotaRequest" style="margin-top:12px"></div>
+      </div>
+      <div id="homeIdentityRequestsCard" class="card hidden">
+        <h2 class="sectiontitle">🔐 Rattachements de profils à valider</h2>
+        <p class="muted">Ces joueurs ont créé leur compte depuis une mission Glacière. Vérifie leur identité avant d’autoriser la configuration du lien de paiement.</p>
+        <div id="homeIdentityRequests" style="margin-top:12px"></div>
       </div>
       <div class="card" id="homeEcosystemCard" style="border:2px solid #d9eadf;background:linear-gradient(180deg,#fbfffc 0%,#f7fbf8 100%)">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
@@ -900,7 +913,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
 <script src="./registration-presentation.js?v=4386-substitutes" defer></script>
 <script src="./offres.js?v=offres-r1" defer></script>
-<script src="./app.js?v=4411-glaciere-logistique" defer></script>
+<script src="./app.js?v=4412-glaciere-compte" defer></script>
 <script src="./mobile-coorg-rights-v4362.js?v=4379" data-swe-loader="mobile-coorg-rights-v4362" defer></script>
 <script src="./hotfix-v4227.js?v=4377" defer></script>
 <script src="./hotfix-v4228.js?v=4400" defer></script>
