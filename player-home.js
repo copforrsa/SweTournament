@@ -42,7 +42,7 @@ function ensure(view){
  mine.className='card';view.append(mine);
  E('swePlayerManage').onclick=()=>{creator();E('swe4351Mine')?.scrollIntoView({behavior:'smooth',block:'center'})};
  E('swePlayerMineRefresh').onclick=()=>loadCommunity(true);
- const commercial=node('section','swePlayerCommercial','<div><span class="swe-player-kicker">ESPACE ORGANISATEUR</span><h2>Envie d’organiser plus grand ?</h2><p>Tournois, groupes et modules avancés.</p></div><button type="button" id="swePlayerOffers">Découvrir les offres →</button>');
+ const commercial=node('section','swePlayerCommercial','<div><span class="swe-player-kicker">TON GROUPE EST DÉJÀ SUR WHATSAPP ?</span><h2>Garde la discussion. Confie l’organisation à SWÉ.</h2><p>Inscriptions, équipes, scores, classements et rappels réunis au même endroit — WhatsApp reste votre vestiaire.</p></div><button type="button" id="swePlayerOffers">Organiser mon groupe avec SWÉ →</button>');
  view.append(commercial);E('swePlayerOffers').onclick=openOffers;
  view.addEventListener('click',e=>{const b=e.target.closest('[data-player-panel]');if(!b||!view.contains(b))return;e.preventDefault();choose(b.dataset.playerPanel,true);closeAccount()});
  header.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAccount();E('swePlayerAccountToggle').focus()}});

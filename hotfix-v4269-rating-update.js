@@ -14,12 +14,7 @@ function install(){
     if(name!=='submit_player_skill_review')return original(name,args,opts);
     try{
       const current=(typeof S!=='undefined'&&Array.isArray(S.myRatings))?S.myRatings.find(r=>String(r.player_id)===String(args?.p_player_id)):null;
-      let reason=null,note=null;
-      if(current&&!sameReview(current,args)){
-        note=window.prompt('Pourquoi modifies-tu cette évaluation ?\nCe motif sera conservé dans l’historique de notation.','Ajustement après nouvelle observation');
-        if(note===null||!String(note).trim())return {data:null,error:{message:'La modification a été annulée : un motif est obligatoire.'}};
-        reason='manual_adjustment';
-      }
+      if(current)return {data:null,error:{message:'Cette évaluation est définitive. Seul le Super Admin peut la corriger.'}};
       return original('submit_player_skill_review_v2',{
         p_player_id:args.p_player_id,
         p_cardio:Number(args.p_cardio),
@@ -27,8 +22,8 @@ function install(){
         p_collectif:Number(args.p_collectif),
         p_frappe:Number(args.p_frappe),
         p_preferred_role:args.p_preferred_role,
-        p_change_reason:reason,
-        p_change_note:note,
+        p_change_reason:null,
+        p_change_note:null,
         p_tournament_id:null
       },opts);
     }catch(e){return {data:null,error:{message:e?.message||String(e)}}}
