@@ -1,789 +1,5742 @@
-YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éí×½¶ßÔèµ©hºÚn¶X§zÍXÛÛœİÈÜ™X]PÛY[HHÚ[™İËœİ\X˜\ÙNÂ˜ÛÛœİ›ÔİÜ™Q™]ÚJ[œ][š]^ßJOO™™]Ú
-[œ]Ë‹‹š[š]ØXÚN‰Û›Ë\İÜ™IßJNÂ˜ÛÛœİØXÜ™X]PÛY[
-	ÚÎ‹ËÙ˜œ\Ùİ›YÚ™[]ÜÛ‹œİ\X˜\ÙK˜ÛÉË	ÜØ—ÜX›\ÚX›WÒÛÒÌPÌQP‹XÕÒ’ØTWÙNYĞØYÜ	ËÂˆÛØ˜[Ù™]Ú››ÔİÜ™Q™]ÚKˆ]]Âˆ‹‹Š™]ÈT“ÙX\˜Ú\˜[\ÊØØ][Û‹œÙX\˜Ú
-Kš\Ê	İ\İİİ\›˜[Y[	ÊOŞÜİÜ˜YÙRÙ^N‰ÜİÙKY›ÜœÜØYZ[‹X]]]ŒIßNßJKˆ›İÕ\N‰ÜØÙIËˆ\œÚ\İÙ\ÜÚ[ÛYKˆ]]Ô™Yœ™\ÚÚÙ[YKˆ]XİÙ\ÜÚ[Û’[•\›YBˆBŸJNÂ‚‹ËÈHÙXİ\š]H›İ[™][Ûˆ™]™\ˆXZÈ™X\™\ˆ[šÜÈ›İYÚ™Y™\œ™\ˆ[™ÛX\ˆÙ[œÚ]]™B‹ËÈÚXÚÛİ]Ü^[Y[Y\ÚÈ\˜[Y]\œÈœ›ÛHœ›İÜÙ\ˆ\İÜH\ÈÛÛÛˆ\È^H\™HØ\\™Y‚˜ÛÛœİÑPÕT’UWÕ‘T”ÒSÓIÍKŒ	ÎÂ™[˜İ[ÛˆØ[š]^™TÙ[œÚ]]™U\›\˜[\Ê
-^Âˆ^ÂˆÛÛœİO[™]ÈT“
-ØØ][Û‹š™YŠNÂˆÛÛœİÙ[œÚ]]™OVÉØÛÛÜ™×ÜÙ\ÜÚ[Û—ÚY	×NÂˆ]Ú[™ÙYY˜[ÙNÂˆÙ[œÚ]]™K™›Ü‘XXÚ
-ÏOÚYŠKœÙX\˜Ú\˜[\Ëš\ÊÊJ^İKœÙX\˜Ú\˜[\Ë™[]JÊNØÚ[™ÙY]YNß_JNÂˆYŠÚ[™ÙY
-H\İÜKœ™\XÙTİ]JßK	ÉËKÔİš[™Ê
-JNÂˆXØ]Ú
-Ê^ßBŸBÚ[™İË˜Y]™[\İ[™\Š	ÜYÙ\ÚİÉË
+const { createClient } = window.supabase;
+const noStoreFetch=(input,init={})=>fetch(input,{...init,cache:'no-store'});
+const sb=createClient('https://fbppesfxkvledwjemwsn.supabase.co','sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp',{
+  global:{fetch:noStoreFetch},
+  auth:{
+    ...(new URLSearchParams(location.search).has('test_tournament')?{storageKey:'swe-forssadmin-auth-v1'}:{}),
+    flowType:'pkce',
+    persistSession:true,
+    autoRefreshToken:true,
+    detectSessionInUrl:true
+  }
+});
 
-OOœØ[š]^™TÙ[œÚ]]™U\›\˜[\Ê
-JNÂ‚Ú[™İË˜Y]™[\İ[™\Š	Ù\œ›Ü‰Ë
-JHOˆÂˆÛÛœİYØİ[Y[œ]Y\TÙ[XİÜŠ	ÈİØ\İ	ÊNÂˆYŠ
-^İ^ÛÛ[IÑ\œ™]\ˆHÚ\™Ù[Y[H8 &X\XØ][Û‹ˆ™XÚ\™ÙHHYÙK‰Îİœİ[K™\Ü^OIØ›ØÚÉÎßBŸJNÂ‚˜ÛÛœİÏ^ÜÙ\ÜÚ[Û›[YZ[”›Ùš[N›[\Ôİ\\YZ[™˜[ÙKİ\\•ÛÜšÜÜXÙ\Î–×KÛÜšÜÜXÙN›[Y[X™\œÎ–×KÛÛÜ™ÜÎ–×KÛÛÜ™ĞÛİ[ŒÛÜšÜÜXÙQ™X]\™\ÎÛX^ØÛÛÜ™Ø[š^™\œÎŒËX^ØÛÛÜ™Ø[š^™\œ×ØØ\ŒL˜[šÚ[™Ü×Ù[˜X›YYKXYİYWÙ[˜X›YYKİ\›˜[Y[×Ù[˜X›YYK\™Ú[—Ù[˜X›Y™˜[ÙK^Y\—Ü˜][™Ü×Ù[˜X›Y™˜[ÙKX^Ü^Y\œ×ØØ\ŒÍK^[Y[×Ù[˜X›YYKÜÜ^Y\—Ù[˜X›Y™˜[ÙKX]ÚÜ˜][™Ü×Ù[˜X›Y™˜[ÙKX[WÜ™]šY]×Ù[˜X›Y™˜[Ù_KÛÛ[Y\˜ÚX[XØÙ\ÜÎÜİXœØÜš\[Û—Ü[‰Ùœ™YIËÜXÚX[ØXØÙ\Ü×Ù[˜X›Y™˜[ÙK\Ü˜YWÜ™\]Y\İYØ]›[Kš[[™Ôİ]\Î›[ÛÛÜ™Ô\˜Ú\ÙPÛÛ™š\›Z[™Î™˜[ÙK^T\›Z\ÜÚ[ÛœÎØØ[—Ú[š]WØÛÛÜ™Ø[š^™\œÎ™˜[ÙKØ[—Ù[\—ÜØÛÜ™\Î™˜[ÙKØ[—ØYÛY[X™\œÎ™˜[ÙKØ[—Ù[]WÛY[X™\œÎ™˜[ÙKØ[—ØÜ™X]Wİİ\›˜[Y[Î™˜[ÙKØ[—İšY]×Ü^Y\œÎYKØ[—ÙÙ[™\˜]WİX[\Î™˜[ÙK[\Ü˜\WØYZ[—İ[[›[K^T˜][™ÜÎ–×K\İÜ™X]Y[š]N›[[š]\Î–×K^Y\œÎ–×KÛÛXİÎ–×KÚÚ[™]šY]ÜÎ–×KÚÚ[YÙÜ™YØ]\Î–×KX[PÛÙ\Î–×KÙX\ÛÛœÎ–×KXYİY\Î–×KXYİYT^Y\œÎ–×KXİ]™SXYİYN›[İ\›˜[Y[Î–×KXİ]™Uİ\›[^Y\œÎ–×KX[\Î–×KX[T^Y\œÎ–×KX]Ú\ÜÚYÛ›Y[Î–×KX]Ú\Î–×KÛØ[Î–×KX[P˜[[˜ÙTØÛÜ™\Î–×K˜[šÓ[ÙN‰ÜÙX\ÛÛ‰ËÚ[›™[›[ÛØ[X[TÙ[Xİ[ÛœÎßKÜÜĞÛÛ\^\Î–×KÜÜÔ]Ú\Î–×KX›XÓ[ÙN™˜[ÙKX›XÕÚÙ[›[İ\›˜[Y[Ü™X]SÜ[™˜[ÙKÙX\ÛÛYZ[“Ü[™˜[ÙKY][™Õİ\›˜[Y[Y›[X[PÛÛ\]][Û’Y›[\İšY]Î›[ÛÛÜ™Ô][İT™\]Y\İ›[İ\\ÛÛÜ™Ô][İT™\]Y\İÎ–×K^S[šÙY^Y\’Y›[^Y\‘\Ú›Ø\™›[^Y\‘\™XİÜN–×KÜ™Ø[š^™\”Ù][™ÜÎ›[^Y\”™\]Y\İÎ–×K]›Ü›TÙ][™ÜÎØÛÛœÙ[ÙØ]WÙ[˜X›Y™˜[Ù_K\™[‘[™Î–×KX[T™]šY]Ôİ]N›[Û˜›Ø\™[™Ôİ]\Î›[Y[X™\œÚ\Î–×KÜ™Ø[š^™\XØÙ\ÜÎ›[NÂ‚›]ØY™TŞ[˜Õ[Y\[[Â›]ØY™TŞ[˜Ğ\ŞOY˜[ÙNÂ›]\İ\Ù\’[\˜Xİ[Û]LÂ™[˜İ[ÛˆX\šÕ\Ù\’[\˜Xİ[ÛŠ
-^Û\İ\Ù\’[\˜Xİ[Û]Q]K››İÊ
-NßB–ÉÚ[œ]	Ë	ØÚ[™ÙIË	ÚÙ^YİÛ‰Ë	ÜÚ[\™İÛ‰Ë	İİXÚİ\	×K™›Ü‘XXÚ
-]O™Øİ[Y[˜Y]™[\İ[™\Š]OOÂˆYŠK\™Ù]Ë˜ÛÜÙ\İËŠ	ÈÛXZ[‰ÊJHX\šÕ\Ù\’[\˜Xİ[ÛŠ
-NÂŸKØØ\\™NYK\ÜÚ]™NY_JJNÂ™[˜İ[Ûˆ\Ù\’\ÑY][™Ê
-^ÂˆÛÛœİOYØİ[Y[˜Xİ]™Q[[Y[ÂˆYŠI‰˜K˜ÛÜÙ\İËŠ	ÈÛXZ[‰ÊI‰Š×ŠS”UVT‘P_ÑSPÕ
-IË\İ
-KYÓ˜[YJ_Kš\ĞÛÛ[Y]X›JJ\™]\›ˆYNÂˆ™]\›ˆ]K››İÊ
-K[\İ\Ù\’[\˜Xİ[Û]ÌÂŸB˜\Ş[˜È[˜İ[ÛˆØY™P\Ş[˜Ê
-^ÂˆËÈ™H˜[XZ\È™XÛÛœİZ\™H	Ú[\™˜XÙH[™[[™HØZ\ÚYH\œ˜Z[‹‚ˆYŠØY™TŞ[˜Ğ\ŞH\Ù\’\ÑY][™Ê
-HË™Y][™Õİ\›˜[Y[YËœX›XÓ[ÙHTËœÙ\ÜÚ[ÛˆTËÛÜšÜÜXÙHØİ[Y[š\ÚXš[]Tİ]OOOIÚY[‰ÈØİ[Y[œ]Y\TÙ[XİÜŠ	ÈİšY]Ë\\›Z\ÜÚ[ÛœË˜Xİ]™IÊJH™]\›ÂˆØY™TŞ[˜Ğ\ŞO]YNÂˆ^È]ØZ]ØY[
+// V41 security foundation: never leak bearer links through Referrer and clear sensitive
+// checkout/payment-desk parameters from browser history as soon as they are captured.
+const SECURITY_VERSION='41.00';
+function sanitizeSensitiveUrlParams(){
+  try{
+    const u=new URL(location.href);
+    const sensitive=['coorg_session_id'];
+    let changed=false;
+    sensitive.forEach(k=>{if(u.searchParams.has(k)){u.searchParams.delete(k);changed=true;}});
+    if(changed) history.replaceState({},'',u.toString());
+  }catch(_){}
+}
+window.addEventListener('pageshow',()=>sanitizeSensitiveUrlParams());
 
-NÈBˆØ]Ú
-J^ÈÛÛœÛÛKØ\›Š	ÜØY™P\Ş[˜ÉËJNÈBˆš[˜[^ÈØY™TŞ[˜Ğ\ŞOY˜[ÙNÈBŸB™[˜İ[Ûˆİ\ØY™P\Ş[˜Ê
-^ÂˆYŠØY™TŞ[˜Õ[Y\ŠHÛX\’[\˜[
-ØY™TŞ[˜Õ[Y\ŠNÂˆËÈ˜Yœ˜pë˜Ú\ÜÙ[Y[HğêXİ\š]0êH[Ú[œÈYÜ™\ÜÚYˆˆH[\È°êY[™\İHš[Üš]Z\™K‚ˆØY™TŞ[˜Õ[Y\\Ù][\˜[
-ØY™P\Ş[˜ËŒ
-NÂŸB™Øİ[Y[˜Y]™[\İ[™\Š	İš\ÚXš[]XÚ[™ÙIË
+window.addEventListener('error', (e) => {
+  const t=document.querySelector('#toast');
+  if(t){t.textContent='Erreur de chargement de lâ€™application. Recharge la page.';t.style.display='block';}
+});
 
-OOÂˆYŠØİ[Y[š\ÚXš[]Tİ]OOOIİš\ÚX›IÉ‰ˆ]\Ù\’\ÑY][™Ê
-JHÙ][Y[İ]
-ØY™P\Ş[˜Ë
-NÂŸJNÂÚ[™İË˜Y]™[\İ[™\Š	ÜYÙ\ÚİÉË
+const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
 
-OOÚYŠ]\Ù\’\ÑY][™Ê
-J\Ù][Y[İ]
-ØY™P\Ş[˜Ë
-_JNÂ‚˜ÛÛœİ	\ÏO™Øİ[Y[œ]Y\TÙ[XİÜŠÊNÂ˜ÛÛœİØ\İ]OØÛÛœİI
-	ÈİØ\İ	ÊNŞ^ÛÛ[]Şœİ[K™\Ü^OIØ›ØÚÉÎÜÙ][Y[İ]
+let safeSyncTimer=null;
+let safeSyncBusy=false;
+let lastUserInteractionAt=0;
+function markUserInteraction(){lastUserInteractionAt=Date.now();}
+['input','change','keydown','pointerdown','touchstart'].forEach(evt=>document.addEventListener(evt,e=>{
+  if(e.target?.closest?.('#main')) markUserInteraction();
+},{capture:true,passive:true}));
+function userIsEditing(){
+  const a=document.activeElement;
+  if(a&&a.closest?.('#main')&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable))return true;
+  return Date.now()-lastUserInteractionAt<30000;
+}
+async function safeAppSync(){
+  // Ne jamais reconstruire l'interface pendant une saisie terrain.
+  if(safeSyncBusy || userIsEditing() || S.editingTournamentId || S.publicMode || !S.session || !S.workspace || document.visibilityState==='hidden' || document.querySelector('#view-permissions.active')) return;
+  safeSyncBusy=true;
+  try{ await loadAll(); }
+  catch(e){ console.warn('safeAppSync',e); }
+  finally{ safeSyncBusy=false; }
+}
+function startSafeAppSync(){
+  if(safeSyncTimer) clearInterval(safeSyncTimer);
+  // RafraÃ®chissement de sÃ©curitÃ© moins agressif : le temps rÃ©el reste prioritaire.
+  safeSyncTimer=setInterval(safeAppSync,60000);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&!userIsEditing()) setTimeout(safeAppSync,800);
+});
+window.addEventListener('pageshow',()=>{if(!userIsEditing())setTimeout(safeAppSync,800)});
+
+const $=s=>document.querySelector(s);
+const toast=t=>{const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderPlatformFooter(){
+  const footer=$('#platformFooter');
+  if(!footer)return;
+  const cfg=S.platformSettings||{};
+  const enabled=cfg.footer_enabled!==false;
+  footer.classList.toggle('hidden',!enabled);
+  if(!enabled)return;
+
+  const company=$('#platformFooterCompany');
+  const text=$('#platformFooterText');
+  const links=$('#platformFooterLinks');
+  if(company)company.textContent=cfg.footer_company_name||'SWÃ‰ Tournament';
+  if(text)text.textContent=cfg.footer_legal_text||'';
+  if(links){
+    links.classList.add('platform-footer-links');
+    const items=[];
+    if(cfg.footer_contact_email)items.push('<a href=\"mailto:'+esc(cfg.footer_contact_email)+'\">Contact</a>');
+    if(cfg.footer_legal_url)items.push('<a href=\"'+esc(cfg.footer_legal_url)+'\" target=\"_blank\" rel=\"noopener noreferrer\">Mentions lÃ©gales</a>');
+    if(cfg.footer_privacy_url)items.push('<a href=\"'+esc(cfg.footer_privacy_url)+'\" target=\"_blank\" rel=\"noopener noreferrer\">ConfidentialitÃ©</a>');
+    if(cfg.footer_terms_url)items.push('<a href=\"'+esc(cfg.footer_terms_url)+'\" target=\"_blank\" rel=\"noopener noreferrer\">CGU / CGV</a>');
+    links.innerHTML=items.join('');
+  }
+}
+const today=()=>new Date().toISOString().slice(0,10); $('#tourDate').value=today();
+function defaultRegistrationDeadlineLocal(dateStr){
+  if(!dateStr)return '';
+  const d=new Date(dateStr+'T12:00:00-04:00');
+  d.setDate(d.getDate()-1);
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day+'T17:00';
+}
+function registrationDeadlineIso(localValue){
+  if(!localValue)return null;
+  const d=new Date(localValue+':00-04:00');
+  return Number.isFinite(d.getTime())?d.toISOString():null;
+}
+function syncRegistrationDeadline(dateSelector,deadlineSelector){
+  const dateEl=$(dateSelector),deadlineEl=$(deadlineSelector);
+  if(!dateEl||!deadlineEl)return;
+  const apply=()=>{deadlineEl.value=defaultRegistrationDeadlineLocal(dateEl.value)};
+  dateEl.addEventListener('change',apply);
+  if(dateEl.value&&!deadlineEl.value)apply();
+}
+syncRegistrationDeadline('#tourDate','#tourRegistrationDeadline');
+syncRegistrationDeadline('#leagueSessionDate','#leagueSessionRegistrationDeadline');
+
+const DEFAULT_VENUE_META={
+  'mada football club':{city:'Ducos',type:'Outdoor',hours:'Lun 16h-23h ; Mar 15h-23h ; Mer 14h-23h ; Jeu-Ven 15h-23h ; Sam 14h-23h ; Dim 15h-20h'},
+  'arena martinique / arena play on':{city:'SchÅ“lcher',type:'Indoor',hours:'Environ 9h-22h30, 7j/7'}
+};
+function venueMeta(c){return DEFAULT_VENUE_META[String(c?.name||'').trim().toLowerCase()]||null}
+async function ensureDefaultSportsVenues(){
+  if(!S.isSuperAdmin)return;
+  // Les complexes sont dÃ©sormais administrÃ©s par le Super Admin.
+  // On ne crÃ©e les lieux de dÃ©monstration que sur une installation totalement vide,
+  // afin qu'un complexe supprimÃ© volontairement ne soit jamais recrÃ©Ã© au prochain chargement.
+  if((S.sportsComplexes||[]).length)return;
+  const wanted=[{name:'Mada football club',city:'Ducos',pitches:['Terrain 1','Terrain 2','Terrain 3']},{name:'Arena Martinique / Arena Play On',city:'SchÅ“lcher',pitches:['Terrain 1','Terrain 2','Terrain 3','Terrain 4']}];
+  let changed=false;
+  for(const v of wanted){let c=(S.sportsComplexes||[]).find(x=>String(x.name||'').trim().toLowerCase()===v.name.toLowerCase());if(!c){const created=await sb.rpc('super_admin_manage_sports_complex',{p_action:'create',p_name:v.name,p_city:v.city,p_active:true});if(created.error){console.warn('seed complex',v.name,created.error);continue}changed=true;const rr=await sb.rpc('get_sports_venues');if(!rr.error){S.sportsComplexes=Array.isArray(rr.data?.complexes)?rr.data.complexes:[];S.sportsPitches=Array.isArray(rr.data?.pitches)?rr.data.pitches:[];}c=(S.sportsComplexes||[]).find(x=>String(x.name||'').trim().toLowerCase()===v.name.toLowerCase());}if(!c)continue;const current=(S.sportsPitches||[]).filter(p=>String(p.complex_id)===String(c.id));for(const pitch of v.pitches){if(!current.some(p=>String(p.name||'').trim().toLowerCase()===pitch.toLowerCase())){const rr=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'create',p_complex_id:c.id,p_name:pitch,p_active:true});if(!rr.error)changed=true;}}}
+  if(changed){const rr=await sb.rpc('get_sports_venues');if(!rr.error){S.sportsComplexes=Array.isArray(rr.data?.complexes)?rr.data.complexes:[];S.sportsPitches=Array.isArray(rr.data?.pitches)?rr.data.pitches:[];renderVenueSelectors();renderSuperAdminVenues();}}
+}
+
+async function loadSportsVenues(autoSeed=true){
+  const {data,error}=await sb.rpc('get_sports_venues');
+  if(error){console.warn('sports venues',error);return}
+  S.sportsComplexes=Array.isArray(data?.complexes)?data.complexes:[];
+  S.sportsPitches=Array.isArray(data?.pitches)?data.pitches:[];
+  renderVenueSelectors();
+  if(S.isSuperAdmin)renderSuperAdminVenues();
+  if(autoSeed&&S.isSuperAdmin)await ensureDefaultSportsVenues();
+}
+function complexLabel(id){
+  const c=S.sportsComplexes.find(x=>x.id===id);return c?([c.name,c.city].filter(Boolean).join(' â€¢ ')):'Complexe';
+}
+function pitchName(id){return S.sportsPitches.find(x=>x.id===id)?.name||'Terrain'}
+function renderVenueSelectors(){
+  const activeComplexes=S.sportsComplexes.filter(x=>x.active!==false);
+  const options='<option value="">Choisir le complexe</option>'+activeComplexes.map(c=>'<option value="'+c.id+'">'+esc(complexLabel(c.id))+'</option>').join('');
+  if($('#tourComplex')){$('#tourComplex').innerHTML=options;renderTournamentPitchChoices();}
+  if($('#leagueSessionComplex')){$('#leagueSessionComplex').innerHTML=options;renderLeaguePitchSelect();}
+  renderMatchPitchSelect();
+}
+function renderTournamentPitchChoices(){
+  const box=$('#tourPitchChoices');if(!box)return;
+  const cid=$('#tourComplex')?.value||'';
+  const pitches=S.sportsPitches.filter(x=>x.active!==false&&x.complex_id===cid);
+  box.innerHTML=pitches.length
+    ? '<div class="muted" style="margin-bottom:6px">Terrains rÃ©servÃ©s (maximum 3)</div>'+pitches.map(p=>'<label class="player row" style="justify-content:flex-start;margin:5px 0"><input class="tourPitchCheck" type="checkbox" value="'+p.id+'" style="width:auto"><span><b>'+esc(p.name)+'</b></span></label>').join('')
+    : '<div class="muted">Choisis dâ€™abord un complexe disposant de terrains actifs.</div>';
+  box.querySelectorAll('.tourPitchCheck').forEach(ch=>ch.onchange=()=>{
+    const checked=[...box.querySelectorAll('.tourPitchCheck:checked')];
+    if(checked.length>3){ch.checked=false;toast('Maximum 3 terrains pour un tournoi.');}
+  });
+}
+function renderLeaguePitchSelect(){
+  const sel=$('#leagueSessionPitch');if(!sel)return;
+  const cid=$('#leagueSessionComplex')?.value||'';
+  const pitches=S.sportsPitches.filter(x=>x.active!==false&&x.complex_id===cid);
+  sel.innerHTML='<option value="">Choisir le terrain</option>'+pitches.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+}
+function renderMatchPitchSelect(){
+  const sel=$('#pitch');if(!sel)return;
+  const t=currentTour();
+  let pitches=[];
+  if(t?.reserved_pitch_ids?.length)pitches=S.sportsPitches.filter(p=>t.reserved_pitch_ids.includes(p.id));
+  if(!pitches.length)pitches=S.sportsPitches.filter(p=>p.active!==false);
+  sel.innerHTML='<option value="">Terrain</option>'+pitches.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+' â€¢ '+esc(complexLabel(p.complex_id))+'</option>').join('');
+}
+
+function hostFirstName(){
+  const u=S.session?.user;
+  if(isAdmin()&&S.adminProfile?.first_name){
+    return String(S.adminProfile.first_name).trim().split(/\s+/)[0];
+  }
+  const md=u?.user_metadata||{};
+  const raw=(md.first_name||md.given_name||md.name||md.full_name||'').trim();
+  if(raw)return raw.split(/\s+/)[0];
+  // Ne jamais fabriquer le prÃ©nom depuis l'adresse e-mail (ex. la.louison -> La).
+  // Si aucun prÃ©nom de profil n'est disponible, utiliser un accueil neutre.
+  return 'Ã  toi';
+}
+function renderHostWelcome(){
+  const title=$('#hostWelcomeTitle'),email=$('#hostWelcomeEmail'),rights=$('#coorgMyRights');
+  if(title)title.textContent='ğŸ‘‹ Bonjour '+hostFirstName()+' !';
+  if(email)email.textContent='ConnectÃ© avec : '+(S.session?.user?.email||'email indisponible');
+  if(!rights)return;
+  if(!isCoorg()){
+    rights.classList.add('hidden');
+    rights.innerHTML='';
+    return;
+  }
+  rights.classList.remove('hidden');
+  const defs=[
+    ['can_enter_scores','âš½ Saisir les scores pendant les matchs'],
+    ['can_generate_teams','ğŸ‘¥ GÃ©nÃ©rer les Ã©quipes'],
+    ['can_create_tournaments','ğŸ“… CrÃ©er des tournois'],
+    ['can_view_players','ğŸ‘¤ Voir les joueurs'],
+    ['can_add_members','â• Ajouter des membres'],
+    ['can_delete_members','ğŸ—‘ï¸ Supprimer des membres'],
+    ['can_invite_coorganizers','ğŸ”— Inviter des co-organisateurs']
+  ];
+  const granted=defs.filter(([key])=>!!S.myPermissions?.[key]);
+  const temp=hasTemporaryAdmin();
+  rights.innerHTML=
+    '<div class="player" style="background:#f8fbf9">'+
+      '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'+
+        '<div><b>ğŸ” Mes autorisations</b><div class="muted" style="margin-top:3px">Droits accordÃ©s par lâ€™administrateur</div></div>'+
+        '<span class="guest-badge">'+(temp?'Admin temporaire':'Co-gestionnaire')+'</span>'+
+      '</div>'+
+      '<div style="margin-top:10px">'+
+        (granted.length?granted.map(([,label])=>'<span class="guest-badge" style="margin:3px 5px 3px 0;background:#e7f6ec;color:#126b34">'+label+'</span>').join(''):'<span class="muted">Aucune autorisation particuliÃ¨re.</span>')+
+      '</div>'+
+      (S.myPermissions?.can_enter_scores?'<div class="muted" style="margin-top:9px">âœ… Tu peux saisir et modifier les scores pendant les matchs en cours.</div>':'')+
+    '</div>';
+}
+
+function setView(v){
+  const previousView=S.lastView;
+  if(v==='permissions'&&!isAdmin())v='home';
+  if(v==='players'&&isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_view_players)v='home';
+  if(v==='tournaments'&&!S.workspaceFeatures.tournaments_enabled)v='home';
+  if(v==='league'&&!S.workspaceFeatures.league_enabled)v='home';
+  if(v==='ranking'&&!S.workspaceFeatures.rankings_enabled)v='home';
+  if(v==='matches'&&isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_enter_scores)v='home';
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
+  const activeTab=document.querySelector('.tab.active');
+  if(activeTab&&window.matchMedia('(max-width:650px)').matches){
+    requestAnimationFrame(()=>activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}));
+  }
+  if(v==='teams'){
+    if(previousView!=='teams'&&!S.teamCompetitionId&&S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
+    renderTeams();
+    if(previousView!=='teams'&&S.teamCompetitionId&&(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams))){
+      const tournamentId=S.teamCompetitionId;
+      syncTournamentSubstitutes(tournamentId).then(async()=>{
+        if(String(S.activeTour)!==String(tournamentId))return;
+        await loadTournament();renderTeams();
+      }).catch(error=>console.warn('substitute synchronization',error));
+    }
+  }
+  if(v==='ranking')renderRanking();
+  S.lastView=v;
+  if(['home','myplayer','players','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
+}
+
+// Navigation attachÃ©e immÃ©diatement : elle reste fonctionnelle mÃªme si une
+// autre partie de l'initialisation rencontre une erreur.
+document.addEventListener('click',e=>{
+  const tab=e.target.closest('.tab');
+  if(tab && tab.dataset.view){
+    e.preventDefault();
+    if(tab.disabled || tab.classList.contains('disabled-tab'))return;
+    setView(tab.dataset.view); return;
+  }
+  const go=e.target.closest('[data-go]');
+  if(go && go.dataset.go){ e.preventDefault(); setView(go.dataset.go); }
+});
+let recoveryMode=/type=recovery/i.test(location.hash+location.search);
+const APP_URL=location.origin+location.pathname.substring(0,location.pathname.lastIndexOf('/')+1);
+const urlParams=new URLSearchParams(location.search);
+let publicTokenFromUrl=urlParams.get('public');
+const paymentDeskTokenFromUrl=(()=>{
+  const fromUrl=(urlParams.get('paydesk')||'').trim();
+  if(fromUrl){
+    try{sessionStorage.setItem('swe_paydesk_token',fromUrl);}catch(_){}
+    try{const u=new URL(location.href);u.searchParams.delete('paydesk');u.searchParams.set('paydesk_session','1');history.replaceState({},'',u.toString());}catch(_){}
+    return fromUrl;
+  }
+  if(urlParams.get('paydesk_session')==='1'){
+    try{return (sessionStorage.getItem('swe_paydesk_token')||'').trim();}catch(_){return '';}
+  }
+  return '';
+})();
+const shortCodeFromUrl=(urlParams.get('s')||'').trim().toUpperCase();
+const paymentShortCodeFromUrl=(urlParams.get('pay')||'').trim().toUpperCase();
+const inviteIdFromUrl=urlParams.get('invite');
+const inviteEmailFromUrl=(urlParams.get('email')||'').trim().toLowerCase();
+function isAdmin(){return S.workspace?.role==='admin'}
+function isCoorg(){return S.workspace?.role==='coorganizer'}
+function hasTemporaryAdmin(){
+  if(!isCoorg()||!S.myPermissions?.temporary_admin_until)return false;
+  return new Date(S.myPermissions.temporary_admin_until).getTime()>Date.now();
+}
+function hasAdminOps(){return isAdmin()||hasTemporaryAdmin()}
+function formatLabel(t){return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='league'?'Ligue':'Classique')}
+function registrationLink(t){
+  if(!t||!S.workspace?.public_token)return '';
+  if(t.short_code)return APP_URL+'?s='+encodeURIComponent(String(t.short_code).toUpperCase());
+  if(t.format==='league'){
+    return APP_URL+'?public='+encodeURIComponent(S.workspace.public_token)+'&view=league-session&league='+encodeURIComponent(t.league_id||'')+'&tournament='+encodeURIComponent(t.id);
+  }
+  return APP_URL+'?public='+encodeURIComponent(S.workspace.public_token)+'&view=tournament&tournament='+encodeURIComponent(t.id);
+}
+function leagueRegistrationLink(l){
+  if(!l||!S.workspace?.public_token)return '';
+  return APP_URL+'?public='+encodeURIComponent(S.workspace.public_token)+'&view=league&league='+encodeURIComponent(l.id);
+}
+function seasonPublicRankingLink(){
+  if(!S.workspace?.public_token)return '';
+  const season=S.seasons.find(x=>x.is_active)||S.seasons[0];
+  const linked=S.tournaments.find(x=>x.season_id===season?.id&&x.format!=='league'&&x.short_code);
+  if(linked?.short_code)return APP_URL+'saison/?s='+encodeURIComponent(String(linked.short_code).toUpperCase());
+  const q=new URLSearchParams({public:S.workspace.public_token});
+  if(season?.id)q.set('season',season.id);
+  return APP_URL+'season.html?'+q.toString();
+}
+function canEditCurrentMatches(){const t=currentTour();return !!t && t.status!=='finished' && (hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores))}
+function canManageMatchStructure(){const t=currentTour();return !!t && t.status!=='finished' && hasAdminOps()}
+function makeDisabledActionButton(label,title){
+  const b=document.createElement('button');b.textContent=label;b.disabled=true;b.setAttribute('aria-disabled','true');
+  b.className='danger disabled-action';b.style.opacity='.38';b.style.filter='grayscale(1)';b.style.cursor='not-allowed';
+  b.title=title||'Action non autorisÃ©e';return b;
+}
+function applyPermissions(){
+  const admin=isAdmin();
+  const coorg=isCoorg();
+  const adminOps=hasAdminOps();
+  const organizerLocked=!!S.organizerAccess?.requires_subscription;
+  if(organizerLocked){
+    document.querySelectorAll('.tabs .tab').forEach(el=>{const v=el.dataset.view;el.style.display=(v==='home'||v==='myplayer')?'':'none';});
+    document.querySelectorAll('[data-go]').forEach(el=>{const v=el.dataset.go;if(v&&v!=='home'&&v!=='myplayer')el.style.display='none';});
+    return;
+  }
+  const canCreateTournament=adminOps||(coorg&&S.myPermissions.can_create_tournaments);
+  const seasonCard=$('#seasonAdminCard');if(seasonCard)seasonCard.classList.toggle('hidden',!adminOps||!S.seasonAdminOpen);
+  const tournamentCard=$('#tournamentAdminCard');if(tournamentCard)tournamentCard.classList.toggle('hidden',!canCreateTournament||!S.tournamentCreateOpen);
+  const newTournamentToggle=$('#newTournamentToggle');if(newTournamentToggle)newTournamentToggle.classList.toggle('hidden',!canCreateTournament);
+  const seasonSettingsToggle=$('#seasonSettingsToggle');if(seasonSettingsToggle)seasonSettingsToggle.classList.toggle('hidden',!adminOps);
+  const attendanceCard=$('#attendanceAdminCard');if(attendanceCard)attendanceCard.classList.toggle('hidden',!(adminOps||coorg));
+  const teamsCard=$('#teamsAdminCard');if(teamsCard)teamsCard.classList.remove('hidden');
+  const teamControls=$('#teamManagementControls');
+  const canManageTeams=adminOps||(coorg&&S.myPermissions.can_generate_teams);
+  if(teamControls)teamControls.classList.toggle('hidden',!canManageTeams);
+  const matchCreateCard=$('#matchCreateAdminCard');if(matchCreateCard)matchCreateCard.classList.toggle('hidden',!adminOps);
+  const competitionEnabled=!!(S.workspaceFeatures.tournaments_enabled||S.workspaceFeatures.league_enabled);
+  const thirdHalf=competitionEnabled&&!!S.workspaceFeatures.third_half_enabled;
+  const topPlayerEnabled=competitionEnabled&&!!S.workspaceFeatures.player_ratings_enabled&&!!S.workspaceFeatures.top_player_enabled;
+  const topPlayerCard=$('#adminTopPlayerCard');if(topPlayerCard)topPlayerCard.classList.toggle('hidden',!topPlayerEnabled);
+  $('#thirdHalfTournamentCreate')?.classList.toggle('hidden',!thirdHalf||!adminOps);
+  $('#thirdHalfLeagueCreate')?.classList.toggle('hidden',!thirdHalf||!adminOps);
+  $('#thirdHalfAdminCard')?.classList.toggle('hidden',!thirdHalf||!adminOps);
+  const matchTabAllowed=adminOps||(coorg&&S.myPermissions.can_enter_scores);
+  document.querySelectorAll('.tab[data-view="matches"]').forEach(el=>{
+    el.style.display=matchTabAllowed?'':'none';
+    el.disabled=!matchTabAllowed;
+    el.title=matchTabAllowed?'Saisir les matchs':'Aucune autorisation de saisie des scores';
+  });
+  document.querySelectorAll('[data-go="matches"]').forEach(el=>el.style.display=matchTabAllowed?'':'none');
+  document.querySelectorAll('.admin-permissions-tab').forEach(el=>{
+    el.classList.remove('hidden');
+    el.classList.toggle('disabled-tab',!admin);
+    el.disabled=!admin;
+    el.setAttribute('aria-disabled',!admin?'true':'false');
+    el.title=admin?'GÃ©rer les autorisations':'RÃ©servÃ© Ã  lâ€™administrateur';
+  });
+  const permView=$('#view-permissions');if(permView&&!admin)permView.classList.remove('active');
+  const access=$('#adminAccessCard');if(access)access.classList.toggle('hidden',!(admin||coorg));
+  const inviteControls=$('#adminInviteControls');if(inviteControls)inviteControls.classList.toggle('hidden',!(admin||(coorg&&S.myPermissions.can_invite_coorganizers)));
+  const accessLegend=$('#adminAccessLegend');if(accessLegend)accessLegend.classList.toggle('hidden',!admin);
+  const playerAddCard=$('#playersInput')?.closest('.card');
+  if(playerAddCard)playerAddCard.classList.toggle('hidden',coorg&&!S.myPermissions.can_add_members);
+  document.querySelectorAll('.tab[data-view="tournaments"]').forEach(el=>el.style.display=S.workspaceFeatures.tournaments_enabled?'':'none');
+  document.querySelectorAll('.tab[data-view="league"]').forEach(el=>el.style.display=S.workspaceFeatures.league_enabled?'':'none');
+  document.querySelectorAll('.tab[data-view="cooler"]').forEach(el=>{const visible=admin&&thirdHalf;el.classList.toggle('hidden',!visible);el.style.display=visible?'':'none';});
+  if(!admin||!thirdHalf)$('#view-cooler')?.classList.remove('active');
+  document.querySelectorAll('.tab[data-view="ranking"]').forEach(el=>el.style.display=S.workspaceFeatures.rankings_enabled?'':'none');
+  const ratingsEnabled=!!S.workspaceFeatures.player_ratings_enabled;
+  document.querySelectorAll('.tab[data-view="players"]').forEach(el=>{
+    const visible=admin||hasTemporaryAdmin()||(coorg&&S.myPermissions.can_view_players);
+    el.style.display=visible?'':'none';
+    el.textContent=ratingsEnabled?'Joueurs / Notes':'Joueurs';
+  });
+  const playersTitle=$('#playersViewTitle');if(playersTitle)playersTitle.textContent=ratingsEnabled?'Joueurs / Notes':'Joueurs';
+  const playersIntro=$('#playersViewIntro');if(playersIntro)playersIntro.innerHTML=ratingsEnabled
+    ?'Consulte les membres du groupe et leurs Ã©valuations. <b>Administrateur et co-gestionnaires</b> peuvent noter les joueurs ; la moyenne suit le joueur grÃ¢ce Ã  son ID SWÃ‰.'
+    :'Liste des membres du groupe. Les actions de modification ou suppression dÃ©pendent des droits accordÃ©s par lâ€™administrateur.';
+  $('#playersRatingIntro')?.classList.toggle('hidden',!ratingsEnabled);
+  document.querySelectorAll('[data-go="tournaments"]').forEach(b=>{b.textContent=(adminOps||(coorg&&S.myPermissions.can_create_tournaments))?'ğŸ“… Nouveau tournoi':'ğŸ“… Tournois / historique'});
+  document.querySelectorAll('[data-go="players"]').forEach(b=>{
+    const visible=admin||hasTemporaryAdmin()||(coorg&&S.myPermissions.can_view_players);
+    b.style.display=visible?'':'none';
+    b.textContent=ratingsEnabled?'ğŸ‘¥ Joueurs / Notes':'ğŸ‘¥ Joueurs';
+  });
+}
+
+function showRecoveryForm(){
+  recoveryMode=true;
+  $('#auth').classList.remove('hidden');
+  $('#main').classList.add('hidden');
+  $('#publicView').classList.add('hidden');
+  $('#loginCard').classList.add('hidden');
+  $('#resetPasswordCard').classList.remove('hidden');
+}
+function friendlyAuthError(error){
+  const m=(error?.message||String(error||'')).toLowerCase();
+  if(m.includes('rate limit')) return 'Trop de demandes dâ€™e-mail. Attends environ 1 heure avant de rÃ©essayer.';
+  if(m.includes('invalid login credentials')) return 'Email ou mot de passe incorrect.';
+  if(m.includes('expired')) return 'Ce lien a expirÃ©. Demande un nouveau lien de rÃ©cupÃ©ration.';
+  return error?.message||'Une erreur est survenue.';
+}
+async function authState(){
+  try{const cfg=await sb.rpc('get_platform_public_settings');if(!cfg.error&&cfg.data)S.platformSettings={...S.platformSettings,...cfg.data};renderPlatformFooter();}catch(_e){}
+  const consentEnabled=!!S.platformSettings.consent_gate_enabled;
+  $('#signupConsentRow')?.classList.toggle('hidden',!consentEnabled);
+  if(paymentShortCodeFromUrl){
+    try{
+      const {data,error}=await sb.rpc('resolve_payment_desk_short_link',{p_code:paymentShortCodeFromUrl});
+      if(error)throw error;
+      if(!data?.token)throw new Error('Lien dâ€™encaissement invalide ou expirÃ©.');
+      await bootPaymentDesk(data.token);
+    }catch(e){
+      $('#auth').classList.add('hidden');$('#main').classList.add('hidden');$('#publicView').classList.remove('hidden');
+      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SWÃ‰">SWÃ‰ TOURNAMENT 5/5</h1></header><div class="card"><h2>Lien dâ€™encaissement indisponible</h2><p class="muted">'+esc(e.message||e)+'</p></div>';
+    }
+    return;
+  }
+  if(paymentDeskTokenFromUrl){
+    await bootPaymentDesk(paymentDeskTokenFromUrl);
+    return;
+  }
+  if(shortCodeFromUrl&&!publicTokenFromUrl){
+    try{
+      const {data,error}=await sb.rpc('resolve_public_tournament_short_link',{p_code:shortCodeFromUrl});
+      if(error)throw error;
+      if(!data?.public_token||!data?.tournament_id)throw new Error('Lien court invalide ou expirÃ©.');
+      publicTokenFromUrl=data.public_token;
+      urlParams.set('public',data.public_token);
+      urlParams.set('tournament',data.tournament_id);
+      urlParams.set('view',data.view||'tournament');
+      if(data.league_id)urlParams.set('league',data.league_id);
+      // Keep the visible ?s= URL unchanged; bootPublic reads the resolved context below.
+      window.__sweResolvedShortLink={
+        tournament:String(data.tournament_id),
+        view:String(data.view||'tournament'),
+        league:data.league_id?String(data.league_id):''
+      };
+    }catch(e){
+      $('#auth').classList.add('hidden');
+      $('#main').classList.add('hidden');
+      $('#publicView').classList.remove('hidden');
+      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SWÃ‰">SWÃ‰ TOURNAMENT 5/5</h1></header><div class="card"><h2>Lien indisponible</h2><p class="muted">'+esc(e.message||e)+'</p></div>';
+      return;
+    }
+  }
+  if(publicTokenFromUrl){
+    await bootPublic(publicTokenFromUrl);
+    return;
+  }
+  const {data}=await sb.auth.getSession();
+  S.session=data.session;
+  if(S.session?.user?.id)window.SWEJournalSession?.(sb,S.session.user.id);
+  const oauthProvider=new URLSearchParams(location.search).get('provider');
+  if(!S.session&&(oauthProvider==='google'||oauthProvider==='apple')){
+    const u=new URL(location.href);u.searchParams.delete('provider');history.replaceState({},'',u.toString());
+    await startSocialAuth(oauthProvider);return;
+  }
+  if(S.session&&new URLSearchParams(location.search).has('oauth')){const u=new URL(location.href);u.searchParams.delete('oauth');history.replaceState({},'',u.toString());}
+  if(recoveryMode){showRecoveryForm();return}
+  $('#loginCard').classList.remove('hidden');
+  $('#resetPasswordCard').classList.add('hidden');
+  const loginEmailFromUrl=new URLSearchParams(location.search).get('email');
+  if(loginEmailFromUrl&&!$('#email').value)$('#email').value=loginEmailFromUrl;
+  const landing=$('#inviteLandingCard');
+  if(landing){
+    landing.classList.toggle('hidden',!inviteIdFromUrl);
+    if(inviteIdFromUrl){
+      $('#inviteLandingText').innerHTML='Tu as Ã©tÃ© invitÃ© comme <b>co-organisateur</b>.'+(inviteEmailFromUrl?' Utilise lâ€™adresse <b>'+esc(inviteEmailFromUrl)+'</b>.':'');
+      if(inviteEmailFromUrl&&!$('#email').value)$('#email').value=inviteEmailFromUrl;
+    }
+  }
+  $('#auth').classList.toggle('hidden',!!S.session);
+  $('#main').classList.toggle('hidden',!S.session);
+  if(S.session){
+    try{
+      const consent=consentEnabled?await sb.rpc('get_my_swe_consent_status'):{error:null,data:{accepted:true}};
+      if(consentEnabled&&!consent.error&&consent.data?.accepted!==true){
+        $('#main').classList.add('hidden');
+        $('#auth').classList.add('hidden');
+        $('#consentGate')?.classList.remove('hidden');
+        return;
+      }
+      await sb.rpc('ensure_my_global_player_profile',{p_display_name:null});
+      await boot();
+    }catch(error){toast('Connexion OK, mais chargement impossible : '+(error?.message||error))}
+  }
+}
+$('#login').onclick=async()=>{
+  const email=$('#email').value.trim().toLowerCase();
+  if(inviteEmailFromUrl&&email!==inviteEmailFromUrl)return toast('Cette invitation est prÃ©vue pour '+inviteEmailFromUrl);
+  const {error}=await sb.auth.signInWithPassword({email,password:$('#password').value});
+  error?toast(friendlyAuthError(error)):authState();
+};
+$('#signup').onclick=async()=>{
+  const email=$('#email').value.trim().toLowerCase();
+  if(S.platformSettings.consent_gate_enabled&&!$('#signupConsent')?.checked)return toast('Tu dois accepter les conditions SWÃ‰ Tournament pour crÃ©er ton compte.');
+  if(inviteEmailFromUrl&&email!==inviteEmailFromUrl)return toast('Utilise lâ€™adresse e-mail indiquÃ©e dans lâ€™invitation : '+inviteEmailFromUrl);
+  const redirect=inviteIdFromUrl?APP_URL+'?invite='+encodeURIComponent(inviteIdFromUrl)+'&email='+encodeURIComponent(email):APP_URL;
+  const {data,error}=await sb.auth.signUp({email,password:$('#password').value,options:{emailRedirectTo:redirect,data:S.platformSettings.consent_gate_enabled?{swe_consent_accepted:true,swe_terms_version:'2026-09-05-beta',swe_privacy_version:'2026-09-05-beta'}:{}}});
+  if(error)return toast(friendlyAuthError(error));
+  toast(data.session?'Compte crÃ©Ã©. Ton ID SWÃ‰ est rattachÃ© Ã  ton email.':'Compte crÃ©Ã© : vÃ©rifie ton email puis reconnecte-toi avec la mÃªme adresse. Ton ID SWÃ‰ sera retrouvÃ© automatiquement.');
+};
+$('#authGoogle').onclick=()=>startSocialAuth('google');
+$('#authApple').onclick=()=>startSocialAuth('apple');
+async function startSocialAuth(provider){
+  const redirectTo=APP_URL+'?oauth=done';
+  const {error}=await sb.auth.signInWithOAuth({provider,options:{redirectTo}});
+  if(error)toast('Connexion '+(provider==='google'?'Google':'Apple')+' indisponible pour le moment : '+friendlyAuthError(error));
+}
+$('#forgotPassword').onclick=async()=>{
+  const email=$('#email').value.trim();
+  if(!email)return toast('Entre dâ€™abord ton adresse email.');
+  $('#forgotPassword').disabled=true;
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL});
+  $('#forgotPassword').disabled=false;
+  if(error)return toast(friendlyAuthError(error));
+  toast('Email envoyÃ©. Ouvre le lien reÃ§u pour choisir un nouveau mot de passe.');
+};
+$('#updatePassword').onclick=async()=>{
+  const p1=$('#newPassword').value,p2=$('#confirmNewPassword').value;
+  if(p1.length<8)return toast('Le mot de passe doit contenir au moins 8 caractÃ¨res.');
+  if(p1!==p2)return toast('Les deux mots de passe ne correspondent pas.');
+  $('#updatePassword').disabled=true;
+  const {error}=await sb.auth.updateUser({password:p1});
+  $('#updatePassword').disabled=false;
+  if(error)return toast(friendlyAuthError(error));
+  recoveryMode=false;
+  $('#newPassword').value='';$('#confirmNewPassword').value='';
+  history.replaceState({},'',location.pathname);
+  toast('Mot de passe modifiÃ© avec succÃ¨s.');
+  await authState();
+};
+$('#logout').onclick=async()=>{await sb.auth.signOut();location.reload()};
+$('#consentLogout').onclick=async()=>{await sb.auth.signOut();location.reload()};
+$('#acceptLegacyConsent').onclick=async()=>{
+  if(!$('#legacyConsentCheck')?.checked)return toast('Coche la case pour confirmer ton accord.');
+  const b=$('#acceptLegacyConsent');b.disabled=true;
+  const {error}=await sb.rpc('accept_current_swe_terms');
+  b.disabled=false;if(error)return toast(error.message);
+  $('#consentGate')?.classList.add('hidden');$('#main').classList.remove('hidden');
+  await boot();toast('Conditions acceptÃ©es âœ…');
+};
 
 
-OOœİ[K™\Ü^OIÛ›Û™IËŒ
-_NÂ˜ÛÛœİ\ØÏ\ÏO”İš[™ÊÏÏÉÉÊKœ™\XÙJÖÉˆ—KÙËÏOŠÉÉ‰Î‰É˜[\ÉË	Ï	Î‰É›ÉË	Ï‰Î‰É™İÉË	È‰Î‰Éœ][İÉßVØ×JJNÂ™[˜İ[Ûˆ™[™\”]›Ü›Q›Ûİ\Š
-^ÂˆÛÛœİ›Ûİ\I
-	ÈÜ]›Ü›Q›Ûİ\‰ÊNÂˆYŠY›Ûİ\Š\™]\›ÂˆÛÛœİÙ™ÏTËœ]›Ü›TÙ][™ÜßßNÂˆÛÛœİ[˜X›YXÙ™Ë™›Ûİ\—Ù[˜X›YOOY˜[ÙNÂˆ›Ûİ\‹˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËY[˜X›Y
-NÂˆYŠY[˜X›Y
-\™]\›Â‚ˆÛÛœİÛÛ\[OI
-	ÈÜ]›Ü›Q›Ûİ\ÛÛ\[IÊNÂˆÛÛœİ^I
-	ÈÜ]›Ü›Q›Ûİ\•^	ÊNÂˆÛÛœİ[šÜÏI
-	ÈÜ]›Ü›Q›Ûİ\“[šÜÉÊNÂˆYŠÛÛ\[JXÛÛ\[K^ÛÛ[XÙ™Ë™›Ûİ\—ØÛÛ\[WÛ˜[Y_	ÔÕğâHİ\›˜[Y[	ÎÂˆYŠ^
-]^^ÛÛ[XÙ™Ë™›Ûİ\—ÛYØ[İ^	ÉÎÂˆYŠ[šÜÊ^Âˆ[šÜË˜Û\ÜÓ\İ˜Y
-	Ü]›Ü›KY›Ûİ\‹[[šÜÉÊNÂˆÛÛœİ][\ÏV×NÂˆYŠÙ™Ë™›Ûİ\—ØÛÛXİÙ[XZ[
-Z][\Ëœ\Ú
-	ÏH™YW›XZ[Î‰ÊÙ\ØÊÙ™Ë™›Ûİ\—ØÛÛXİÙ[XZ[
-JÉ×ÛÛXİØO‰ÊNÂˆYŠÙ™Ë™›Ûİ\—ÛYØ[İ\›
-Z][\Ëœ\Ú
-	ÏH™YW‰ÊÙ\ØÊÙ™Ë™›Ûİ\—ÛYØ[İ\›
-JÉ×ˆ\™Ù]W—Ø›[š×ˆ™[W››ÛÜ[™\ˆ›Ü™Y™\œ™\—“Y[[ÛœÈ0êYØ[\ÏØO‰ÊNÂˆYŠÙ™Ë™›Ûİ\—Üš]˜XŞWİ\›
-Z][\Ëœ\Ú
-	ÏH™YW‰ÊÙ\ØÊÙ™Ë™›Ûİ\—Üš]˜XŞWİ\›
-JÉ×ˆ\™Ù]W—Ø›[š×ˆ™[W››ÛÜ[™\ˆ›Ü™Y™\œ™\—ÛÛ™šY[X[]0êOØO‰ÊNÂˆYŠÙ™Ë™›Ûİ\—İ\›\×İ\›
-Z][\Ëœ\Ú
-	ÏH™YW‰ÊÙ\ØÊÙ™Ë™›Ûİ\—İ\›\×İ\›
-JÉ×ˆ\™Ù]W—Ø›[š×ˆ™[W››ÛÜ[™\ˆ›Ü™Y™\œ™\—ÑÕHÈÑÕØO‰ÊNÂˆ[šÜËš[›™\’SZ][\Ëš›Ú[Š	ÉÊNÂˆBŸB˜ÛÛœİÙ^OJ
-OO›™]È]J
-KÒTÓÔİš[™Ê
-KœÛXÙJL
-NÈ	
-	Èİİ\‘]IÊK˜[YO]Ù^J
-NÂ™[˜İ[ÛˆY˜][™YÚ\İ˜][Û‘XY[™SØØ[
-]TİŠ^ÂˆYŠY]TİŠ\™]\›ˆ	ÉÎÂˆÛÛœİ[™]È]J]TİŠÉÕLŒŒLŒ	ÊNÂˆœÙ]]J™Ù]]J
-KLJNÂˆÛÛœİOY™Ù][YX\Š
-KOTİš[™Ê™Ù][Û
 
-JÌJKœYİ\
-‹	Ì	ÊK^OTİš[™Ê™Ù]]J
-JKœYİ\
-‹	Ì	ÊNÂˆ™]\›ˆJÉËIÊÛJÉËIÊÙ^JÉÕMÎŒ	ÎÂŸB™[˜İ[Ûˆ™YÚ\İ˜][Û‘XY[™R\ÛÊØØ[˜[YJ^ÂˆYŠ[ØØ[˜[YJ\™]\›ˆ[ÂˆÛÛœİ[™]È]JØØ[˜[YJÉÎŒLŒ	ÊNÂˆ™]\›ˆ[X™\‹š\Ñš[š]J™Ù][YJ
-JOÙÒTÓÔİš[™Ê
-N›[ÂŸB™[˜İ[ÛˆŞ[˜Ô™YÚ\İ˜][Û‘XY[™J]TÙ[XİÜ‹XY[™TÙ[XİÜŠ^ÂˆÛÛœİ]Q[I
-]TÙ[XİÜŠKXY[™Q[I
-XY[™TÙ[XİÜŠNÂˆYŠY]Q[YXY[™Q[
-\™]\›ÂˆÛÛœİ\OJ
-OOÙXY[™Q[˜[YOYY˜][™YÚ\İ˜][Û‘XY[™SØØ[
-]Q[˜[YJ_NÂˆ]Q[˜Y]™[\İ[™\Š	ØÚ[™ÙIË\JNÂˆYŠ]Q[˜[YI‰ˆYXY[™Q[˜[YJX\J
-NÂŸBœŞ[˜Ô™YÚ\İ˜][Û‘XY[™J	Èİİ\‘]IË	Èİİ\”™YÚ\İ˜][Û‘XY[™IÊNÂœŞ[˜Ô™YÚ\İ˜][Û‘XY[™J	ÈÛXYİYTÙ\ÜÚ[Û‘]IË	ÈÛXYİYTÙ\ÜÚ[Û”™YÚ\İ˜][Û‘XY[™IÊNÂ‚˜ÛÛœİQUSÕ‘S•QWÓQUO^Âˆ	ÛXYH›Ûİ˜[ÛX‰ÎØÚ]N‰ÑXÛÜÉË\N‰Óİ]ÛÜ‰Ëİ\œÎ‰Ó[ˆMšLŒÚÈX\ˆMZLŒÚÈY\ˆMLŒÚÈ™]KU™[ˆMZLŒÚÈØ[HMLŒÚÈ[HMZLŒ	ßKˆ	Ø\™[˜HX\[š\]YHÈ\™[˜H^HÛ‰ÎØÚ]N‰ÔØÚ1dÛÚ\‰Ë\N‰Ò[™ÛÜ‰Ëİ\œÎ‰Ñ[š\›ÛˆZLŒšÌÚ‹ÍÉßBŸNÂ™[˜İ[Ûˆ™[YSY]JÊ^Ü™]\›ˆQUSÕ‘S•QWÓQUVÔİš[™ÊÏË›˜[Y_	ÉÊKš[J
-KÓİÙ\Ø\ÙJ
-W_[B˜\Ş[˜È[˜İ[Ûˆ[œİ\™QY˜][ÜÜÕ™[Y\Ê
-^ÂˆYŠTËš\Ôİ\\YZ[Š\™]\›ÂˆËÈ\ÈÛÛ\^\ÈÛÛ0ê\ÛÜ›XZ\ÈYZ[š\İ°ê\È\ˆHİ\\ˆYZ[‹‚ˆËÈÛˆ™HÜ°êYH\ÈY]^H0ê[[Ûœİ˜][Ûˆ]YHİ\ˆ[™H[œİ[][Ûˆİ[[Y[šYKˆËÈYš[ˆ]Iİ[ˆÛÛ\^Hİ\š[pêH›ÛÛZ\™[Y[™HÛÚ]˜[XZ\È™XÜ°êpêH]H›ØÚZ[ˆÚ\™Ù[Y[‚ˆYŠ
-ËœÜÜĞÛÛ\^\ß×JK›[™İ
-\™]\›ÂˆÛÛœİØ[YVŞÛ˜[YN‰ÓXYH›Ûİ˜[ÛX‰ËÚ]N‰ÑXÛÜÉË]Ú\Î–ÉÕ\œ˜Z[ˆIË	Õ\œ˜Z[ˆ‰Ë	Õ\œ˜Z[ˆÉ×_KÛ˜[YN‰Ğ\™[˜HX\[š\]YHÈ\™[˜H^HÛ‰ËÚ]N‰ÔØÚ1dÛÚ\‰Ë]Ú\Î–ÉÕ\œ˜Z[ˆIË	Õ\œ˜Z[ˆ‰Ë	Õ\œ˜Z[ˆÉË	Õ\œ˜Z[ˆ	×_WNÂˆ]Ú[™ÙYY˜[ÙNÂˆ›ÜŠÛÛœİˆÙˆØ[Y
-^Û]ÏJËœÜÜĞÛÛ\^\ß×JK™š[™
-O”İš[™Ê›˜[Y_	ÉÊKš[J
-KÓİÙ\Ø\ÙJ
-OOO]‹›˜[YKÓİÙ\Ø\ÙJ
-JNÚYŠXÊ^ØÛÛœİÜ™X]YX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÛX[˜YÙWÜÜÜ×ØÛÛ\^	ËÜØXİ[Û‰ØÜ™X]IËÛ˜[YN‹›˜[YKØÚ]N‹˜Ú]KØXİ]™NY_JNÚYŠÜ™X]Y™\œ›ÜŠ^ØÛÛœÛÛKØ\›Š	ÜÙYYÛÛ\^	Ë‹›˜[YKÜ™X]Y™\œ›ÜŠNØÛÛ[Y_XÚ[™ÙY]YNØÛÛœİœX]ØZ]Ø‹œœÊ	ÙÙ]ÜÜÜ×İ™[Y\ÉÊNÚYŠ\œ‹™\œ›ÜŠ^ÔËœÜÜĞÛÛ\^\ÏP\œ˜^Kš\Ğ\œ˜^Jœ‹™]OË˜ÛÛ\^\ÊOÜœ‹™]K˜ÛÛ\^\Î–×NÔËœÜÜÔ]Ú\ÏP\œ˜^Kš\Ğ\œ˜^Jœ‹™]OËœ]Ú\ÊOÜœ‹™]Kœ]Ú\Î–×NßXÏJËœÜÜĞÛÛ\^\ß×JK™š[™
-O”İš[™Ê›˜[Y_	ÉÊKš[J
-KÓİÙ\Ø\ÙJ
-OOO]‹›˜[YKÓİÙ\Ø\ÙJ
-JNßZYŠXÊXÛÛ[YNØÛÛœİİ\œ™[JËœÜÜÔ]Ú\ß×JK™š[\ŠO”İš[™Ê˜ÛÛ\^ÚY
-OOOTİš[™ÊËšY
-JNÙ›ÜŠÛÛœİ]ÚÙˆ‹œ]Ú\Ê^ÚYŠXİ\œ™[œÛÛYJO”İš[™Ê›˜[Y_	ÉÊKš[J
-KÓİÙ\Ø\ÙJ
-OOO\]ÚÓİÙ\Ø\ÙJ
-JJ^ØÛÛœİœX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÛX[˜YÙWÜÜÜ×Ü]Ú	ËÜØXİ[Û‰ØÜ™X]IËØÛÛ\^ÚY˜ËšYÛ˜[YNœ]ÚØXİ]™NY_JNÚYŠ\œ‹™\œ›ÜŠXÚ[™ÙY]YNß__BˆYŠÚ[™ÙY
-^ØÛÛœİœX]ØZ]Ø‹œœÊ	ÙÙ]ÜÜÜ×İ™[Y\ÉÊNÚYŠ\œ‹™\œ›ÜŠ^ÔËœÜÜĞÛÛ\^\ÏP\œ˜^Kš\Ğ\œ˜^Jœ‹™]OË˜ÛÛ\^\ÊOÜœ‹™]K˜ÛÛ\^\Î–×NÔËœÜÜÔ]Ú\ÏP\œ˜^Kš\Ğ\œ˜^Jœ‹™]OËœ]Ú\ÊOÜœ‹™]Kœ]Ú\Î–×NÜ™[™\•™[YTÙ[XİÜœÊ
-NÜ™[™\”İ\\YZ[•™[Y\Ê
-Nß_BŸB‚˜\Ş[˜È[˜İ[ÛˆØYÜÜÕ™[Y\Ê]]ÔÙYY]YJ^ÂˆÛÛœİÙ]K\œ›ÜŸOX]ØZ]Ø‹œœÊ	ÙÙ]ÜÜÜ×İ™[Y\ÉÊNÂˆYŠ\œ›ÜŠ^ØÛÛœÛÛKØ\›Š	ÜÜÜÈ™[Y\ÉË\œ›ÜŠNÜ™]\›ŸBˆËœÜÜĞÛÛ\^\ÏP\œ˜^Kš\Ğ\œ˜^J]OË˜ÛÛ\^\ÊOÙ]K˜ÛÛ\^\Î–×NÂˆËœÜÜÔ]Ú\ÏP\œ˜^Kš\Ğ\œ˜^J]OËœ]Ú\ÊOÙ]Kœ]Ú\Î–×NÂˆ™[™\•™[YTÙ[XİÜœÊ
-NÂˆYŠËš\Ôİ\\YZ[Š\™[™\”İ\\YZ[•™[Y\Ê
-NÂˆYŠ]]ÔÙYY	‰”Ëš\Ôİ\\YZ[ŠX]ØZ][œİ\™QY˜][ÜÜÕ™[Y\Ê
-NÂŸB™[˜İ[ÛˆÛÛ\^X™[
-Y
-^ÂˆÛÛœİÏTËœÜÜĞÛÛ\^\Ë™š[™
-OšYOOZY
-NÜ™]\›ˆÏÊØË›˜[YKË˜Ú]WK™š[\Š›ÛÛX[ŠKš›Ú[Š	È8 (ˆ	ÊJN‰ĞÛÛ\^IÎÂŸB™[˜İ[Ûˆ]Ú˜[YJY
-^Ü™]\›ˆËœÜÜÔ]Ú\Ë™š[™
-OšYOOZY
-OË›˜[Y_	Õ\œ˜Z[‰ßB™[˜İ[Ûˆ™[™\•™[YTÙ[XİÜœÊ
-^ÂˆÛÛœİXİ]™PÛÛ\^\ÏTËœÜÜĞÛÛ\^\Ë™š[\ŠO˜Xİ]™HOOY˜[ÙJNÂˆÛÛœİÜ[ÛœÏIÏÜ[Ûˆ˜[YOHˆÚÚ\Ú\ˆHÛÛ\^OÛÜ[Û‰ÊØXİ]™PÛÛ\^\Ë›X\
-ÏO‰ÏÜ[Ûˆ˜[YOH‰ÊØËšY
-ÉÈ‰ÊÙ\ØÊÛÛ\^X™[
-ËšY
-JJÉÏÛÜ[Û‰ÊKš›Ú[Š	ÉÊNÂˆYŠ	
-	Èİİ\ÛÛ\^	ÊJ^É
-	Èİİ\ÛÛ\^	ÊKš[›™\’S[Ü[ÛœÎÜ™[™\•İ\›˜[Y[]ÚÚÚXÙ\Ê
-NßBˆYŠ	
-	ÈÛXYİYTÙ\ÜÚ[ÛÛÛ\^	ÊJ^É
-	ÈÛXYİYTÙ\ÜÚ[ÛÛÛ\^	ÊKš[›™\’S[Ü[ÛœÎÜ™[™\“XYİYT]ÚÙ[Xİ
+function renderSuperAdminVenues(){
+  const box=$('#saVenueList');if(!box)return;
+  box.innerHTML='';
+  const complexes=(S.sportsComplexes||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)||String(a.name).localeCompare(String(b.name)));
+  if(!complexes.length){box.innerHTML='<p class="muted">Aucun complexe enregistrÃ©.</p>';return}
+  complexes.forEach(c=>{
+    const d=document.createElement('div');d.className='player';d.style.marginBottom='12px';
+    const pitches=(S.sportsPitches||[]).filter(p=>p.complex_id===c.id);
+    d.innerHTML=
+      '<div class="grid g3">'+
+        '<input data-complex-name value="'+esc(c.name)+'" placeholder="Nom du complexe">'+
+        '<input data-complex-city value="'+esc(c.city||'')+'" placeholder="Ville / commune">'+'<div class="grid g2"><input data-complex-sunday type="number" min="0" step="0.5" value="'+(Number(c.onsite_sunday_price_cents||0)/100)+'" placeholder="Dimanche â‚¬"><input data-complex-weekday type="number" min="0" step="0.5" value="'+(Number(c.onsite_weekday_price_cents||0)/100)+'" placeholder="Semaine â‚¬"></div>'+
+        '<label class="player row" style="justify-content:flex-start"><input data-complex-active type="checkbox" style="width:auto" '+(c.active!==false?'checked':'')+'><span>Actif</span></label>'+
+      '</div>'+
+      (venueMeta(c)?'<div class="muted" style="margin-top:7px;padding:8px 10px;background:#f7fbf8;border-radius:10px"><b>'+esc(venueMeta(c).type)+'</b> â€¢ '+esc(venueMeta(c).hours)+'</div>':'')+
+      '<div class="row" style="margin-top:8px;flex-wrap:wrap"><button data-complex-save class="primary">ğŸ’¾ Enregistrer le complexe</button><button data-complex-delete class="danger">Supprimer</button></div>'+
+      '<div style="height:1px;background:#e8ecef;margin:12px 0"></div>'+
+      '<b>Terrains</b><div data-pitch-list style="margin-top:8px"></div>'+
+      '<div class="row" style="margin-top:8px"><input data-new-pitch placeholder="Nom du nouveau terrain" style="flex:1"><button data-add-pitch>+ Terrain</button></div>';
+    const plist=d.querySelector('[data-pitch-list]');
+    plist.innerHTML=pitches.map(p=>'<div class="row player" data-pitch-id="'+p.id+'" style="margin:5px 0"><input data-pitch-name value="'+esc(p.name)+'" style="flex:1"><label class="row" style="gap:5px"><input data-pitch-active type="checkbox" style="width:auto" '+(p.active!==false?'checked':'')+'> Actif</label><button data-pitch-save>Enregistrer</button><button data-pitch-delete class="danger">Supprimer</button></div>').join('')||'<div class="muted">Aucun terrain.</div>';
+    d.querySelector('[data-complex-save]').onclick=async()=>{
+      const {error}=await sb.rpc('super_admin_manage_sports_complex',{p_action:'update',p_id:c.id,p_name:d.querySelector('[data-complex-name]').value.trim(),p_city:d.querySelector('[data-complex-city]').value.trim()||null,p_active:d.querySelector('[data-complex-active]').checked});
+      if(error)return toast(error.message);await loadSportsVenues();toast('Complexe mis Ã  jour âœ…');
+    };
+    d.querySelector('[data-complex-delete]').onclick=async()=>{
+      if(!confirm('Supprimer dÃ©finitivement le complexe Â« '+c.name+' Â» ?'))return;
+      const {error}=await sb.rpc('super_admin_manage_sports_complex',{p_action:'delete',p_id:c.id});
+      if(error)return toast(error.message);await loadSportsVenues();toast('Complexe supprimÃ©.');
+    };
+    d.querySelector('[data-add-pitch]').onclick=async()=>{
+      const name=d.querySelector('[data-new-pitch]').value.trim();if(!name)return toast('Indique le nom du terrain.');
+      const {error}=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'create',p_complex_id:c.id,p_name:name,p_active:true});
+      if(error)return toast(error.message);await loadSportsVenues();toast('Terrain ajoutÃ© âœ…');
+    };
+    plist.querySelectorAll('[data-pitch-id]').forEach(row=>{
+      const pid=row.dataset.pitchId;
+      row.querySelector('[data-pitch-save]').onclick=async()=>{
+        const {error}=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'update',p_id:pid,p_complex_id:c.id,p_name:row.querySelector('[data-pitch-name]').value.trim(),p_active:row.querySelector('[data-pitch-active]').checked});
+        if(error)return toast(error.message);await loadSportsVenues();toast('Terrain mis Ã  jour âœ…');
+      };
+      row.querySelector('[data-pitch-delete]').onclick=async()=>{
+        if(!confirm('Supprimer dÃ©finitivement ce terrain ?'))return;
+        const {error}=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'delete',p_id:pid});
+        if(error)return toast(error.message);await loadSportsVenues();toast('Terrain supprimÃ©.');
+      };
+    });
+    box.appendChild(d);
+  });
+}
+async function loadSuperAdminWorkspaces(){
+  const {data,error}=await sb.rpc('super_admin_get_workspaces_v5');
+  if(error){toast(error.message);return}
+  S.superWorkspaces=Array.isArray(data)?data:[];
+  const accountAccesses=await sb.rpc('super_admin_get_account_workspace_accesses');
+  S.superAccountAccesses=accountAccesses.error?[]:(Array.isArray(accountAccesses.data)?accountAccesses.data:[]);
+  const requests=await sb.rpc('super_admin_get_coorganizer_quota_requests');
+  S.superCoorgQuotaRequests=requests.error?[]:(Array.isArray(requests.data)?requests.data:[]);
+  const players=await sb.rpc('super_admin_get_players_directory_v3');
+  S.superPlayers=players.error?[]:(Array.isArray(players.data)?players.data:[]);
+  const signupRequests=await sb.rpc('super_admin_get_player_signup_requests');
+  S.superSignupRequests=signupRequests.error?[]:(Array.isArray(signupRequests.data)?signupRequests.data:[]);
+  const disputes=await sb.rpc('super_admin_get_identity_disputes');
+  S.superIdentityDisputes=disputes.error?[]:(Array.isArray(disputes.data)?disputes.data:[]);
+  const platform=await sb.rpc('super_admin_get_platform_settings');
+  if(!platform.error&&platform.data)S.platformSettings={...S.platformSettings,...platform.data};[['saFooterCompany','footer_company_name'],['saFooterEmail','footer_contact_email'],['saFooterLegalText','footer_legal_text'],['saFooterLegalUrl','footer_legal_url'],['saFooterPrivacyUrl','footer_privacy_url'],['saFooterTermsUrl','footer_terms_url']].forEach(([i,k])=>{if($('#'+i))$('#'+i).value=S.platformSettings[k]||''});if($('#saFooterEnabled'))$('#saFooterEnabled').checked=S.platformSettings.footer_enabled!==false;renderPlatformFooter();
+  const consentToggle=$('#saConsentGateEnabled');if(consentToggle)consentToggle.checked=!!S.platformSettings.consent_gate_enabled;
+  const consentLabel=$('#saConsentGateLabel');if(consentLabel)consentLabel.textContent=S.platformSettings.consent_gate_enabled?'Visible / obligatoire':'MasquÃ©';
+  renderSuperAdminWorkspaces();
+  renderSuperAdminPlayers();
+  renderSuperAdminSignupRequests();
+  renderSuperAdminIdentityDisputes();
+}
+function playerActivationLink(token){return 'https://swetournament.fr/?activate='+encodeURIComponent(token||'');}
+function signupInviteMessage(r){return 'Salut '+(r.display_name||'')+' ğŸ‘‹\n\nTon inscription SWÃ‰ Tournament est prÃªte. Active ton compte avec ce lien :\n'+playerActivationLink(r.activation_token)+'\n\nCe lien est personnel. Une fois le compte activÃ©, tu pourras retrouver ton ID SWÃ‰ et tes performances.';}
+function renderSuperAdminSignupRequests(){
+  const box=$('#saSignupRequestsList');if(!box)return;
+  const rows=(S.superSignupRequests||[]).filter(r=>r.status==='pending');
+  const pill=$('#saSignupRequestsCount');if(pill)pill.textContent=rows.length+' en attente';
+  if(!rows.length){box.innerHTML='<div class="muted">Aucune demande dâ€™inscription en attente.</div>';return;}
+  box.innerHTML=rows.map(r=>{
+    const link=playerActivationLink(r.activation_token),msg=signupInviteMessage(r);
+    const mailSubject=encodeURIComponent('Activation de ton compte SWÃ‰ Tournament');
+    const mailBody=encodeURIComponent(msg);
+    const waPhone=String(r.phone_number||'').replace(/[^0-9]/g,'');
+    const waHref=waPhone?'https://wa.me/'+waPhone+'?text='+encodeURIComponent(msg):'';
+    return '<div class="sa-signup-request">'+
+      '<div class="sa-signup-request-main"><b>'+esc(r.display_name)+'</b><div class="muted">ğŸ“§ '+esc(r.email)+(r.phone_number?' â€¢ ğŸ“± '+esc(r.phone_number):'')+'</div><div class="small muted">DemandÃ© le '+new Date(r.created_at).toLocaleString('fr-FR')+'</div></div>'+
+      '<div class="sa-activation-link"><span>Lien dâ€™activation</span><code>'+esc(link)+'</code></div>'+
+      '<div class="sa-signup-actions">'+
+        '<button type="button" data-copy-signup-link="'+esc(r.id)+'">ğŸ“‹ Copier le lien</button>'+
+        '<a class="buttonlike" href="mailto:'+encodeURIComponent(r.email)+'?subject='+mailSubject+'&body='+mailBody+'">âœ‰ï¸ PrÃ©parer lâ€™e-mail</a>'+
+        (waHref?'<a class="buttonlike wa" target="_blank" rel="noopener" href="'+esc(waHref)+'">ğŸ’¬ WhatsApp</a>':'<button type="button" disabled title="Aucun tÃ©lÃ©phone renseignÃ©">ğŸ’¬ WhatsApp</button>')+
+        '<button type="button" data-copy-signup-message="'+esc(r.id)+'">ğŸ“ Copier le message</button>'+
+        '<button type="button" data-regenerate-signup="'+esc(r.id)+'">â†» Nouveau lien</button>'+
+      '</div></div>';
+  }).join('');
+}
 
-NßBˆ™[™\“X]Ú]ÚÙ[Xİ
+function renderSuperAdminIdentityDisputes(){
+  const box=$('#saIdentityDisputesList');if(!box)return;const rows=S.superIdentityDisputes||[];const pill=$('#saIdentityDisputeCount');if(pill)pill.textContent=rows.length+' litige'+(rows.length>1?'s':'');
+  if(!rows.length){box.innerHTML='<div class="muted">Aucun conflit dâ€™identitÃ© en attente.</div>';return;}
+  box.innerHTML=rows.map(r=>'<div class="identity-dispute-row"><div><b>'+esc(r.player_name)+'</b><div class="muted">'+esc(r.workspace_name)+' â€¢ signalÃ© le '+new Date(r.created_at).toLocaleString('fr-FR')+'</div><div class="small" style="margin-top:5px"><b>Compte dÃ©jÃ  liÃ© :</b> '+esc(r.conflict_player_id||'â€”')+' â€¢ '+esc(r.conflict_email||'â€”')+'<br><b>Nouveau demandeur :</b> '+esc(r.claimant_player_id||'â€”')+' â€¢ '+esc(r.claimant_email||'â€”')+'</div></div><div class="identity-dispute-actions"><button data-resolve-identity="existing_valid" data-claim-id="'+esc(r.claim_id)+'">Garder le compte existant</button><button data-resolve-identity="claimant_valid" data-claim-id="'+esc(r.claim_id)+'">Valider le demandeur</button><button data-resolve-identity="no_fraud" data-claim-id="'+esc(r.claim_id)+'">Lever le blocage sans liaison</button></div></div>').join('');
+}
 
-NÂŸB™[˜İ[Ûˆ™[™\•İ\›˜[Y[]ÚÚÚXÙ\Ê
-^ÂˆÛÛœİ›ŞI
-	Èİİ\”]ÚÚÚXÙ\ÉÊNÚYŠX›Ş
-\™]\›ÂˆÛÛœİÚYI
-	Èİİ\ÛÛ\^	ÊOË˜[Y_	ÉÎÂˆÛÛœİ]Ú\ÏTËœÜÜÔ]Ú\Ë™š[\ŠO˜Xİ]™HOOY˜[ÙI‰˜ÛÛ\^ÚYOOXÚY
-NÂˆ›Şš[›™\’S\]Ú\Ë›[™İˆÈ	Ï]ˆÛ\ÜÏH›]]Yˆİ[OH›X\™Ú[‹X›İÛNœ•\œ˜Z[œÈ°ê\Ù\°ê\È
-X^[][HÊOÙ]‰ÊÜ]Ú\Ë›X\
-O‰ÏX™[Û\ÜÏHœ^Y\ˆ›İÈˆİ[OHš\İYKXÛÛ[™›^\İ\ÛX\™Ú[\[œ]Û\ÜÏHİ\”]ÚÚXÚÈˆ\OH˜ÚXÚØ›Şˆ˜[YOH‰ÊÜšY
-ÉÈˆİ[OHÚY˜]]ÈÜ[‰ÊÙ\ØÊ›˜[YJJÉÏØÜÜ[ÛX™[‰ÊKš›Ú[Š	ÉÊBˆˆ	Ï]ˆÛ\ÜÏH›]]YÚÚ\Ú\È8 &XX›Ü™[ˆÛÛ\^H\ÜÜØ[H\œ˜Z[œÈXİYœËÙ]‰ÎÂˆ›Şœ]Y\TÙ[XİÜ[
-	Ëİ\”]ÚÚXÚÉÊK™›Ü‘XXÚ
-ÚO˜Ú›Û˜Ú[™ÙOJ
-OOÂˆÛÛœİÚXÚÙYVË‹‹˜›Şœ]Y\TÙ[XİÜ[
-	Ëİ\”]ÚÚXÚÎ˜ÚXÚÙY	ÊWNÂˆYŠÚXÚÙY›[™İŒÊ^ØÚ˜ÚXÚÙYY˜[ÙNİØ\İ
-	ÓX^[][HÈ\œ˜Z[œÈİ\ˆ[ˆİ\››ÚK‰ÊNßBˆJNÂŸB™[˜İ[Ûˆ™[™\“XYİYT]ÚÙ[Xİ
+function renderSuperAdminPlayers(){
+  const box=$('#saPlayersList');if(!box)return;
+  const all=S.superPlayers||[];
+  const q=($('#saSearchPlayer')?.value||'').trim().toLowerCase();
+  const rows=all.filter(r=>!q||[r.display_name,r.public_player_id,r.email,r.phone_number,r.home_area].some(v=>String(v||'').toLowerCase().includes(q)));
+  const pill=$('#saPlayersCountPill');if(pill)pill.textContent=all.length+' profil'+(all.length>1?'s':'');
+  const stats=$('#saPlayerStats');if(stats)stats.innerHTML=
+    '<div><span>ğŸ‘¤</span><b>'+all.length+'</b><small>IdentitÃ©s SWÃ‰</small></div>'+ 
+    '<div><span>âœ…</span><b>'+all.filter(r=>r.consent_accepted).length+'</b><small>Consentements Ã  jour</small></div>'+ 
+    '<div><span>â³</span><b>'+all.filter(r=>!r.consent_accepted).length+'</b><small>Ã€ rÃ©gulariser</small></div>'+ 
+    '<div><span>ğŸŒ</span><b>'+all.filter(r=>r.discoverable).length+'</b><small>Disponibles annuaire</small></div>';
+  box.innerHTML='';
+  if(!rows.length){box.innerHTML='<div class="muted">Aucun joueur ne correspond Ã  la recherche.</div>';return;}
+  box.innerHTML=rows.map(r=>{const links=Array.isArray(r.staff_links)?r.staff_links:[];return '<div class="sa-player-row">'+
+    '<div class="sa-player-main"><div class="row" style="justify-content:flex-start;gap:7px;flex-wrap:wrap"><b>'+esc(r.display_name||'Joueur SWÃ‰')+'</b><span class="player-id-mini">'+esc(r.public_player_id||'â€”')+'</span><span class="guest-badge '+(r.consent_accepted?'consent-ok':'consent-pending')+'">'+(r.consent_accepted?'CONSENTEMENT OK':'Ã€ VALIDER')+'</span><span class="guest-badge identity-'+esc(r.identity_status||'active')+'">'+((r.identity_status||'active')==='active'?'IDENTITÃ‰ OK':(r.identity_status==='review'?'VÃ‰RIFICATION':'SUSPENDU'))+'</span></div>'+ 
+    '<div class="muted">ğŸ“§ '+esc(r.email||'â€”')+(r.phone_number?' â€¢ ğŸ“± '+esc(r.phone_number):'')+(r.home_area?' â€¢ ğŸ“ '+esc(r.home_area):'')+'</div></div>'+ 
+    '<div class="sa-player-meta"><span><b>'+Number(r.groups_count||0)+'</b> groupe(s)</span><span><b>'+Number(r.local_profiles_count||0)+'</b> profil(s) liÃ©(s)</span><span>'+(r.is_public?'ğŸŒ Public':'ğŸ”’ PrivÃ©')+'</span><span>'+(r.discoverable?'ğŸ” Annuaire':'Annuaire dÃ©sactivÃ©')+'</span></div>'+ 
+    (links.length?'<div class="sa-staff-links"><b>ğŸ”— Liaison organisateur / membre</b>'+links.map(l=>'<div class="sa-staff-link"><span><b>'+esc(l.player_name)+'</b> â€¢ '+esc(l.workspace_name)+' <small>('+esc(l.role)+')</small></span><button class="danger" data-sa-unlink-staff data-workspace-id="'+esc(l.workspace_id)+'" data-user-id="'+esc(l.user_id)+'" data-player-id="'+esc(l.player_id)+'" data-player-name="'+esc(l.player_name)+'">DÃ©lier</button></div>').join('')+'</div>':'')+
+    (r.consent_accepted_at?'<div class="small muted">Consentement : '+new Date(r.consent_accepted_at).toLocaleString('fr-FR')+'</div>':'')+
+  '</div>'}).join('');
+}
 
-^ÂˆÛÛœİÙ[I
-	ÈÛXYİYTÙ\ÜÚ[Û”]Ú	ÊNÚYŠ\Ù[
-\™]\›ÂˆÛÛœİÚYI
-	ÈÛXYİYTÙ\ÜÚ[ÛÛÛ\^	ÊOË˜[Y_	ÉÎÂˆÛÛœİ]Ú\ÏTËœÜÜÔ]Ú\Ë™š[\ŠO˜Xİ]™HOOY˜[ÙI‰˜ÛÛ\^ÚYOOXÚY
-NÂˆÙ[š[›™\’SIÏÜ[Ûˆ˜[YOHˆÚÚ\Ú\ˆH\œ˜Z[ÛÜ[Û‰ÊÜ]Ú\Ë›X\
-O‰ÏÜ[Ûˆ˜[YOH‰ÊÜšY
-ÉÈ‰ÊÙ\ØÊ›˜[YJJÉÏÛÜ[Û‰ÊKš›Ú[Š	ÉÊNÂŸB™[˜İ[Ûˆ™[™\“X]Ú]ÚÙ[Xİ
+function renderSuperAdminWorkspaces(){
+  const box=$('#saWorkspaceList');if(!box)return;
+  const q=($('#saSearchWorkspace')?.value||'').trim().toLowerCase();
+  const mode=$('#saWorkspaceFilter')?.value||'all';
+  const all=S.superWorkspaces||[];
+  const matchesMode=w=>{
+    const paid=['standard','pro'].includes(String(w.subscription_plan||'free'))||!!w.special_access_enabled;
+    const trial=!!w.trial_ends_at&&new Date(w.trial_ends_at)>new Date();
+    if(mode==='paid')return paid;
+    if(mode==='trial')return trial&&!paid;
+    if(mode==='free')return !paid;
+    if(mode==='multi'){
+      const a=(S.superAccountAccesses||[]).filter(x=>String(x.user_id)===String(w.owner_user_id));
+      return a.filter(x=>x.role==='admin').length>1||a.filter(x=>x.role==='coorganizer').length>0;
+    }
+    if(mode==='suspended')return !w.public_enabled;
+    return true;
+  };
+  const rows=all.filter(w=>matchesMode(w)&&(!q||
+    String(w.workspace_name||'').toLowerCase().includes(q)||
+    String(w.owner_email||'').toLowerCase().includes(q)||
+    String(w.admin_first_name||'').toLowerCase().includes(q)||
+    String(w.admin_last_name||'').toLowerCase().includes(q)||
+    String(w.admin_phone||'').toLowerCase().includes(q)));
 
-^ÂˆÛÛœİÙ[I
-	ÈÜ]Ú	ÊNÚYŠ\Ù[
-\™]\›ÂˆÛÛœİXİ\œ™[İ\Š
-NÂˆ]]Ú\ÏV×NÂˆYŠËœ™\Ù\™YÜ]ÚÚYÏË›[™İ
-\]Ú\ÏTËœÜÜÔ]Ú\Ë™š[\ŠOœ™\Ù\™YÜ]ÚÚYËš[˜ÛY\ÊšY
-JNÂˆYŠ\]Ú\Ë›[™İ
-\]Ú\ÏTËœÜÜÔ]Ú\Ë™š[\ŠOœ˜Xİ]™HOOY˜[ÙJNÂˆÙ[š[›™\’SIÏÜ[Ûˆ˜[YOHˆ•\œ˜Z[ÛÜ[Û‰ÊÜ]Ú\Ë›X\
-O‰ÏÜ[Ûˆ˜[YOH‰ÊÙ\ØÊ›˜[YJJÉÈ‰ÊÙ\ØÊ›˜[YJJÉÈ8 (ˆ	ÊÙ\ØÊÛÛ\^X™[
-˜ÛÛ\^ÚY
-JJÉÏÛÜ[Û‰ÊKš›Ú[Š	ÉÊNÂŸB‚™[˜İ[ÛˆÜİš\œİ˜[YJ
-^ÂˆÛÛœİOTËœÙ\ÜÚ[ÛË\Ù\ÂˆYŠ\ĞYZ[Š
-I‰”Ë˜YZ[”›Ùš[OË™š\œİÛ˜[YJ^Âˆ™]\›ˆİš[™ÊË˜YZ[”›Ùš[K™š\œİÛ˜[YJKš[J
-KœÜ]
-×ÊËÊVÌNÂˆBˆÛÛœİY]OË\Ù\—ÛY]Y]_ßNÂˆÛÛœİ˜]ÏJY™š\œİÛ˜[Y_Y™Ú]™[—Û˜[Y_Y›˜[Y_Y™[Û˜[Y_	ÉÊKš[J
-NÂˆYŠ˜]Ê\™]\›ˆ˜]ËœÜ]
-×ÊËÊVÌNÂˆËÈ™H˜[XZ\È˜Xœš\]Y\ˆH°ê[›ÛH\Z\È	ØY™\ÜÙHK[XZ[
-^ˆK›İZ\ÛÛˆOˆJK‚ˆËÈÚH]Xİ[ˆ°ê[›ÛHH›Ùš[‰Ù\İ\ÜÛšX›K][\Ù\ˆ[ˆXØİYZ[™]]™K‚ˆ™]\›ˆ	ğèÚIÎÂŸB™[˜İ[Ûˆ™[™\’ÜİÙ[ÛÛYJ
-^ÂˆÛÛœİ]OI
-	ÈÚÜİÙ[ÛÛYU]IÊK[XZ[I
-	ÈÚÜİÙ[ÛÛYQ[XZ[	ÊKšYÚÏI
-	ÈØÛÛÜ™Ó^TšYÚÉÊNÂˆYŠ]J]]K^ÛÛ[Iü'äbÈ›Ûš›İ\ˆ	ÊÚÜİš\œİ˜[YJ
-JÉÈIÎÂˆYŠ[XZ[
-Y[XZ[^ÛÛ[IĞÛÛ›™Xİ0êH]™XÈˆ	ÊÊËœÙ\ÜÚ[ÛË\Ù\Ë™[XZ[	Ù[XZ[[™\ÜÛšX›IÊNÂˆYŠ\šYÚÊ\™]\›ÂˆYŠZ\ĞÛÛÜ™Ê
-J^ÂˆšYÚË˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆšYÚËš[›™\’SIÉÎÂˆ™]\›ÂˆBˆšYÚË˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆÛÛœİYœÏVÂˆÉØØ[—Ù[\—ÜØÛÜ™\ÉË	ø¦¯HØZ\Ú\ˆ\ÈØÛÜ™\È[™[\ÈX]ÚÉ×KˆÉØØ[—ÙÙ[™\˜]WİX[\ÉË	ü'äiHğê[°ê\™\ˆ\È0ê\]Z\\É×KˆÉØØ[—ØÜ™X]Wİİ\›˜[Y[ÉË	ü'äáHÜ°êY\ˆ\Èİ\››Ú\É×KˆÉØØ[—İšY]×Ü^Y\œÉË	ü'äi›Ú\ˆ\È›İY]\œÉ×KˆÉØØ[—ØYÛY[X™\œÉË	ø§¥HZ›İ]\ˆ\ÈY[Xœ™\É×KˆÉØØ[—Ù[]WÛY[X™\œÉË	ü'åä{î#Èİ\š[Y\ˆ\ÈY[Xœ™\É×KˆÉØØ[—Ú[š]WØÛÛÜ™Ø[š^™\œÉË	ü'å%È[š]\ˆ\ÈÛË[Ü™Ø[š\Ø]]\œÉ×BˆNÂˆÛÛœİÜ˜[YYYœË™š[\Š
-ÚÙ^WJOOˆHTË›^T\›Z\ÜÚ[ÛœÏË–ÚÙ^WJNÂˆÛÛœİ[\Z\Õ[\Ü˜\PYZ[Š
-NÂˆšYÚËš[›™\’SBˆ	Ï]ˆÛ\ÜÏHœ^Y\ˆˆİ[OH˜˜XÚÙÜ›İ[™ˆÙ˜™H‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ›İÈˆİ[OHš\İYKXÛÛ[œÜXÙKX™]ÙY[Ø[YÛ‹Z][\Î˜Ù[\ÙØ\Ù›^]Ü˜\Ü˜\‰ÊÂˆ	Ï]¼'å$Y\È]]Üš\Ø][ÛœÏØ]ˆÛ\ÜÏH›]]Yˆİ[OH›X\™Ú[‹]ÜŒÜ‘›Ú]ÈXØÛÜ™0ê\È\ˆ8 &XYZ[š\İ˜]]\Ù]Ù]‰ÊÂˆ	ÏÜ[ˆÛ\ÜÏH™İY\İX˜YÙH‰ÊÊ[\ÉĞYZ[ˆ[\Ü˜Z\™IÎ‰ĞÛËYÙ\İ[Û›˜Z\™IÊJÉÏÜÜ[‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆİ[OH›X\™Ú[‹]ÜŒL‰ÊÂˆ
-Ü˜[Y›[™İÙÜ˜[Y›X\
+  const owners=new Map();all.forEach(w=>owners.set(String(w.owner_user_id),w));
+  const accessRows=S.superAccountAccesses||[];
+  const accessByUser=new Map();
+  accessRows.forEach(a=>{const k=String(a.user_id||'');if(!accessByUser.has(k))accessByUser.set(k,[]);accessByUser.get(k).push(a);});
+  if($('#saTotalSpaces'))$('#saTotalSpaces').textContent=all.length;
+  if($('#saActiveSpaces'))$('#saActiveSpaces').textContent=all.filter(w=>w.public_enabled).length;
+  if($('#saSuspendedSpaces'))$('#saSuspendedSpaces').textContent=all.filter(w=>!w.public_enabled).length;
+  if($('#saTotalPlayers'))$('#saTotalPlayers').textContent=all.reduce((n,w)=>n+Number(w.active_players||0),0);
+  if($('#saTotalCompetitions'))$('#saTotalCompetitions').textContent=all.reduce((n,w)=>n+Number(w.tournament_count||0)+Number(w.league_count||0),0);
+  if($('#saPaidSpaces'))$('#saPaidSpaces').textContent=all.filter(w=>['standard','pro'].includes(String(w.subscription_plan||'free'))||w.special_access_enabled).length;
+  if($('#saTotalOrganizers'))$('#saTotalOrganizers').textContent=owners.size;
+  if($('#saMultiOrganizers'))$('#saMultiOrganizers').textContent=[...owners.keys()].filter(uid=>{
+    const a=accessByUser.get(uid)||[];
+    return a.filter(x=>x.role==='admin').length>1||a.filter(x=>x.role==='coorganizer').length>0;
+  }).length;
 
-ËX™[JOO‰ÏÜ[ˆÛ\ÜÏH™İY\İX˜YÙHˆİ[OH›X\™Ú[ŒÜ\ÜØ˜XÚÙÜ›İ[™ˆÙMÙ™XÎØÛÛÜˆÌL˜ŒÍ‰ÊÛX™[
-ÉÏÜÜ[‰ÊKš›Ú[Š	ÉÊN‰ÏÜ[ˆÛ\ÜÏH›]]Y]Xİ[™H]]Üš\Ø][Ûˆ\Xİ[pê™KÜÜ[‰ÊJÂˆ	ÏÙ]‰ÊÂˆ
-Ë›^T\›Z\ÜÚ[ÛœÏË˜Ø[—Ù[\—ÜØÛÜ™\ÏÉÏ]ˆÛ\ÜÏH›]]Yˆİ[OH›X\™Ú[‹]Ü\¸§!HH]^ØZ\Ú\ˆ][ÙYšY\ˆ\ÈØÛÜ™\È[™[\ÈX]ÚÈ[ˆÛİ\œËÙ]‰Î‰ÉÊJÂˆ	ÏÙ]‰ÎÂŸB‚™[˜İ[ÛˆÙ]šY]ÊŠ^ÂˆÛÛœİ™]š[İ\ÕšY]ÏTË›\İšY]ÎÂˆYŠOOIÜ\›Z\ÜÚ[ÛœÉÉ‰ˆZ\ĞYZ[Š
-J]IÚÛYIÎÂˆYŠOOIÜ^Y\œÉÉ‰š\ĞÛÛÜ™Ê
-I‰ˆZ\Õ[\Ü˜\PYZ[Š
-I‰ˆTË›^T\›Z\ÜÚ[ÛœË˜Ø[—İšY]×Ü^Y\œÊ]IÚÛYIÎÂˆYŠOOIİİ\›˜[Y[ÉÉ‰ˆTËÛÜšÜÜXÙQ™X]\™\Ëİ\›˜[Y[×Ù[˜X›Y
-]IÚÛYIÎÂˆYŠOOIÛXYİYIÉ‰ˆTËÛÜšÜÜXÙQ™X]\™\Ë›XYİYWÙ[˜X›Y
-]IÚÛYIÎÂˆYŠOOIÜ˜[šÚ[™ÉÉ‰ˆTËÛÜšÜÜXÙQ™X]\™\Ëœ˜[šÚ[™Ü×Ù[˜X›Y
-]IÚÛYIÎÂˆYŠOOIÛX]Ú\ÉÉ‰š\ĞÛÛÜ™Ê
-I‰ˆZ\Õ[\Ü˜\PYZ[Š
-I‰ˆTË›^T\›Z\ÜÚ[ÛœË˜Ø[—Ù[\—ÜØÛÜ™\Ê]IÚÛYIÎÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËšY]ÉÊK™›Ü‘XXÚ
-O˜Û\ÜÓ\İÙÙÛJ	ØXİ]™IËšYOOIİšY]ËIÊİŠJNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËX‰ÊK™›Ü‘XXÚ
-O˜Û\ÜÓ\İÙÙÛJ	ØXİ]™IË™]\Ù]šY]ÏOO]ŠJNÂˆÛÛœİXİ]™UXYØİ[Y[œ]Y\TÙ[XİÜŠ	ËX‹˜Xİ]™IÊNÂˆYŠXİ]™UX‰‰Ú[™İË›X]ÚYYXJ	ÊX^]ÚYL
-IÊK›X]Ú\Ê^Âˆ™\]Y\İ[š[X][Û‘œ˜[YJ
+  box.innerHTML='';
+  if(!rows.length){box.innerHTML='<p class="muted">'+(q?'Aucun espace ne correspond Ã  la recherche.':'Aucun espace dans ce filtre.')+'</p>';return}
 
-OO˜Xİ]™UX‹œØÜ›Û[ÕšY]ÊØ™Z]š[Ü‰ÜÛ[Ûİ	Ë›ØÚÎ‰Û™X\™\İ	Ë[›[™N‰ØÙ[\‰ßJJNÂˆBˆYŠOOIİX[\ÉÊ^ÂˆYŠ™]š[İ\ÕšY]ÈOOIİX[\ÉÉ‰ˆTËX[PÛÛ\]][Û’Y	‰”Ë˜Xİ]™Uİ\‰‰”Ëİ\›˜[Y[ËœÛÛYJO”İš[™ÊšY
-OOOTİš[™ÊË˜Xİ]™Uİ\ŠJJTËX[PÛÛ\]][Û’YTË˜Xİ]™Uİ\Âˆ™[™\•X[\Ê
-NÂˆYŠ™]š[İ\ÕšY]ÈOOIİX[\ÉÉ‰”ËX[PÛÛ\]][Û’Y	‰Š\ĞYZ[“ÜÊ
-_
-\ĞÛÛÜ™Ê
-I‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—ÙÙ[™\˜]WİX[\ÊJJ^ÂˆÛÛœİİ\›˜[Y[YTËX[PÛÛ\]][Û’YÂˆŞ[˜Õİ\›˜[Y[İXœİ]]\Êİ\›˜[Y[Y
-K[Š\Ş[˜Ê
-OOÂˆYŠİš[™ÊË˜Xİ]™Uİ\ŠHOOTİš[™Êİ\›˜[Y[Y
-J\™]\›Âˆ]ØZ]ØYİ\›˜[Y[
+  const ownerBodies=new Map();
+  const ensureOwnerGroup=w=>{
+    const key=String(w.owner_user_id||w.owner_email||'unknown');
+    if(ownerBodies.has(key))return ownerBodies.get(key);
+    const accesses=accessByUser.get(String(w.owner_user_id))||[];
+    const administered=accesses.filter(a=>a.role==='admin');
+    const coManaged=accesses.filter(a=>a.role==='coorganizer');
+    const owned=Number(w.owner_owned_spaces||0),limit=Number(w.owner_free_workspace_limit||1);
+    const g=document.createElement('details');g.className='sa-owner-group';g.open=!!q||mode==='multi';
+    const display=([w.admin_first_name,w.admin_last_name].filter(Boolean).join(' ')||w.owner_email||'Organisateur');
+    const accessHtml='<div class="sa-account-access-map"><div class="sa-access-column"><b>ğŸ‘‘ Groupes administrÃ©s</b>'+(administered.length?administered.map(a=>'<span><strong>'+esc(a.workspace_name)+'</strong><small>'+(a.is_owner?'PropriÃ©taire':'Administrateur')+'</small></span>').join(''):'<span class="muted">Aucun</span>')+'</div><div class="sa-access-column"><b>ğŸ› ï¸ Groupes co-gÃ©rÃ©s</b>'+(coManaged.length?coManaged.map(a=>'<span><strong>'+esc(a.workspace_name)+'</strong><small>Co-gestionnaire uniquement</small></span>').join(''):'<span class="muted">Aucun</span>')+'</div></div>';
+    g.innerHTML='<summary><span><b>ğŸ‘¤ '+esc(display)+'</b><small>'+esc(w.owner_email||'')+'</small></span><span class="sa-owner-badges"><em>ğŸ‘‘ '+administered.length+' administrÃ©'+(administered.length>1?'s':'')+'</em><em>ğŸ› ï¸ '+coManaged.length+' co-gÃ©rÃ©'+(coManaged.length>1?'s':'')+'</em><em class="'+(limit>1?'special':'')+'">CrÃ©ations gratuites : '+owned+' / '+limit+'</em></span></summary>'+accessHtml+'<div class="sa-owner-tools"><div><b>Limite de groupes crÃ©Ã©s gratuitement</b><div class="muted small">Les groupes oÃ¹ ce compte est seulement co-gestionnaire ne comptent jamais dans cette limite.</div></div><input data-owner-limit type="number" min="1" max="100" value="'+limit+'"><input data-owner-note value="'+esc(w.owner_limit_note||'')+'" placeholder="Motif / note interne"><button data-owner-save>ğŸ’¾ Autoriser</button></div><div class="sa-owner-workspaces"></div>';
+    const body=g.querySelector('.sa-owner-workspaces');
+    g.querySelector('[data-owner-save]').onclick=async()=>{
+      const btn=g.querySelector('[data-owner-save]'),val=Math.max(1,Number(g.querySelector('[data-owner-limit]').value)||1),note=g.querySelector('[data-owner-note]').value.trim();
+      btn.disabled=true;const {error}=await sb.rpc('super_admin_set_organizer_free_workspace_limit',{p_user_id:w.owner_user_id,p_limit:val,p_note:note||null});btn.disabled=false;
+      if(error)return toast(error.message);toast('Limite organisateur mise Ã  jour âœ…');await loadSuperAdminWorkspaces();
+    };
+    box.appendChild(g);ownerBodies.set(key,body);return body;
+  };
 
-NÜ™[™\•X[\Ê
-NÂˆJK˜Ø]Ú
-\œ›ÜO˜ÛÛœÛÛKØ\›Š	ÜİXœİ]]HŞ[˜Ú›Ûš^˜][Û‰Ë\œ›ÜŠJNÂˆBˆBˆYŠOOIÜ˜[šÚ[™ÉÊ\™[™\”˜[šÚ[™Ê
-NÂˆË›\İšY]Ï]ÂˆYŠÉÚÛYIË	Û^\^Y\‰Ë	Ü^Y\œÉË	Ü\›Z\ÜÚ[ÛœÉË	İİ\›˜[Y[ÉË	İX[\ÉË	ÛX]Ú\ÉË	ÛXYİYIË	ØÛÛÛ\‰Ë	Ü˜[šÚ[™ÉË	ÜÚ[\K\İÙI×Kš[˜ÛY\ÊŠI‰ˆTËœX›XÓ[ÙJ^İÚ[™İËœİÙTYÙUšY]ĞÛÛ^^ÜYÙN‰Ø\‰ÊİŸNÙØİ[Y[™\Ü]Ú]™[
-™]È]™[
-	ÜİÙNœYÙK]šY]ÉÊJNßBŸB‚‹ËÈ˜]šYØ][Ûˆ]XÚ0êYH[[pêYX][Y[ˆ[H™\İH›Û˜İ[Û›™[Hpê›YHÚH[™B‹ËÈ]]™H\YHH	Ú[š]X[\Ø][Ûˆ™[˜ÛÛ™H[™H\œ™]\‹‚™Øİ[Y[˜Y]™[\İ[™\Š	ØÛXÚÉËOOÂˆÛÛœİXYK\™Ù]˜ÛÜÙ\İ
-	ËX‰ÊNÂˆYŠXˆ	‰ˆX‹™]\Ù]šY]Ê^ÂˆKœ™]™[Y˜][
+  rows.forEach(w=>{
+    const d=document.createElement('div');d.className='sa-workspace-card';
+    const created=w.created_at?new Date(w.created_at).toLocaleDateString('fr-FR'):'â€”';
+    d.innerHTML=
+      '<div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap">'+
+        '<span style="flex:1;min-width:220px">'+
+          '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><b style="font-size:1.08rem">'+esc(w.workspace_name)+'</b><span class="guest-badge">'+(w.public_enabled?'ACTIF':'SUSPENDU')+'</span></div>'+
+          '<div class="muted" style="margin-top:4px">ğŸ‘¤ Administrateur : <b>'+esc(([w.admin_first_name,w.admin_last_name].filter(Boolean).join(' ')||w.owner_email||'Non renseignÃ©'))+'</b></div>'+
+          '<div class="muted">ğŸ“§ '+esc(w.owner_email||'Email indisponible')+(w.admin_phone?' â€¢ ğŸ“± '+esc(w.admin_phone):'')+'</div>'+
+          '<div class="muted">CrÃ©Ã© le '+esc(created)+'</div>'+
+        '</span>'+
+      '</div>'+
+      '<div class="grid g3" style="margin-top:12px">'+
+        '<div class="player"><div class="muted">Membres actifs</div><b>'+Number(w.active_players||0)+'</b></div>'+
+        '<div class="player"><div class="muted">Co-gestionnaires</div><b>'+Number(w.active_coorganizers||0)+' / '+Number(w.max_coorganizers||0)+'</b><div class="muted small">'+Number(w.base_max_coorganizers||0)+' offert(s) + '+Number(w.paid_coorganizers||0)+' achetÃ©(s)</div></div>'+
+        '<div class="player"><div class="muted">CompÃ©titions</div><b>'+Number(w.tournament_count||0)+' tournoi(x) â€¢ '+Number(w.league_count||0)+' ligue(s)</b></div>'+
+      '</div>'+
+      '<div style="height:1px;background:#e8ecef;margin:14px 0"></div>'+
+      '<div class="grid g2">'+
+        '<label><span class="muted">Nom de lâ€™espace</span><input data-sa-name value="'+esc(w.workspace_name)+'"></label>'+
+        '<label><span class="muted">Email administrateur</span><input readonly value="'+esc(w.owner_email||'')+'" style="opacity:.75"></label>'+
+      '</div>'+
+      '<div class="grid g3" style="margin-top:10px">'+
+        '<label><span class="muted">PrÃ©nom administrateur</span><input data-sa-first-name value="'+esc(w.admin_first_name||'')+'" placeholder="PrÃ©nom"></label>'+
+        '<label><span class="muted">Nom administrateur</span><input data-sa-last-name value="'+esc(w.admin_last_name||'')+'" placeholder="Nom"></label>'+
+        '<label><span class="muted">TÃ©lÃ©phone administrateur</span><input data-sa-phone type="tel" inputmode="tel" value="'+esc(w.admin_phone||'')+'" placeholder="TÃ©lÃ©phone"></label>'+
+      '</div>'+
+      '<div class="row" style="margin-top:8px"><button data-sa-save-profile>ğŸ’¾ Enregistrer nom / prÃ©nom</button><span class="muted">Modifie uniquement lâ€™identitÃ© affichÃ©e de lâ€™administrateur, sans changer son compte de connexion.</span></div>'+
+      '<div class="grid g3" style="margin-top:10px">'+
+        '<label><span class="muted">Co-gestionnaires offerts par le Super Admin</span><input data-sa-max type="number" min="0" max="1000" value="'+Number((w.base_max_coorganizers ?? 0) || 0)+'"><small class="muted">Sâ€™ajoutent aux accÃ¨s achetÃ©s par le client.</small></label>'+
+        '<div class="player" style="background:#f0fdf4;border-color:#bbf7d0"><b>ğŸ '+Number(w.base_max_coorganizers||0)+' offert(s) â€¢ ğŸ’³ '+Number(w.paid_coorganizers||0)+' achetÃ©(s)</b><div class="muted" style="margin-top:4px">CapacitÃ© totale calculÃ©e automatiquement : '+Number(w.max_coorganizers||0)+' co-gestionnaire(s).</div></div>'+
+        '<label class="player row" style="justify-content:flex-start"><input data-sa-public type="checkbox" style="width:auto" '+(w.public_enabled?'checked':'')+'><span><b>Espace actif</b></span></label>'+
+      '</div>'+
+      '<div class="sa-settings-block">'+
+        '<div class="sa-block-title"><div><b>ğŸ§© Modules & dÃ©pendances</b><span>Les options sont automatiquement coupÃ©es lorsquâ€™aucun module compÃ©tition nâ€™est actif.</span></div></div>'+
+        '<div class="sa-module-grid">'+
+          '<label class="sa-module-toggle"><input data-sa-tournament type="checkbox" '+(w.tournaments_enabled?'checked':'')+'><span><b>ğŸ† Tournoi</b><small>Module compÃ©tition principal</small></span></label>'+
+          '<label class="sa-module-toggle"><input data-sa-league type="checkbox" '+(w.league_enabled?'checked':'')+'><span><b>ğŸ Ligue</b><small>Module compÃ©tition rÃ©current</small></span></label>'+
+          '<label class="sa-module-toggle dependent"><input data-sa-rankings type="checkbox" '+(w.rankings_enabled?'checked':'')+'><span><b>âš½ Buteurs / passeurs</b><small>Requiert Tournoi ou Ligue</small></span></label>'+
+        '</div>'+
+        '<div class="sa-linked-options">'+
+          '<div class="sa-linked-option top"><span>â­</span><div><b>Top Player & notes de match</b><small>Inclus avec STANDARD et PRO. Requiert un module compÃ©tition actif.</small></div><strong data-sa-top-status>'+(w.top_player_enabled?'ACTIF':'INACTIF')+'</strong></div>'+
+          '<div class="sa-linked-option third"><span>ğŸ»</span><div><b>3e mi-temps</b><small>Incluse avec PRO. Requiert un module compÃ©tition actif.</small></div><strong data-sa-third-status>'+(w.third_half_enabled?'ACTIF':'INACTIF')+'</strong></div>'+
+          '<div class="sa-linked-option review"><span>ğŸ—³ï¸</span><div><b>Validation collaborative des Ã©quipes</b><small>Incluse avec STANDARD/PRO. Les co-gestionnaires prÃ©sents peuvent valider ou demander un nouveau tirage pendant 2 h.</small></div><strong>'+(w.team_review_enabled?'ACTIF':'INACTIF')+'</strong></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="sa-commercial-block">'+
+        '<div class="sa-block-title"><div><b>ğŸ’ Offre commerciale</b><span>Le choix de lâ€™offre pilote automatiquement les modules premium.</span></div><span class="sa-plan-chip '+esc(String(w.subscription_plan||'free'))+'">'+esc(String(w.subscription_plan||'free').toUpperCase())+'</span></div>'+
+        '<div class="grid g2" style="margin-top:12px"><label><span class="muted">Offre</span><select data-sa-plan><option value="free" '+((w.subscription_plan||'free')==='free'?'selected':'')+'>FREE â€” Gestion essentielle</option><option value="standard" '+(w.subscription_plan==='standard'?'selected':'')+'>STANDARD â€” Top Player inclus</option><option value="pro" '+(w.subscription_plan==='pro'?'selected':'')+'>PRO â€” Top Player + 3e mi-temps</option></select></label><label class="sa-special-toggle"><input data-sa-special-access type="checkbox" '+(w.special_access_enabled?'checked':'')+'><span><b>ğŸ AccÃ¨s spÃ©cial</b><small>DÃ©bloque les options premium pour dÃ©mo / ambassadeur.</small></span></label></div><label class="sa-special-toggle team-review-gift"><input data-sa-team-review-gift type="checkbox" '+(w.team_review_gifted?'checked':'')+'><span><b>ğŸ—³ï¸ Offrir validation du tirage</b><small>Active uniquement cette option mÃªme sans abonnement payant.</small></span></label>'+
+        '<div class="sa-offer-map"><span>FREE <b>Base</b></span><span>STANDARD <b>+ Top Player</b></span><span>PRO <b>+ Top Player + 3e mi-temps</b></span></div>'+
+        (w.upgrade_requested_at?'<div class="sa-upgrade-alert"><b>ğŸ”” Demande dâ€™upgrade reÃ§ue</b><span>'+new Date(w.upgrade_requested_at).toLocaleString('fr-FR')+'</span></div>':'')+
+      '</div>'+ 
 
-NÂˆYŠX‹™\ØX›YX‹˜Û\ÜÓ\İ˜ÛÛZ[œÊ	Ù\ØX›Y]X‰ÊJ\™]\›ÂˆÙ]šY]ÊX‹™]\Ù]šY]ÊNÈ™]\›ÂˆBˆÛÛœİÛÏYK\™Ù]˜ÛÜÙ\İ
-	ÖÙ]KYÛ×IÊNÂˆYŠÛÈ	‰ˆÛË™]\Ù]™ÛÊ^ÈKœ™]™[Y˜][
+      '<div class="player" style="margin-top:14px;background:#fffaf0;border:1px solid #f2d79a">'+
+        '<b>ğŸ”„ TransfÃ©rer la gestion Ã  un autre administrateur</b>'+
+        '<div class="muted" style="margin:5px 0 10px">Le nouveau compte doit dÃ©jÃ  exister. AprÃ¨s validation, il devient immÃ©diatement administrateur principal de cet espace.</div>'+
+        '<div class="grid g2"><input data-sa-transfer-email type="email" placeholder="Email du nouvel administrateur"><input data-sa-transfer-phone type="tel" inputmode="tel" placeholder="TÃ©lÃ©phone du nouvel administrateur"></div>'+
+        '<div class="grid g2" style="margin-top:8px"><input data-sa-transfer-first placeholder="PrÃ©nom du nouvel administrateur"><input data-sa-transfer-last placeholder="Nom du nouvel administrateur"></div>'+
+        '<label class="row" style="justify-content:flex-start;margin-top:10px"><input data-sa-keep-old type="checkbox" style="width:auto"><span>Conserver lâ€™ancien administrateur comme co-organisateur</span></label>'+
+        '<div class="muted" style="margin-top:5px">Sinon, son accÃ¨s Ã  cet espace sera dÃ©sactivÃ©. Son compte utilisateur nâ€™est jamais supprimÃ©.</div>'+
+        '<button data-sa-transfer class="danger" style="margin-top:10px">TransfÃ©rer lâ€™administration</button>'+
+      '</div>';
 
-NÈÙ]šY]ÊÛË™]\Ù]™ÛÊNÈBŸJNÂ›]™XÛİ™\S[ÙOKİ\O\™XÛİ™\KÚK\İ
-ØØ][Û‹š\Ú
-ÛØØ][Û‹œÙX\˜Ú
-NÂ˜ÛÛœİTÕT“[ØØ][Û‹›ÜšYÚ[ŠÛØØ][Û‹œ]˜[YKœİXœİš[™ÊØØ][Û‹œ]˜[YK›\İ[™^ÙŠ	ËÉÊJÌJNÂ˜ÛÛœİ\›\˜[\Ï[™]ÈT“ÙX\˜Ú\˜[\ÊØØ][Û‹œÙX\˜Ú
-NÂ›]X›XÕÚÙ[‘œ›ÛU\›]\›\˜[\Ë™Ù]
-	ÜX›XÉÊNÂ˜ÛÛœİ^[Y[\ÚÕÚÙ[‘œ›ÛU\›J
+    refreshWorkspaceDependencyUI(d);
+    const profileSave=d.querySelector('[data-sa-save-profile]');
+    profileSave.onclick=async()=>{
+      profileSave.disabled=true;
+      const {error}=await sb.rpc('super_admin_update_admin_profile',{
+        p_workspace_id:w.workspace_id,
+        p_first_name:d.querySelector('[data-sa-first-name]').value.trim()||null,
+        p_last_name:d.querySelector('[data-sa-last-name]').value.trim()||null,
+        p_phone:d.querySelector('[data-sa-phone]').value.trim()||null
+      });
+      profileSave.disabled=false;
+      if(error)return toast(error.message);
+      toast('Nom et prÃ©nom de lâ€™administrateur mis Ã  jour âœ…');
+      await loadSuperAdminWorkspaces();
+    };
 
-OOÂˆÛÛœİœ›ÛU\›J\›\˜[\Ë™Ù]
-	Ü^Y\ÚÉÊ_	ÉÊKš[J
-NÂˆYŠœ›ÛU\›
-^Âˆ^ÜÙ\ÜÚ[Û”İÜ˜YÙKœÙ]][J	ÜİÙWÜ^Y\Ú×İÚÙ[‰Ëœ›ÛU\›
-NßXØ]Ú
-Ê^ßBˆ^ØÛÛœİO[™]ÈT“
-ØØ][Û‹š™YŠNİKœÙX\˜Ú\˜[\Ë™[]J	Ü^Y\ÚÉÊNİKœÙX\˜Ú\˜[\ËœÙ]
-	Ü^Y\Ú×ÜÙ\ÜÚ[Û‰Ë	ÌIÊNÚ\İÜKœ™\XÙTİ]JßK	ÉËKÔİš[™Ê
-JNßXØ]Ú
-Ê^ßBˆ™]\›ˆœ›ÛU\›ÂˆBˆYŠ\›\˜[\Ë™Ù]
-	Ü^Y\Ú×ÜÙ\ÜÚ[Û‰ÊOOOIÌIÊ^Âˆ^Ü™]\›ˆ
-Ù\ÜÚ[Û”İÜ˜YÙK™Ù]][J	ÜİÙWÜ^Y\Ú×İÚÙ[‰Ê_	ÉÊKš[J
-NßXØ]Ú
-Ê^Ü™]\›ˆ	ÉÎßBˆBˆ™]\›ˆ	ÉÎÂŸJJ
-NÂ˜ÛÛœİÚÜÛÙQœ›ÛU\›J\›\˜[\Ë™Ù]
-	ÜÉÊ_	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂ˜ÛÛœİ^[Y[ÚÜÛÙQœ›ÛU\›J\›\˜[\Ë™Ù]
-	Ü^IÊ_	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂ˜ÛÛœİ[š]RYœ›ÛU\›]\›\˜[\Ë™Ù]
-	Ú[š]IÊNÂ˜ÛÛœİ[š]Q[XZ[œ›ÛU\›J\›\˜[\Ë™Ù]
-	Ù[XZ[	Ê_	ÉÊKš[J
-KÓİÙ\Ø\ÙJ
-NÂ™[˜İ[Ûˆ\ĞYZ[Š
-^Ü™]\›ˆËÛÜšÜÜXÙOËœ›ÛOOOIØYZ[‰ßB™[˜İ[Ûˆ\ĞÛÛÜ™Ê
-^Ü™]\›ˆËÛÜšÜÜXÙOËœ›ÛOOOIØÛÛÜ™Ø[š^™\‰ßB™[˜İ[Ûˆ\Õ[\Ü˜\PYZ[Š
-^ÂˆYŠZ\ĞÛÛÜ™Ê
-_TË›^T\›Z\ÜÚ[ÛœÏË[\Ü˜\WØYZ[—İ[[
-\™]\›ˆ˜[ÙNÂˆ™]\›ˆ™]È]JË›^T\›Z\ÜÚ[ÛœË[\Ü˜\WØYZ[—İ[[
-K™Ù][YJ
-O‘]K››İÊ
-NÂŸB™[˜İ[Ûˆ\ĞYZ[“ÜÊ
-^Ü™]\›ˆ\ĞYZ[Š
-_\Õ[\Ü˜\PYZ[Š
-_B™[˜İ[Ûˆ›Ü›X]X™[
-
-^Ü™]\›ˆË™›Ü›X]OOIÚÚ[™×ÛÙ—Ü]Ú	ÏÉÔ›ÚHH\œ˜Z[‰ÎŠË™›Ü›X]OOIÛXYİYIÏÉÓYİYIÎ‰ĞÛ\ÜÚ\]YIÊ_B™[˜İ[Ûˆ™YÚ\İ˜][Û“[šÊ
-^ÂˆYŠ]TËÛÜšÜÜXÙOËœX›X×İÚÙ[Š\™]\›ˆ	ÉÎÂˆYŠœÚÜØÛÙJ\™]\›ˆTÕT“
-ÉÏÜÏIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-İš[™ÊœÚÜØÛÙJKÕ\\Ø\ÙJ
-JNÂˆYŠ™›Ü›X]OOIÛXYİYIÊ^Âˆ™]\›ˆTÕT“
-ÉÏÜX›XÏIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-ËÛÜšÜÜXÙKœX›X×İÚÙ[ŠJÉÉšY]Ï[XYİYK\Ù\ÜÚ[Û‰›XYİYOIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-›XYİYWÚY	ÉÊJÉÉİ\›˜[Y[IÊÙ[˜ÛÙUT’PÛÛ\Û™[
-šY
-NÂˆBˆ™]\›ˆTÕT“
-ÉÏÜX›XÏIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-ËÛÜšÜÜXÙKœX›X×İÚÙ[ŠJÉÉšY]Ï]İ\›˜[Y[	İ\›˜[Y[IÊÙ[˜ÛÙUT’PÛÛ\Û™[
-šY
-NÂŸB™[˜İ[ÛˆXYİYT™YÚ\İ˜][Û“[šÊ
-^ÂˆYŠ[TËÛÜšÜÜXÙOËœX›X×İÚÙ[Š\™]\›ˆ	ÉÎÂˆ™]\›ˆTÕT“
-ÉÏÜX›XÏIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-ËÛÜšÜÜXÙKœX›X×İÚÙ[ŠJÉÉšY]Ï[XYİYI›XYİYOIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-šY
-NÂŸB™[˜İ[ÛˆÙX\ÛÛ”X›XÔ˜[šÚ[™Ó[šÊ
-^ÂˆYŠTËÛÜšÜÜXÙOËœX›X×İÚÙ[Š\™]\›ˆ	ÉÎÂˆÛÛœİÙX\ÛÛTËœÙX\ÛÛœË™š[™
-Oš\×ØXİ]™J_ËœÙX\ÛÛœÖÌNÂˆÛÛœİ[šÙYTËİ\›˜[Y[Ë™š[™
-OœÙX\ÛÛ—ÚYOO\ÙX\ÛÛËšY	‰™›Ü›X]OOIÛXYİYIÉ‰œÚÜØÛÙJNÂˆYŠ[šÙYËœÚÜØÛÙJ\™]\›ˆTÕT“
-ÉÜØZ\ÛÛ‹ÏÜÏIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-İš[™Ê[šÙYœÚÜØÛÙJKÕ\\Ø\ÙJ
-JNÂˆÛÛœİO[™]ÈT“ÙX\˜Ú\˜[\ÊÜX›XÎ”ËÛÜšÜÜXÙKœX›X×İÚÙ[ŸJNÂˆYŠÙX\ÛÛËšY
-\KœÙ]
-	ÜÙX\ÛÛ‰ËÙX\ÛÛ‹šY
-NÂˆ™]\›ˆTÕT“
-ÉÜÙX\ÛÛ‹š[ÉÊÜKÔİš[™Ê
-NÂŸB™[˜İ[ÛˆØ[‘Y]İ\œ™[X]Ú\Ê
-^ØÛÛœİXİ\œ™[İ\Š
-NÜ™]\›ˆH]	‰ˆœİ]\ÈOOIÙš[š\ÚY	È	‰ˆ
-\ĞYZ[“ÜÊ
-_
-\ĞÛÛÜ™Ê
-I‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—Ù[\—ÜØÛÜ™\ÊJ_B™[˜İ[ÛˆØ[“X[˜YÙSX]ÚİXİ\™J
-^ØÛÛœİXİ\œ™[İ\Š
-NÜ™]\›ˆH]	‰ˆœİ]\ÈOOIÙš[š\ÚY	È	‰ˆ\ĞYZ[“ÜÊ
-_B™[˜İ[ÛˆXZÙQ\ØX›YXİ[Û]ÛŠX™[]J^ÂˆÛÛœİYØİ[Y[˜Ü™X]Q[[Y[
-	Ø]Û‰ÊNØ‹^ÛÛ[[X™[Ø‹™\ØX›Y]YNØ‹œÙ]]šX]J	Ø\šXKY\ØX›Y	Ë	İYIÊNÂˆ‹˜Û\ÜÓ˜[YOIÙ[™Ù\ˆ\ØX›YXXİ[Û‰ÎØ‹œİ[K›ÜXÚ]OIËŒÎ	ÎØ‹œİ[K™š[\IÙÜ˜^\ØØ[JJIÎØ‹œİ[K˜İ\œÛÜIÛ›İX[İÙY	ÎÂˆ‹]O]]_	ĞXİ[Ûˆ›Ûˆ]]Üš\ğêYIÎÜ™]\›ˆÂŸB™[˜İ[Ûˆ\T\›Z\ÜÚ[ÛœÊ
-^ÂˆÛÛœİYZ[Z\ĞYZ[Š
-NÂˆÛÛœİÛÛÜ™ÏZ\ĞÛÛÜ™Ê
-NÂˆÛÛœİYZ[“ÜÏZ\ĞYZ[“ÜÊ
-NÂˆÛÛœİÜ™Ø[š^™\“ØÚÙYHHTË›Ü™Ø[š^™\XØÙ\ÜÏËœ™\]Z\™\×ÜİXœØÜš\[ÛÂˆYŠÜ™Ø[š^™\“ØÚÙY
-^ÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËXœÈX‰ÊK™›Ü‘XXÚ
-[OØÛÛœİY[™]\Ù]šY]ÎÙ[œİ[K™\Ü^OJOOIÚÛYIßOOIÛ^\^Y\‰ÊOÉÉÎ‰Û›Û™IÎßJNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ÖÙ]KYÛ×IÊK™›Ü‘XXÚ
-[OØÛÛœİY[™]\Ù]™ÛÎÚYŠ‰‰ˆOOIÚÛYIÉ‰ˆOOIÛ^\^Y\‰ÊY[œİ[K™\Ü^OIÛ›Û™IÎßJNÂˆ™]\›ÂˆBˆÛÛœİØ[Ü™X]Uİ\›˜[Y[XYZ[“Üß
-ÛÛÜ™É‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—ØÜ™X]Wİİ\›˜[Y[ÊNÂˆÛÛœİÙX\ÛÛØ\™I
-	ÈÜÙX\ÛÛYZ[Ø\™	ÊNÚYŠÙX\ÛÛØ\™
-\ÙX\ÛÛØ\™˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXYZ[“ÜßTËœÙX\ÛÛYZ[“Ü[ŠNÂˆÛÛœİİ\›˜[Y[Ø\™I
-	Èİİ\›˜[Y[YZ[Ø\™	ÊNÚYŠİ\›˜[Y[Ø\™
-]İ\›˜[Y[Ø\™˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXØ[Ü™X]Uİ\›˜[Y[TËİ\›˜[Y[Ü™X]SÜ[ŠNÂˆÛÛœİ™]Õİ\›˜[Y[ÙÙÛOI
-	ÈÛ™]Õİ\›˜[Y[ÙÙÛIÊNÚYŠ™]Õİ\›˜[Y[ÙÙÛJ[™]Õİ\›˜[Y[ÙÙÛK˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXØ[Ü™X]Uİ\›˜[Y[
-NÂˆÛÛœİÙX\ÛÛ”Ù][™ÜÕÙÙÛOI
-	ÈÜÙX\ÛÛ”Ù][™ÜÕÙÙÛIÊNÚYŠÙX\ÛÛ”Ù][™ÜÕÙÙÛJ\ÙX\ÛÛ”Ù][™ÜÕÙÙÛK˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXYZ[“ÜÊNÂˆÛÛœİ][™[˜ÙPØ\™I
-	ÈØ][™[˜ÙPYZ[Ø\™	ÊNÚYŠ][™[˜ÙPØ\™
-X][™[˜ÙPØ\™˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËJYZ[“ÜßÛÛÜ™ÊJNÂˆÛÛœİX[\ĞØ\™I
-	ÈİX[\ĞYZ[Ø\™	ÊNÚYŠX[\ĞØ\™
-]X[\ĞØ\™˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆÛÛœİX[PÛÛ›ÛÏI
-	ÈİX[SX[˜YÙ[Y[ÛÛ›ÛÉÊNÂˆÛÛœİØ[“X[˜YÙUX[\ÏXYZ[“Üß
-ÛÛÜ™É‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—ÙÙ[™\˜]WİX[\ÊNÂˆYŠX[PÛÛ›ÛÊ]X[PÛÛ›ÛË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXØ[“X[˜YÙUX[\ÊNÂˆÛÛœİX]ÚÜ™X]PØ\™I
-	ÈÛX]ÚÜ™X]PYZ[Ø\™	ÊNÚYŠX]ÚÜ™X]PØ\™
-[X]ÚÜ™X]PØ\™˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXYZ[“ÜÊNÂˆÛÛœİÛÛ\]][Û‘[˜X›YHHJËÛÜšÜÜXÙQ™X]\™\Ëİ\›˜[Y[×Ù[˜X›YËÛÜšÜÜXÙQ™X]\™\Ë›XYİYWÙ[˜X›Y
-NÂˆÛÛœİ\™[XÛÛ\]][Û‘[˜X›Y	‰ˆHTËÛÜšÜÜXÙQ™X]\™\Ë\™Ú[—Ù[˜X›YÂˆÛÛœİÜ^Y\‘[˜X›YXÛÛ\]][Û‘[˜X›Y	‰ˆHTËÛÜšÜÜXÙQ™X]\™\Ëœ^Y\—Ü˜][™Ü×Ù[˜X›Y	‰ˆHTËÛÜšÜÜXÙQ™X]\™\ËÜÜ^Y\—Ù[˜X›YÂˆÛÛœİÜ^Y\Ø\™I
-	ÈØYZ[•Ü^Y\Ø\™	ÊNÚYŠÜ^Y\Ø\™
-]Ü^Y\Ø\™˜Û\ÜÓ\İÙÙÛJ	ÚY[‰Ë]Ü^Y\‘[˜X›Y
-NÂˆ	
-	Èİ\™[•İ\›˜[Y[Ü™X]IÊOË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰Ë]\™[ŸXYZ[“ÜÊNÂˆ	
-	Èİ\™[“XYİYPÜ™X]IÊOË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰Ë]\™[ŸXYZ[“ÜÊNÂˆ	
-	Èİ\™[YZ[Ø\™	ÊOË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰Ë]\™[ŸXYZ[“ÜÊNÂˆÛÛœİX]ÚX[İÙYXYZ[“Üß
-ÛÛÜ™É‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—Ù[\—ÜØÛÜ™\ÊNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËX–Ù]K]šY]ÏH›X]Ú\È—IÊK™›Ü‘XXÚ
-[OÂˆ[œİ[K™\Ü^O[X]ÚX[İÙYÉÉÎ‰Û›Û™IÎÂˆ[™\ØX›YH[X]ÚX[İÙYÂˆ[]O[X]ÚX[İÙYÉÔØZ\Ú\ˆ\ÈX]ÚÉÎ‰Ğ]Xİ[™H]]Üš\Ø][ÛˆHØZ\ÚYH\ÈØÛÜ™\ÉÎÂˆJNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ÖÙ]KYÛÏH›X]Ú\È—IÊK™›Ü‘XXÚ
-[O™[œİ[K™\Ü^O[X]ÚX[İÙYÉÉÎ‰Û›Û™IÊNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	Ë˜YZ[‹\\›Z\ÜÚ[ÛœË]X‰ÊK™›Ü‘XXÚ
-[OÂˆ[˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆ[˜Û\ÜÓ\İÙÙÛJ	Ù\ØX›Y]X‰ËXYZ[ŠNÂˆ[™\ØX›YHXYZ[Âˆ[œÙ]]šX]J	Ø\šXKY\ØX›Y	ËXYZ[ÉİYIÎ‰Ù˜[ÙIÊNÂˆ[]OXYZ[ÉÑğê\™\ˆ\È]]Üš\Ø][ÛœÉÎ‰Ô°ê\Ù\°êH0è8 &XYZ[š\İ˜]]\‰ÎÂˆJNÂˆÛÛœİ\›UšY]ÏI
-	ÈİšY]Ë\\›Z\ÜÚ[ÛœÉÊNÚYŠ\›UšY]É‰ˆXYZ[Š\\›UšY]Ë˜Û\ÜÓ\İœ™[[İ™J	ØXİ]™IÊNÂˆÛÛœİXØÙ\ÜÏI
-	ÈØYZ[XØÙ\ÜĞØ\™	ÊNÚYŠXØÙ\ÜÊXXØÙ\ÜË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËJYZ[ŸÛÛÜ™ÊJNÂˆÛÛœİ[š]PÛÛ›ÛÏI
-	ÈØYZ[’[š]PÛÛ›ÛÉÊNÚYŠ[š]PÛÛ›ÛÊZ[š]PÛÛ›ÛË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËJYZ[Ÿ
-ÛÛÜ™É‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—Ú[š]WØÛÛÜ™Ø[š^™\œÊJJNÂˆÛÛœİXØÙ\ÜÓYÙ[™I
-	ÈØYZ[XØÙ\ÜÓYÙ[™	ÊNÚYŠXØÙ\ÜÓYÙ[™
-XXØÙ\ÜÓYÙ[™˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXYZ[ŠNÂˆÛÛœİ^Y\YØ\™I
-	ÈÜ^Y\œÒ[œ]	ÊOË˜ÛÜÙ\İ
-	Ë˜Ø\™	ÊNÂˆYŠ^Y\YØ\™
-\^Y\YØ\™˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËÛÛÜ™É‰ˆTË›^T\›Z\ÜÚ[ÛœË˜Ø[—ØYÛY[X™\œÊNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËX–Ù]K]šY]ÏHİ\›˜[Y[È—IÊK™›Ü‘XXÚ
-[O™[œİ[K™\Ü^OTËÛÜšÜÜXÙQ™X]\™\Ëİ\›˜[Y[×Ù[˜X›YÉÉÎ‰Û›Û™IÊNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËX–Ù]K]šY]ÏH›XYİYH—IÊK™›Ü‘XXÚ
-[O™[œİ[K™\Ü^OTËÛÜšÜÜXÙQ™X]\™\Ë›XYİYWÙ[˜X›YÉÉÎ‰Û›Û™IÊNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËX–Ù]K]šY]ÏH˜ÛÛÛ\ˆ—IÊK™›Ü‘XXÚ
-[OØÛÛœİš\ÚX›OXYZ[‰‰\™[Ù[˜Û\ÜÓ\İÙÙÛJ	ÚY[‰Ë]š\ÚX›JNÙ[œİ[K™\Ü^O]š\ÚX›OÉÉÎ‰Û›Û™IÎßJNÂˆYŠXYZ[Ÿ]\™[ŠI
-	ÈİšY]ËXÛÛÛ\‰ÊOË˜Û\ÜÓ\İœ™[[İ™J	ØXİ]™IÊNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËX–Ù]K]šY]ÏHœ˜[šÚ[™È—IÊK™›Ü‘XXÚ
-[O™[œİ[K™\Ü^OTËÛÜšÜÜXÙQ™X]\™\Ëœ˜[šÚ[™Ü×Ù[˜X›YÉÉÎ‰Û›Û™IÊNÂˆÛÛœİ˜][™ÜÑ[˜X›YHHTËÛÜšÜÜXÙQ™X]\™\Ëœ^Y\—Ü˜][™Ü×Ù[˜X›YÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ËX–Ù]K]šY]ÏHœ^Y\œÈ—IÊK™›Ü‘XXÚ
-[OÂˆÛÛœİš\ÚX›OXYZ[Ÿ\Õ[\Ü˜\PYZ[Š
-_
-ÛÛÜ™É‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—İšY]×Ü^Y\œÊNÂˆ[œİ[K™\Ü^O]š\ÚX›OÉÉÎ‰Û›Û™IÎÂˆ[^ÛÛ[\˜][™ÜÑ[˜X›YÉÒ›İY]\œÈÈ›İ\ÉÎ‰Ò›İY]\œÉÎÂˆJNÂˆÛÛœİ^Y\œÕ]OI
-	ÈÜ^Y\œÕšY]Õ]IÊNÚYŠ^Y\œÕ]J\^Y\œÕ]K^ÛÛ[\˜][™ÜÑ[˜X›YÉÒ›İY]\œÈÈ›İ\ÉÎ‰Ò›İY]\œÉÎÂˆÛÛœİ^Y\œÒ[›ÏI
-	ÈÜ^Y\œÕšY]Ò[›ÉÊNÚYŠ^Y\œÒ[›Ê\^Y\œÒ[›Ëš[›™\’S\˜][™ÜÑ[˜X›YˆÉĞÛÛœİ[H\ÈY[Xœ™\ÈHÜ›İ\H]]\œÈ0ê]˜[X][ÛœËˆYZ[š\İ˜]]\ˆ]ÛËYÙ\İ[Û›˜Z\™\ÏØˆ]]™[›İ\ˆ\È›İY]\œÈÈH[ŞY[›™HİZ]H›İY]\ˆÜ°è˜ÙH0èÛÛˆQÕğâK‰Âˆ‰Ó\İH\ÈY[Xœ™\ÈHÜ›İ\Kˆ\ÈXİ[ÛœÈH[ÙYšXØ][ÛˆİHİ\™\ÜÚ[Ûˆ0ê\[™[\È›Ú]ÈXØÛÜ™0ê\È\ˆ8 &XYZ[š\İ˜]]\‹‰ÎÂˆ	
-	ÈÜ^Y\œÔ˜][™Ò[›ÉÊOË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰Ë\˜][™ÜÑ[˜X›Y
-NÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ÖÙ]KYÛÏHİ\›˜[Y[È—IÊK™›Ü‘XXÚ
-OØ‹^ÛÛ[JYZ[“Üß
-ÛÛÜ™É‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—ØÜ™X]Wİİ\›˜[Y[ÊJOÉü'äáH›İ]™X]Hİ\››ÚIÎ‰ü'äáHİ\››Ú\ÈÈ\İÜš\]YIßJNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	ÖÙ]KYÛÏHœ^Y\œÈ—IÊK™›Ü‘XXÚ
-OÂˆÛÛœİš\ÚX›OXYZ[Ÿ\Õ[\Ü˜\PYZ[Š
-_
-ÛÛÜ™É‰”Ë›^T\›Z\ÜÚ[ÛœË˜Ø[—İšY]×Ü^Y\œÊNÂˆ‹œİ[K™\Ü^O]š\ÚX›OÉÉÎ‰Û›Û™IÎÂˆ‹^ÛÛ[\˜][™ÜÑ[˜X›YÉü'äiH›İY]\œÈÈ›İ\ÉÎ‰ü'äiH›İY]\œÉÎÂˆJNÂŸB‚™[˜İ[ÛˆÚİÔ™XÛİ™\Q›Ü›J
-^Âˆ™XÛİ™\S[ÙO]YNÂˆ	
-	ÈØ]]	ÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆ	
-	ÈÛXZ[‰ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	ÈÜX›XÕšY]ÉÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	ÈÛÙÚ[Ø\™	ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	ÈÜ™\Ù]\ÜİÛÜ™Ø\™	ÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂŸB™[˜İ[ÛˆœšY[™P]]\œ›ÜŠ\œ›ÜŠ^ÂˆÛÛœİOJ\œ›ÜË›Y\ÜØYÙ_İš[™Ê\œ›ÜŸ	ÉÊJKÓİÙ\Ø\ÙJ
-NÂˆYŠKš[˜ÛY\Ê	Ü˜]H[Z]	ÊJH™]\›ˆ	Õ›ÜH[X[™\È8 &YK[XZ[ˆ][™È[š\›ÛˆH]\™H]˜[H°êY\ÜØ^Y\‹‰ÎÂˆYŠKš[˜ÛY\Ê	Ú[˜[YÙÚ[ˆÜ™Y[X[ÉÊJH™]\›ˆ	Ñ[XZ[İH[İH\ÜÙH[˜ÛÜœ™Xİ‰ÎÂˆYŠKš[˜ÛY\Ê	Ù^\™Y	ÊJH™]\›ˆ	ĞÙHY[ˆH^\°êKˆ[X[™H[ˆ›İ]™X]HY[ˆH°êXİ\0ê\˜][Û‹‰ÎÂˆ™]\›ˆ\œ›ÜË›Y\ÜØYÙ_	Õ[™H\œ™]\ˆ\İİ\™[YK‰ÎÂŸB˜\Ş[˜È[˜İ[Ûˆ]]İ]J
-^Âˆ^ØÛÛœİÙ™ÏX]ØZ]Ø‹œœÊ	ÙÙ]Ü]›Ü›WÜX›X×ÜÙ][™ÜÉÊNÚYŠXÙ™Ë™\œ›Ü‰‰˜Ù™Ë™]JTËœ]›Ü›TÙ][™ÜÏ^Ë‹‹”Ëœ]›Ü›TÙ][™ÜË‹‹˜Ù™Ë™]_NÜ™[™\”]›Ü›Q›Ûİ\Š
-NßXØ]Ú
-ÙJ^ßBˆÛÛœİÛÛœÙ[[˜X›YHHTËœ]›Ü›TÙ][™ÜË˜ÛÛœÙ[ÙØ]WÙ[˜X›YÂˆ	
-	ÈÜÚYÛ\ÛÛœÙ[›İÉÊOË˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËXÛÛœÙ[[˜X›Y
-NÂˆYŠ^[Y[ÚÜÛÙQœ›ÛU\›
-^Âˆ^ÂˆÛÛœİÙ]K\œ›ÜŸOX]ØZ]Ø‹œœÊ	Ü™\ÛÛ™WÜ^[Y[Ù\Ú×ÜÚÜÛ[šÉËÜØÛÙNœ^[Y[ÚÜÛÙQœ›ÛU\›JNÂˆYŠ\œ›ÜŠ]›İÈ\œ›ÜÂˆYŠY]OËÚÙ[Š]›İÈ™]È\œ›ÜŠ	ÓY[ˆ8 &Y[˜ØZ\ÜÙ[Y[[˜[YHİH^\°êK‰ÊNÂˆ]ØZ]›Ûİ^[Y[\ÚÊ]KÚÙ[ŠNÂˆXØ]Ú
-J^Âˆ	
-	ÈØ]]	ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÉ
-	ÈÛXZ[‰ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÉ
-	ÈÜX›XÕšY]ÉÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆ	
-	ÈÜX›XÕšY]ÉÊKš[›™\’SIÏXY\ˆÛ\ÜÏHÜO[YÈÜ˜ÏH‹‹Ù˜]šXÛÛ‹œ™ÏİMLˆÛ\ÜÏH˜œ˜[™[X\šÈˆ[H”ÕğâH”ÕğâHÕT“SQS•KÍOÚOÚXY\]ˆÛ\ÜÏH˜Ø\™“Y[ˆ8 &Y[˜ØZ\ÜÙ[Y[[™\ÜÛšX›OÚÛ\ÜÏH›]]Y‰ÊÙ\ØÊK›Y\ÜØYÙ_JJÉÏÜÙ]‰ÎÂˆBˆ™]\›ÂˆBˆYŠ^[Y[\ÚÕÚÙ[‘œ›ÛU\›
-^Âˆ]ØZ]›Ûİ^[Y[\ÚÊ^[Y[\ÚÕÚÙ[‘œ›ÛU\›
-NÂˆ™]\›ÂˆBˆYŠÚÜÛÙQœ›ÛU\›	‰ˆ\X›XÕÚÙ[‘œ›ÛU\›
-^Âˆ^ÂˆÛÛœİÙ]K\œ›ÜŸOX]ØZ]Ø‹œœÊ	Ü™\ÛÛ™WÜX›X×İİ\›˜[Y[ÜÚÜÛ[šÉËÜØÛÙNœÚÜÛÙQœ›ÛU\›JNÂˆYŠ\œ›ÜŠ]›İÈ\œ›ÜÂˆYŠY]OËœX›X×İÚÙ[ŸY]OËİ\›˜[Y[ÚY
-]›İÈ™]È\œ›ÜŠ	ÓY[ˆÛİ\[˜[YHİH^\°êK‰ÊNÂˆX›XÕÚÙ[‘œ›ÛU\›Y]KœX›X×İÚÙ[Âˆ\›\˜[\ËœÙ]
-	ÜX›XÉË]KœX›X×İÚÙ[ŠNÂˆ\›\˜[\ËœÙ]
-	İİ\›˜[Y[	Ë]Kİ\›˜[Y[ÚY
-NÂˆ\›\˜[\ËœÙ]
-	İšY]ÉË]KšY]ß	İİ\›˜[Y[	ÊNÂˆYŠ]K›XYİYWÚY
-]\›\˜[\ËœÙ]
-	ÛXYİYIË]K›XYİYWÚY
-NÂˆËÈÙY\Hš\ÚX›HÜÏHT“[˜Ú[™ÙYÈ›ÛİX›XÈ™XYÈH™\ÛÛ™YÛÛ^™[İË‚ˆÚ[™İË—×ÜİÙT™\ÛÛ™YÚÜ[šÏ^Âˆİ\›˜[Y[”İš[™Ê]Kİ\›˜[Y[ÚY
-KˆšY]Î”İš[™Ê]KšY]ß	İİ\›˜[Y[	ÊKˆXYİYN™]K›XYİYWÚYÔİš[™Ê]K›XYİYWÚY
-N‰ÉÂˆNÂˆXØ]Ú
-J^Âˆ	
-	ÈØ]]	ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	ÈÛXZ[‰ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	ÈÜX›XÕšY]ÉÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆ	
-	ÈÜX›XÕšY]ÉÊKš[›™\’SIÏXY\ˆÛ\ÜÏHÜO[YÈÜ˜ÏH‹‹Ù˜]šXÛÛ‹œ™ÏİMLˆÛ\ÜÏH˜œ˜[™[X\šÈˆ[H”ÕğâH”ÕğâHÕT“SQS•KÍOÚOÚXY\]ˆÛ\ÜÏH˜Ø\™“Y[ˆ[™\ÜÛšX›OÚÛ\ÜÏH›]]Y‰ÊÙ\ØÊK›Y\ÜØYÙ_JJÉÏÜÙ]‰ÎÂˆ™]\›ÂˆBˆBˆYŠX›XÕÚÙ[‘œ›ÛU\›
-^Âˆ]ØZ]›ÛİX›XÊX›XÕÚÙ[‘œ›ÛU\›
-NÂˆ™]\›ÂˆBˆÛÛœİÙ]_OX]ØZ]Ø‹˜]]™Ù]Ù\ÜÚ[ÛŠ
-NÂˆËœÙ\ÜÚ[ÛY]KœÙ\ÜÚ[ÛÂˆYŠËœÙ\ÜÚ[ÛË\Ù\ËšY
-]Ú[™İË”ÕÑR›İ\›˜[Ù\ÜÚ[ÛËŠØ‹ËœÙ\ÜÚ[Û‹\Ù\‹šY
-NÂˆÛÛœİØ]]›İšY\[™]ÈT“ÙX\˜Ú\˜[\ÊØØ][Û‹œÙX\˜Ú
-K™Ù]
-	Ü›İšY\‰ÊNÂˆYŠTËœÙ\ÜÚ[Û‰‰ŠØ]]›İšY\OOIÙÛÛÙÛIßØ]]›İšY\OOIØ\IÊJ^ÂˆÛÛœİO[™]ÈT“
-ØØ][Û‹š™YŠNİKœÙX\˜Ú\˜[\Ë™[]J	Ü›İšY\‰ÊNÚ\İÜKœ™\XÙTİ]JßK	ÉËKÔİš[™Ê
-JNÂˆ]ØZ]İ\ÛØÚX[]]
-Ø]]›İšY\ŠNÜ™]\›ÂˆBˆYŠËœÙ\ÜÚ[Û‰‰›™]ÈT“ÙX\˜Ú\˜[\ÊØØ][Û‹œÙX\˜Ú
-Kš\Ê	ÛØ]]	ÊJ^ØÛÛœİO[™]ÈT“
-ØØ][Û‹š™YŠNİKœÙX\˜Ú\˜[\Ë™[]J	ÛØ]]	ÊNÚ\İÜKœ™\XÙTİ]JßK	ÉËKÔİš[™Ê
-JNßBˆYŠ™XÛİ™\S[ÙJ^ÜÚİÔ™XÛİ™\Q›Ü›J
-NÜ™]\›ŸBˆ	
-	ÈÛÙÚ[Ø\™	ÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆ	
-	ÈÜ™\Ù]\ÜİÛÜ™Ø\™	ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆÛÛœİÙÚ[‘[XZ[œ›ÛU\›[™]ÈT“ÙX\˜Ú\˜[\ÊØØ][Û‹œÙX\˜Ú
-K™Ù]
-	Ù[XZ[	ÊNÂˆYŠÙÚ[‘[XZ[œ›ÛU\›	‰ˆI
-	ÈÙ[XZ[	ÊK˜[YJI
-	ÈÙ[XZ[	ÊK˜[YO[ÙÚ[‘[XZ[œ›ÛU\›ÂˆÛÛœİ[™[™ÏI
-	ÈÚ[š]S[™[™ĞØ\™	ÊNÂˆYŠ[™[™Ê^Âˆ[™[™Ë˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËZ[š]RYœ›ÛU\›
-NÂˆYŠ[š]RYœ›ÛU\›
-^Âˆ	
-	ÈÚ[š]S[™[™Õ^	ÊKš[›™\’SIÕH\È0ê]0êH[š]0êHÛÛ[YH˜ÛË[Ü™Ø[š\Ø]]\Ø‹‰ÊÊ[š]Q[XZ[œ›ÛU\›ÉÈ][\ÙH8 &XY™\ÜÙH‰ÊÙ\ØÊ[š]Q[XZ[œ›ÛU\›
-JÉÏØ‹‰Î‰ÉÊNÂˆYŠ[š]Q[XZ[œ›ÛU\›	‰ˆI
-	ÈÙ[XZ[	ÊK˜[YJI
-	ÈÙ[XZ[	ÊK˜[YOZ[š]Q[XZ[œ›ÛU\›ÂˆBˆBˆ	
-	ÈØ]]	ÊK˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËHTËœÙ\ÜÚ[ÛŠNÂˆ	
-	ÈÛXZ[‰ÊK˜Û\ÜÓ\İÙÙÛJ	ÚY[‰ËTËœÙ\ÜÚ[ÛŠNÂˆYŠËœÙ\ÜÚ[ÛŠ^Âˆ^ÂˆÛÛœİÛÛœÙ[XÛÛœÙ[[˜X›YØ]ØZ]Ø‹œœÊ	ÙÙ]Û^WÜİÙWØÛÛœÙ[Üİ]\ÉÊNÙ\œ›Ü›[]NØXØÙ\YY__NÂˆYŠÛÛœÙ[[˜X›Y	‰ˆXÛÛœÙ[™\œ›Ü‰‰˜ÛÛœÙ[™]OË˜XØÙ\YOO]YJ^Âˆ	
-	ÈÛXZ[‰ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	ÈØ]]	ÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	ÈØÛÛœÙ[Ø]IÊOË˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆ™]\›ÂˆBˆ]ØZ]Ø‹œœÊ	Ù[œİ\™WÛ^WÙÛØ˜[Ü^Y\—Ü›Ùš[IËÜÙ\Ü^WÛ˜[YN›[JNÂˆ]ØZ]›Ûİ
+    const actions=document.createElement('div');actions.className='row';actions.style.marginTop='12px';actions.style.flexWrap='wrap';
 
-NÂˆXØ]Ú
-\œ›ÜŠ^İØ\İ
-	ĞÛÛ›™^[ÛˆÒËXZ\ÈÚ\™Ù[Y[[\ÜÜÚX›Hˆ	ÊÊ\œ›ÜË›Y\ÜØYÙ_\œ›ÜŠJ_BˆBŸB‰
-	ÈÛÙÚ[‰ÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİ[XZ[I
-	ÈÙ[XZ[	ÊK˜[YKš[J
-KÓİÙ\Ø\ÙJ
-NÂˆYŠ[š]Q[XZ[œ›ÛU\›	‰™[XZ[OOZ[š]Q[XZ[œ›ÛU\›
-\™]\›ˆØ\İ
-	ĞÙ]H[š]][Ûˆ\İ°ê]YHİ\ˆ	ÊÚ[š]Q[XZ[œ›ÛU\›
-NÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹˜]]œÚYÛ’[•Ú]\ÜİÛÜ™
-Ù[XZ[\ÜİÛÜ™‰
-	ÈÜ\ÜİÛÜ™	ÊK˜[Y_JNÂˆ\œ›ÜİØ\İ
-œšY[™P]]\œ›ÜŠ\œ›ÜŠJN˜]]İ]J
-NÂŸNÂ‰
-	ÈÜÚYÛ\	ÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİ[XZ[I
-	ÈÙ[XZ[	ÊK˜[YKš[J
-KÓİÙ\Ø\ÙJ
-NÂˆYŠËœ]›Ü›TÙ][™ÜË˜ÛÛœÙ[ÙØ]WÙ[˜X›Y	‰ˆI
-	ÈÜÚYÛ\ÛÛœÙ[	ÊOË˜ÚXÚÙY
-\™]\›ˆØ\İ
-	ÕHÚ\ÈXØÙ\\ˆ\ÈÛÛ™][ÛœÈÕğâHİ\›˜[Y[İ\ˆÜ°êY\ˆÛˆÛÛ\K‰ÊNÂˆYŠ[š]Q[XZ[œ›ÛU\›	‰™[XZ[OOZ[š]Q[XZ[œ›ÛU\›
-\™]\›ˆØ\İ
-	Õ][\ÙH8 &XY™\ÜÙHK[XZ[[™\]pêYH[œÈ8 &Z[š]][Ûˆˆ	ÊÚ[š]Q[XZ[œ›ÛU\›
-NÂˆÛÛœİ™Y\™XİZ[š]RYœ›ÛU\›ĞTÕT“
-ÉÏÚ[š]OIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-[š]RYœ›ÛU\›
-JÉÉ™[XZ[IÊÙ[˜ÛÙUT’PÛÛ\Û™[
-[XZ[
-NTÕT“ÂˆÛÛœİÙ]K\œ›ÜŸOX]ØZ]Ø‹˜]]œÚYÛ•\
-Ù[XZ[\ÜİÛÜ™‰
-	ÈÜ\ÜİÛÜ™	ÊK˜[YKÜ[ÛœÎÙ[XZ[™Y\™XİÎœ™Y\™Xİ]N”Ëœ]›Ü›TÙ][™ÜË˜ÛÛœÙ[ÙØ]WÙ[˜X›YŞÜİÙWØÛÛœÙ[ØXØÙ\YYKİÙWİ\›\×İ™\œÚ[Û‰ÌŒ‹LKLKX™]IËİÙWÜš]˜XŞWİ™\œÚ[Û‰ÌŒ‹LKLKX™]IßNß__JNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-œšY[™P]]\œ›ÜŠ\œ›ÜŠJNÂˆØ\İ
-]KœÙ\ÜÚ[ÛÉĞÛÛ\HÜ°êpêKˆÛˆQÕğâH\İ˜]XÚ0êH0èÛˆ[XZ[‰Î‰ĞÛÛ\HÜ°êpêHˆ°ê\šYšYHÛˆ[XZ[Z\È™XÛÛ›™XİK]ÚH]™XÈHpê›YHY™\ÜÙKˆÛˆQÕğâHÙ\˜H™]›İ]°êH]]ÛX]\]Y[Y[‰ÊNÂŸNÂ‰
-	ÈØ]]ÛÛÙÛIÊK›Û˜ÛXÚÏJ
-OOœİ\ÛØÚX[]]
-	ÙÛÛÙÛIÊNÂ‰
-	ÈØ]]\IÊK›Û˜ÛXÚÏJ
-OOœİ\ÛØÚX[]]
-	Ø\IÊNÂ˜\Ş[˜È[˜İ[Ûˆİ\ÛØÚX[]]
-›İšY\Š^ÂˆÛÛœİ™Y\™XİÏPTÕT“
-ÉÏÛØ]]YÛ™IÎÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹˜]]œÚYÛ’[•Ú]Ğ]]
-Ü›İšY\‹Ü[ÛœÎÜ™Y\™Xİß_JNÂˆYŠ\œ›ÜŠ]Ø\İ
-	ĞÛÛ›™^[Ûˆ	ÊÊ›İšY\OOIÙÛÛÙÛIÏÉÑÛÛÙÛIÎ‰Ğ\IÊJÉÈ[™\ÜÛšX›Hİ\ˆH[ÛY[ˆ	ÊÙœšY[™P]]\œ›ÜŠ\œ›ÜŠJNÂŸB‰
-	ÈÙ›Ü™Ûİ\ÜİÛÜ™	ÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİ[XZ[I
-	ÈÙ[XZ[	ÊK˜[YKš[J
-NÂˆYŠY[XZ[
-\™]\›ˆØ\İ
-	Ñ[™H8 &XX›Ü™ÛˆY™\ÜÙH[XZ[‰ÊNÂˆ	
-	ÈÙ›Ü™Ûİ\ÜİÛÜ™	ÊK™\ØX›Y]YNÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹˜]]œ™\Ù]\ÜİÛÜ™›Ü‘[XZ[
-[XZ[Ü™Y\™XİÎTÕT“JNÂˆ	
-	ÈÙ›Ü™Ûİ\ÜİÛÜ™	ÊK™\ØX›YY˜[ÙNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-œšY[™P]]\œ›ÜŠ\œ›ÜŠJNÂˆØ\İ
-	Ñ[XZ[[›ŞpêKˆİ]œ™HHY[ˆ™péİHİ\ˆÚÚ\Ú\ˆ[ˆ›İ]™X]H[İH\ÜÙK‰ÊNÂŸNÂ‰
-	Èİ\]T\ÜİÛÜ™	ÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİOI
-	ÈÛ™]Ô\ÜİÛÜ™	ÊK˜[YKI
-	ÈØÛÛ™š\›S™]Ô\ÜİÛÜ™	ÊK˜[YNÂˆYŠK›[™İ
-\™]\›ˆØ\İ
-	ÓH[İH\ÜÙHÚ]ÛÛ[š\ˆ]H[Ú[œÈØ\˜Xİ0ê™\Ë‰ÊNÂˆYŠHOO\Š\™]\›ˆØ\İ
-	Ó\È]^[İÈH\ÜÙH™HÛÜœ™\ÜÛ™[\Ë‰ÊNÂˆ	
-	Èİ\]T\ÜİÛÜ™	ÊK™\ØX›Y]YNÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹˜]]\]U\Ù\ŠÜ\ÜİÛÜ™œ_JNÂˆ	
-	Èİ\]T\ÜİÛÜ™	ÊK™\ØX›YY˜[ÙNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-œšY[™P]]\œ›ÜŠ\œ›ÜŠJNÂˆ™XÛİ™\S[ÙOY˜[ÙNÂˆ	
-	ÈÛ™]Ô\ÜİÛÜ™	ÊK˜[YOIÉÎÉ
-	ÈØÛÛ™š\›S™]Ô\ÜİÛÜ™	ÊK˜[YOIÉÎÂˆ\İÜKœ™\XÙTİ]JßK	ÉËØØ][Û‹œ]˜[YJNÂˆØ\İ
-	Ó[İH\ÜÙH[ÙYšpêH]™XÈİXØğêË‰ÊNÂˆ]ØZ]]]İ]J
-NÂŸNÂ‰
-	ÈÛÙÛİ]	ÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOØ]ØZ]Ø‹˜]]œÚYÛ“İ]
+    const save=document.createElement('button');save.className='primary';save.textContent='ğŸ’¾ Enregistrer';
+    save.onclick=async()=>{
+      const max=Number(d.querySelector('[data-sa-max]').value)||0;
+      const name=d.querySelector('[data-sa-name]').value.trim();
+      if(!name)return toast('Le nom de lâ€™espace est obligatoire.');
+      save.disabled=true;
+      let r=await sb.rpc('super_admin_rename_workspace',{p_workspace_id:w.workspace_id,p_name:name});
+      if(!r.error)r=await sb.rpc('super_admin_update_admin_profile',{
+        p_workspace_id:w.workspace_id,
+        p_first_name:d.querySelector('[data-sa-first-name]').value.trim()||null,
+        p_last_name:d.querySelector('[data-sa-last-name]').value.trim()||null,
+        p_phone:d.querySelector('[data-sa-phone]').value.trim()||null
+      });
+      if(!r.error)r=await sb.rpc('super_admin_set_commercial_access_v2',{p_workspace_id:w.workspace_id,p_subscription_plan:d.querySelector('[data-sa-plan]').value,p_special_access_enabled:d.querySelector('[data-sa-special-access]').checked});
+      if(!r.error)r=await sb.rpc('super_admin_set_workspace_options_v2',{
+        p_workspace_id:w.workspace_id,
+        p_max_coorganizers:Number(w.max_coorganizers||0),
+        p_max_coorganizers_cap:Number(w.max_coorganizers_cap||1000),
+        p_tournaments_enabled:d.querySelector('[data-sa-tournament]').checked,
+        p_league_enabled:d.querySelector('[data-sa-league]').checked,
+        p_rankings_enabled:d.querySelector('[data-sa-rankings]').checked,
+        p_public_enabled:d.querySelector('[data-sa-public]').checked
+      });
+      if(!r.error)r=await sb.rpc('super_admin_set_team_review_gift',{p_workspace_id:w.workspace_id,p_enabled:!!d.querySelector('[data-sa-team-review-gift]')?.checked});
+      if(!r.error)r=await sb.rpc('super_admin_grant_coorganizer_slots',{p_workspace_id:w.workspace_id,p_base_max_coorganizers:max});
+      save.disabled=false;if(r.error)return toast(r.error.message);
+      toast('Espace mis Ã  jour âœ…');await loadSuperAdminWorkspaces();
+    };
 
-NÛØØ][Û‹œ™[ØY
+    const copy=document.createElement('button');copy.textContent='ğŸ“§ Copier email admin';
+    copy.onclick=async()=>{try{await navigator.clipboard.writeText(w.owner_email||'');toast('Email administrateur copiÃ© âœ…')}catch(e){toast('Copie impossible')}};
 
-_NÂ‰
-	ÈØÛÛœÙ[ÙÛİ]	ÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOØ]ØZ]Ø‹˜]]œÚYÛ“İ]
+    const toggle=document.createElement('button');toggle.textContent=w.public_enabled?'â¸ Suspendre':'â–¶ RÃ©activer';
+    if(w.public_enabled)toggle.className='danger';
+    toggle.onclick=async()=>{
+      const verb=w.public_enabled?'suspendre':'rÃ©activer';
+      if(!confirm('Confirmer : '+verb+' lâ€™espace Â« '+w.workspace_name+' Â» ?'))return;
+      toggle.disabled=true;
+      const {error}=await sb.rpc('super_admin_set_workspace_options_v2',{
+        p_workspace_id:w.workspace_id,
+        p_max_coorganizers:Number(w.max_coorganizers||0),
+        p_max_coorganizers_cap:Number(w.max_coorganizers_cap||100),
+        p_tournaments_enabled:!!w.tournaments_enabled,
+        p_league_enabled:!!w.league_enabled,
+        p_rankings_enabled:!!w.rankings_enabled,
+        p_public_enabled:!w.public_enabled
+      });
+      toggle.disabled=false;if(error)return toast(error.message);
+      toast(w.public_enabled?'Espace suspendu.':'Espace rÃ©activÃ© âœ…');await loadSuperAdminWorkspaces();
+    };
 
-NÛØØ][Û‹œ™[ØY
+    const transferBtn=d.querySelector('[data-sa-transfer]');
+    transferBtn.onclick=async()=>{
+      const email=d.querySelector('[data-sa-transfer-email]').value.trim().toLowerCase();
+      const first=d.querySelector('[data-sa-transfer-first]').value.trim();
+      const last=d.querySelector('[data-sa-transfer-last]').value.trim();
+      const phone=d.querySelector('[data-sa-transfer-phone]').value.trim();
+      const keep=d.querySelector('[data-sa-keep-old]').checked;
+      if(!email)return toast('Indique lâ€™email du nouvel administrateur.');
+      const display=[first,last].filter(Boolean).join(' ')||email;
+      const msg='TRANSFERT Dâ€™ADMINISTRATION\n\nEspace : '+w.workspace_name+'\nAdministrateur actuel : '+(w.owner_email||'â€”')+'\nNouvel administrateur : '+display+' ('+email+')\n\n'+(keep?'Lâ€™ancien administrateur restera co-organisateur.':'Lâ€™accÃ¨s de lâ€™ancien administrateur Ã  cet espace sera dÃ©sactivÃ©.')+'\n\nConfirmer le transfert ?';
+      if(!confirm(msg))return;
+      const typed=prompt('Pour sÃ©curiser le transfert, saisis exactement TRANSFERER');
+      if(typed!=='TRANSFERER')return toast('Transfert annulÃ©.');
+      transferBtn.disabled=true;
+      const {error}=await sb.rpc('super_admin_transfer_workspace_admin',{
+        p_workspace_id:w.workspace_id,
+        p_new_owner_email:email,
+        p_first_name:first||null,
+        p_last_name:last||null,
+        p_phone:phone||null,
+        p_keep_previous_as_coorganizer:keep
+      });
+      transferBtn.disabled=false;
+      if(error)return toast(error.message);
+      toast('Administration transfÃ©rÃ©e avec succÃ¨s âœ…');
+      await loadSuperAdminWorkspaces();
+    };
 
-_NÂ‰
-	ÈØXØÙ\YØXŞPÛÛœÙ[	ÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆYŠI
-	ÈÛYØXŞPÛÛœÙ[ÚXÚÉÊOË˜ÚXÚÙY
-\™]\›ˆØ\İ
-	ĞÛØÚHHØ\ÙHİ\ˆÛÛ™š\›Y\ˆÛˆXØÛÜ™‰ÊNÂˆÛÛœİI
-	ÈØXØÙ\YØXŞPÛÛœÙ[	ÊNØ‹™\ØX›Y]YNÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹œœÊ	ØXØÙ\Øİ\œ™[ÜİÙWİ\›\ÉÊNÂˆ‹™\ØX›YY˜[ÙNÚYŠ\œ›ÜŠ\™]\›ˆØ\İ
-\œ›Ü‹›Y\ÜØYÙJNÂˆ	
-	ÈØÛÛœÙ[Ø]IÊOË˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÉ
-	ÈÛXZ[‰ÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆ]ØZ]›Ûİ
+    const del=document.createElement('button');del.className='danger';del.textContent='ğŸ—‘ Supprimer lâ€™espace';
+    del.onclick=async()=>{
+      const ok=confirm('SUPPRESSION DÃ‰FINITIVE\\n\\nSupprimer lâ€™espace Â« '+w.workspace_name+' Â» et toutes ses donnÃ©es sportives ?\\n\\nLe compte de connexion de lâ€™administrateur ne sera pas supprimÃ©.');
+      if(!ok)return;
+      const typed=prompt('Pour confirmer, saisis exactement le nom de lâ€™espace :\\n'+w.workspace_name);
+      if(typed!==w.workspace_name)return toast('Suppression annulÃ©e : nom incorrect.');
+      del.disabled=true;
+      const {error}=await sb.rpc('super_admin_delete_workspace',{p_workspace_id:w.workspace_id});
+      del.disabled=false;if(error)return toast(error.message);
+      toast('Espace supprimÃ© dÃ©finitivement.');await loadSuperAdminWorkspaces();
+    };
 
-NİØ\İ
-	ĞÛÛ™][ÛœÈXØÙ\0êY\È8§!IÊNÂŸNÂ‚‚‚™[˜İ[Ûˆ™[™\”İ\\YZ[•™[Y\Ê
-^ÂˆÛÛœİ›ŞI
-	ÈÜØU™[YS\İ	ÊNÚYŠX›Ş
-\™]\›Âˆ›Şš[›™\’SIÉÎÂˆÛÛœİÛÛ\^\ÏJËœÜÜĞÛÛ\^\ß×JKœÛXÙJ
-KœÛÜ
+    actions.append(save,copy,toggle,del);d.appendChild(actions);ensureOwnerGroup(w).appendChild(d);
+  });
+}
+async function initSuperAdmin(){
+  const testId=new URLSearchParams(location.search).get('test_tournament');
+  if(testId){
+    const {data,error}=await sb.rpc('super_admin_manage_test_tournament',{p_tournament_id:testId,p_action:'open'});
+    if(error||!data?.workspace_id){toast(error?.message||'Tournoi test indisponible.');return true;}
+    S.testAdminContext=data;S.isSuperAdmin=false;return false;
+  }
+  const claim=await sb.rpc('claim_platform_super_admin');
+  if(claim.error)console.warn('claim super admin',claim.error);
+  const check=await sb.rpc('is_platform_super_admin');
+  S.isSuperAdmin=!check.error&&check.data===true;
+  if(!S.isSuperAdmin)return false;
+  $('#superAdminPanel').classList.remove('hidden');
+  $('#workspaceSetup').classList.add('hidden');
+  document.querySelectorAll('.view,.tabs').forEach(el=>el.classList.add('hidden'));
+  $('#workspaceName').textContent='Super administrateur de la plateforme';
+  await loadSuperAdminWorkspaces();
+  await loadSportsVenues();
+  refreshSuperAdminCreateDependencies();
+  return true;
+}
+document.addEventListener('input',e=>{
+  if(e.target?.id==='saSearchWorkspace')renderSuperAdminWorkspaces();
+  if(e.target?.id==='saSearchPlayer')renderSuperAdminPlayers();
+});
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  const rb=e.target?.closest?.('[data-resolve-identity]');if(rb){const label=rb.dataset.resolveIdentity==='existing_valid'?'garder le compte dÃ©jÃ  liÃ©':rb.dataset.resolveIdentity==='claimant_valid'?'attribuer le joueur au nouveau demandeur':'lever le blocage sans modifier la liaison';if(!confirm('Confirmer : '+label+' ?'))return;rb.disabled=true;const {error}=await sb.rpc('super_admin_resolve_identity_dispute',{p_claim_id:rb.dataset.claimId,p_resolution:rb.dataset.resolveIdentity});rb.disabled=false;if(error)return toast(error.message);toast('Conflit dâ€™identitÃ© traitÃ© âœ…');await loadSuperAdminWorkspaces();return;}
+  if(!e.target?.matches?.('[data-sa-unlink-staff]'))return;
+  const b=e.target;const playerName=b.dataset.playerName||'ce joueur';
+  if(!confirm('DÃ©lier dÃ©finitivement Â« '+playerName+' Â» de ce compte organisateur ? Ses statistiques resteront dans le groupe mais ne seront plus rattachÃ©es Ã  cet ID SWÃ‰.'))return;
+  b.disabled=true;
+  const {error}=await sb.rpc('super_admin_unlink_staff_player',{p_workspace_id:b.dataset.workspaceId,p_user_id:b.dataset.userId,p_player_id:b.dataset.playerId});
+  b.disabled=false;if(error)return toast(error.message);
+  toast('Liaison supprimÃ©e par le Super Admin.');await loadSuperAdminWorkspaces();
+});
+function refreshSuperAdminCreateDependencies(){
+  const competition=!!($('#saTournamentEnabled')?.checked||$('#saLeagueEnabled')?.checked);
+  const rankings=$('#saRankingsEnabled');if(rankings){rankings.disabled=!competition;if(!competition)rankings.checked=false;}
+  const plan=$('#saNewPlan')?.value||'free',preview=$('#saNewPlanPreview');
+  if(preview){const map={free:['FREE','Top Player et 3e mi-temps non inclus.'],standard:['STANDARD','Top Player & notes de match inclus.'],pro:['PRO','Top Player, notes de match et 3e mi-temps inclus.']};const m=map[plan];preview.innerHTML='<b>'+m[0]+'</b><span>'+m[1]+(competition?'':' Active Tournoi ou Ligue pour utiliser les options liÃ©es.')+'</span>';}
+}
+function refreshWorkspaceDependencyUI(card){
+  if(!card)return;
+  const competition=!!(card.querySelector('[data-sa-tournament]')?.checked||card.querySelector('[data-sa-league]')?.checked);
+  const rank=card.querySelector('[data-sa-rankings]');if(rank){rank.disabled=!competition;if(!competition)rank.checked=false;}
+  const plan=card.querySelector('[data-sa-plan]')?.value||'free',special=!!card.querySelector('[data-sa-special-access]')?.checked;
+  const topAllowed=competition&&(special||plan==='standard'||plan==='pro');
+  const thirdAllowed=competition&&(special||plan==='pro');
+  const top=card.querySelector('[data-sa-top-status]');if(top){top.textContent=topAllowed?'ACTIF':'INACTIF';top.classList.toggle('on',topAllowed);}
+  const third=card.querySelector('[data-sa-third-status]');if(third){third.textContent=thirdAllowed?'ACTIF':'INACTIF';third.classList.toggle('on',thirdAllowed);}
+}
+document.addEventListener('change',async e=>{
+  if(e.target?.id==='tourComplex')renderTournamentPitchChoices();
+  if(e.target?.id==='leagueSessionComplex')renderLeaguePitchSelect();
+  if(e.target?.id==='saSaveFooter'){const b=e.target;b.disabled=true;const q={p_enabled:$('#saFooterEnabled')?.checked!==false,p_company_name:$('#saFooterCompany')?.value.trim()||null,p_legal_text:$('#saFooterLegalText')?.value.trim()||null,p_contact_email:$('#saFooterEmail')?.value.trim()||null,p_legal_url:$('#saFooterLegalUrl')?.value.trim()||null,p_privacy_url:$('#saFooterPrivacyUrl')?.value.trim()||null,p_terms_url:$('#saFooterTermsUrl')?.value.trim()||null};const {error}=await sb.rpc('super_admin_save_footer',q);b.disabled=false;if(error)return toast(error.message);S.platformSettings={...S.platformSettings,footer_enabled:q.p_enabled,footer_company_name:q.p_company_name,footer_legal_text:q.p_legal_text,footer_contact_email:q.p_contact_email,footer_legal_url:q.p_legal_url,footer_privacy_url:q.p_privacy_url,footer_terms_url:q.p_terms_url};renderPlatformFooter();toast('Pied de page mis Ã  jour âœ…');return;}if(e.target?.id==='saPreviewFooter'){const b=$('#saFooterPreview');b.classList.toggle('hidden');b.innerHTML='<div class="readonly-note"><b>Structure conseillÃ©e :</b> raison sociale + contact + liens Mentions lÃ©gales / ConfidentialitÃ© / CGU-CGV. Garde le texte court et renvoie vers des pages dÃ©diÃ©es.</div>';return;}if(e.target?.id==='saConsentGateEnabled'){const enabled=e.target.checked;const {error}=await sb.rpc('super_admin_set_consent_gate',{p_enabled:enabled});if(error){e.target.checked=!enabled;return toast(error.message)}S.platformSettings.consent_gate_enabled=enabled;const l=$('#saConsentGateLabel');if(l)l.textContent=enabled?'Visible / obligatoire':'MasquÃ©';toast(enabled?'Consentement affichÃ© aux joueurs âœ…':'Consentement masquÃ© pour les joueurs.');}
+  if(['saTournamentEnabled','saLeagueEnabled','saNewPlan'].includes(e.target?.id))refreshSuperAdminCreateDependencies();
+  if(e.target?.matches?.('[data-sa-tournament],[data-sa-league],[data-sa-plan],[data-sa-special-access]'))refreshWorkspaceDependencyUI(e.target.closest('.sa-workspace-card'));
+});
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  const saTab=e.target?.closest?.('[data-sa-tab]');
+  if(saTab){
+    const section=saTab.dataset.saTab;document.querySelectorAll('[data-sa-tab]').forEach(b=>b.classList.toggle('active',b===saTab));
+    $('#saSpacesSection')?.classList.toggle('hidden',section!=='spaces');$('#saPlayersSection')?.classList.toggle('hidden',section!=='players');
+    if(section==='players')renderSuperAdminPlayers();return;
+  }
+  const copyLinkBtn=e.target?.closest?.('[data-copy-signup-link]');
+  if(copyLinkBtn){const r=(S.superSignupRequests||[]).find(x=>String(x.id)===String(copyLinkBtn.dataset.copySignupLink));if(r){await navigator.clipboard.writeText(playerActivationLink(r.activation_token));toast('Lien dâ€™activation copiÃ© âœ…');}return;}
+  const copyMsgBtn=e.target?.closest?.('[data-copy-signup-message]');
+  if(copyMsgBtn){const r=(S.superSignupRequests||[]).find(x=>String(x.id)===String(copyMsgBtn.dataset.copySignupMessage));if(r){await navigator.clipboard.writeText(signupInviteMessage(r));toast('Message copiÃ© âœ…');}return;}
+  const regenBtn=e.target?.closest?.('[data-regenerate-signup]');
+  if(regenBtn){if(!confirm('CrÃ©er un nouveau lien ? Lâ€™ancien ne fonctionnera plus.'))return;regenBtn.disabled=true;const {error}=await sb.rpc('super_admin_regenerate_player_signup_link',{p_request_id:regenBtn.dataset.regenerateSignup});regenBtn.disabled=false;if(error)return toast(error.message);await loadSuperAdminWorkspaces();toast('Nouveau lien gÃ©nÃ©rÃ© âœ…');return;}
+  if(e.target?.dataset?.saApproveCoorgRequest){
+    const b=e.target;b.disabled=true;
+    const {error}=await sb.rpc('super_admin_resolve_coorganizer_quota_request',{p_request_id:b.dataset.saApproveCoorgRequest,p_approve:true});
+    b.disabled=false;if(error)return toast(error.message);
+    toast('Demande acceptÃ©e âœ…');await loadSuperAdminWorkspaces();return;
+  }
+  if(e.target?.dataset?.saRejectCoorgRequest){
+    const b=e.target;b.disabled=true;
+    const {error}=await sb.rpc('super_admin_resolve_coorganizer_quota_request',{p_request_id:b.dataset.saRejectCoorgRequest,p_approve:false});
+    b.disabled=false;if(error)return toast(error.message);
+    toast('Demande refusÃ©e.');await loadSuperAdminWorkspaces();return;
+  }
+  if(e.target?.id==='saRefresh')await loadSuperAdminWorkspaces();
+  if(e.target?.id==='saRefreshVenues')await loadSportsVenues();
+  if(e.target?.id==='saAddComplex'){
+    const name=$('#saNewComplexName').value.trim(),city=$('#saNewComplexCity').value.trim();
+    if(!name)return toast('Indique le nom du complexe.');
+    const {error}=await sb.rpc('super_admin_manage_sports_complex',{p_action:'create',p_name:name,p_city:city||null,p_active:true});
+    if(error)return toast(error.message);
+    $('#saNewComplexName').value='';$('#saNewComplexCity').value='';
+    await loadSportsVenues();toast('Complexe ajoutÃ© âœ…');
+  }
+  if(e.target?.id==='saCreateWorkspace'){
+    const name=$('#saWorkspaceName').value.trim(),email=$('#saOwnerEmail').value.trim().toLowerCase();
+    if(!name||!email)return toast('Indique le nom de lâ€™espace et lâ€™e-mail de son administrateur.');
+    const first=$('#saOwnerFirstName').value.trim(),last=$('#saOwnerLastName').value.trim(),phone=$('#saOwnerPhone').value.trim();
+    const b=e.target;b.disabled=true;
+    const created=await sb.rpc('super_admin_create_workspace_for_admin',{
+      p_name:name,p_owner_email:email,
+      p_max_coorganizers:Math.max(0,Math.min(100,Number($('#saMaxCoorg').value)||0)),
+      p_tournaments_enabled:$('#saTournamentEnabled').checked,
+      p_league_enabled:$('#saLeagueEnabled').checked,
+      p_rankings_enabled:$('#saRankingsEnabled').checked
+    });
+    if(created.error){b.disabled=false;return toast(created.error.message)}
+    const profile=await sb.rpc('super_admin_update_admin_profile',{
+      p_workspace_id:created.data,p_first_name:first||null,p_last_name:last||null,p_phone:phone||null
+    });
+    if(profile.error){b.disabled=false;return toast('Espace crÃ©Ã©, mais fiche administrateur Ã  complÃ©ter : '+profile.error.message)}
+    const plan=$('#saNewPlan')?.value||'free';
+    let commercial=await sb.rpc('super_admin_set_commercial_access_v2',{p_workspace_id:created.data,p_subscription_plan:plan,p_special_access_enabled:false});
+    const gifted=Math.max(0,Math.min(1000,Number($('#saMaxCoorg').value)||0));
+    if(!commercial.error)commercial=await sb.rpc('super_admin_set_workspace_options_v2',{p_workspace_id:created.data,p_max_coorganizers:gifted,p_max_coorganizers_cap:1000,p_tournaments_enabled:$('#saTournamentEnabled').checked,p_league_enabled:$('#saLeagueEnabled').checked,p_rankings_enabled:$('#saRankingsEnabled').checked,p_public_enabled:true});
+    if(!commercial.error)commercial=await sb.rpc('super_admin_grant_coorganizer_slots',{p_workspace_id:created.data,p_base_max_coorganizers:gifted});
+    b.disabled=false;if(commercial.error)return toast('Espace crÃ©Ã©, mais configuration commerciale Ã  vÃ©rifier : '+commercial.error.message);
+    $('#saWorkspaceName').value='';$('#saOwnerEmail').value='';$('#saOwnerFirstName').value='';$('#saOwnerLastName').value='';$('#saOwnerPhone').value='';
+    toast('Espace administrateur crÃ©Ã© âœ…');await loadSuperAdminWorkspaces();
+  }
+});
 
-KŠOOŠKœÛÜÛÜ™\Ÿ
-KJ‹œÛÜÛÜ™\Ÿ
-_İš[™ÊK›˜[YJK›ØØ[PÛÛ\\™Jİš[™Ê‹›˜[YJJJNÂˆYŠXÛÛ\^\Ë›[™İ
-^Ø›Şš[›™\’SIÏÛ\ÜÏH›]]Y]Xİ[ˆÛÛ\^H[œ™YÚ\İ°êKÜ‰ÎÜ™]\›ŸBˆÛÛ\^\Ë™›Ü‘XXÚ
-ÏOÂˆÛÛœİYØİ[Y[˜Ü™X]Q[[Y[
-	Ù]‰ÊNÙ˜Û\ÜÓ˜[YOIÜ^Y\‰ÎÙœİ[K›X\™Ú[›İÛOIÌLœ	ÎÂˆÛÛœİ]Ú\ÏJËœÜÜÔ]Ú\ß×JK™š[\ŠOœ˜ÛÛ\^ÚYOOXËšY
-NÂˆš[›™\’SBˆ	Ï]ˆÛ\ÜÏH™ÜšYÌÈ‰ÊÂˆ	Ï[œ]]KXÛÛ\^[˜[YH˜[YOH‰ÊÙ\ØÊË›˜[YJJÉÈˆXÙZÛ\H“›ÛHHÛÛ\^H‰ÊÂˆ	Ï[œ]]KXÛÛ\^XÚ]H˜[YOH‰ÊÙ\ØÊË˜Ú]_	ÉÊJÉÈˆXÙZÛ\H•š[HÈÛÛ[][™H‰ÊÉÏ]ˆÛ\ÜÏH™ÜšYÌˆ[œ]]KXÛÛ\^\İ[™^H\OH›[X™\ˆˆZ[HŒˆİ\HŒHˆ˜[YOH‰ÊÊ[X™\ŠË›ÛœÚ]WÜİ[™^WÜšXÙWØÙ[ß
-KÌL
-JÉÈˆXÙZÛ\H‘[X[˜ÚH8 «[œ]]KXÛÛ\^]ÙYZÙ^H\OH›[X™\ˆˆZ[HŒˆİ\HŒHˆ˜[YOH‰ÊÊ[X™\ŠË›ÛœÚ]WİÙYZÙ^WÜšXÙWØÙ[ß
-KÌL
-JÉÈˆXÙZÛ\H”Ù[XZ[™H8 «Ù]‰ÊÂˆ	ÏX™[Û\ÜÏHœ^Y\ˆ›İÈˆİ[OHš\İYKXÛÛ[™›^\İ\[œ]]KXÛÛ\^XXİ]™H\OH˜ÚXÚØ›Şˆİ[OHÚY˜]]Èˆ	ÊÊË˜Xİ]™HOOY˜[ÙOÉØÚXÚÙY	Î‰ÉÊJÉÏÜ[XİYÜÜ[ÛX™[‰ÊÂˆ	ÏÙ]‰ÊÂˆ
-™[YSY]JÊOÉÏ]ˆÛ\ÜÏH›]]Yˆİ[OH›X\™Ú[‹]ÜÜÜY[™ÎLØ˜XÚÙÜ›İ[™ˆÙÙ˜™Ø›Ü™\‹\˜Y]\ÎŒL‰ÊÙ\ØÊ™[YSY]JÊK\JJÉÏØˆ8 (ˆ	ÊÙ\ØÊ™[YSY]JÊKšİ\œÊJÉÏÙ]‰Î‰ÉÊJÂˆ	Ï]ˆÛ\ÜÏHœ›İÈˆİ[OH›X\™Ú[‹]ÜÙ›^]Ü˜\Ü˜\]Ûˆ]KXÛÛ\^\Ø]™HÛ\ÜÏHœš[X\H¼'ä¯ˆ[œ™YÚ\İ™\ˆHÛÛ\^OØ]Û]Ûˆ]KXÛÛ\^Y[]HÛ\ÜÏH™[™Ù\ˆ”İ\š[Y\Ø]ÛÙ]‰ÊÂˆ	Ï]ˆİ[OHšZYÚŒ\Ø˜XÚÙÜ›İ[™ˆÙNXÙYÛX\™Ú[ŒLœÙ]‰ÊÂˆ	Ï•\œ˜Z[œÏØ]ˆ]K\]Ú[\İİ[OH›X\™Ú[‹]ÜÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ›İÈˆİ[OH›X\™Ú[‹]Ü[œ]]K[™]Ë\]ÚXÙZÛ\H“›ÛHH›İ]™X]H\œ˜Z[ˆˆİ[OH™›^ŒH]Ûˆ]KXY\]ÚŠÈ\œ˜Z[Ø]ÛÙ]‰ÎÂˆÛÛœİ\İYœ]Y\TÙ[XİÜŠ	ÖÙ]K\]Ú[\İIÊNÂˆ\İš[›™\’S\]Ú\Ë›X\
-O‰Ï]ˆÛ\ÜÏHœ›İÈ^Y\ˆˆ]K\]ÚZYH‰ÊÜšY
-ÉÈˆİ[OH›X\™Ú[\[œ]]K\]Ú[˜[YH˜[YOH‰ÊÙ\ØÊ›˜[YJJÉÈˆİ[OH™›^ŒHX™[Û\ÜÏHœ›İÈˆİ[OH™Ø\\[œ]]K\]ÚXXİ]™H\OH˜ÚXÚØ›Şˆİ[OHÚY˜]]Èˆ	ÊÊ˜Xİ]™HOOY˜[ÙOÉØÚXÚÙY	Î‰ÉÊJÉÏˆXİYÛX™[]Ûˆ]K\]Ú\Ø]™O‘[œ™YÚ\İ™\Ø]Û]Ûˆ]K\]ÚY[]HÛ\ÜÏH™[™Ù\ˆ”İ\š[Y\Ø]ÛÙ]‰ÊKš›Ú[Š	ÉÊ_	Ï]ˆÛ\ÜÏH›]]Y]Xİ[ˆ\œ˜Z[‹Ù]‰ÎÂˆœ]Y\TÙ[XİÜŠ	ÖÙ]KXÛÛ\^\Ø]™WIÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÛX[˜YÙWÜÜÜ×ØÛÛ\^	ËÜØXİ[Û‰İ\]IËÚY˜ËšYÛ˜[YN™œ]Y\TÙ[XİÜŠ	ÖÙ]KXÛÛ\^[˜[YWIÊK˜[YKš[J
-KØÚ]N™œ]Y\TÙ[XİÜŠ	ÖÙ]KXÛÛ\^XÚ]WIÊK˜[YKš[J
-_[ØXİ]™N™œ]Y\TÙ[XİÜŠ	ÖÙ]KXÛÛ\^XXİ]™WIÊK˜ÚXÚÙYJNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-\œ›Ü‹›Y\ÜØYÙJNØ]ØZ]ØYÜÜÕ™[Y\Ê
-NİØ\İ
-	ĞÛÛ\^HZ\È0è›İ\ˆ8§!IÊNÂˆNÂˆœ]Y\TÙ[XİÜŠ	ÖÙ]KXÛÛ\^Y[]WIÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆYŠXÛÛ™š\›J	Ôİ\š[Y\ˆ0êYš[š]]™[Y[HÛÛ\^H0ªÈ	ÊØË›˜[YJÉÈ0®ÈÉÊJ\™]\›ÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÛX[˜YÙWÜÜÜ×ØÛÛ\^	ËÜØXİ[Û‰Ù[]IËÚY˜ËšYJNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-\œ›Ü‹›Y\ÜØYÙJNØ]ØZ]ØYÜÜÕ™[Y\Ê
-NİØ\İ
-	ĞÛÛ\^Hİ\š[pêK‰ÊNÂˆNÂˆœ]Y\TÙ[XİÜŠ	ÖÙ]KXY\]ÚIÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİ˜[YOYœ]Y\TÙ[XİÜŠ	ÖÙ]K[™]Ë\]ÚIÊK˜[YKš[J
-NÚYŠ[˜[YJ\™]\›ˆØ\İ
-	Ò[™\]YHH›ÛHH\œ˜Z[‹‰ÊNÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÛX[˜YÙWÜÜÜ×Ü]Ú	ËÜØXİ[Û‰ØÜ™X]IËØÛÛ\^ÚY˜ËšYÛ˜[YN›˜[YKØXİ]™NY_JNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-\œ›Ü‹›Y\ÜØYÙJNØ]ØZ]ØYÜÜÕ™[Y\Ê
-NİØ\İ
-	Õ\œ˜Z[ˆZ›İ]0êH8§!IÊNÂˆNÂˆ\İœ]Y\TÙ[XİÜ[
-	ÖÙ]K\]ÚZYIÊK™›Ü‘XXÚ
-›İÏOÂˆÛÛœİY\›İË™]\Ù]œ]ÚYÂˆ›İËœ]Y\TÙ[XİÜŠ	ÖÙ]K\]Ú\Ø]™WIÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÛX[˜YÙWÜÜÜ×Ü]Ú	ËÜØXİ[Û‰İ\]IËÚYœYØÛÛ\^ÚY˜ËšYÛ˜[YNœ›İËœ]Y\TÙ[XİÜŠ	ÖÙ]K\]Ú[˜[YWIÊK˜[YKš[J
-KØXİ]™Nœ›İËœ]Y\TÙ[XİÜŠ	ÖÙ]K\]ÚXXİ]™WIÊK˜ÚXÚÙYJNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-\œ›Ü‹›Y\ÜØYÙJNØ]ØZ]ØYÜÜÕ™[Y\Ê
-NİØ\İ
-	Õ\œ˜Z[ˆZ\È0è›İ\ˆ8§!IÊNÂˆNÂˆ›İËœ]Y\TÙ[XİÜŠ	ÖÙ]K\]ÚY[]WIÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆYŠXÛÛ™š\›J	Ôİ\š[Y\ˆ0êYš[š]]™[Y[ÙH\œ˜Z[ˆÉÊJ\™]\›ÂˆÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÛX[˜YÙWÜÜÜ×Ü]Ú	ËÜØXİ[Û‰Ù[]IËÚYœYJNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-\œ›Ü‹›Y\ÜØYÙJNØ]ØZ]ØYÜÜÕ™[Y\Ê
-NİØ\İ
-	Õ\œ˜Z[ˆİ\š[pêK‰ÊNÂˆNÂˆJNÂˆ›Ş˜\[™Ú[
-
-NÂˆJNÂŸB˜\Ş[˜È[˜İ[ÛˆØYİ\\YZ[•ÛÜšÜÜXÙ\Ê
-^ÂˆÛÛœİÙ]K\œ›ÜŸOX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÙÙ]İÛÜšÜÜXÙ\×İIÊNÂˆYŠ\œ›ÜŠ^İØ\İ
-\œ›Ü‹›Y\ÜØYÙJNÜ™]\›ŸBˆËœİ\\•ÛÜšÜÜXÙ\ÏP\œ˜^Kš\Ğ\œ˜^J]JOÙ]N–×NÂˆÛÛœİXØÛİ[XØÙ\ÜÙ\ÏX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÙÙ]ØXØÛİ[İÛÜšÜÜXÙWØXØÙ\ÜÙ\ÉÊNÂˆËœİ\\XØÛİ[XØÙ\ÜÙ\ÏXXØÛİ[XØÙ\ÜÙ\Ë™\œ›ÜÖ×NŠ\œ˜^Kš\Ğ\œ˜^JXØÛİ[XØÙ\ÜÙ\Ë™]JOØXØÛİ[XØÙ\ÜÙ\Ë™]N–×JNÂˆÛÛœİ™\]Y\İÏX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÙÙ]ØÛÛÜ™Ø[š^™\—Ü][İWÜ™\]Y\İÉÊNÂˆËœİ\\ÛÛÜ™Ô][İT™\]Y\İÏ\™\]Y\İË™\œ›ÜÖ×NŠ\œ˜^Kš\Ğ\œ˜^J™\]Y\İË™]JOÜ™\]Y\İË™]N–×JNÂˆÛÛœİ^Y\œÏX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÙÙ]Ü^Y\œ×Ù\™XİÜWİŒÉÊNÂˆËœİ\\”^Y\œÏ\^Y\œË™\œ›ÜÖ×NŠ\œ˜^Kš\Ğ\œ˜^J^Y\œË™]JOÜ^Y\œË™]N–×JNÂˆÛÛœİÚYÛ\™\]Y\İÏX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÙÙ]Ü^Y\—ÜÚYÛ\Ü™\]Y\İÉÊNÂˆËœİ\\”ÚYÛ\™\]Y\İÏ\ÚYÛ\™\]Y\İË™\œ›ÜÖ×NŠ\œ˜^Kš\Ğ\œ˜^JÚYÛ\™\]Y\İË™]JOÜÚYÛ\™\]Y\İË™]N–×JNÂˆÛÛœİ\Ü]\ÏX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÙÙ]ÚY[]WÙ\Ü]\ÉÊNÂˆËœİ\\’Y[]Q\Ü]\ÏY\Ü]\Ë™\œ›ÜÖ×NŠ\œ˜^Kš\Ğ\œ˜^J\Ü]\Ë™]JOÙ\Ü]\Ë™]N–×JNÂˆÛÛœİ]›Ü›OX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÙÙ]Ü]›Ü›WÜÙ][™ÜÉÊNÂˆYŠ\]›Ü›K™\œ›Ü‰‰œ]›Ü›K™]JTËœ]›Ü›TÙ][™ÜÏ^Ë‹‹”Ëœ]›Ü›TÙ][™ÜË‹‹œ]›Ü›K™]_NÖÖÉÜØQ›Ûİ\ÛÛ\[IË	Ù›Ûİ\—ØÛÛ\[WÛ˜[YI×KÉÜØQ›Ûİ\‘[XZ[	Ë	Ù›Ûİ\—ØÛÛXİÙ[XZ[	×KÉÜØQ›Ûİ\“YØ[^	Ë	Ù›Ûİ\—ÛYØ[İ^	×KÉÜØQ›Ûİ\“YØ[\›	Ë	Ù›Ûİ\—ÛYØ[İ\›	×KÉÜØQ›Ûİ\”š]˜XŞU\›	Ë	Ù›Ûİ\—Üš]˜XŞWİ\›	×KÉÜØQ›Ûİ\•\›\Õ\›	Ë	Ù›Ûİ\—İ\›\×İ\›	×WK™›Ü‘XXÚ
 
-ÚK×JOOÚYŠ	
-	ÈÉÊÚJJI
-	ÈÉÊÚJK˜[YOTËœ]›Ü›TÙ][™ÜÖÚ×_	ÉßJNÚYŠ	
-	ÈÜØQ›Ûİ\‘[˜X›Y	ÊJI
-	ÈÜØQ›Ûİ\‘[˜X›Y	ÊK˜ÚXÚÙYTËœ]›Ü›TÙ][™ÜË™›Ûİ\—Ù[˜X›YOOY˜[ÙNÜ™[™\”]›Ü›Q›Ûİ\Š
-NÂˆÛÛœİÛÛœÙ[ÙÙÛOI
-	ÈÜØPÛÛœÙ[Ø]Q[˜X›Y	ÊNÚYŠÛÛœÙ[ÙÙÛJXÛÛœÙ[ÙÙÛK˜ÚXÚÙYHHTËœ]›Ü›TÙ][™ÜË˜ÛÛœÙ[ÙØ]WÙ[˜X›YÂˆÛÛœİÛÛœÙ[X™[I
-	ÈÜØPÛÛœÙ[Ø]SX™[	ÊNÚYŠÛÛœÙ[X™[
-XÛÛœÙ[X™[^ÛÛ[TËœ]›Ü›TÙ][™ÜË˜ÛÛœÙ[ÙØ]WÙ[˜X›YÉÕš\ÚX›HÈØ›YØ]Ú\™IÎ‰ÓX\Ü]pêIÎÂˆ™[™\”İ\\YZ[•ÛÜšÜÜXÙ\Ê
-NÂˆ™[™\”İ\\YZ[”^Y\œÊ
-NÂˆ™[™\”İ\\YZ[”ÚYÛ\™\]Y\İÊ
-NÂˆ™[™\”İ\\YZ[’Y[]Q\Ü]\Ê
-NÂŸB™[˜İ[Ûˆ^Y\Xİ]˜][Û“[šÊÚÙ[Š^Ü™]\›ˆ	ÚÎ‹ËÜİÙ]İ\›˜[Y[™œ‹ÏØXİ]˜]OIÊÙ[˜ÛÙUT’PÛÛ\Û™[
-ÚÙ[Ÿ	ÉÊNßB™[˜İ[ÛˆÚYÛ\[š]SY\ÜØYÙJŠ^Ü™]\›ˆ	ÔØ[]	ÊÊ‹™\Ü^WÛ˜[Y_	ÉÊJÉÈ<'äb×—•Ûˆ[œØÜš\[ÛˆÕğâHİ\›˜[Y[\İ°êKˆXİ]™HÛˆÛÛ\H]™XÈÙHY[ˆ—‰ÊÜ^Y\Xİ]˜][Û“[šÊ‹˜Xİ]˜][Û—İÚÙ[ŠJÉ×—ÙHY[ˆ\İ\œÛÛ›™[ˆ[™H›Ú\ÈHÛÛ\HXİ]°êKHİ\œ˜\È™]›İ]™\ˆÛˆQÕğâH]\È\™›Ü›X[˜Ù\Ë‰ÎßB™[˜İ[Ûˆ™[™\”İ\\YZ[”ÚYÛ\™\]Y\İÊ
-^ÂˆÛÛœİ›ŞI
-	ÈÜØTÚYÛ\™\]Y\İÓ\İ	ÊNÚYŠX›Ş
-\™]\›ÂˆÛÛœİ›İÜÏJËœİ\\”ÚYÛ\™\]Y\İß×JK™š[\ŠOœ‹œİ]\ÏOOIÜ[™[™ÉÊNÂˆÛÛœİ[I
-	ÈÜØTÚYÛ\™\]Y\İĞÛİ[	ÊNÚYŠ[
-\[^ÛÛ[\›İÜË›[™İ
-ÉÈ[ˆ][IÎÂˆYŠ\›İÜË›[™İ
-^Ø›Şš[›™\’SIÏ]ˆÛ\ÜÏH›]]Y]Xİ[™H[X[™H8 &Z[œØÜš\[Ûˆ[ˆ][KÙ]‰ÎÜ™]\›ßBˆ›Şš[›™\’S\›İÜË›X\
-OÂˆÛÛœİ[šÏ\^Y\Xİ]˜][Û“[šÊ‹˜Xİ]˜][Û—İÚÙ[ŠK\ÙÏ\ÚYÛ\[š]SY\ÜØYÙJŠNÂˆÛÛœİXZ[İXš™XİY[˜ÛÙUT’PÛÛ\Û™[
-	ĞXİ]˜][ÛˆHÛˆÛÛ\HÕğâHİ\›˜[Y[	ÊNÂˆÛÛœİXZ[›ÙOY[˜ÛÙUT’PÛÛ\Û™[
-\ÙÊNÂˆÛÛœİØTÛ™OTİš[™Ê‹œÛ™WÛ[X™\Ÿ	ÉÊKœ™\XÙJÖ×ŒNWKÙË	ÉÊNÂˆÛÛœİØR™Y]ØTÛ™OÉÚÎ‹ËİØK›YKÉÊİØTÛ™JÉÏİ^IÊÙ[˜ÛÙUT’PÛÛ\Û™[
-\ÙÊN‰ÉÎÂˆ™]\›ˆ	Ï]ˆÛ\ÜÏHœØK\ÚYÛ\\™\]Y\İ‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK\ÚYÛ\\™\]Y\İ[XZ[ˆ‰ÊÙ\ØÊ‹™\Ü^WÛ˜[YJJÉÏØ]ˆÛ\ÜÏH›]]Y¼'äéÈ	ÊÙ\ØÊ‹™[XZ[
-JÊ‹œÛ™WÛ[X™\ÉÈ8 (ˆ<'äìH	ÊÙ\ØÊ‹œÛ™WÛ[X™\ŠN‰ÉÊJÉÏÙ]]ˆÛ\ÜÏHœÛX[]]Y‘[X[™0êHH	ÊÛ™]È]J‹˜Ü™X]YØ]
-KÓØØ[Tİš[™Ê	Ùœ‹Q”‰ÊJÉÏÙ]Ù]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØKXXİ]˜][Û‹[[šÈÜ[“Y[ˆ8 &XXİ]˜][ÛÜÜ[ÛÙO‰ÊÙ\ØÊ[šÊJÉÏØÛÙOÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK\ÚYÛ\XXİ[ÛœÈ‰ÊÂˆ	Ï]Ûˆ\OH˜]Ûˆˆ]KXÛÜK\ÚYÛ\[[šÏH‰ÊÙ\ØÊ‹šY
-JÉÈ¼'äâÈÛÜY\ˆHY[Ø]Û‰ÊÂˆ	ÏHÛ\ÜÏH˜]Û›ZÙHˆ™YH›XZ[Î‰ÊÙ[˜ÛÙUT’PÛÛ\Û™[
-‹™[XZ[
-JÉÏÜİXš™XİIÊÛXZ[İXš™Xİ
-ÉÉ˜›ÙOIÊÛXZ[›ÙJÉÈ¸§"{î#È°ê\\™\ˆ8 &YK[XZ[ØO‰ÊÂˆ
-ØR™YÉÏHÛ\ÜÏH˜]Û›ZÙHØHˆ\™Ù]H—Ø›[šÈˆ™[H››ÛÜ[™\ˆˆ™YH‰ÊÙ\ØÊØR™YŠJÉÈ¼'ä«Ú]Ğ\ØO‰Î‰Ï]Ûˆ\OH˜]Ûˆˆ\ØX›Y]OH]Xİ[ˆ0ê[0ê\Û™H™[œÙZYÛ°êH¼'ä«Ú]Ğ\Ø]Û‰ÊJÂˆ	Ï]Ûˆ\OH˜]Ûˆˆ]KXÛÜK\ÚYÛ\[Y\ÜØYÙOH‰ÊÙ\ØÊ‹šY
-JÉÈ¼'äçHÛÜY\ˆHY\ÜØYÙOØ]Û‰ÊÂˆ	Ï]Ûˆ\OH˜]Ûˆˆ]K\™YÙ[™\˜]K\ÚYÛ\H‰ÊÙ\ØÊ‹šY
-JÉÈ¸¡®È›İ]™X]HY[Ø]Û‰ÊÂˆ	ÏÙ]Ù]‰ÎÂˆJKš›Ú[Š	ÉÊNÂŸB‚™[˜İ[Ûˆ™[™\”İ\\YZ[’Y[]Q\Ü]\Ê
-^ÂˆÛÛœİ›ŞI
-	ÈÜØRY[]Q\Ü]\Ó\İ	ÊNÚYŠX›Ş
-\™]\›ØÛÛœİ›İÜÏTËœİ\\’Y[]Q\Ü]\ß×NØÛÛœİ[I
-	ÈÜØRY[]Q\Ü]PÛİ[	ÊNÚYŠ[
-\[^ÛÛ[\›İÜË›[™İ
-ÉÈ]YÙIÊÊ›İÜË›[™İŒOÉÜÉÎ‰ÉÊNÂˆYŠ\›İÜË›[™İ
-^Ø›Şš[›™\’SIÏ]ˆÛ\ÜÏH›]]Y]Xİ[ˆÛÛ™›]8 &ZY[]0êH[ˆ][KÙ]‰ÎÜ™]\›ßBˆ›Şš[›™\’S\›İÜË›X\
-O‰Ï]ˆÛ\ÜÏHšY[]KY\Ü]K\›İÈ]‰ÊÙ\ØÊ‹œ^Y\—Û˜[YJJÉÏØ]ˆÛ\ÜÏH›]]Y‰ÊÙ\ØÊ‹ÛÜšÜÜXÙWÛ˜[YJJÉÈ8 (ˆÚYÛ˜[0êHH	ÊÛ™]È]J‹˜Ü™X]YØ]
-KÓØØ[Tİš[™Ê	Ùœ‹Q”‰ÊJÉÏÙ]]ˆÛ\ÜÏHœÛX[ˆİ[OH›X\™Ú[‹]Ü\ÛÛ\H0êZ°èpêHØˆ	ÊÙ\ØÊ‹˜ÛÛ™›XİÜ^Y\—ÚY	ø %	ÊJÉÈ8 (ˆ	ÊÙ\ØÊ‹˜ÛÛ™›XİÙ[XZ[	ø %	ÊJÉÏœ“›İ]™X]H[X[™]\ˆØˆ	ÊÙ\ØÊ‹˜ÛZ[X[Ü^Y\—ÚY	ø %	ÊJÉÈ8 (ˆ	ÊÙ\ØÊ‹˜ÛZ[X[Ù[XZ[	ø %	ÊJÉÏÙ]Ù]]ˆÛ\ÜÏHšY[]KY\Ü]KXXİ[ÛœÈ]Ûˆ]K\™\ÛÛ™KZY[]OH™^\İ[™×İ˜[Yˆ]KXÛZ[KZYH‰ÊÙ\ØÊ‹˜ÛZ[WÚY
-JÉÈ‘Ø\™\ˆHÛÛ\H^\İ[Ø]Û]Ûˆ]K\™\ÛÛ™KZY[]OH˜ÛZ[X[İ˜[Yˆ]KXÛZ[KZYH‰ÊÙ\ØÊ‹˜ÛZ[WÚY
-JÉÈ•˜[Y\ˆH[X[™]\Ø]Û]Ûˆ]K\™\ÛÛ™KZY[]OH››×Ùœ˜]Yˆ]KXÛZ[KZYH‰ÊÙ\ØÊ‹˜ÛZ[WÚY
-JÉÈ“]™\ˆH›ØØYÙHØ[œÈXZ\ÛÛØ]ÛÙ]Ù]‰ÊKš›Ú[Š	ÉÊNÂŸB‚™[˜İ[Ûˆ™[™\”İ\\YZ[”^Y\œÊ
-^ÂˆÛÛœİ›ŞI
-	ÈÜØT^Y\œÓ\İ	ÊNÚYŠX›Ş
-\™]\›ÂˆÛÛœİ[TËœİ\\”^Y\œß×NÂˆÛÛœİOJ	
-	ÈÜØTÙX\˜Ú^Y\‰ÊOË˜[Y_	ÉÊKš[J
-KÓİÙ\Ø\ÙJ
-NÂˆÛÛœİ›İÜÏX[™š[\ŠOˆ\_Ü‹™\Ü^WÛ˜[YK‹œX›X×Ü^Y\—ÚY‹™[XZ[‹œÛ™WÛ[X™\‹‹šÛYWØ\™XWKœÛÛYJO”İš[™ÊŸ	ÉÊKÓİÙ\Ø\ÙJ
-Kš[˜ÛY\ÊJJJNÂˆÛÛœİ[I
-	ÈÜØT^Y\œĞÛİ[[	ÊNÚYŠ[
-\[^ÛÛ[X[›[™İ
-ÉÈ›Ùš[	ÊÊ[›[™İŒOÉÜÉÎ‰ÉÊNÂˆÛÛœİİ]ÏI
-	ÈÜØT^Y\”İ]ÉÊNÚYŠİ]Ê\İ]Ëš[›™\’SBˆ	Ï]Ü[¼'äiÜÜ[‰ÊØ[›[™İ
-ÉÏØÛX[’Y[]0ê\ÈÕğâOÜÛX[Ù]‰ÊÈˆ	Ï]Ü[¸§!OÜÜ[‰ÊØ[™š[\ŠOœ‹˜ÛÛœÙ[ØXØÙ\Y
-K›[™İ
-ÉÏØÛX[ÛÛœÙ[[Y[È0è›İ\ÜÛX[Ù]‰ÊÈˆ	Ï]Ü[¸£ìÏÜÜ[‰ÊØ[™š[\ŠOˆ\‹˜ÛÛœÙ[ØXØÙ\Y
-K›[™İ
-ÉÏØÛX[°à°êYİ[\š\Ù\ÜÛX[Ù]‰ÊÈˆ	Ï]Ü[¼'ã#OÜÜ[‰ÊØ[™š[\ŠOœ‹™\ØÛİ™\˜X›JK›[™İ
-ÉÏØÛX[‘\ÜÛšX›\È[›XZ\™OÜÛX[Ù]‰ÎÂˆ›Şš[›™\’SIÉÎÂˆYŠ\›İÜË›[™İ
-^Ø›Şš[›™\’SIÏ]ˆÛ\ÜÏH›]]Y]Xİ[ˆ›İY]\ˆ™HÛÜœ™\ÜÛ™0èH™XÚ\˜ÚKÙ]‰ÎÜ™]\›ßBˆ›Şš[›™\’S\›İÜË›X\
-OØÛÛœİ[šÜÏP\œ˜^Kš\Ğ\œ˜^J‹œİY™—Û[šÜÊOÜ‹œİY™—Û[šÜÎ–×NÜ™]\›ˆ	Ï]ˆÛ\ÜÏHœØK\^Y\‹\›İÈ‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK\^Y\‹[XZ[ˆ]ˆÛ\ÜÏHœ›İÈˆİ[OHš\İYKXÛÛ[™›^\İ\ÙØ\ÜÙ›^]Ü˜\Ü˜\‰ÊÙ\ØÊ‹™\Ü^WÛ˜[Y_	Ò›İY]\ˆÕğâIÊJÉÏØÜ[ˆÛ\ÜÏHœ^Y\‹ZY[Z[šH‰ÊÙ\ØÊ‹œX›X×Ü^Y\—ÚY	ø %	ÊJÉÏÜÜ[Ü[ˆÛ\ÜÏH™İY\İX˜YÙH	ÊÊ‹˜ÛÛœÙ[ØXØÙ\YÉØÛÛœÙ[[ÚÉÎ‰ØÛÛœÙ[\[™[™ÉÊJÉÈ‰ÊÊ‹˜ÛÛœÙ[ØXØÙ\YÉĞÓÓ”ÑS•SQS•ÒÉÎ‰ğàSQT‰ÊJÉÏÜÜ[Ü[ˆÛ\ÜÏH™İY\İX˜YÙHY[]KIÊÙ\ØÊ‹šY[]WÜİ]\ß	ØXİ]™IÊJÉÈ‰ÊÊ
-‹šY[]WÜİ]\ß	ØXİ]™IÊOOOIØXİ]™IÏÉÒQS•U0âHÒÉÎŠ‹šY[]WÜİ]\ÏOOIÜ™]šY]ÉÏÉÕ°âT’Q’PĞUSÓ‰Î‰ÔÕTÔS‘IÊJJÉÏÜÜ[Ù]‰ÊÈˆ	Ï]ˆÛ\ÜÏH›]]Y¼'äéÈ	ÊÙ\ØÊ‹™[XZ[	ø %	ÊJÊ‹œÛ™WÛ[X™\ÉÈ8 (ˆ<'äìH	ÊÙ\ØÊ‹œÛ™WÛ[X™\ŠN‰ÉÊJÊ‹šÛYWØ\™XOÉÈ8 (ˆ<'äãH	ÊÙ\ØÊ‹šÛYWØ\™XJN‰ÉÊJÉÏÙ]Ù]‰ÊÈˆ	Ï]ˆÛ\ÜÏHœØK\^Y\‹[Y]HÜ[‰ÊÓ[X™\Š‹™Ü›İ\×ØÛİ[
-JÉÏØˆÜ›İ\JÊOÜÜ[Ü[‰ÊÓ[X™\Š‹›ØØ[Ü›Ùš[\×ØÛİ[
-JÉÏØˆ›Ùš[
-ÊHpêJÊOÜÜ[Ü[‰ÊÊ‹š\×ÜX›XÏÉü'ã$X›XÉÎ‰ü'å$ˆš]°êIÊJÉÏÜÜ[Ü[‰ÊÊ‹™\ØÛİ™\˜X›OÉü'å#ˆ[›XZ\™IÎ‰Ğ[›XZ\™H0ê\ØXİ]°êIÊJÉÏÜÜ[Ù]‰ÊÈˆ
-[šÜË›[™İÉÏ]ˆÛ\ÜÏHœØK\İY™‹[[šÜÈ¼'å%ÈXZ\ÛÛˆÜ™Ø[š\Ø]]\ˆÈY[Xœ™OØ‰ÊÛ[šÜË›X\
-O‰Ï]ˆÛ\ÜÏHœØK\İY™‹[[šÈÜ[‰ÊÙ\ØÊœ^Y\—Û˜[YJJÉÏØˆ8 (ˆ	ÊÙ\ØÊÛÜšÜÜXÙWÛ˜[YJJÉÈÛX[Š	ÊÙ\ØÊœ›ÛJJÉÊOÜÛX[ÜÜ[]ÛˆÛ\ÜÏH™[™Ù\ˆˆ]K\ØK][›[šË\İY™ˆ]K]ÛÜšÜÜXÙKZYH‰ÊÙ\ØÊÛÜšÜÜXÙWÚY
-JÉÈˆ]K]\Ù\‹ZYH‰ÊÙ\ØÊ\Ù\—ÚY
-JÉÈˆ]K\^Y\‹ZYH‰ÊÙ\ØÊœ^Y\—ÚY
-JÉÈˆ]K\^Y\‹[˜[YOH‰ÊÙ\ØÊœ^Y\—Û˜[YJJÉÈ‘0ê[Y\Ø]ÛÙ]‰ÊKš›Ú[Š	ÉÊJÉÏÙ]‰Î‰ÉÊJÂˆ
-‹˜ÛÛœÙ[ØXØÙ\YØ]ÉÏ]ˆÛ\ÜÏHœÛX[]]YÛÛœÙ[[Y[ˆ	ÊÛ™]È]J‹˜ÛÛœÙ[ØXØÙ\YØ]
-KÓØØ[Tİš[™Ê	Ùœ‹Q”‰ÊJÉÏÙ]‰Î‰ÉÊJÂˆ	ÏÙ]‰ßJKš›Ú[Š	ÉÊNÂŸB‚™[˜İ[Ûˆ™[™\”İ\\YZ[•ÛÜšÜÜXÙ\Ê
-^ÂˆÛÛœİ›ŞI
-	ÈÜØUÛÜšÜÜXÙS\İ	ÊNÚYŠX›Ş
-\™]\›ÂˆÛÛœİOJ	
-	ÈÜØTÙX\˜ÚÛÜšÜÜXÙIÊOË˜[Y_	ÉÊKš[J
-KÓİÙ\Ø\ÙJ
-NÂˆÛÛœİ[ÙOI
-	ÈÜØUÛÜšÜÜXÙQš[\‰ÊOË˜[Y_	Ø[	ÎÂˆÛÛœİ[TËœİ\\•ÛÜšÜÜXÙ\ß×NÂˆÛÛœİX]Ú\Ó[ÙO]ÏOÂˆÛÛœİZYVÉÜİ[™\™	Ë	Ü›É×Kš[˜ÛY\Êİš[™ÊËœİXœØÜš\[Û—Ü[Ÿ	Ùœ™YIÊJ_H]ËœÜXÚX[ØXØÙ\Ü×Ù[˜X›YÂˆÛÛœİšX[HH]ËšX[Ù[™×Ø]	‰›™]È]JËšX[Ù[™×Ø]
-O›™]È]J
-NÂˆYŠ[ÙOOOIÜZY	Ê\™]\›ˆZYÂˆYŠ[ÙOOOIİšX[	Ê\™]\›ˆšX[	‰ˆ\ZYÂˆYŠ[ÙOOOIÙœ™YIÊ\™]\›ˆ\ZYÂˆYŠ[ÙOOOIÛ][IÊ^ÂˆÛÛœİOJËœİ\\XØÛİ[XØÙ\ÜÙ\ß×JK™š[\ŠO”İš[™Ê\Ù\—ÚY
-OOOTİš[™ÊË›İÛ™\—İ\Ù\—ÚY
-JNÂˆ™]\›ˆK™š[\ŠOœ›ÛOOOIØYZ[‰ÊK›[™İŒ_K™š[\ŠOœ›ÛOOOIØÛÛÜ™Ø[š^™\‰ÊK›[™İŒÂˆBˆYŠ[ÙOOOIÜİ\Ü[™Y	Ê\™]\›ˆ]ËœX›X×Ù[˜X›YÂˆ™]\›ˆYNÂˆNÂˆÛÛœİ›İÜÏX[™š[\ŠÏO›X]Ú\Ó[ÙJÊI‰Š\_ˆİš[™ÊËÛÜšÜÜXÙWÛ˜[Y_	ÉÊKÓİÙ\Ø\ÙJ
-Kš[˜ÛY\ÊJ_ˆİš[™ÊË›İÛ™\—Ù[XZ[	ÉÊKÓİÙ\Ø\ÙJ
-Kš[˜ÛY\ÊJ_ˆİš[™ÊË˜YZ[—Ùš\œİÛ˜[Y_	ÉÊKÓİÙ\Ø\ÙJ
-Kš[˜ÛY\ÊJ_ˆİš[™ÊË˜YZ[—Û\İÛ˜[Y_	ÉÊKÓİÙ\Ø\ÙJ
-Kš[˜ÛY\ÊJ_ˆİš[™ÊË˜YZ[—ÜÛ™_	ÉÊKÓİÙ\Ø\ÙJ
-Kš[˜ÛY\ÊJJJNÂ‚ˆÛÛœİİÛ™\œÏ[™]ÈX\
+async function loadThirdHalfFunds(){
+  if(!S.workspace||!isAdmin()||!S.workspaceFeatures.third_half_enabled){S.thirdHalfFunds=[];renderThirdHalfFunds();return;}
+  const {data,error}=await sb.rpc('get_admin_third_half_funds',{p_workspace_id:S.workspace.id});
+  if(error){toast(error.message);S.thirdHalfFunds=[];}else S.thirdHalfFunds=Array.isArray(data)?data:[];
+  renderThirdHalfFunds();
+}
+function renderThirdHalfFunds(){
+  const box=$('#coolerFundsList');if(!box)return;
+  const rows=S.thirdHalfFunds||[];
+  if(!rows.length){box.innerHTML='<div class="muted">Aucun SwÃ© actif Ã  administrer pour la glaciÃ¨re.</div>';return;}
+  box.innerHTML=rows.map((r,i)=>{const target=Number(r.target_amount_cents||0),collected=Number(r.collected_amount_cents||0),pct=target?Math.min(100,Math.round(collected/target*100)):0;return '<div class="cooler-fund" data-cooler-row="'+esc(r.tournament_id)+'"><div class="cooler-fund-head"><div><b>'+esc(r.tournament_name||'SwÃ©')+'</b><div class="muted">ğŸ“… '+esc(r.tournament_date||'')+' â€¢ '+(r.format==='league'?'SwÃ© de Ligue':'Tournoi')+'</div></div><span class="cooler-status '+esc(r.status||'draft')+'">'+esc(String(r.status||'draft').toUpperCase())+'</span></div><div class="cooler-progress"><span style="width:'+pct+'%"></span></div><div class="muted small" style="margin-top:5px">CollectÃ© : <b>'+euroCents(collected)+'</b>'+(target?' / objectif '+euroCents(target):' â€¢ aucun objectif dÃ©fini')+'</div><div class="grid g2"><label><span class="muted">Statut</span><select data-cooler-status><option value="draft" '+(r.status==='draft'?'selected':'')+'>Brouillon</option><option value="open" '+(r.status==='open'?'selected':'')+'>Ouverte</option><option value="paused" '+(r.status==='paused'?'selected':'')+'>En pause</option><option value="closed" '+(r.status==='closed'?'selected':'')+'>ClÃ´turÃ©e</option></select></label><label><span class="muted">Solution de cagnotte</span><select data-cooler-provider><option value="">Choisir</option>'+['Revolut','Leetchi','PayPal','Sumeria','Autre'].map(x=>'<option '+(r.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Lien de cagnotte</span><input data-cooler-link type="url" placeholder="https://..." value="'+esc(r.payment_link||'')+'"></label><label><span class="muted">Participation conseillÃ©e (â‚¬)</span><input data-cooler-suggested type="number" min="0" step="0.50" value="'+(Number(r.suggested_amount_cents||0)/100)+'"></label><label><span class="muted">Objectif (â‚¬)</span><input data-cooler-target type="number" min="0" step="0.50" value="'+(target/100)+'"></label><label><span class="muted">Montant collectÃ© (â‚¬)</span><input data-cooler-collected type="number" min="0" step="0.50" value="'+(collected/100)+'"></label></div><label style="margin-top:10px"><span class="muted">Note admin</span><textarea data-cooler-notes rows="2" placeholder="Ex. boissons, glace, repas...">'+esc(r.notes||'')+'</textarea></label><label class="player row" style="justify-content:flex-start;margin-top:10px"><input data-cooler-share type="checkbox" style="width:auto" '+(r.share_enabled?'checked':'')+'><span><b>Partager le lien aux joueurs</b><div class="muted">Le partage nâ€™est possible que si un lien HTTPS est renseignÃ©.</div></span></label>'+(r.payment_link?'<div class="cooler-link-preview" style="margin-top:7px">ğŸ”— '+esc(r.payment_link)+'</div>':'')+'<div class="row" style="margin-top:10px"><button class="primary" data-save-cooler>ğŸ’¾ Enregistrer</button>'+(r.payment_link?'<button data-copy-cooler-link>Copier le lien</button>':'')+'</div></div>'}).join('');
+}
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  if(e.target?.id==='refreshCoolerFunds'){await loadThirdHalfFunds();return;}
+  const row=e.target?.closest?.('[data-cooler-row]');if(!row)return;
+  if(e.target?.matches?.('[data-copy-cooler-link]')){const link=row.querySelector('[data-cooler-link]')?.value.trim();if(!link)return;try{await navigator.clipboard.writeText(link);toast('Lien de cagnotte copiÃ© âœ…')}catch(_e){toast('Copie impossible')}return;}
+  if(e.target?.matches?.('[data-save-cooler]')){const b=e.target;b.disabled=true;const cents=x=>Math.round(Math.max(0,Number(x?.value||0))*100);const {error}=await sb.rpc('admin_save_third_half_fund',{p_tournament_id:row.dataset.coolerRow,p_status:row.querySelector('[data-cooler-status]').value,p_provider:row.querySelector('[data-cooler-provider]').value||null,p_payment_link:row.querySelector('[data-cooler-link]').value.trim()||null,p_target_amount_cents:cents(row.querySelector('[data-cooler-target]')),p_collected_amount_cents:cents(row.querySelector('[data-cooler-collected]')),p_suggested_amount_cents:cents(row.querySelector('[data-cooler-suggested]')),p_notes:row.querySelector('[data-cooler-notes]').value.trim()||null,p_share_enabled:row.querySelector('[data-cooler-share]').checked});b.disabled=false;if(error)return toast(error.message);toast('Cagnotte mise Ã  jour âœ…');await loadThirdHalfFunds();return;}
+});
+async function loadMyPlayerDashboard(){
+  if(!S.session){S.playerDashboard=null;return null;}
+  const {data,error}=await sb.rpc('get_my_global_player_dashboard_v2');
+  if(error){console.warn('global player dashboard',error);S.playerDashboard=null;return null;}
+  S.playerDashboard=data||null;
+  renderMyPlayerHub();
+  return S.playerDashboard;
+}
+function renderSweIdentitySource(){
+  const box=$('#mySweHistoryResult');if(!box)return;const s=S.sweIdentitySource;if(!s){box.innerHTML='';return;}const rows=Array.isArray(s.players)?s.players:[];
+  box.innerHTML='<div class="swe-history-result"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>'+esc(s.name||'SwÃ©')+'</b><div class="muted">'+esc(s.workspace_name||'')+(s.date?' â€¢ '+esc(s.date):'')+' â€¢ ID '+esc(s.code||'')+'</div></div><span class="guest-badge">'+(s.source_type==='league'?'LIGUE':'TOURNOI')+'</span></div><div class="muted small" style="margin-top:8px">SÃ©lectionne uniquement ton propre nom. Les informations privÃ©es des autres joueurs ne sont pas affichÃ©es.</div><div class="swe-history-players">'+rows.map(p=>'<div class="player"><div><b>'+esc(p.name)+'</b><div class="muted small">'+(p.linked_to_me?'DÃ©jÃ  liÃ© Ã  ton compte':(p.already_linked?'IdentitÃ© dÃ©jÃ  revendiquÃ©e':'Disponible pour liaison'))+'</div></div>'+(p.linked_to_me?'<span class="linked-ok">âœ“ LIÃ‰</span>':'<button '+(p.already_linked?'title="Une demande dÃ©clenchera une vÃ©rification dâ€™identitÃ©"':'')+' data-claim-history-player="'+esc(p.player_id)+'">Câ€™est moi</button>')+'</div>').join('')+'</div></div>';
+}
 
-NØ[™›Ü‘XXÚ
-ÏO›İÛ™\œËœÙ]
-İš[™ÊË›İÛ™\—İ\Ù\—ÚY
-KÊJNÂˆÛÛœİXØÙ\ÜÔ›İÜÏTËœİ\\XØÛİ[XØÙ\ÜÙ\ß×NÂˆÛÛœİXØÙ\ÜĞU\Ù\[™]ÈX\
+function playerPaymentButton(o){
+  if(!o?.player_id||!o?.public_token)return '';
+  return '<button class="primary" data-player-pay="1" data-player-id="'+esc(o.player_id)+'" data-public-token="'+esc(o.public_token)+'" data-tournament-id="'+esc(o.tournament_id)+'">ğŸ’³ Payer et confirmer</button>';
+}
+function renderMyPlayerHub(){
+  const create=$('#myPlayerCreateCard'),dash=$('#myPlayerDashboard'),identity=$('#myPlayerIdentity');
+  if(!create||!dash)return;const d=S.playerDashboard;
+  create.classList.toggle('hidden',!!d?.profile);dash.classList.toggle('hidden',!d?.profile);
+  if(!d?.profile){if(identity){identity.classList.add('hidden');identity.innerHTML='';}return;}
+  const p=d.profile,st=d.stats||{};
+  if(identity){identity.classList.remove('hidden');identity.innerHTML='<span class="player-id-badge">'+esc(p.public_player_id)+'</span><span class="muted">ID joueur permanent</span>';}
+  if($('#myPlayerPublicId'))$('#myPlayerPublicId').textContent=p.public_player_id;
+  if($('#myPlayerName')&&document.activeElement!==$('#myPlayerName'))$('#myPlayerName').value=p.display_name||'';
+  if($('#myPlayerArea')&&document.activeElement!==$('#myPlayerArea'))$('#myPlayerArea').value=p.home_area||'';
+  if($('#myPlayerPublic'))$('#myPlayerPublic').checked=!!p.is_public;
+  if($('#myPlayerDiscoverable')){$('#myPlayerDiscoverable').checked=!!p.discoverable;$('#myPlayerDiscoverable').disabled=!p.is_public;}
+  if($('#myPlayerNotify')){$('#myPlayerNotify').checked=!!p.notify_upcoming_swes;$('#myPlayerNotify').disabled=false;}
+  const rating=st.rating==null?'â€”':Number(st.rating).toFixed(1)+'/5';
+  if($('#myPlayerStats'))$('#myPlayerStats').innerHTML=[['ğŸŸï¸','Groupes',st.groups||0],['ğŸ®','SwÃ©s jouÃ©s',st.tournaments||0],['âš½','Matchs',st.matches||0],['âœ…','Victoires',st.wins||0],['ğŸ†','TrophÃ©es',st.trophies||0],['ğŸ¥…','Buts',st.goals||0],['ğŸ¯','Passes',st.assists||0],['â­','Note',rating]].map(x=>'<div><span>'+x[0]+'</span><small>'+x[1]+'</small><b>'+x[2]+'</b></div>').join('');
+  const groups=Array.isArray(d.groups)?d.groups:[];
+  if($('#myPlayerGroups')){
+    let groupHtml=groups.length?groups.map(g=>'<div class="player"><b>'+esc(g.workspace_name)+'</b><div class="muted">Profil local : '+esc(g.player_name)+(g.is_group_member?' â€¢ membre':' â€¢ invitÃ©')+'</div></div>').join(''):'<div class="muted">Aucun profil de groupe reliÃ© pour le moment.</div>';
+    if(S.workspace&&(isAdmin()||isCoorg())){
+      const linkedPlayer=(S.players||[]).find(x=>String(x.id)===String(S.myLinkedPlayerId||''));
+      if(linkedPlayer){
+        groupHtml='<div class="player swe-self-link-ok"><div><b>ğŸªª '+esc(S.workspace.name||'Groupe actuel')+'</b><div class="muted">Ton compte organisateur est liÃ© au membre <b>'+esc(linkedPlayer.name)+'</b>. Ses tournois, stats et notes utilisent maintenant le mÃªme ID SWÃ‰ <b>'+esc(p.public_player_id)+'</b>. <b>Cette liaison est verrouillÃ©e</b> ; seul le Super Admin peut la supprimer.</div></div><span class="guest-badge">LIÃ‰</span></div>'+groupHtml;
+      }else{
+        const candidates=(S.players||[]).filter(x=>x.active!==false&&x.is_group_member!==false);
+        groupHtml='<div class="player swe-self-link-card"><div style="flex:1"><b>ğŸ”— Relier mon compte organisateur Ã  mon membre joueur</b><div class="muted">Choisis ton nom dans ce groupe. Ton ID SWÃ‰ '+esc(p.public_player_id)+' suivra alors automatiquement tes inscriptions aux tournois en cours et futurs.</div><div class="row" style="margin-top:8px;gap:8px"><select id="myPlayerSelfMember" style="flex:1"><option value="">Choisir mon profil membreâ€¦</option>'+candidates.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('')+'</select><button id="myPlayerSelfLink" class="primary">Câ€™est moi</button></div></div></div>'+groupHtml;
+      }
+    }
+    $('#myPlayerGroups').innerHTML=groupHtml;
+  }
+  const invites=Array.isArray(d.invites)?d.invites:[];
+  if($('#myPlayerInvites'))$('#myPlayerInvites').innerHTML=invites.length?invites.map(i=>'<div class="player"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>'+esc(i.workspace_name)+' â€¢ '+esc(i.tournament_name||'SwÃ©')+'</b><div class="muted">'+esc(i.tournament_date||'')+(i.start_time?' â€¢ '+esc(String(i.start_time).slice(0,5)):'')+(i.venue?' â€¢ '+esc(i.venue):'')+'</div>'+(i.message?'<div class="small" style="margin-top:5px">'+esc(i.message)+'</div>':'')+'</div><span class="guest-badge">'+esc(String(i.status||'pending').toUpperCase())+'</span></div>'+(i.status==='pending'?'<div class="row" style="margin-top:8px"><button class="primary" data-player-invite-accept="'+i.id+'">âœ… Accepter</button><button data-player-invite-decline="'+i.id+'">Refuser</button></div>':'')+'</div>').join(''):'<div class="muted">Aucune invitation.</div>';
+  const mySwes=Array.isArray(d.my_swes)?d.my_swes:[];
+  if($('#myPlayerMySwes'))$('#myPlayerMySwes').innerHTML=mySwes.length?mySwes.map(o=>'<div class="player"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>'+esc(o.workspace_name)+' â€¢ '+esc(o.tournament_name||'SwÃ©')+'</b><div class="muted">ğŸ“… '+esc(o.tournament_date||'')+(o.start_time?' â€¢ '+esc(String(o.start_time).slice(0,5)):'')+' â€¢ ğŸ“ '+esc(o.venue||'Lieu Ã  confirmer')+'</div></div><span class="guest-badge">'+esc(String(o.registration_status||'confirmÃ©').replace('_',' ').toUpperCase())+'</span></div>'+(o.registration_status==='payment_pending'?'<div class="row" style="margin-top:9px">'+playerPaymentButton(o)+'</div>':'')+(Number(o.third_half_pledge_cents||0)>0?'<div class="muted" style="margin-top:6px">ğŸ§Š Contribution 3e mi-temps annoncÃ©e : '+euroCents(o.third_half_pledge_cents)+'</div>':'')+'</div>').join(''):'<div class="muted">Aucun SwÃ© Ã  venir.</div>';
+  const reqs=Array.isArray(d.requests)?d.requests:[];
+  if($('#myPlayerRequests'))$('#myPlayerRequests').innerHTML=reqs.length?reqs.map(r=>'<div class="player"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>'+esc(r.workspace_name)+' â€¢ '+esc(r.tournament_name||'SwÃ©')+'</b><div class="muted">'+esc(r.tournament_date||'')+(r.start_time?' â€¢ '+esc(String(r.start_time).slice(0,5)):'')+'</div></div><span class="guest-badge">'+(r.status==='pending'?'EN ATTENTE':r.status==='accepted'?'ACCEPTÃ‰E':'REFUSÃ‰E')+'</span></div>'+(r.message?'<div class="small" style="margin-top:6px">'+esc(r.message)+'</div>':'')+(r.registration_status==='payment_pending'?'<div class="row" style="margin-top:9px">'+playerPaymentButton(r)+'</div>':'')+'</div>').join(''):'<div class="muted">Aucune demande envoyÃ©e.</div>';
+  const focusSwe=new URLSearchParams(location.search).get('joinSwe');const opp=(Array.isArray(d.upcoming_swes)?[...d.upcoming_swes]:[]).sort((a,b)=>String(a.tournament_id)===String(focusSwe)?-1:String(b.tournament_id)===String(focusSwe)?1:0);
+  if($('#myPlayerOpportunities'))$('#myPlayerOpportunities').innerHTML=opp.length?opp.map(o=>{const mode=o.discovery_mode==='public'?'PUBLIC â€¢ INSCRIPTION DIRECTE':'SUR DEMANDE';const fee=Number(o.entry_fee_cents||0);const payment=o.external_payment_required?'<div class="player-opportunity-price">ğŸ’³ Paiement en ligne requis â€¢ confirmation automatique</div>':'<div class="player-opportunity-price free">âœ“ Aucun paiement en ligne imposÃ© au joueur externe</div>';const third=o.third_half_enabled?'<label class="player-pledge"><span>ğŸ§Š 3e mi-temps</span><input type="number" min="0" step="0.50" data-pledge-for="'+o.tournament_id+'" placeholder="Contribution â‚¬" value="'+(Number(o.cooler_suggested_cents||0)/100||'')+'"></label>':'';return '<div class="player player-opportunity"><span class="guest-badge">'+esc(mode)+'</span><h3>'+esc(o.workspace_name)+' â€¢ '+esc(o.tournament_name||'SwÃ©')+'</h3><div class="muted">ğŸ“… '+esc(o.tournament_date||'')+(o.start_time?' â€¢ '+esc(String(o.start_time).slice(0,5)):'')+'</div><div class="muted">ğŸ“ '+esc(o.venue||'Lieu Ã  confirmer')+' â€¢ '+Number(o.remaining_places||0)+' place(s) restante(s)</div>'+payment+third+(o.discovery_mode==='public'?'<button class="primary" data-player-direct-join="'+o.tournament_id+'" style="margin-top:10px">âš¡ Je participe</button>':'<textarea data-request-message-for="'+o.tournament_id+'" rows="2" placeholder="Message Ã  lâ€™organisateur (facultatif)" style="margin-top:10px"></textarea><button class="primary" data-player-request-join="'+o.tournament_id+'" style="margin-top:8px">ğŸ™‹ Demander Ã  participer</button>')+'</div>'}).join(''):'<div class="muted">Aucun nouveau SwÃ© Ã  afficher pour le moment.</div>';
+}
+function renderPlayerDirectoryCard(){
+  const card=$('#playerDirectoryCard');if(!card)return;
+  card.classList.toggle('hidden',!isAdmin());
+  if(!isAdmin())return;
+  const sel=$('#playerDirectoryTournament');if(sel){const keep=sel.value;const tours=(S.tournaments||[]).filter(t=>t.status!=='finished');sel.innerHTML='<option value="">Choisir le SwÃ© Ã  complÃ©terâ€¦</option>'+tours.map(t=>'<option value="'+t.id+'">'+esc(t.name||t.tournament_date)+' â€¢ '+esc(t.tournament_date)+'</option>').join('');if([...sel.options].some(o=>o.value===keep))sel.value=keep;}
+  const box=$('#playerDirectoryResults');if(!box)return;
+  const rows=S.playerDirectory||[];
+  if(!rows.length){box.innerHTML='<div class="muted">Lance une recherche pour consulter les joueurs publics disponibles.</div>';return;}
+  box.innerHTML=rows.map(r=>'<div class="player directory-player"><div style="flex:1"><div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><b>'+esc(r.display_name)+'</b><span class="player-id-mini">'+esc(r.public_player_id)+'</span></div><div class="muted">'+esc(r.home_area||'Zone non renseignÃ©e')+' â€¢ '+Number(r.groups_count||0)+' groupe(s) â€¢ '+Number(r.tournaments_count||0)+' SwÃ©(s)</div><div class="small" style="margin-top:4px">âš½ '+Number(r.matches_count||0)+' matchs â€¢ ğŸ¥… '+Number(r.goals_count||0)+' buts â€¢ ğŸ¯ '+Number(r.assists_count||0)+' passes'+(r.rating!=null?' â€¢ â­ '+Number(r.rating).toFixed(1)+'/5':'')+'</div></div><button class="primary" data-directory-invite="'+r.global_player_id+'">Inviter au SwÃ©</button></div>').join('');
+}
 
-NÂˆXØÙ\ÜÔ›İÜË™›Ü‘XXÚ
-OOØÛÛœİÏTİš[™ÊK\Ù\—ÚY	ÉÊNÚYŠXXØÙ\ÜĞU\Ù\‹š\ÊÊJXXØÙ\ÜĞU\Ù\‹œÙ]
-Ë×JNØXØÙ\ÜĞU\Ù\‹™Ù]
-ÊKœ\Ú
-JNßJNÂˆYŠ	
-	ÈÜØUİ[ÜXÙ\ÉÊJI
-	ÈÜØUİ[ÜXÙ\ÉÊK^ÛÛ[X[›[™İÂˆYŠ	
-	ÈÜØPXİ]™TÜXÙ\ÉÊJI
-	ÈÜØPXİ]™TÜXÙ\ÉÊK^ÛÛ[X[™š[\ŠÏOËœX›X×Ù[˜X›Y
-K›[™İÂˆYŠ	
-	ÈÜØTİ\Ü[™YÜXÙ\ÉÊJI
-	ÈÜØTİ\Ü[™YÜXÙ\ÉÊK^ÛÛ[X[™š[\ŠÏOˆ]ËœX›X×Ù[˜X›Y
-K›[™İÂˆYŠ	
-	ÈÜØUİ[^Y\œÉÊJI
-	ÈÜØUİ[^Y\œÉÊK^ÛÛ[X[œ™YXÙJ
-‹ÊOO›ŠÓ[X™\ŠË˜Xİ]™WÜ^Y\œß
-K
-NÂˆYŠ	
-	ÈÜØUİ[ÛÛ\]][ÛœÉÊJI
-	ÈÜØUİ[ÛÛ\]][ÛœÉÊK^ÛÛ[X[œ™YXÙJ
-‹ÊOO›ŠÓ[X™\ŠËİ\›˜[Y[ØÛİ[
-JÓ[X™\ŠË›XYİYWØÛİ[
-K
-NÂˆYŠ	
-	ÈÜØTZYÜXÙ\ÉÊJI
-	ÈÜØTZYÜXÙ\ÉÊK^ÛÛ[X[™š[\ŠÏO–ÉÜİ[™\™	Ë	Ü›É×Kš[˜ÛY\Êİš[™ÊËœİXœØÜš\[Û—Ü[Ÿ	Ùœ™YIÊJ_ËœÜXÚX[ØXØÙ\Ü×Ù[˜X›Y
-K›[™İÂˆYŠ	
-	ÈÜØUİ[Ü™Ø[š^™\œÉÊJI
-	ÈÜØUİ[Ü™Ø[š^™\œÉÊK^ÛÛ[[İÛ™\œËœÚ^™NÂˆYŠ	
-	ÈÜØS][SÜ™Ø[š^™\œÉÊJI
-	ÈÜØS][SÜ™Ø[š^™\œÉÊK^ÛÛ[VË‹‹›İÛ™\œËšÙ^\Ê
-WK™š[\ŠZYOÂˆÛÛœİOXXØÙ\ÜĞU\Ù\‹™Ù]
-ZY
-_×NÂˆ™]\›ˆK™š[\ŠOœ›ÛOOOIØYZ[‰ÊK›[™İŒ_K™š[\ŠOœ›ÛOOOIØÛÛÜ™Ø[š^™\‰ÊK›[™İŒÂˆJK›[™İÂ‚ˆ›Şš[›™\’SIÉÎÂˆYŠ\›İÜË›[™İ
-^Ø›Şš[›™\’SIÏÛ\ÜÏH›]]Y‰ÊÊOÉĞ]Xİ[ˆ\ÜXÙH™HÛÜœ™\ÜÛ™0èH™XÚ\˜ÚK‰Î‰Ğ]Xİ[ˆ\ÜXÙH[œÈÙHš[™K‰ÊJÉÏÜ‰ÎÜ™]\›ŸB‚ˆÛÛœİİÛ™\›ÙY\Ï[™]ÈX\
+function renderAdminPlayerRequests(){
+  const card=$('#playerParticipationRequestsCard'),box=$('#playerParticipationRequests');if(!card||!box)return;card.classList.toggle('hidden',!isAdmin());if(!isAdmin())return;
+  const rows=S.playerRequests||[];if(!rows.length){box.innerHTML='<div class="muted">Aucune demande de participation pour le moment.</div>';return;}
+  box.innerHTML=rows.map(r=>'<div class="player request-row"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div class="row" style="justify-content:flex-start;gap:7px;flex-wrap:wrap"><b>'+esc(r.display_name)+'</b><span class="player-id-mini">'+esc(r.public_player_id)+'</span></div><div class="muted">'+esc(r.home_area||'Zone non renseignÃ©e')+' â€¢ '+esc(r.tournament_name||'SwÃ©')+' â€¢ '+esc(r.tournament_date||'')+'</div></div><span class="guest-badge">'+(r.status==='pending'?'EN ATTENTE':r.status==='accepted'?'ACCEPTÃ‰E':'REFUSÃ‰E')+'</span></div>'+(r.message?'<div class="small" style="margin-top:7px">ğŸ’¬ '+esc(r.message)+'</div>':'')+(Number(r.third_half_pledge_cents||0)>0?'<div class="small" style="margin-top:5px">ğŸ§Š Contribution annoncÃ©e : '+euroCents(r.third_half_pledge_cents)+'</div>':'')+(r.external_payment_required?'<div class="small" style="margin-top:5px">ğŸ’³ Paiement exigÃ© : '+euroCents(r.entry_fee_cents)+(r.payment_ready?' â€¢ prÃªt':' â€¢ configuration requise')+'</div>':'')+(r.status==='pending'?'<div class="row" style="margin-top:9px"><button class="primary" data-request-accept="'+r.request_id+'">âœ… Accepter</button><button data-request-decline="'+r.request_id+'">Refuser</button></div>':'')+'</div>').join('');
+}
+function renderWorkspaceSwitcher(){
+  const sel=$('#workspaceSwitcher');if(!sel)return;
+  const rows=S.memberships||[];
+  sel.classList.toggle('hidden',rows.length<2);
+  if(rows.length<2){sel.innerHTML='';return;}
+  const admins=rows.filter(r=>r.role==='admin');
+  const coorgs=rows.filter(r=>r.role!=='admin');
+  let html='';
+  if(admins.length)html+='<optgroup label="ğŸ‘‘ Mes groupes â€” administrateur">'+admins.map(r=>'<option value="'+esc(r.workspace_id)+'"'+(String(r.workspace_id)===String(S.workspace?.id)?' selected':'')+'>ğŸ‘‘ '+esc(r.workspaces?.name||'Espace SWÃ‰')+' â€” Administrateur</option>').join('')+'</optgroup>';
+  if(coorgs.length)html+='<optgroup label="ğŸ› ï¸ Groupes que je co-gÃ¨re">'+coorgs.map(r=>'<option value="'+esc(r.workspace_id)+'"'+(String(r.workspace_id)===String(S.workspace?.id)?' selected':'')+'>ğŸ› ï¸ '+esc(r.workspaces?.name||'Espace SWÃ‰')+' â€” Co-gestionnaire</option>').join('')+'</optgroup>';
+  sel.innerHTML=html;
+  sel.title='Chaque groupe conserve ses propres joueurs, compÃ©titions, droits et rÃ©glages.';
+}
+function renderOrganizerAccessBanner(){
+  const box=$('#organizerAccessBanner');if(!box)return;
+  const a=S.organizerAccess;
+  if(!S.workspace||!a){box.classList.add('hidden');box.innerHTML='';return;}
+  if(a.trial_active){
+    box.classList.remove('hidden','expired');
+    box.innerHTML='<div><b>ğŸ Essai organisateur â€¢ '+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+' restant'+(Number(a.days_remaining||0)>1?'s':'')+'</b><span>Toutes les options sont dÃ©bloquÃ©es pendant 60 jours. Ensuite, choisis un abonnement pour continuer Ã  organiser.</span></div><button type="button" data-go="home">DÃ©bloquer toute la puissance SWÃ‰ â†’</button>';
+    return;
+  }
+  if(a.requires_subscription){
+    box.classList.remove('hidden');box.classList.add('expired');
+    box.innerHTML='<div><b>â³ Ton essai organisateur est terminÃ©</b><span>Tes donnÃ©es sont conservÃ©es en lecture seule. Choisis une formule SWÃ‰ pour reprendre lâ€™organisation.</span></div><button type="button" id="trialChoosePlan" class="primary">Voir les formules SWÃ‰</button>';
+    return;
+  }
+  box.classList.add('hidden');box.innerHTML='';
+}
+async function loadOnboardingStatus(){
+  const r=await sb.rpc('get_my_onboarding_status');
+  S.onboardingStatus=r.error?null:(r.data||null);
+  return S.onboardingStatus;
+}
+function openOrganizerSetup(type='group'){
+  $('#accountOnboarding')?.classList.add('hidden');
+  $('#workspaceSetup')?.classList.remove('hidden');
+  const radio=document.querySelector('input[name="organizerType"][value="'+(type==='pro'?'pro':'group')+'"]');if(radio)radio.checked=true;
+  const inp=$('#newWorkspace');if(inp&&!inp.value)inp.value=type==='pro'?'Mon organisation SWÃ‰':'Mon groupe SWÃ‰';
+  setTimeout(()=>inp?.focus(),50);
+}
+function showAccountOnboarding(){
+  $('#accountOnboarding')?.classList.remove('hidden');
+  $('#workspaceSetup')?.classList.add('hidden');
+}
+function renderCoorgOrganizerCta(){
+  const card=$('#coorgOrganizerCta');if(!card)return;
+  card.classList.toggle('hidden',!isCoorg());
+}
 
-NÂˆÛÛœİ[œİ\™SİÛ™\‘Ü›İ\]ÏOÂˆÛÛœİÙ^OTİš[™ÊË›İÛ™\—İ\Ù\—ÚYË›İÛ™\—Ù[XZ[	İ[šÛ›İÛ‰ÊNÂˆYŠİÛ™\›ÙY\Ëš\ÊÙ^JJ\™]\›ˆİÛ™\›ÙY\Ë™Ù]
-Ù^JNÂˆÛÛœİXØÙ\ÜÙ\ÏXXØÙ\ÜĞU\Ù\‹™Ù]
-İš[™ÊË›İÛ™\—İ\Ù\—ÚY
-J_×NÂˆÛÛœİYZ[š\İ\™YXXØÙ\ÜÙ\Ë™š[\ŠOO˜Kœ›ÛOOOIØYZ[‰ÊNÂˆÛÛœİÛÓX[˜YÙYXXØÙ\ÜÙ\Ë™š[\ŠOO˜Kœ›ÛOOOIØÛÛÜ™Ø[š^™\‰ÊNÂˆÛÛœİİÛ™YS[X™\ŠË›İÛ™\—ÛİÛ™YÜÜXÙ\ß
-K[Z]S[X™\ŠË›İÛ™\—Ùœ™YWİÛÜšÜÜXÙWÛ[Z]JNÂˆÛÛœİÏYØİ[Y[˜Ü™X]Q[[Y[
-	Ù]Z[ÉÊNÙË˜Û\ÜÓ˜[YOIÜØK[İÛ™\‹YÜ›İ\	ÎÙË›Ü[HH\_[ÙOOOIÛ][IÎÂˆÛÛœİ\Ü^OJİË˜YZ[—Ùš\œİÛ˜[YKË˜YZ[—Û\İÛ˜[YWK™š[\Š›ÛÛX[ŠKš›Ú[Š	È	Ê_Ë›İÛ™\—Ù[XZ[	ÓÜ™Ø[š\Ø]]\‰ÊNÂˆÛÛœİXØÙ\ÜÒ[IÏ]ˆÛ\ÜÏHœØKXXØÛİ[XXØÙ\ÜË[X\]ˆÛ\ÜÏHœØKXXØÙ\ÜËXÛÛ[[ˆ¼'ädHÜ›İ\\ÈYZ[š\İ°ê\ÏØ‰ÊÊYZ[š\İ\™Y›[™İØYZ[š\İ\™Y›X\
-OO‰ÏÜ[İ›Û™Ï‰ÊÙ\ØÊKÛÜšÜÜXÙWÛ˜[YJJÉÏÜİ›Û™ÏÛX[‰ÊÊKš\×ÛİÛ™\ÉÔ›Üšpê]Z\™IÎ‰ĞYZ[š\İ˜]]\‰ÊJÉÏÜÛX[ÜÜ[‰ÊKš›Ú[Š	ÉÊN‰ÏÜ[ˆÛ\ÜÏH›]]Y]Xİ[ÜÜ[‰ÊJÉÏÙ]]ˆÛ\ÜÏHœØKXXØÙ\ÜËXÛÛ[[ˆ¼'æè;î#ÈÜ›İ\\ÈÛËYğê\°ê\ÏØ‰ÊÊÛÓX[˜YÙY›[™İØÛÓX[˜YÙY›X\
-OO‰ÏÜ[İ›Û™Ï‰ÊÙ\ØÊKÛÜšÜÜXÙWÛ˜[YJJÉÏÜİ›Û™ÏÛX[ÛËYÙ\İ[Û›˜Z\™H[š\]Y[Y[ÜÛX[ÜÜ[‰ÊKš›Ú[Š	ÉÊN‰ÏÜ[ˆÛ\ÜÏH›]]Y]Xİ[ÜÜ[‰ÊJÉÏÙ]Ù]‰ÎÂˆËš[›™\’SIÏİ[[X\OÜ[¼'äi	ÊÙ\ØÊ\Ü^JJÉÏØÛX[‰ÊÙ\ØÊË›İÛ™\—Ù[XZ[	ÉÊJÉÏÜÛX[ÜÜ[Ü[ˆÛ\ÜÏHœØK[İÛ™\‹X˜YÙ\È[O¼'ädH	ÊØYZ[š\İ\™Y›[™İ
-ÉÈYZ[š\İ°êIÊÊYZ[š\İ\™Y›[™İŒOÉÜÉÎ‰ÉÊJÉÏÙ[O[O¼'æè;î#È	ÊØÛÓX[˜YÙY›[™İ
-ÉÈÛËYğê\°êIÊÊÛÓX[˜YÙY›[™İŒOÉÜÉÎ‰ÉÊJÉÏÙ[O[HÛ\ÜÏH‰ÊÊ[Z]ŒOÉÜÜXÚX[	Î‰ÉÊJÉÈÜ°êX][ÛœÈÜ˜]Z]\Èˆ	ÊÛİÛ™Y
-ÉÈÈ	ÊÛ[Z]
-ÉÏÙ[OÜÜ[Üİ[[X\O‰ÊØXØÙ\ÜÒ[
-ÉÏ]ˆÛ\ÜÏHœØK[İÛ™\‹]ÛÛÈ]“[Z]HHÜ›İ\\ÈÜ°êpê\ÈÜ˜]Z][Y[Ø]ˆÛ\ÜÏH›]]YÛX[“\ÈÜ›İ\\ÈğîHÙHÛÛ\H\İÙ][[Y[ÛËYÙ\İ[Û›˜Z\™H™HÛÛ\[˜[XZ\È[œÈÙ]H[Z]KÙ]Ù][œ]]K[İÛ™\‹[[Z]\OH›[X™\ˆˆZ[HŒHˆX^HŒLˆ˜[YOH‰ÊÛ[Z]
-ÉÈ[œ]]K[İÛ™\‹[›İH˜[YOH‰ÊÙ\ØÊË›İÛ™\—Û[Z]Û›İ_	ÉÊJÉÈˆXÙZÛ\H“[İYˆÈ›İH[\›™H]Ûˆ]K[İÛ™\‹\Ø]™O¼'ä¯ˆ]]Üš\Ù\Ø]ÛÙ]]ˆÛ\ÜÏHœØK[İÛ™\‹]ÛÜšÜÜXÙ\ÈÙ]‰ÎÂˆÛÛœİ›ÙOYËœ]Y\TÙ[XİÜŠ	ËœØK[İÛ™\‹]ÛÜšÜÜXÙ\ÉÊNÂˆËœ]Y\TÙ[XİÜŠ	ÖÙ]K[İÛ™\‹\Ø]™WIÊK›Û˜ÛXÚÏX\Ş[˜Ê
-OOÂˆÛÛœİYËœ]Y\TÙ[XİÜŠ	ÖÙ]K[İÛ™\‹\Ø]™WIÊK˜[SX]›X^
-K[X™\ŠËœ]Y\TÙ[XİÜŠ	ÖÙ]K[İÛ™\‹[[Z]IÊK˜[YJ_JK›İOYËœ]Y\TÙ[XİÜŠ	ÖÙ]K[İÛ™\‹[›İWIÊK˜[YKš[J
-NÂˆ‹™\ØX›Y]YNØÛÛœİÙ\œ›ÜŸOX]ØZ]Ø‹œœÊ	Üİ\\—ØYZ[—ÜÙ]ÛÜ™Ø[š^™\—Ùœ™YWİÛÜšÜÜXÙWÛ[Z]	ËÜİ\Ù\—ÚYË›İÛ™\—İ\Ù\—ÚYÛ[Z]˜[Û›İN››İ_[JNØ‹™\ØX›YY˜[ÙNÂˆYŠ\œ›ÜŠ\™]\›ˆØ\İ
-\œ›Ü‹›Y\ÜØYÙJNİØ\İ
-	Ó[Z]HÜ™Ø[š\Ø]]\ˆZ\ÙH0è›İ\ˆ8§!IÊNØ]ØZ]ØYİ\\YZ[•ÛÜšÜÜXÙ\Ê
-NÂˆNÂˆ›Ş˜\[™Ú[
-ÊNÛİÛ™\›ÙY\ËœÙ]
-Ù^K›ÙJNÜ™]\›ˆ›ÙNÂˆNÂ‚ˆ›İÜË™›Ü‘XXÚ
-ÏOÂˆÛÛœİYØİ[Y[˜Ü™X]Q[[Y[
-	Ù]‰ÊNÙ˜Û\ÜÓ˜[YOIÜØK]ÛÜšÜÜXÙKXØ\™	ÎÂˆÛÛœİÜ™X]Y]Ë˜Ü™X]YØ]Û™]È]JË˜Ü™X]YØ]
-KÓØØ[Q]Tİš[™Ê	Ùœ‹Q”‰ÊN‰ø %	ÎÂˆš[›™\’SBˆ	Ï]ˆÛ\ÜÏHœ›İÈˆİ[OH˜[YÛ‹Z][\Î™›^\İ\ÙØ\ŒLœÙ›^]Ü˜\Ü˜\‰ÊÂˆ	ÏÜ[ˆİ[OH™›^ŒNÛZ[‹]ÚYŒŒŒ‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ›İÈˆİ[OHš\İYKXÛÛ[™›^\İ\ÙØ\Ù›^]Ü˜\Ü˜\ˆİ[OH™›Û\Ú^™NŒKŒ™[H‰ÊÙ\ØÊËÛÜšÜÜXÙWÛ˜[YJJÉÏØÜ[ˆÛ\ÜÏH™İY\İX˜YÙH‰ÊÊËœX›X×Ù[˜X›YÉĞPÕQ‰Î‰ÔÕTÔS‘IÊJÉÏÜÜ[Ù]‰ÊÂˆ	Ï]ˆÛ\ÜÏH›]]Yˆİ[OH›X\™Ú[‹]Ü¼'äiYZ[š\İ˜]]\ˆˆ‰ÊÙ\ØÊ
-İË˜YZ[—Ùš\œİÛ˜[YKË˜YZ[—Û\İÛ˜[YWK™š[\Š›ÛÛX[ŠKš›Ú[Š	È	Ê_Ë›İÛ™\—Ù[XZ[	Ó›Ûˆ™[œÙZYÛ°êIÊJJÉÏØÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏH›]]Y¼'äéÈ	ÊÙ\ØÊË›İÛ™\—Ù[XZ[	Ñ[XZ[[™\ÜÛšX›IÊJÊË˜YZ[—ÜÛ™OÉÈ8 (ˆ<'äìH	ÊÙ\ØÊË˜YZ[—ÜÛ™JN‰ÉÊJÉÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏH›]]YÜ°êpêHH	ÊÙ\ØÊÜ™X]Y
-JÉÏÙ]‰ÊÂˆ	ÏÜÜ[‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏH™ÜšYÌÈˆİ[OH›X\™Ú[‹]ÜŒLœ‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ^Y\ˆ]ˆÛ\ÜÏH›]]Y“Y[Xœ™\ÈXİYœÏÙ]‰ÊÓ[X™\ŠË˜Xİ]™WÜ^Y\œß
-JÉÏØÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ^Y\ˆ]ˆÛ\ÜÏH›]]YÛËYÙ\İ[Û›˜Z\™\ÏÙ]‰ÊÓ[X™\ŠË˜Xİ]™WØÛÛÜ™Ø[š^™\œß
-JÉÈÈ	ÊÓ[X™\ŠË›X^ØÛÛÜ™Ø[š^™\œß
-JÉÏØ]ˆÛ\ÜÏH›]]YÛX[‰ÊÓ[X™\ŠË˜˜\ÙWÛX^ØÛÛÜ™Ø[š^™\œß
-JÉÈÙ™™\
-ÊH
-È	ÊÓ[X™\ŠËœZYØÛÛÜ™Ø[š^™\œß
-JÉÈXÚ]0êJÊOÙ]Ù]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ^Y\ˆ]ˆÛ\ÜÏH›]]YÛÛ\0ê]][ÛœÏÙ]‰ÊÓ[X™\ŠËİ\›˜[Y[ØÛİ[
-JÉÈİ\››ÚJ
-H8 (ˆ	ÊÓ[X™\ŠË›XYİYWØÛİ[
-JÉÈYİYJÊOØÙ]‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆİ[OHšZYÚŒ\Ø˜XÚÙÜ›İ[™ˆÙNXÙYÛX\™Ú[ŒMÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏH™ÜšYÌˆ‰ÊÂˆ	ÏX™[Ü[ˆÛ\ÜÏH›]]Y“›ÛHH8 &Y\ÜXÙOÜÜ[[œ]]K\ØK[˜[YH˜[YOH‰ÊÙ\ØÊËÛÜšÜÜXÙWÛ˜[YJJÉÈÛX™[‰ÊÂˆ	ÏX™[Ü[ˆÛ\ÜÏH›]]Y‘[XZ[YZ[š\İ˜]]\ÜÜ[[œ]™XYÛ›H˜[YOH‰ÊÙ\ØÊË›İÛ™\—Ù[XZ[	ÉÊJÉÈˆİ[OH›ÜXÚ]N‹ÍHÛX™[‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏH™ÜšYÌÈˆİ[OH›X\™Ú[‹]ÜŒL‰ÊÂˆ	ÏX™[Ü[ˆÛ\ÜÏH›]]Y”°ê[›ÛHYZ[š\İ˜]]\ÜÜ[[œ]]K\ØKYš\œİ[˜[YH˜[YOH‰ÊÙ\ØÊË˜YZ[—Ùš\œİÛ˜[Y_	ÉÊJÉÈˆXÙZÛ\H”°ê[›ÛHÛX™[‰ÊÂˆ	ÏX™[Ü[ˆÛ\ÜÏH›]]Y“›ÛHYZ[š\İ˜]]\ÜÜ[[œ]]K\ØK[\İ[˜[YH˜[YOH‰ÊÙ\ØÊË˜YZ[—Û\İÛ˜[Y_	ÉÊJÉÈˆXÙZÛ\H“›ÛHÛX™[‰ÊÂˆ	ÏX™[Ü[ˆÛ\ÜÏH›]]Y•0ê[0ê\Û™HYZ[š\İ˜]]\ÜÜ[[œ]]K\ØK\Û™H\OH[ˆ[œ][ÙOH[ˆ˜[YOH‰ÊÙ\ØÊË˜YZ[—ÜÛ™_	ÉÊJÉÈˆXÙZÛ\H•0ê[0ê\Û™HÛX™[‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ›İÈˆİ[OH›X\™Ú[‹]Ü]Ûˆ]K\ØK\Ø]™K\›Ùš[O¼'ä¯ˆ[œ™YÚ\İ™\ˆ›ÛHÈ°ê[›ÛOØ]ÛÜ[ˆÛ\ÜÏH›]]Y“[ÙYšYH[š\]Y[Y[8 &ZY[]0êHY™šXÚ0êYHH8 &XYZ[š\İ˜]]\‹Ø[œÈÚ[™Ù\ˆÛÛˆÛÛ\HHÛÛ›™^[Û‹ÜÜ[Ù]‰ÊÂˆ	Ï]ˆÛ\ÜÏH™ÜšYÌÈˆİ[OH›X\™Ú[‹]ÜŒL‰ÊÂˆ	ÏX™[Ü[ˆÛ\ÜÏH›]]YÛËYÙ\İ[Û›˜Z\™\ÈÙ™™\È\ˆHİ\\ˆYZ[ÜÜ[[œ]]K\ØK[X^\OH›[X™\ˆˆZ[HŒˆX^HŒLˆ˜[YOH‰ÊÓ[X™\Š
-Ë˜˜\ÙWÛX^ØÛÛÜ™Ø[š^™\œÈÏÈ
-H
-JÉÈÛX[Û\ÜÏH›]]Y”ø &XZ›İ][]^XØğêÈXÚ]0ê\È\ˆHÛY[ÜÛX[ÛX™[‰ÊÂˆ	Ï]ˆÛ\ÜÏHœ^Y\ˆˆİ[OH˜˜XÚÙÜ›İ[™ˆÙŒ™Ø›Ü™\‹XÛÛÜˆØ˜™Ù¼'ã H	ÊÓ[X™\ŠË˜˜\ÙWÛX^ØÛÛÜ™Ø[š^™\œß
-JÉÈÙ™™\
-ÊH8 (ˆ<'ä¬È	ÊÓ[X™\ŠËœZYØÛÛÜ™Ø[š^™\œß
-JÉÈXÚ]0êJÊOØ]ˆÛ\ÜÏH›]]Yˆİ[OH›X\™Ú[‹]ÜØ\XÚ]0êHİ[HØ[İ[0êYH]]ÛX]\]Y[Y[ˆ	ÊÓ[X™\ŠË›X^ØÛÛÜ™Ø[š^™\œß
-JÉÈÛËYÙ\İ[Û›˜Z\™JÊKÙ]Ù]‰ÊÂˆ	ÏX™[Û\ÜÏHœ^Y\ˆ›İÈˆİ[OHš\İYKXÛÛ[™›^\İ\[œ]]K\ØK\X›XÈ\OH˜ÚXÚØ›Şˆİ[OHÚY˜]]Èˆ	ÊÊËœX›X×Ù[˜X›YÉØÚXÚÙY	Î‰ÉÊJÉÏÜ[‘\ÜXÙHXİYØÜÜ[ÛX™[‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK\Ù][™ÜËX›ØÚÈ‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØKX›ØÚË]]H]¼'éêH[Ù[\È	ˆ0ê\[™[˜Ù\ÏØÜ[“\ÈÜ[ÛœÈÛÛ]]ÛX]\]Y[Y[Ûİ\0êY\ÈÜœÜ]x &X]Xİ[ˆ[Ù[HÛÛ\0ê]][Ûˆ¸ &Y\İXİY‹ÜÜ[Ù]Ù]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK[[Ù[KYÜšY‰ÊÂˆ	ÏX™[Û\ÜÏHœØK[[Ù[K]ÙÙÛH[œ]]K\ØK]İ\›˜[Y[\OH˜ÚXÚØ›Şˆ	ÊÊËİ\›˜[Y[×Ù[˜X›YÉØÚXÚÙY	Î‰ÉÊJÉÏÜ[¼'ãáˆİ\››ÚOØÛX[“[Ù[HÛÛ\0ê]][Ûˆš[˜Ú\[ÜÛX[ÜÜ[ÛX™[‰ÊÂˆ	ÏX™[Û\ÜÏHœØK[[Ù[K]ÙÙÛH[œ]]K\ØK[XYİYH\OH˜ÚXÚØ›Şˆ	ÊÊË›XYİYWÙ[˜X›YÉØÚXÚÙY	Î‰ÉÊJÉÏÜ[¼'ãàHYİYOØÛX[“[Ù[HÛÛ\0ê]][Ûˆ°êXİ\œ™[ÜÛX[ÜÜ[ÛX™[‰ÊÂˆ	ÏX™[Û\ÜÏHœØK[[Ù[K]ÙÙÛH\[™[[œ]]K\ØK\˜[šÚ[™ÜÈ\OH˜ÚXÚØ›Şˆ	ÊÊËœ˜[šÚ[™Ü×Ù[˜X›YÉØÚXÚÙY	Î‰ÉÊJÉÏÜ[¸¦¯H]]\œÈÈ\ÜÙ]\œÏØÛX[”™\]ZY\İ\››ÚHİHYİYOÜÛX[ÜÜ[ÛX™[‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK[[šÙY[Ü[ÛœÈ‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK[[šÙY[Ü[ÛˆÜÜ[¸«dÜÜ[]•Ü^Y\ˆ	ˆ›İ\ÈHX]ÚØÛX[’[˜Û\È]™XÈÕS‘T‘]“Ëˆ™\]ZY\[ˆ[Ù[HÛÛ\0ê]][ÛˆXİY‹ÜÛX[Ù]İ›Û™È]K\ØK]Ü\İ]\Ï‰ÊÊËÜÜ^Y\—Ù[˜X›YÉĞPÕQ‰Î‰ÒSPÕQ‰ÊJÉÏÜİ›Û™ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK[[šÙY[Ü[Ûˆ\™Ü[¼'ãnÏÜÜ[]ŒÙHZK][\ÏØÛX[’[˜Û\ÙH]™XÈ“Ëˆ™\]ZY\[ˆ[Ù[HÛÛ\0ê]][ÛˆXİY‹ÜÛX[Ù]İ›Û™È]K\ØK]\™\İ]\Ï‰ÊÊË\™Ú[—Ù[˜X›YÉĞPÕQ‰Î‰ÒSPÕQ‰ÊJÉÏÜİ›Û™ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØK[[šÙY[Ü[Ûˆ™]šY]ÈÜ[¼'åìûî#ÏÜÜ[]•˜[Y][ÛˆÛÛX›Ü˜]]™H\È0ê\]Z\\ÏØÛX[’[˜Û\ÙH]™XÈÕS‘T‘Ô“Ëˆ\ÈÛËYÙ\İ[Û›˜Z\™\È°ê\Ù[È]]™[˜[Y\ˆİH[X[™\ˆ[ˆ›İ]™X]H\˜YÙH[™[ˆÜÛX[Ù]İ›Û™Ï‰ÊÊËX[WÜ™]šY]×Ù[˜X›YÉĞPÕQ‰Î‰ÒSPÕQ‰ÊJÉÏÜİ›Û™ÏÙ]‰ÊÂˆ	ÏÙ]‰ÊÂˆ	ÏÙ]‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØKXÛÛ[Y\˜ÚX[X›ØÚÈ‰ÊÂˆ	Ï]ˆÛ\ÜÏHœØKX›ØÚË]]H]¼'ä£ˆÙ™œ™HÛÛ[Y\˜ÚX[OØÜ[“HÚÚ^H8 &[Ù™œ™H[İH]]ÛX]\]Y[Y[\È[Ù[\È™[Z][KÜÜ[Ù]Ü[ˆÛ\ÜÏHœØK\[‹XÚ\	ÊÙ\ØÊİš[™ÊËœİXœØÜš\[Û—Ü[Ÿ	Ùœ™YIÊJJÉÈ‰ÊÙ\ØÊİš[™ÊËœİXœØÜš\[Û—Ü[Ÿ	Ùœ™YIÊKÕ\\Ø\ÙJ
-JJÉÏÜÜ[Ù]‰ÊÂˆ	Ï]ˆÛ\ÜÏH™ÜšYÌˆˆİ[OH›X\™Ú[‹]ÜŒLœX™[Ü[ˆÛ\ÜÏH›]]Y“Ù™œ™OÜÜ[Ù[Xİ]K\ØK\[Ü[Ûˆ˜[YOH™œ™YHˆ	ÊÊ
-ËœİXœØÜš\[Û—Ü[Ÿ	Ùœ™YIÊOOOIÙœ™YIÏÉÜÙ[XİY	Î‰ÉÊJÉÏ‘”‘QH8 %Ù\İ[Ûˆ\ÜÙ[Y[OÛÜ[ÛÜ[Ûˆ˜[YOHœİ[™\™ˆ	ÊÊËœİXœØÜš\[Û—Ü[OOIÜİ[™\™	ÏÉÜÙ[XİY	Î‰ÉÊJÉÏ”ÕS‘T‘8 %Üußm·öÚ$z{-®éÜj×wait sb.rpc('public_register_tournament_guest',{p_token:token,p_tournament_id:regTour.id,p_host_player_id:host,p_guest_name:guestName,p_phone_number:phone||null,p_add_as_member:addMember});
+async function boot(){
+  await loadInvites();
+  if(await initSuperAdmin())return;
+  const currentUserId=S.session?.user?.id;
+  if(!currentUserId)return toast('Session utilisateur introuvable.');
+  await loadOnboardingStatus();
+  let membershipQuery=sb.from('workspace_members')
+    .select('workspace_id,role,workspaces(name,public_token,public_enabled,rating_group_name)')
+    .eq('user_id',currentUserId)
+    .eq('active',true)
+    .limit(50);
+  if(S.testAdminContext)membershipQuery=membershipQuery.eq('workspace_id',S.testAdminContext.workspace_id);
+  const {data,error}=await membershipQuery;
+  if(error)return toast(error.message);
+  S.memberships=Array.isArray(data)?data:[];
+  if(!S.memberships.length){
+    S.workspace=null;S.organizerAccess=null;
+    renderWorkspaceSwitcher();renderOrganizerAccessBanner();
+    await loadMyPlayerDashboard();
+    document.querySelectorAll('.tabs .tab').forEach(t=>t.style.display=t.dataset.view==='myplayer'?'':'none');
+    setView('myplayer');
+    $('#workspaceName').textContent='Mon profil joueur SWÃ‰';
+    if(S.onboardingStatus?.completed){
+      $('#accountOnboarding')?.classList.add('hidden');
+      $('#workspaceSetup')?.classList.add('hidden');
+    }else showAccountOnboarding();
+    return;
+  }
+  const requestedWorkspace=new URLSearchParams(location.search).get('workspace');
+  const stored=S.testAdminContext?.workspace_id||requestedWorkspace||localStorage.getItem('swe_workspace_id');
+  const chosen=S.memberships.find(x=>String(x.workspace_id)===String(stored))||S.memberships[0];
+  S.workspace={id:chosen.workspace_id,name:chosen.workspaces?.name||'SWÃ‰ Tournament 5/5',rating_group_name:chosen.workspaces?.rating_group_name||'',role:chosen.role,public_token:chosen.workspaces?.public_token||null,public_enabled:chosen.workspaces?.public_enabled!==false};
+  if(!S.testAdminContext)localStorage.setItem('swe_workspace_id',S.workspace.id);
+  $('#workspaceSetup').classList.add('hidden');$('#accountOnboarding')?.classList.add('hidden');
+  const access=await sb.rpc('get_workspace_organizer_access',{p_workspace_id:S.workspace.id});
+  S.organizerAccess=access.error?null:(access.data||null);
+  renderWorkspaceSwitcher();renderOrganizerAccessBanner();
+  await loadSportsVenues();
+  await loadAll();
+  await loadMyPlayerDashboard();
+  $('#workspaceName').textContent=S.workspace.name+' â€¢ '+(S.workspace.role==='admin'?'Administrateur':(hasTemporaryAdmin()?'Co-organisateur â€¢ Admin temporaire':'Co-organisateur'));
+  applyPermissions();renderCoorgOrganizerCta();subscribeRealtime();startSafeAppSync();
+  if(S.testAdminContext){
+    const target=S.tournaments.find(t=>t.id===S.testAdminContext.tournament_id);
+    if(!target)return toast('Tournoi test introuvable dans cet espace.');
+    S.activeTour=target.id;await loadTournament();renderAll();setView('tournaments');
+    if(!document.getElementById('testAdminReturn')){const a=document.createElement('a');a.id='testAdminReturn';a.href='/forssadmin/';a.textContent='â† Retour au Super Admin';a.className='btn';document.getElementById('workspaceName').after(a);}
+  }else{const startMode=new URLSearchParams(location.search).get('start');if(startMode==='player')setView('myplayer');else if(startMode==='home')setView('home');}
+}
+$('#createWorkspace').onclick=async()=>{
+  const btn=$('#createWorkspace');const name=$('#newWorkspace')?.value.trim();
+  if(!name)return toast('Indique le nom de ton groupe ou de ton organisation.');
+  const type=document.querySelector('input[name="organizerType"]:checked')?.value||'group';
+  btn.disabled=true;btn.textContent='CrÃ©ationâ€¦';
+  try{
+    const {data:workspaceId,error}=await sb.rpc('create_organizer_workspace_trial',{p_name:name,p_organizer_type:type});
+    if(error)throw error;if(!workspaceId)throw new Error('Impossible de crÃ©er lâ€™espace.');
+    localStorage.setItem('swe_workspace_id',workspaceId);
+    toast('Espace crÃ©Ã© â€¢ tes 2 mois dâ€™essai commencent maintenant ğŸ');
+    await boot();setView('home');
+  }catch(error){toast(friendlyAuthError(error))}
+  finally{btn.disabled=false;btn.textContent="CrÃ©er mon espace et dÃ©marrer lâ€™essai"}
+};
+$('#cancelWorkspaceSetup')?.addEventListener('click',()=>{
+  $('#workspaceSetup')?.classList.add('hidden');
+  if(!S.workspace&&!S.onboardingStatus?.completed)showAccountOnboarding();
+});
+$('#workspaceSwitcher')?.addEventListener('change',e=>{localStorage.setItem('swe_workspace_id',e.target.value);location.reload();});
+
+
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  const intent=e.target?.closest?.('[data-onboarding-intent]')?.dataset.onboardingIntent;
+  if(intent==='player'){
+    const b=e.target.closest('[data-onboarding-intent]');b.disabled=true;
+    const {error}=await sb.rpc('complete_my_onboarding',{p_intent:'player'});b.disabled=false;
+    if(error)return toast(error.message);S.onboardingStatus={...(S.onboardingStatus||{}),completed:true,primary_intent:'player'};
+    $('#accountOnboarding')?.classList.add('hidden');$('#workspaceSetup')?.classList.add('hidden');setView('myplayer');toast('Profil joueur activÃ© âš½');return;
+  }
+  if(intent==='organizer'){openOrganizerSetup('group');return;}
+  if(e.target?.id==='becomeOrganizer'||e.target?.id==='coorgCreateOwnWorkspace'){openOrganizerSetup('group');$('#workspaceSetup')?.scrollIntoView({behavior:'smooth',block:'start'});return;}
+  if(e.target?.id==='trialChoosePlan'){setView('home');setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:'smooth',block:'start'}),100);return;}
+});
+
+async function loadInvites(){
+  const box=$('#inviteList');box.innerHTML='';
+  const userEmail=(S.session?.user?.email||'').trim().toLowerCase();
+  if(!userEmail){$('#inviteBox').classList.add('hidden');return}
+  const {data,error}=await sb.from('workspace_invites')
+    .select('id,email,role,workspace_id,payment_responsibility,payment_status,workspaces(name)')
+    .is('accepted_at',null)
+    .ilike('email',userEmail);
+  if(error){$('#inviteBox').classList.add('hidden');return}
+  let mine=(data||[]).filter(i=>(i.email||'').trim().toLowerCase()===userEmail);
+  if(inviteIdFromUrl)mine=mine.sort((a,b)=>(a.id===inviteIdFromUrl?-1:0)-(b.id===inviteIdFromUrl?-1:0));
+  $('#inviteBox').classList.toggle('hidden',!mine.length);
+  mine.forEach(i=>{
+    // A paid invitation has its own checkout; never show the free acceptance action.
+    if(i.role==='coorganizer'&&i.payment_responsibility==='invitee'){
+      const d=document.createElement('div');d.className='swe-selfpay-invite';d.dataset.selfpayInvite=i.id;
+      d.textContent='Chargement de ton invitation co-gestionnaireâ€¦';box.appendChild(d);return;
+    }
+    const d=document.createElement('div');d.className='player';
+    d.innerHTML='<b>Invitation Ã  rejoindre '+esc(i.workspaces?.name||'SWÃ‰ TOURNAMENT 5/5')+'</b><div class="muted" style="margin-top:4px">ConnectÃ© avec '+esc(userEmail)+'. Clique ci-dessous pour devenir co-organisateur.</div>';
+    const b=document.createElement('button');b.textContent='âœ… Accepter lâ€™invitation';b.className='primary';b.style.marginTop='8px';
+    b.onclick=async()=>{
+      const {error}=await sb.rpc('accept_workspace_invite',{p_invite_id:i.id});
+      if(error)return toast(error.message);
+      if(i.workspace_id)localStorage.setItem('swe_workspace_id',i.workspace_id);
+      history.replaceState({},'',APP_URL);
+      toast('Invitation acceptÃ©e âœ…');
+      await boot();setView('home');
+    };
+    d.appendChild(b);box.appendChild(d)
+  });
+  window.SWECoorganizerInvites?.refresh();
+}
+async function loadAll(){
+  if(!S.workspace)return;const w=S.workspace.id;let r;
+  S.adminProfile=null;
+  if(isAdmin()){
+    const ap=await sb.from('workspace_admin_profiles').select('first_name,last_name').eq('workspace_id',w).eq('user_id',S.session?.user?.id).maybeSingle();
+    if(!ap.error&&ap.data)S.adminProfile=ap.data;
+  }
+  r=await sb.from('workspace_members').select('user_id,role,active').eq('workspace_id',w);S.members=r.data||[];
+  r=await sb.rpc('get_workspace_coorganizer_count',{p_workspace_id:w});S.coorgCount=Number(r.data||0);
+  const oa=await sb.rpc('get_workspace_organizer_access',{p_workspace_id:w});if(!oa.error)S.organizerAccess=oa.data||null;renderOrganizerAccessBanner();
+  r=await sb.rpc('get_workspace_features_v2',{p_workspace_id:w});
+  if(r.error){
+    console.error('get_workspace_features_v2',r.error);
+    toast('Impossible de vÃ©rifier les modules de cet espace. Recharge la page.');
+  }else{
+    const f=Array.isArray(r.data)?r.data[0]:r.data;
+    if(f)S.workspaceFeatures={...S.workspaceFeatures,...f};
+  }
+  const commercial=await sb.rpc('get_workspace_commercial_access',{p_workspace_id:w});
+  if(!commercial.error){const c=Array.isArray(commercial.data)?commercial.data[0]:commercial.data;if(c)S.commercialAccess={...S.commercialAccess,...c};}
+  if(S.commercialAccess.special_access_enabled){S.workspaceFeatures={...S.workspaceFeatures,tournaments_enabled:true,league_enabled:true,rankings_enabled:true,third_half_enabled:true,player_ratings_enabled:true,top_player_enabled:true,match_ratings_enabled:true,team_review_enabled:true};}
+  S.billingStatus=null;S.organizerSettings=null;S.playerRequests=[];
+  if(isAdmin()){
+    r=await sb.rpc('get_workspace_billing_status',{p_workspace_id:w});
+    if(!r.error){const b=Array.isArray(r.data)?r.data[0]:r.data;S.billingStatus=b||null;}
+    r=await sb.rpc('get_my_organizer_settings',{p_workspace_id:w});if(!r.error)S.organizerSettings=r.data||null;
+    r=await sb.rpc('list_workspace_player_requests',{p_workspace_id:w});if(!r.error)S.playerRequests=Array.isArray(r.data)?r.data:[];
+  }
+  S.myRatings=[];
+  if(isAdmin()){
+    S.myPermissions={can_invite_coorganizers:true,can_enter_scores:true,can_add_members:true,can_delete_members:true,can_create_tournaments:true,can_view_players:true,can_generate_teams:true,temporary_admin_until:null};
+    r=await sb.from('workspace_invites').select('id,email,role,accepted_at,created_at').eq('workspace_id',w).order('created_at',{ascending:false});S.invites=r.data||[];
+    r=await sb.rpc('admin_get_coorganizer_permissions',{p_workspace_id:w});S.coorgs=r.data||[];
+  }else if(isCoorg()){
+    S.invites=[];S.coorgs=[];
+    r=await sb.rpc('get_my_coorganizer_permissions',{p_workspace_id:w});
+    if(r.error)console.error('permissions coorganisateur',r.error);
+    const mp=Array.isArray(r.data)?(r.data[0]||null):r.data;
+    S.myPermissions={can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,can_generate_team_codes:false,can_edit_player_personal_info:false,temporary_admin_until:null,...(mp||{})};
+    if(S.workspaceFeatures.player_ratings_enabled){
+      r=await sb.rpc('get_my_player_skill_ratings',{p_workspace_id:w});
+      if(!r.error)S.myRatings=Array.isArray(r.data)?r.data:[];
+    }
+  }else{S.invites=[];S.coorgs=[];}
+  if(isAdmin()){
+    r=await sb.rpc('get_admin_workspace_players',{p_workspace_id:w});S.players=r.data||[];
+    r=await sb.rpc('get_manager_player_contacts',{p_workspace_id:w});S.contacts=r.error?[]:(r.data||[]);
+    if(S.workspaceFeatures.player_ratings_enabled){
+      r=await sb.rpc('get_admin_player_skill_reviews',{p_workspace_id:w});S.skillReviews=r.error?[]:(r.data||[]);
+      r=await sb.rpc('get_my_player_skill_ratings',{p_workspace_id:w});if(!r.error)S.myRatings=Array.isArray(r.data)?r.data:[];
+    }else{S.skillReviews=[];S.myRatings=[];}
+    r=await sb.rpc('get_manager_player_team_codes',{p_workspace_id:w});S.teamCodes=r.error?[]:(r.data||[]);
+  }else{
+    if(isCoorg()){
+      r=await sb.rpc('get_workspace_players_safe',{p_workspace_id:w});
+      if(r.error){console.error('players safe',r.error);S.players=[];toast('Impossible de charger la liste des joueurs.')}
+      else S.players=Array.isArray(r.data)?r.data:[];
+      if(S.myPermissions.can_edit_player_personal_info){
+        r=await sb.rpc('get_manager_player_contacts',{p_workspace_id:w});S.contacts=r.error?[]:(r.data||[]);
+      }else S.contacts=[];
+      if(S.myPermissions.can_generate_team_codes){
+        r=await sb.rpc('get_manager_player_team_codes',{p_workspace_id:w});S.teamCodes=r.error?[]:(r.data||[]);
+      }else S.teamCodes=[];
+    }else {S.players=[];S.contacts=[];S.teamCodes=[];}
+    S.skillReviews=[];
+  }
+  if(isAdmin()||isCoorg()){
+    if(S.workspaceFeatures.player_ratings_enabled){
+      r=await sb.rpc('get_player_skill_aggregates',{p_workspace_id:w});
+      S.skillAggregates=r.error?[]:(Array.isArray(r.data)?r.data:[]);
+    }else S.skillAggregates=[];
+    r=await sb.rpc('get_my_linked_player_id',{p_workspace_id:w});
+    S.myLinkedPlayerId=r.error?null:(r.data||null);
+  }else {S.skillAggregates=[];S.myLinkedPlayerId=null;}
+  if(isAdmin()){
+    const qr=await sb.rpc('get_my_coorganizer_quota_request',{p_workspace_id:w});
+    S.coorgQuotaRequest=qr.error?null:(qr.data||null);
+  }else S.coorgQuotaRequest=null;
+  r=await sb.from('seasons').select('*').eq('workspace_id',w).order('starts_on',{ascending:false});S.seasons=r.data||[];
+  r=await sb.from('leagues').select('*').eq('workspace_id',w).order('created_at',{ascending:false});S.leagues=r.data||[];
+  if(S.leagues.length){
+    const lids=S.leagues.map(x=>x.id);
+    r=await sb.from('league_players').select('*').in('league_id',lids);S.leaguePlayers=r.data||[];
+  }else S.leaguePlayers=[];
+  if(!S.activeLeague){const al=S.leagues.find(l=>l.status==='active')||S.leagues[0];S.activeLeague=al?.id||null;}
+  r=await sb.from('tournaments').select('*').eq('workspace_id',w).order('tournament_date',{ascending:false});S.tournaments=r.data||[];
+  if(!S.activeTour){const next=S.tournaments.find(t=>t.status!=='finished');S.activeTour=next?next.id:null;}
+  await loadTournament();
+  const editingReview=document.activeElement?.closest?.('.player-skill-review');
+  if(!editingReview)renderAll();
+}
+async function loadTournament(){
+  const t=currentTour();if(!t){S.tPlayers=[];S.teams=[];S.teamPlayers=[];S.matchAssignments=[];S.matches=[];S.goals=[];S.teamBalanceScores=[];S.teamReviewState=null;return}let r;
+  r=await sb.from('tournament_players').select('*').eq('tournament_id',t.id);S.tPlayers=r.data||[];
+  r=await sb.from('teams').select('*').eq('tournament_id',t.id).order('created_at');S.teams=r.data||[];
+  const tids=S.teams.map(x=>x.id);if(tids.length){r=await sb.from('team_players').select('*').in('team_id',tids);S.teamPlayers=r.data||[]}else S.teamPlayers=[];
+  r=await sb.from('matches').select('*').eq('tournament_id',t.id).order('match_order');S.matches=r.data||[];
+  const mids=S.matches.map(x=>x.id);
+  if(mids.length){
+    r=await sb.from('goals').select('*').in('match_id',mids).order('created_at');S.goals=r.data||[];
+    r=await sb.from('match_player_assignments').select('*').in('match_id',mids);S.matchAssignments=r.data||[];
+  }else{S.goals=[];S.matchAssignments=[];}
+  const scoreRes=await sb.rpc('get_tournament_team_balance_scores',{p_tournament_id:t.id});
+  S.teamBalanceScores=scoreRes.error?[]:(scoreRes.data||[]);
+  S.teamReviewState=null;
+  if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled){
+    const reviewRes=await sb.rpc('get_tournament_team_review_state',{p_tournament_id:t.id});
+    if(!reviewRes.error)S.teamReviewState=reviewRes.data||null;
+  }
+  renderMatchPitchSelect();
+}
+const THIRD_HALF_PAYMENT_MODES={
+  event_online:'Paiement en ligne',
+  event_arena:'Paiement direct Ã  lâ€™Arena',
+  cooler_online:'Participation en ligne Ã  la glaciÃ¨re',
+  cooler_cash:'Participation main Ã  main'
+};
+function currentTour(){return S.tournaments.find(x=>x.id===S.activeTour)} function p(id){return S.players.find(x=>x.id===id)} function tm(id){return S.teams.find(x=>x.id===id)}
+
+function matchTeamPlayerIds(matchId,teamId){
+  const rows=S.matchAssignments.filter(a=>String(a.match_id)===String(matchId));
+  if(rows.length)return rows.filter(a=>String(a.team_id||'')===String(teamId||'')).map(a=>a.player_id);
+  return teamPlayerIds(teamId);
+}
+function ratingForMatchPlayer(match,playerId,teamId,goalRows=S.goals){
+  if(!match||!teamId)return null;
+  const hs=Number(match.home_score||0),as=Number(match.away_score||0);
+  const isHome=String(teamId)===String(match.home_team_id),isAway=String(teamId)===String(match.away_team_id);
+  if(!isHome&&!isAway)return null;
+  const own=isHome?hs:as,opp=isHome?as:hs;
+  const difference=own-opp;
+  const base=difference>2?7:difference>0?6:difference===0?5:difference>=-2?4:difference>=-5?3:2;
+  const mg=(goalRows||[]).filter(g=>String(g.match_id)===String(match.id));
+  const goals=mg.filter(g=>String(g.scorer_player_id)===String(playerId)&&!g.is_own_goal).length;
+  const assists=mg.filter(g=>String(g.assister_player_id||'')===String(playerId)).length;
+  return {rating:Math.min(10,base+goals+(assists*.5)),base,goals,assists,result:own>opp?'V':(own===opp?'N':'D')};
+}
+function topPlayersFromData(matchRows,goalRows,assignmentRows,playerRows,tournamentIds=null){
+  const matchMap=new Map((matchRows||[]).filter(m=>!tournamentIds||tournamentIds.has(m.tournament_id)).map(m=>[m.id,m]));
+  const stats=new Map((playerRows||[]).map(pl=>[pl.id,{id:pl.id,name:pl.name,guest:pl.is_group_member===false,total:0,matches:0,g:0,a:0,avg:0}]));
+  (assignmentRows||[]).forEach(a=>{
+    const m=matchMap.get(a.match_id);if(!m||!a.team_id||!stats.has(a.player_id))return;
+    const r=ratingForMatchPlayer(m,a.player_id,a.team_id,goalRows);if(!r)return;
+    const s=stats.get(a.player_id);s.total+=r.rating;s.matches++;s.g+=r.goals;s.a+=r.assists;
+  });
+  return [...stats.values()].filter(x=>x.matches).map(x=>({...x,avg:x.total/x.matches}))
+    .sort((a,b)=>b.avg-a.avg||b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
+}
+
+async function renderSeasonScorerSummary(){
+  const box=$('#seasonScorerSummary');if(!box)return;
+  const activeSeason=S.seasons.find(s=>s.is_active)||S.seasons[0];
+  if(!activeSeason){box.innerHTML='<p class="muted">Aucune saison active.</p>';return}
+  const tournaments=S.tournaments.filter(t=>t.season_id===activeSeason.id&&t.format!=='league');
+  const tids=tournaments.map(t=>t.id);
+  if(!tids.length){
+    box.innerHTML='<div class="readonly-note"><b>'+esc(activeSeason.name)+'</b><div style="margin-top:5px">Aucun tournoi nâ€™est rattachÃ© Ã  cette saison. Les statistiques des tournois hors saison restent visibles uniquement dans chaque tournoi.</div></div>';
+    return;
+  }
+  const {data:matches,error:me}=await sb.from('matches').select('*').in('tournament_id',tids);
+  if(me)throw me;
+  const mids=(matches||[]).map(m=>m.id);
+  if(!mids.length){
+    box.innerHTML='<div class="readonly-note"><b>'+esc(activeSeason.name)+'</b><div style="margin-top:5px">'+tournaments.length+' tournoi'+(tournaments.length>1?'s':'')+' rattachÃ©'+(tournaments.length>1?'s':'')+', mais aucun match enregistrÃ©.</div></div>';
+    return;
+  }
+  const {data:goals,error:ge}=await sb.from('goals').select('*').in('match_id',mids);
+  if(ge)throw ge;
+  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
+  (goals||[]).forEach(g=>{
+    if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;
+    if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++;
+  });
+  let scor=[...stats.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
+  let ass=[...stats.values()].filter(x=>x.a).sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
+  scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
+
+  const scorHtml=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but enregistrÃ©.</p>';
+  const assHtml=ass.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe enregistrÃ©e.</p>';
+
+  box.innerHTML=
+    '<div class="readonly-note"><b>ğŸ“… '+esc(activeSeason.name)+'</b><div style="margin-top:5px">'+tournaments.length+' tournoi'+(tournaments.length>1?'s':'')+' rattachÃ©'+(tournaments.length>1?'s':'')+'. Seuls ces tournois sont cumulÃ©s dans les classements de saison.</div></div>'+
+    '<div class="grid g2" style="margin-top:10px"><div class="player"><b>âš½ Buteurs cumulÃ©s</b><div style="margin-top:8px">'+scorHtml+'</div></div><div class="player"><b>ğŸ¯ Passeurs cumulÃ©s</b><div style="margin-top:8px">'+assHtml+'</div></div></div>';
+}
+
+function coorgInviteLink(inv){
+  return APP_URL+'?invite='+encodeURIComponent(inv.id)+'&email='+encodeURIComponent(inv.email||'');
+}
+function coorgInviteMessage(inv){
+  const link=coorgInviteLink(inv);
+  return 'âš½ SWÃ‰ TOURNAMENT 5/5\n\n'+
+    'Tu es invitÃ© Ã  rejoindre SWÃ‰ Tournament en tant que co-gestionnaire.\n\n'+
+    'Pour activer ton accÃ¨s :\n'+
+    '1. Ouvre le lien ci-dessous.\n'+
+    '2. Ajoute un mot de passe puis clique sur Â« CrÃ©e ton compte Â» avec lâ€™adresse e-mail indiquÃ©e.\n'+
+    '3. Une fois connectÃ©, accepte lâ€™invitation.\n\n'+
+    'âš ï¸ IMPORTANT : ne modifie pas lâ€™adresse e-mail indiquÃ©e. Lâ€™invitation est liÃ©e Ã  cette adresse : '+inv.email+'\n\n'+
+    'ğŸ¯ TON RÃ”LE\n'+
+    'Dans ton espace, tu peux notamment Ã©valuer les joueurs que tu connais suffisamment. Tu nâ€™es pas obligÃ© de noter tout le monde : si tu ne connais pas assez un joueur, ne le note pas.\n\n'+
+    'Les Ã©valuations doivent Ãªtre objectives, impartiales et faites sans concertation. Elles seront croisÃ©es avec celles dâ€™autres co-gestionnaires afin dâ€™obtenir une vision plus homogÃ¨ne des joueurs et dâ€™aider SWÃ‰ Tournament Ã  gÃ©nÃ©rer des Ã©quipes alÃ©atoires mais mieux Ã©quilibrÃ©es. âš–ï¸\n\n'+
+    'ğŸ”’ CONFIDENTIALITÃ‰\n'+
+    'Ton rÃ´le de co-gestionnaire/notateur ainsi que tes notes individuelles doivent rester confidentiels. Les autres Ã©valuateurs travaillent Ã©galement de maniÃ¨re indÃ©pendante afin dâ€™Ã©viter toute pression ou influence.\n\n'+
+    'ğŸ’¬ GROUPE PRIVÃ‰ TELEGRAM\nRejoins le groupe privÃ© des co-gestionnaires. Il sert uniquement Ã  signaler un problÃ¨me, proposer une modification ou partager une idÃ©e dâ€™amÃ©lioration de SWÃ‰ Tournament. Les Ã©changes et informations concernant les Ã©valuations restent confidentiels.\nğŸ‘‰ https://t.me/+y3iSlJ7qLzVmMzYx\n\n'+
+    'Si tu souhaites tâ€™impliquer davantage dans lâ€™organisation ou lâ€™Ã©volution de SWÃ‰ Tournament, rapproche-toi directement de moi en privÃ©. ğŸ‘ŠğŸ½\n\n'+
+    'Adresse du compte : '+inv.email+'\n\n'+
+    'Lien dâ€™invitation :\n'+link+'\n\n'+
+    'Merci pour ton aide ğŸ‘ŠğŸ½âš½ï¸';
+}
+function renderAccess(){
+  const box=$('#memberList');if(!box)return;
+  if(isCoorg()){
+    box.innerHTML='<div class="player"><b>ğŸ‘¥ Co-organisateurs</b><div class="muted" style="margin-top:5px">Il y a actuellement <b>'+S.coorgCount+'</b> co-organisateur'+(S.coorgCount>1?'s':'')+' dans lâ€™espace.'+(S.myPermissions.can_invite_coorganizers?' Tu es autorisÃ© Ã  envoyer des invitations.':' Seul un utilisateur autorisÃ© par lâ€™administrateur peut envoyer une invitation.')+'</div></div>';
+    if(S.lastCreatedInvite&&S.myPermissions.can_invite_coorganizers){
+      const i=S.lastCreatedInvite;
+      const d=document.createElement('div');d.className='player';
+      d.innerHTML='<b>DerniÃ¨re invitation crÃ©Ã©e : '+esc(i.email||'')+'</b><div class="muted" style="margin-top:4px">Envoie ce lien Ã  la personne concernÃ©e.</div>';
+      const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
+      const copy=document.createElement('button');copy.textContent='ğŸ”— Copier le lien';
+      const wa=document.createElement('button');wa.textContent='ğŸ“² WhatsApp';wa.className='primary';
+      const inv={id:i.id,email:i.email};
+      copy.onclick=async()=>{try{await navigator.clipboard.writeText(coorgInviteLink(inv));toast('Lien copiÃ© âœ…')}catch(e){toast('Copie impossible.')}};
+      wa.onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(coorgInviteMessage(inv)),'_blank','noopener');
+      row.append(copy,wa);d.appendChild(row);box.appendChild(d);
+    }
+    return;
+  }
+  if(!isAdmin())return;
+  const activeCo=S.coorgs.filter(x=>x.active);
+  const suspendedCo=S.coorgs.filter(x=>!x.active);
+  const pending=S.invites.filter(x=>!x.accepted_at);
+  const fmt=d=>d?new Date(d).toLocaleDateString('fr-FR'):'';
+
+  const lim=Number(S.workspaceFeatures.max_coorganizers||0),cap=Number(S.workspaceFeatures.max_coorganizers_cap||100);
+  box.innerHTML='<div class="player" style="background:#f7fbf8"><b>Limite de co-gestionnaires</b><div class="muted" style="margin-top:5px">Autorisation actuelle : <b>'+activeCo.length+' / '+lim+'</b>. Les accÃ¨s inclus et les accÃ¨s achetÃ©s sont cumulÃ©s automatiquement.</div>'+(S.coorgQuotaRequest?.status==='pending'?'<div class="muted" style="margin-top:6px;color:#b45309">â³ Demande en attente pour passer Ã  <b>'+Number(S.coorgQuotaRequest.requested_limit||lim)+'</b>.</div>':'<div class="muted" style="margin-top:6px">Besoin de plus dâ€™accÃ¨s ? Ajoute-les directement depuis lâ€™accueil : activation automatique aprÃ¨s paiement.</div>')+'</div>'+
+    '<div class="muted" style="margin-bottom:8px"><b>'+activeCo.length+' / '+lim+' co-organisateur'+(activeCo.length>1?'s':'')+' actif'+(activeCo.length>1?'s':'')+'</b> â€¢ '+suspendedCo.length+' suspendu'+(suspendedCo.length>1?'s':'')+' â€¢ '+pending.length+' invitation'+(pending.length>1?'s':'')+' en attente</div>';
+
+  S.coorgs.forEach(c=>{
+    const d=document.createElement('div');d.className='player';
+    const linked=(S.players||[]).find(p=>String(p.id)===String(c.linked_player_id||''));
+    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(c.email||'Co-organisateur')+'</b><div class="muted">Co-organisateur depuis le '+fmt(c.created_at)+'</div></span><span style="font-weight:700;color:'+(c.active?'#15803d':'#b45309')+'">'+(c.active?'ğŸŸ¢ Actif':'â¸ï¸ Suspendu')+'</span></div>'+
+      '<div style="margin-top:9px;padding:10px;border:1px solid '+(linked?'#b7ddc9':'#dbe7f5')+';border-radius:12px;background:'+(linked?'#f2faf6':'#f7faff')+'"><b>ğŸ‘¤ Membre du groupe associÃ©</b><div class="muted" style="margin-top:4px">'+(linked?'âœ… '+esc(linked.name)+' â€¢ liaison active avec son ID SWÃ‰':'Aucun membre rattachÃ©. Associe son compte au joueur correspondant dans ton groupe.')+'</div></div>';
+    if(!linked){
+      const used=new Set(S.coorgs.map(x=>x.linked_player_id).filter(Boolean).map(String));
+      const eligible=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&!used.has(String(p.id)));
+      const linkRow=document.createElement('div');linkRow.className='row';linkRow.style.cssText='margin-top:8px;align-items:stretch;flex-wrap:wrap';
+      const playerSelect=document.createElement('select');playerSelect.style.cssText='flex:1;min-width:210px';
+      playerSelect.innerHTML='<option value="">Choisir le membre correspondantâ€¦</option>'+eligible.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+      const linkButton=document.createElement('button');linkButton.className='primary';linkButton.textContent='ğŸ”— Rattacher ce membre';linkButton.disabled=!eligible.length;
+      linkButton.onclick=async()=>{
+        const playerId=playerSelect.value;if(!playerId)return toast('Choisis dâ€™abord le membre correspondant.');
+        const player=eligible.find(p=>String(p.id)===String(playerId));
+        if(!confirm('Rattacher dÃ©finitivement '+(c.email||'ce co-organisateur')+' Ã  '+(player?.name||'ce membre')+' ?\n\nLes statistiques seront rÃ©unies sous le mÃªme ID SWÃ‰.'))return;
+        linkButton.disabled=true;playerSelect.disabled=true;
+        const {error}=await sb.rpc('admin_link_coorganizer_player_v1',{p_workspace_id:S.workspace.id,p_user_id:c.user_id,p_player_id:playerId});
+        if(error){linkButton.disabled=false;playerSelect.disabled=false;return toast(error.message);}
+        c.linked_player_id=playerId;toast('Co-organisateur rattachÃ© au membre âœ…');renderPermissions();renderAccess();
+      };
+      linkRow.append(playerSelect,linkButton);d.appendChild(linkRow);
+    }
+    const actions=document.createElement('div');actions.className='row';actions.style.marginTop='8px';actions.style.flexWrap='wrap';
+    const suspend=document.createElement('button');suspend.textContent=c.active?'â¸ï¸ Suspendre':'â–¶ï¸ RÃ©activer';
+    suspend.onclick=async()=>{
+      if(!confirm(c.active?'Suspendre ce co-organisateur ? Il perdra immÃ©diatement lâ€™accÃ¨s Ã  lâ€™espace.':'RÃ©activer ce co-organisateur ?'))return;
+      suspend.disabled=true;
+      const {error}=await sb.rpc('admin_set_coorganizer_active',{p_workspace_id:S.workspace.id,p_user_id:c.user_id,p_active:!c.active});
+      suspend.disabled=false;if(error)return toast(error.message);
+      toast(c.active?'Co-organisateur suspendu.':'Co-organisateur rÃ©activÃ©.');
+      await loadAll();
+    };
+    const del=document.createElement('button');del.className='danger smallbtn';del.textContent='ğŸ—‘ Supprimer';
+    del.onclick=async()=>{
+      if(!confirm('Supprimer dÃ©finitivement '+(c.email||'ce co-organisateur')+' de lâ€™organisation ?\n\nIl nâ€™aura plus accÃ¨s Ã  cet espace.'))return;
+      del.disabled=true;
+      const {error}=await sb.rpc('admin_remove_coorganizer',{p_workspace_id:S.workspace.id,p_user_id:c.user_id});
+      del.disabled=false;if(error)return toast(error.message);
+      toast('Co-organisateur supprimÃ©.');
+      await loadAll();
+    };
+    actions.append(suspend,del);d.appendChild(actions);box.appendChild(d);
+  });
+
+  pending.forEach(i=>{
+    const d=document.createElement('div');d.className='player';
+    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(i.email)+'</b><div class="muted">Invitation crÃ©Ã©e le '+fmt(i.created_at)+' â€¢ Aucun e-mail automatique nâ€™est envoyÃ©.</div></span><span style="font-weight:700;color:#b45309">ğŸŸ  En attente</span></div>';
+    const actions=document.createElement('div');actions.className='row';actions.style.marginTop='8px';actions.style.flexWrap='wrap';
+    const copy=document.createElement('button');copy.textContent='ğŸ”— Copier le lien';
+    const wa=document.createElement('button');wa.textContent='ğŸ“² WhatsApp';wa.className='primary';
+    const cancel=document.createElement('button');cancel.textContent='Annuler';cancel.className='danger smallbtn';
+    copy.onclick=async()=>{
+      const link=coorgInviteLink(i);
+      try{await navigator.clipboard.writeText(link);toast('Lien dâ€™invitation copiÃ© âœ…')}catch(e){toast('Impossible de copier automatiquement.')}
+    };
+    wa.onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(coorgInviteMessage(i)),'_blank','noopener');
+    cancel.onclick=async()=>{
+      if(!confirm("Annuler cette invitation ?"))return;
+      const {error}=await sb.from('workspace_invites').delete().eq('id',i.id).eq('workspace_id',S.workspace.id).is('accepted_at',null);
+      if(error)return toast(error.message);
+      toast('Invitation annulÃ©e.');await loadAll();
+    };
+    actions.append(copy,wa,cancel);d.appendChild(actions);box.appendChild(d);
+  });
+
+  if(!S.coorgs.length&&!pending.length)box.innerHTML+='<div class="muted">Aucun co-organisateur pour le moment.</div>';
+}
+
+function renderStripeBilling(){
+  const card=$('#stripeBillingCard');if(!card)return;
+  card.classList.toggle('hidden',!isAdmin());
+  if(!isAdmin())return;
+  const b=S.billingStatus||{},os=S.organizerSettings||{};
+  const connected=!!b.stripe_connect_account_id,ready=!!b.connect_charges_enabled;
+  if($('#organizerLegalStatus'))$('#organizerLegalStatus').value=os.legal_status||'individual';
+  if($('#organizerWhatsappPhone')&&document.activeElement!==$('#organizerWhatsappPhone'))$('#organizerWhatsappPhone').value=os.whatsapp_contact_phone||'';
+  if($('#organizerWhatsappGroup')&&document.activeElement!==$('#organizerWhatsappGroup'))$('#organizerWhatsappGroup').value=os.whatsapp_group_url||'';
+  if($('#organizerPaymentEligibility')){$('#organizerPaymentEligibility').textContent=os.external_payment_ready?'âœ… Organisateur PRO â€¢ paiement en ligne autorisÃ©':'ğŸ‘¤ Particulier â€¢ paiement sur place uniquement';$('#organizerPaymentEligibility').style.background=os.external_payment_ready?'#dcfce7':'#eef2f7';const host=$('#organizerPaymentEligibility').parentElement?.parentElement;if(host&&os.external_payment_ready&&!host.querySelector('.pro-payment-warning')){const n=document.createElement('div');n.className='pro-payment-warning';n.innerHTML='<b>âš ï¸ Engagement organisateur PRO</b><div>Les inscriptions rÃ©alisÃ©es via SWÃ‰ doivent Ãªtre rÃ©gularisÃ©es conformÃ©ment aux conditions du complexe. Un impayÃ© ou litige confirmÃ© peut entraÃ®ner la suspension temporaire des fonctions de paiement jusquâ€™Ã  rÃ©gularisation. Les incidents Stripe sont traitÃ©s selon les procÃ©dures Stripe applicables.</div>';host.appendChild(n);}}
+  const extPay=$('#tourExternalPaymentRequired');if(extPay){extPay.disabled=!os.external_payment_ready;if(!os.external_payment_ready)extPay.checked=false;}
+  const extNote=$('#tourExternalPaymentNote');if(extNote)extNote.textContent=os.external_payment_ready?'Stripe Connect est opÃ©rationnel : tu peux exiger le paiement en ligne des joueurs externes.':'Pour exiger un paiement externe : module Paiements actif + compte Stripe Connect complÃ¨tement validÃ©.';
+  const toggle=$('#stripePaymentsToggle'),details=$('#stripeBillingDetails');
+  if(toggle){ if(connected) toggle.checked=true; details?.classList.toggle('hidden',!toggle.checked); }
+  const badge=$('#stripeStatusBadge');
+  if(badge)badge.textContent=ready?'ğŸŸ¢ Paiements actifs':(connected?'âš ï¸ Configuration Ã  terminer':'âšª Non configurÃ©');
+  const incomplete=$('#stripeIncompleteWarning');if(incomplete)incomplete.classList.toggle('hidden',!(connected&&!ready));
+  const homeWarn=$('#homeStripeWarning');if(homeWarn)homeWarn.classList.toggle('hidden',!(connected&&!ready));
+  const plan=b.plan_code==='pro_dev'?'PRO â€¢ test':String(b.plan_code||'free').toUpperCase();
+  $('#stripeBillingStatus').innerHTML='<div class="grid g2">'+
+    '<div><span class="muted">Formule</span><div><b>'+esc(plan)+'</b></div></div>'+
+    '<div><span class="muted">Compte organisateur</span><div><b>'+(connected?'ConnectÃ©':'Ã€ connecter')+'</b></div></div>'+
+    '<div><span class="muted">Encaissements</span><div><b>'+(ready?'âœ… AutorisÃ©s':(connected?'âš ï¸ Ã€ finaliser':'â³ En attente'))+'</b></div></div>'+
+    '<div><span class="muted">Virements</span><div><b>'+(b.connect_payouts_enabled?'âœ… AutorisÃ©s':(connected?'âš ï¸ Ã€ finaliser':'â³ En attente'))+'</b></div></div>'+
+  '</div>';
+  const btn=$('#stripeConnectBtn');if(btn){btn.textContent=connected&&!ready?'âš ï¸ Terminer la configuration Stripe':(connected?'ğŸ”— Mettre Ã  jour Stripe':'ğŸ”— Activer les paiements Stripe'); if(connected&&!ready)btn.style.fontWeight='900';}
+}
+async function refreshStripeConnectStatus(showToast=true){
+  if(!isAdmin()||!S.workspace)return;
+  const btn=$('#stripeRefreshBtn');if(btn)btn.disabled=true;
+  const {data,error}=await sb.functions.invoke('stripe-connect-status',{body:{workspace_id:S.workspace.id}});
+  if(btn)btn.disabled=false;
+  if(error||data?.error){if(showToast)toast(data?.error||error?.message||'Impossible de vÃ©rifier Stripe.');return}
+  const r=await sb.rpc('get_workspace_billing_status',{p_workspace_id:S.workspace.id});
+  if(!r.error){const b=Array.isArray(r.data)?r.data[0]:r.data;S.billingStatus=b||null;renderStripeBilling();}
+  if(showToast)toast(data?.charges_enabled?'Stripe est prÃªt Ã  encaisser âœ…':'âš ï¸ Stripe nâ€™est pas encore prÃªt : termine la configuration pour activer les paiements.');
+}
+
+document.addEventListener('click',(e)=>{
+  if(e.target?.id==='homeStripeFinishBtn'){
+    setTimeout(()=>$('#stripeBillingCard')?.scrollIntoView({behavior:'smooth',block:'start'}),120);
+  }
+});
+document.addEventListener('change',(e)=>{
+  if(e.target?.id==='stripePaymentsToggle'){
+    const details=$('#stripeBillingDetails');
+    details?.classList.toggle('hidden',!e.target.checked);
+    if(!e.target.checked && S.billingStatus?.stripe_connect_account_id){
+      e.target.checked=true; details?.classList.remove('hidden');
+      toast('Stripe est dÃ©jÃ  reliÃ© Ã  ce compte. Tu peux continuer ou mettre Ã  jour la configuration.');
+    }
+  }
+});
+document.addEventListener('click',async(e)=>{
+  if(e.target?.id==='stripeConnectBtn'){
+    if(!isAdmin()||!S.workspace)return;
+    const b=e.target;b.disabled=true;b.textContent='Ouverture de Stripeâ€¦';
+    const {data,error}=await sb.functions.invoke('stripe-connect-onboarding',{body:{
+      workspace_id:S.workspace.id,
+      return_url:APP_URL+'?stripe=return',
+      refresh_url:APP_URL+'?stripe=refresh'
+    }});
+    b.disabled=false;renderStripeBilling();
+    if(error||data?.error)return toast(data?.error||error?.message||'Impossible dâ€™ouvrir Stripe.');
+    if(data?.url)location.href=data.url;
+  }
+  if(e.target?.id==='stripeRefreshBtn')await refreshStripeConnectStatus(true);
+});
+
+function renderPermissions(){
+  const box=$('#permissionsList');if(!box)return;
+  if(!isAdmin()){box.innerHTML='';return}
+  if(!S.coorgs.length){box.innerHTML='<p class="muted">Aucun co-organisateur Ã  paramÃ©trer.</p>';return}
+  box.innerHTML='<div class="player" style="margin-bottom:12px;background:#f7faff;border-color:#bfdbfe"><b>ğŸ” Autorisations des co-gestionnaires</b><div class="muted" style="margin-top:5px">Par dÃ©faut, un nouveau co-gestionnaire peut uniquement <b>voir la liste des joueurs et les Ã©valuer</b>. Tu peux ensuite lui ajouter dâ€™autres droits ici. Cet Ã©cran ne se rafraÃ®chit plus automatiquement pendant tes modifications.</div></div>';
+  const defs=[
+    ['can_invite_coorganizers','Inviter des co-organisateurs','Peut crÃ©er et partager une invitation.'],
+    ['can_enter_scores','Saisir les scores pendant les matchs','Peut modifier les scores et ajouter/annuler des buts pendant un tournoi en cours.'],
+    ['can_add_members','Ajouter des membres','Peut ajouter de nouveaux joueurs Ã  la liste.'],
+
+    ['can_create_tournaments','CrÃ©er un nouveau tournoi','Peut crÃ©er un nouveau tournoi depuis lâ€™onglet Tournois.'],
+    ['can_view_players','Voir la liste des joueurs','Affiche lâ€™onglet Joueurs et permet de consulter la liste et donner un avis de niveau.'],
+    ['can_generate_teams','GÃ©nÃ©rer des Ã©quipes','Peut lancer la gÃ©nÃ©ration automatique des Ã©quipes Ã©quilibrÃ©es sans voir les niveaux privÃ©s de lâ€™administrateur.'],
+    ['can_generate_team_codes','GÃ©nÃ©rer les codes Ã©quipe','Peut gÃ©nÃ©rer, rÃ©gÃ©nÃ©rer, activer ou dÃ©sactiver le code Ã©quipe personnel dâ€™un joueur.'],
+    ['can_edit_player_personal_info','Modifier les informations personnelles des joueurs','Peut modifier le nom, le statut membre/guest, le rattachement Guest deâ€¦ et le numÃ©ro de tÃ©lÃ©phone.']
+  ];
+  S.coorgs.forEach(c=>{
+    const card=document.createElement('div');card.className='player';card.style.marginBottom='12px';
+    card.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(c.email||'Co-organisateur')+'</b><div class="muted">'+(c.active?'ğŸŸ¢ Actif':'â¸ï¸ Suspendu')+'</div></span></div>';
+    const linkBox=document.createElement('div');linkBox.style.cssText='margin-top:10px;padding:10px;border:1px solid #dbe7f5;border-radius:12px;background:#f7faff';
+    const linkedSel=document.createElement('select');linkedSel.dataset.linkedPlayer='1';linkedSel.style.width='100%';
+    linkedSel.innerHTML='<option value="">Aucun joueur rattachÃ©</option>'+S.players.filter(p=>p.active&&p.is_group_member!==false).map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+    linkedSel.value=c.linked_player_id||'';
+    if(c.linked_player_id) linkedSel.disabled=true;
+    linkBox.innerHTML='<b>ğŸ‘¤ Compte associÃ© Ã  un joueur</b><div class="muted small" style="margin:4px 0 7px">'+(c.linked_player_id?'ğŸ”’ Liaison dÃ©finitive : ce membre utilise dÃ©sormais le mÃªme ID SWÃ‰ que le co-gestionnaire. Seul le Super Admin peut dÃ©lier ce profil.':'Identifie le membre correspondant au co-gestionnaire. Sâ€™il possÃ¨de dÃ©jÃ  un ID SWÃ‰, ses statistiques seront automatiquement rattachÃ©es Ã  cet ID.')+'</div>';
+    linkBox.appendChild(linkedSel);card.appendChild(linkBox);
+    const instructionBox=document.createElement('label');instructionBox.style.cssText='display:block;margin-top:10px;padding:10px;border:1px solid #d7e7df;border-radius:12px;background:#f7fbf8';
+    instructionBox.innerHTML='<b>ğŸ“£ Consigne personnalisÃ©e</b><div class="muted small" style="margin:4px 0 7px">Visible uniquement par ce co-gestionnaire lorsquâ€™il est connectÃ©.</div><textarea data-personal-instructions maxlength="2000" rows="3" placeholder="Ex. Observe en prioritÃ© les nouveaux joueurs et vÃ©rifie les prÃ©sences.">'+esc(c.personal_instructions||'')+'</textarea>';
+    card.appendChild(instructionBox);
+    defs.forEach(([key,label,help])=>{
+      const row=document.createElement('label');row.className='row';row.style.justifyContent='flex-start';row.style.alignItems='flex-start';row.style.marginTop='10px';
+      const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.checked=!!c[key];cb.dataset.perm=key;
+      const txt=document.createElement('span');txt.style.flex='1';txt.innerHTML='<b>'+label+'</b><div class="muted">'+help+'</div>';
+      row.append(cb,txt);card.appendChild(row);
+    });
+    const temp=document.createElement('div');temp.className='player';temp.style.marginTop='12px';temp.style.background='#fff8e8';
+    const tempActive=c.temporary_admin_until&&new Date(c.temporary_admin_until).getTime()>Date.now();
+    const localValue=c.temporary_admin_until?new Date(new Date(c.temporary_admin_until).getTime()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16):'';
+    temp.innerHTML='<b>ğŸ‘‘ Droits admin temporaires</b><div class="muted" style="margin:5px 0 8px">Donne temporairement les droits de gestion du tournoi : crÃ©er/terminer/supprimer un tournoi, gÃ©rer les prÃ©sences, Ã©quipes et matchs. Les autorisations de sÃ©curitÃ© restent rÃ©servÃ©es Ã  lâ€™administrateur principal.</div>'+
+      '<div class="row"><input type="datetime-local" data-temp-admin-until value="'+esc(localValue)+'" style="flex:1"><button type="button" data-clear-temp>Retirer</button></div>'+
+      '<div class="muted" style="margin-top:6px">'+(tempActive?'ğŸŸ¢ Actif jusquâ€™au '+new Date(c.temporary_admin_until).toLocaleString('fr-FR'):'Aucun droit admin temporaire actif')+'</div>';
+    temp.querySelector('[data-clear-temp]').onclick=()=>{temp.querySelector('[data-temp-admin-until]').value='';};
+    card.appendChild(temp);
+
+    const save=document.createElement('button');save.className='primary';save.style.marginTop='12px';save.textContent='Enregistrer les autorisations';
+    save.onclick=async()=>{
+      const vals={};card.querySelectorAll('[data-perm]').forEach(cb=>vals[cb.dataset.perm]=cb.checked);
+      const tempInput=card.querySelector('[data-temp-admin-until]');
+      const tempUntil=tempInput&&tempInput.value?new Date(tempInput.value).toISOString():null;
+      if(tempUntil&&new Date(tempUntil).getTime()<=Date.now())return toast('Choisis une date de fin future pour les droits admin temporaires.');
+      save.disabled=true;
+      const linkedPlayerId=card.querySelector('[data-linked-player]')?.value||null;
+      const {error}=await sb.rpc('admin_save_coorganizer_settings',{
+        p_workspace_id:S.workspace.id,p_user_id:c.user_id,
+        p_can_invite:!!vals.can_invite_coorganizers,p_can_scores:!!vals.can_enter_scores,
+        p_can_add:!!vals.can_add_members,p_can_delete:!!vals.can_delete_members,
+        p_can_create_tournaments:!!vals.can_create_tournaments,
+        p_can_view_players:!!vals.can_view_players,
+        p_can_generate_teams:!!vals.can_generate_teams,
+        p_can_generate_team_codes:!!vals.can_generate_team_codes,
+        p_can_edit_player_personal_info:!!vals.can_edit_player_personal_info,
+        p_linked_player_id:linkedPlayerId,
+        p_temporary_admin_until:tempUntil,
+        p_personal_instructions:card.querySelector('[data-personal-instructions]')?.value.trim()||null
+      });
+      if(error){save.disabled=false;return toast(error.message);}
+      Object.assign(c,vals,{linked_player_id:linkedPlayerId,temporary_admin_until:tempUntil,personal_instructions:card.querySelector('[data-personal-instructions]')?.value.trim()||null});
+      // Relit la configuration via la mÃªme source RPC que celle utilisÃ©e au chargement.
+      // Cela Ã©vite les Ã©tats incohÃ©rents liÃ©s Ã  une lecture RLS diffÃ©rente de l'Ã©criture RPC.
+      try{
+        const {data:freshList,error:freshError}=await sb.rpc('admin_get_coorganizer_permissions',{p_workspace_id:S.workspace.id});
+        if(!freshError){
+          const fresh=(Array.isArray(freshList)?freshList:[]).find(x=>x.user_id===c.user_id);
+          if(fresh)Object.assign(c,fresh);
+        }
+      }catch(e){console.warn('permission verification',e)}
+      save.disabled=false;
+      save.textContent='âœ“ EnregistrÃ©';
+      toast('Autorisations enregistrÃ©es âœ…');
+      setTimeout(()=>{if(save.isConnected)save.textContent='Enregistrer les autorisations';},1200);
+    };
+    card.appendChild(save);box.appendChild(card);
+  });
+}
+function renderAll(){
+  renderHostWelcome();
+  renderHome();
+  renderRegisteredPlayersAdmin().catch(e=>console.error('registered players',e));
+  renderPlayers();
+  renderPlayerDirectoryCard();renderAdminPlayerRequests();
+  renderMyPlayerHub();
+  renderPermissions();
+  renderStripeBilling();
+  renderTournaments();
+  renderTeams();
+  renderMatches();
+  renderLeague().catch(e=>console.error('league',e));
+  applyPermissions();
+  renderAccess();
+  if($('#publicLink')&&S.workspace?.public_token)$('#publicLink').value=APP_URL+'?public='+S.workspace.public_token; // lien public gÃ©nÃ©ral de consultation ; les inscriptions utilisent registrationLink(t)
+  renderRanking().catch(e=>console.error('ranking',e));
+  renderSeasonScorerSummary().catch(e=>console.error('season ranking',e));
+}
+
+async function renderRegisteredPlayersAdmin(){
+  const card=$('#registeredPlayersAdminCard');if(!card)return;
+  const t=currentTour();
+  card.classList.toggle('hidden',!t);
+  if(!t)return;
+  const label=$('#registeredPlayersCompetitionLabel');
+  if(label)label.textContent=(t.format==='league'?'SwÃ© de Ligue : ':'Tournoi : ')+(t.name||t.tournament_date)+' â€¢ '+t.tournament_date;
+  const {data,error}=await sb.rpc('get_registered_players_for_tournament',{p_tournament_id:t.id});
+  const box=$('#registeredPlayersAdminList'),sel=$('#manualRegisteredPlayerSelect');
+  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  const rows=Array.isArray(data)?data:[];
+  const registeredIds=new Set(rows.filter(r=>r.present).map(r=>r.player_id));
+  const available=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&!registeredIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name));
+  if(sel)sel.innerHTML='<option value="">Ajouter un membre inscrit manuellement</option>'+available.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+  if(!rows.length){box.innerHTML='<p class="muted">Aucun joueur inscrit pour le moment.</p>';return}
+  box.innerHTML='';
+  rows.filter(r=>r.present).forEach((r,i)=>{
+    const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';
+    d.innerHTML='<b style="min-width:28px">'+(i+1)+'.</b><span style="flex:1">'+esc(r.player_name)+(r.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span><span class="guest-badge">'+(r.registration_status==='waitlist'||r.is_substitute?'RemplaÃ§ant':'ConfirmÃ©')+'</span>';
+    const remove=document.createElement('button');remove.className='danger';remove.textContent='Retirer';remove.onclick=async()=>{
+      if(!confirm('Retirer '+r.player_name+' de cette inscription ?'))return;
+      const {error}=await sb.rpc('remove_registered_member_from_tournament',{p_tournament_id:t.id,p_player_id:r.player_id});
+      if(error)return toast(error.message);
+      if(t.format!=='league'&&S.teams.length){
+        try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
+      }
+      await loadTournament();renderRegisteredPlayersAdmin();renderHome();toast('Inscription retirÃ©e.');
+    };
+    d.appendChild(remove);box.appendChild(d);
+  });
+}
+
+function renderHomeCoorgVotes(){
+  const card=$('#homeCoorgVotesCard');
+  const box=$('#homeCoorgVotes');
+  if(!card||!box)return;
+  const show=isAdmin();
+  card.classList.toggle('hidden',!show);
+  if(!show)return;
+  const active=(S.coorgs||[]).filter(c=>c.active!==false);
+  if(!active.length){
+    box.innerHTML='<div class="muted">Aucun co-gestionnaire actif pour le moment.</div>';
+    return;
+  }
+  const reviews=Array.isArray(S.skillReviews)?S.skillReviews:[];
+  const rows=active.map(c=>{
+    const linked=(S.players||[]).find(p=>String(p.id)===String(c.linked_player_id));
+    const label=linked?.name||((c.email||'Co-gestionnaire').split('@')[0]);
+    const mine=reviews.filter(r=>String(r.evaluator_user_id)===String(c.user_id)&&r.player_id);
+    const votedIds=[...new Set(mine.map(r=>String(r.player_id)))];
+    const votedPlayers=votedIds.map(id=>(S.players||[]).find(p=>String(p.id)===id)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+    const max=Math.max(0,(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&String(p.id)!==String(c.linked_player_id||'')).length);
+    return {userId:c.user_id,label,email:c.email||'',voted:votedIds.length,max,votedPlayers};
+  }).sort((a,b)=>b.voted-a.voted||a.label.localeCompare(b.label,'fr'));
+  box.innerHTML='<div style="display:grid;gap:8px">'+rows.map((r,i)=>{
+    const pct=r.max?Math.min(100,Math.round(r.voted/r.max*100)):0;
+    const detailsId='coorgVotesDetails'+i;
+    const detailHtml=r.votedPlayers.length?r.votedPlayers.map(p=>'<span class="guest-badge" style="margin:3px 5px 3px 0;display:inline-block">'+esc(p.name)+'</span>').join(''):'<span class="muted">Aucun joueur Ã©valuÃ©.</span>';
+    return '<div class="player" style="padding:10px 12px">'+
+      '<div class="row" style="justify-content:space-between;align-items:center;gap:10px">'+
+        '<div style="min-width:0"><b>'+esc(r.label)+'</b>'+(r.email&&r.email.split('@')[0]!==r.label?'<div class="muted" style="font-size:12px">'+esc(r.email)+'</div>':'')+'</div>'+
+        '<div style="text-align:right;white-space:nowrap"><b style="font-size:18px">'+r.voted+'</b><span class="muted"> vote'+(r.voted>1?'s':'')+'</span><div class="muted" style="font-size:12px">sur '+r.max+' joueur'+(r.max>1?'s':'')+'</div></div>'+
+      '</div>'+
+      '<div style="height:6px;background:#e8ecea;border-radius:999px;overflow:hidden;margin-top:8px"><div style="height:100%;width:'+pct+'%;background:#b38b2e;border-radius:999px"></div></div>'+
+      '<button class="secondary" type="button" style="margin-top:8px;padding:7px 10px" data-toggle-coorg-votes="'+detailsId+'">ğŸ‘ï¸ Voir les joueurs notÃ©s ('+r.voted+')</button>'+
+      '<div id="'+detailsId+'" class="hidden" style="margin-top:8px;padding-top:8px;border-top:1px solid #e8ecea"><div class="muted" style="font-size:12px;margin-bottom:5px">Joueurs Ã©valuÃ©s par '+esc(r.label)+' :</div>'+detailHtml+'</div>'+
+    '</div>';
+  }).join('')+'</div>';
+  box.querySelectorAll('[data-toggle-coorg-votes]').forEach(btn=>btn.addEventListener('click',()=>{
+    const target=document.getElementById(btn.dataset.toggleCoorgVotes);
+    if(!target)return;
+    const opening=target.classList.contains('hidden');
+    target.classList.toggle('hidden',!opening);
+    const count=(target.querySelectorAll('.guest-badge')||[]).length;
+    btn.textContent=opening?'ğŸ™ˆ Masquer la liste':'ğŸ‘ï¸ Voir les joueurs notÃ©s ('+count+')';
+  }));
+}
+
+
+function coorgUnitCents(period){
+  return period==='year'?1990:199;
+}
+function coorgBillingPeriod(){
+  return $('#homeCoorgBillingPeriod')?.value==='year'?'year':'month';
+}
+function euroCents(c){return (Number(c||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' â‚¬'}
+function refreshCoorgPurchasePrice(){
+  const input=$('#homeCoorgQty');
+  let q=Math.max(1,Math.min(100,Math.floor(Number(input?.value||1))||1));if(input)input.value=q;
+  const period=coorgBillingPeriod(),unit=coorgUnitCents(period),total=unit*q;
+  const suffix=period==='year'?'/an':'/mois';
+  const periodLabel=period==='year'?'par an':'par mois';
+  const frequencyLabel=period==='year'?'facturation annuelle':'facturation mensuelle';
+  const u=$('#homeCoorgUnitPrice');if(u)u.textContent='Tarif unitaire : 1 accÃ¨s Ã©quipe Ã  '+euroCents(unit)+' '+periodLabel;
+  const label=$('#homeCoorgTotalLabel');if(label)label.textContent=period==='year'?'Total annuel':'Total mensuel';
+  const t=$('#homeCoorgTotal');if(t)t.innerHTML='<b>'+euroCents(total)+suffix+'</b><div class="muted">'+q+' accÃ¨s Ã— '+euroCents(unit)+' â€¢ '+frequencyLabel+'</div>';
+  const b=$('#homeBuyCoorg');if(b&&!S.coorgCheckoutPending)b.innerHTML='ğŸ’³ Ajouter '+q+' accÃ¨s Ã©quipe â€” '+euroCents(total)+suffix+' <span>â†’</span>';
+}
+async function confirmCoorgCheckoutFromUrl(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('coorg')!=='success'||!S.session||!S.workspace||!isAdmin()||S.coorgPurchaseConfirming)return;
+  S.coorgPurchaseConfirming=true;
+  try{
+    // V41: the browser never activates paid rights. Stripe webhook is the only authority.
+    toast('Paiement reÃ§u âœ… Activation sÃ©curisÃ©e en coursâ€¦');
+    for(let i=0;i<3;i++){
+      if(i) await new Promise(r=>setTimeout(r,1500));
+      await loadAll();
+    }
+    const u=new URL(location.href);u.searchParams.delete('coorg');u.searchParams.delete('coorg_session_id');history.replaceState({},'',u.toString());
+    toast('Option Ã©quipe synchronisÃ©e avec Stripe âœ…');
+  }catch(err){
+    console.warn(err);
+    toast('Paiement reÃ§u. Stripe finalise lâ€™activation automatiquement.');
+  }finally{S.coorgPurchaseConfirming=false;}
+}
+function renderEcosystemCommercial(){
+  const ecosystemCard=$('#homeEcosystemCard');
+  if(ecosystemCard) ecosystemCard.classList.toggle('hidden',!isAdmin());
+  const purchaseCard=$('#homeCoorgOfferCard');
+  if(purchaseCard&&!isAdmin())purchaseCard.classList.add('hidden');
+  if(!isAdmin()) return;
+  const c=S.commercialAccess||{};
+  const a=S.organizerAccess||{};
+  const trialActive=!!a.trial_active&&!c.special_access_enabled;
+  const hasLockedModules=['player_ratings_enabled','third_half_enabled','tournaments_enabled'].some(key=>!S.workspaceFeatures[key]);
+  for(const id of ['#homeCoorgOfferCard','#homeModulesDisclosure']){const section=$(id);if(section&&section.dataset.workspace!==String(S.workspace?.id||'')){section.open=false;section.dataset.workspace=String(S.workspace?.id||'');}}
+  const badge=$('#homePlanBadge');if(badge)badge.textContent=trialActive?('ESSAI â€¢ '+Number(a.days_remaining||0)+' J'):(c.special_access_enabled?'ACCÃˆS SPÃ‰CIAL â€¢ ':'')+String(c.subscription_plan||'free').toUpperCase();
+  const special=$('#homeSpecialAccessNotice');if(special){special.classList.toggle('hidden',!c.special_access_enabled);special.innerHTML=c.special_access_enabled?'<div class="player" style="background:#ecfdf3;border-color:#86d6a3"><b>ğŸ Autorisation spÃ©ciale SWÃ‰ active</b><div class="muted" style="margin-top:4px">Tous les modules sont dÃ©bloquÃ©s pour faire dÃ©couvrir la solution, sans modifier ton abonnement commercial.</div></div>':'';}
+  const trialNotice=$('#homeTrialPricingNotice');
+  const coorgOffer=$('#homeCoorgOfferCard');
+  const upgradeCard=$('#homeUpgradeCard');
+  if(trialNotice){
+    trialNotice.classList.toggle('hidden',!trialActive);
+    trialNotice.innerHTML=trialActive?'<div class="home-trial-strip"><b>ğŸ Offre dÃ©couverte Â· '+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+' restant'+(Number(a.days_remaining||0)>1?'s':'')+'</b><span>Retrouve le statut de chaque option dans Â« Voir nos modules Â».</span><details><summary>GÃ©rer mon essai</summary><button type="button" id="endTrialToPay" class="secondary">ArrÃªter mon essai et voir les offres payantes</button></details></div>':'';
+  }
+  if(coorgOffer)coorgOffer.classList.toggle('hidden',trialActive);
+  if(upgradeCard)upgradeCard.classList.toggle('hidden',!hasLockedModules);
+  const paint=(id,on)=>{const el=$(id);if(!el)return;el.dataset.moduleState=on?(trialActive?'trial':'active'):'locked';let st=el.querySelector('[data-module-status]');if(!st){st=document.createElement('div');st.dataset.moduleStatus='1';el.appendChild(st);}st.className='home-module-status';st.textContent=on?(trialActive?'ğŸ Offert pendant lâ€™essai':'âœ“ Module actif'):'ï¼‹ Ã€ dÃ©bloquer';};
+  paint('#ecoRatingsModule',!!S.workspaceFeatures.player_ratings_enabled);paint('#ecoThirdHalfModule',!!S.workspaceFeatures.third_half_enabled);paint('#ecoTournamentModule',!!S.workspaceFeatures.tournaments_enabled);
+  const up=$('#homeRequestUpgrade');if(up){up.textContent=c.upgrade_requested_at?'â³ Demande envoyÃ©e':'Demander une activation';up.disabled=!!c.upgrade_requested_at;}
+  refreshCoorgPurchasePrice();
+}
+
+
+function renderHome(){
+  renderEcosystemCommercial();
+  renderCoorgOrganizerCta();
+  setTimeout(confirmCoorgCheckoutFromUrl,0);
+  const ongoingTournaments=S.tournaments.filter(x=>x.format!=='league'&&x.status!=='finished').length;
+  const ongoingLeagues=S.leagues.filter(x=>x.status!=='finished').length;
+  const groupMembers=S.players.filter(x=>x.active&&x.is_group_member!==false).length;
+  const allowedCoorg=Number(S.workspaceFeatures.max_coorganizers||0);
+  const activeCoorg=Number(S.coorgCount||0);
+  const wsStats=$('#homeWorkspaceStats');
+  if(wsStats){
+    wsStats.innerHTML=
+      '<div class="home-kpi blue"><b>'+ongoingTournaments+'</b><div class="muted">âš½ tournoi'+(ongoingTournaments>1?'s':'')+' en cours</div></div>'+
+      '<div class="home-kpi green"><b>'+ongoingLeagues+'</b><div class="muted">ğŸ ligue'+(ongoingLeagues>1?'s':'')+' en cours</div></div>'+
+      '<div class="home-kpi orange"><b>'+groupMembers+'</b><div class="muted">ğŸ‘¥ membre'+(groupMembers>1?'s':'')+' dans le groupe</div></div>'+
+      (isAdmin()?'<div class="home-kpi violet"><b>'+activeCoorg+' / '+allowedCoorg+'</b><div class="muted">ğŸ¤ co-gestionnaire'+(allowedCoorg>1?'s':'')+' autorisÃ©'+(allowedCoorg>1?'s':'')+'</div></div>':'');
+  }
+  const quotaBox=$('#homeCoorgQuotaRequest');
+  if(quotaBox){
+    quotaBox.innerHTML='';
+    if(isAdmin()) quotaBox.innerHTML='<div class="muted" style="font-size:12px">ğŸ¤ CapacitÃ© actuelle : <b>'+activeCoorg+' / '+allowedCoorg+'</b>. Pour ajouter des accÃ¨s, utilise la section <b>Mon abonnement & options SWÃ‰</b>.</div>';
+  }
+  renderHomeCoorgVotes();
+}
+
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  if(e.target?.id==='homeRequestMoreCoorg'){
+    const n=Number($('#homeRequestedCoorgLimit')?.value||0);
+    const current=Number(S.workspaceFeatures.max_coorganizers||0);
+    if(!Number.isFinite(n)||n<=current)return toast('Choisis une limite supÃ©rieure Ã  '+current+'.');
+    const b=e.target;b.disabled=true;
+    const {data,error}=await sb.rpc('request_more_coorganizers',{p_workspace_id:S.workspace.id,p_requested_limit:n});
+    b.disabled=false;if(error)return toast(error.message);
+    S.coorgQuotaRequest=data||null;renderHome();toast('Demande envoyÃ©e au Super Admin âœ…');
+    return;
+  }
+  if(e.target?.id==='refreshRegisteredPlayers')await renderRegisteredPlayersAdmin();
+  if(e.target?.id==='manualRegisterPlayer'){
+    const t=currentTour();const pid=$('#manualRegisteredPlayerSelect')?.value;
+    if(!t)return toast('Aucune compÃ©tition sÃ©lectionnÃ©e.');
+    if(!pid)return toast('Choisis un membre du groupe.');
+    const b=e.target;b.disabled=true;
+    const {data,error}=await sb.rpc('add_registered_member_to_tournament',{p_tournament_id:t.id,p_player_id:pid});
+    b.disabled=false;if(error)return toast(error.message);
+    if(t.format!=='league'&&S.teams.length){
+      try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
+    }
+    await loadTournament();renderRegisteredPlayersAdmin();renderHome();
+    const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(pid));
+    toast(data==='waitlist'||fresh?.is_substitute?'Joueur ajoutÃ© comme remplaÃ§ant ğŸŸ ':'Joueur ajoutÃ© aux inscrits âœ…');
+  }
+  if(e.target?.id==='managerAddGuest'){
+    const t=currentTour(),name=$('#managerGuestName')?.value.trim();
+    if(!t)return toast('Aucune compÃ©tition sÃ©lectionnÃ©e.');
+    if(!name)return toast('Indique le nom de lâ€™invitÃ©.');
+    const b=e.target;b.disabled=true;
+    const {data,error}=await sb.rpc('manager_register_tournament_guest',{p_tournament_id:t.id,p_guest_name:name});
+    b.disabled=false;if(error)return toast(error.message);
+    $('#managerGuestName').value='';
+    if(t.format!=='league'&&S.teams.length){
+      try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
+    }
+    await loadTournament();renderRegisteredPlayersAdmin();renderHome();renderTeams();
+    const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(data?.player_id));
+    toast(data?.status==='waitlist'||fresh?.is_substitute?'InvitÃ© ajoutÃ© comme remplaÃ§ant ğŸŸ ':'InvitÃ© ajoutÃ© âœ…');
+  }
+});
+
+
+function closeCoorgOptionsManager(){document.querySelector('.swe-option-modal-backdrop')?.remove();}
+function coorgSubPeriodEnd(ts){
+  if(!ts)return '';
+  try{return new Date(Number(ts)*1000).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(_){return ''}
+}
+async function openCoorgOptionsManager(){
+  closeCoorgOptionsManager();
+  const trigger=$('#homeCancelCoorg');
+  if(trigger){trigger.disabled=true;trigger.textContent='Chargement des optionsâ€¦';}
+  const {data,error}=await sb.functions.invoke('stripe-cancel-coorganizer-subscription',{body:{workspace_id:S.workspace.id,action:'list'}});
+  if(trigger){trigger.disabled=false;trigger.textContent='GÃ©rer / rÃ©silier mes options Ã©quipe';}
+  if(error||data?.error)return toast(data?.error||error?.message||'Impossible de charger tes options.');
+  const subs=Array.isArray(data?.subscriptions)?data.subscriptions:[];
+  const overlay=document.createElement('div');overlay.className='swe-option-modal-backdrop';
+  overlay.innerHTML='<div class="swe-option-modal" role="dialog" aria-modal="true" aria-labelledby="coorgOptionsTitle">'+
+    '<div class="swe-option-modal-head"><div><h3 id="coorgOptionsTitle">âš™ï¸ GÃ©rer mes options Ã©quipe</h3><p>SÃ©lectionne uniquement les options que tu souhaites arrÃªter. Les autres restent actives.</p></div><button type="button" class="swe-option-modal-close" aria-label="Fermer">Ã—</button></div>'+
+    '<div class="swe-option-modal-body">'+
+      (subs.length?'<div class="swe-option-list">'+subs.map((x,i)=>{
+        const annual=x.interval==='year',qty=Math.max(0,Number(x.quantity||0)),unit=Number(x.unit_amount_cents||0),total=qty*unit;
+        const end=coorgSubPeriodEnd(x.current_period_end);
+        const state=x.cancel_at_period_end?'Renouvellement dÃ©jÃ  arrÃªtÃ©':(annual?'Annuel':'Mensuel');
+        return '<label class="swe-option-row"><input type="checkbox" data-cancel-sub="'+esc(x.subscription_id)+'" '+(x.cancel_at_period_end?'disabled':'')+'><div><div class="swe-option-row-title">'+qty+' accÃ¨s Ã©quipe'+(qty>1?'s':'')+' Â· '+state+'</div><div class="swe-option-row-meta">'+(annual?'Facturation annuelle':'Facturation mensuelle')+(annual&&end?' Â· actif jusquâ€™au '+esc(end):'')+(x.cancel_at_period_end?' Â· aucune action nÃ©cessaire':'')+'</div></div><div class="swe-option-row-price">'+euroCents(total)+'<small>'+(annual?'/ an':'/ mois')+'</small></div></label>';
+      }).join('')+'</div>':'<div class="swe-option-modal-empty"><b>Aucune option Ã©quipe payante active.</b><div class="muted" style="margin-top:5px">Les accÃ¨s inclus ou offerts dans ton espace SWÃ‰ ne sont pas concernÃ©s.</div></div>')+
+      '<div class="swe-option-modal-note"><b>Ã€ savoir :</b> une option mensuelle sÃ©lectionnÃ©e est arrÃªtÃ©e immÃ©diatement. Pour une option annuelle, seul le renouvellement est arrÃªtÃ© : les accÃ¨s restent actifs jusquâ€™Ã  la fin de la pÃ©riode dÃ©jÃ  payÃ©e.</div>'+
+    '</div><div class="swe-option-modal-actions"><button type="button" class="secondary" data-close-options>Fermer</button><button type="button" class="primary swe-option-cancel-confirm" data-confirm-options disabled>RÃ©silier la sÃ©lection</button></div></div>';
+  document.body.appendChild(overlay);
+  const update=()=>{const n=overlay.querySelectorAll('[data-cancel-sub]:checked').length;const b=overlay.querySelector('[data-confirm-options]');if(b){b.disabled=n===0;b.textContent=n?'RÃ©silier '+n+' option'+(n>1?'s':''):'RÃ©silier la sÃ©lection';}};
+  overlay.querySelectorAll('[data-cancel-sub]').forEach(x=>x.addEventListener('change',update));
+  overlay.querySelector('.swe-option-modal-close')?.addEventListener('click',closeCoorgOptionsManager);
+  overlay.querySelector('[data-close-options]')?.addEventListener('click',closeCoorgOptionsManager);
+  overlay.addEventListener('click',ev=>{if(ev.target===overlay)closeCoorgOptionsManager();});
+  overlay.querySelector('[data-confirm-options]')?.addEventListener('click',async ev=>{
+    const ids=[...overlay.querySelectorAll('[data-cancel-sub]:checked')].map(x=>x.dataset.cancelSub).filter(Boolean);
+    if(!ids.length)return;
+    const annualSelected=subs.some(x=>ids.includes(x.subscription_id)&&x.interval==='year');
+    const msg='Confirmer la rÃ©siliation de '+ids.length+' option'+(ids.length>1?'s':'')+' sÃ©lectionnÃ©e'+(ids.length>1?'s':'')+' ?'+(annualSelected?'\\n\\nLes options annuelles resteront actives jusquâ€™Ã  la fin de leur pÃ©riode dÃ©jÃ  payÃ©e.':'');
+    if(!confirm(msg))return;
+    const b=ev.currentTarget;b.disabled=true;b.textContent='RÃ©siliation en coursâ€¦';
+    const {data:cancelData,error:cancelError}=await sb.functions.invoke('stripe-cancel-coorganizer-subscription',{body:{workspace_id:S.workspace.id,action:'cancel',subscription_ids:ids}});
+    if(cancelError||cancelData?.error){b.disabled=false;update();return toast(cancelData?.error||cancelError?.message||'Impossible de rÃ©silier la sÃ©lection.');}
+    closeCoorgOptionsManager();
+    await loadAll();renderHome();
+    toast(cancelData?.message||'RÃ©siliation enregistrÃ©e âœ…');
+  });
+}
+
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  const stepBtn=e.target?.closest?.('[data-coorg-step]');
+  if(stepBtn){const input=$('#homeCoorgQty');if(input){input.value=Math.max(1,Math.min(100,Math.floor(Number(input.value||1))+Number(stepBtn.dataset.coorgStep||0)));refreshCoorgPurchasePrice();}return;}
+  const billingBtn=e.target?.closest?.('[data-coorg-billing]');
+  if(billingBtn){
+    const period=billingBtn.dataset.coorgBilling==='year'?'year':'month';
+    const hidden=$('#homeCoorgBillingPeriod');if(hidden)hidden.value=period;
+    document.querySelectorAll('[data-coorg-billing]').forEach(btn=>{const active=btn===billingBtn;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',active?'true':'false');});
+    refreshCoorgPurchasePrice();
+    return;
+  }
+  if(e.target?.id==='homeCancelCoorg'){
+    if(!isAdmin())return toast('RÃ©servÃ© Ã  lâ€™administrateur.');
+    await openCoorgOptionsManager();
+    return;
+  }
+  const purchaseButton=e.target?.closest?.('#homeBuyCoorg');
+  if(purchaseButton){
+    if(!isAdmin())return toast('RÃ©servÃ© Ã  lâ€™administrateur.');
+    if(S.coorgCheckoutPending)return;
+    const qty=Math.max(1,Math.min(100,Math.floor(Number($('#homeCoorgQty')?.value||1))||1));
+    const billingPeriod=coorgBillingPeriod(),workspaceId=S.workspace.id;
+    const key=[workspaceId,qty,billingPeriod].join(':');
+    if(S.coorgCheckoutRequest?.key!==key)S.coorgCheckoutRequest={key,id:crypto.randomUUID()};
+    S.coorgCheckoutPending=true;purchaseButton.disabled=true;purchaseButton.textContent='Ouverture du paiementâ€¦';
+    try{
+      const {data,error}=await sb.functions.invoke('stripe-create-coorganizer-checkout',{body:{workspace_id:workspaceId,quantity:qty,billing_period:billingPeriod,request_id:S.coorgCheckoutRequest.id}});
+      if(error){let detail;try{detail=await error.context?.json()}catch(_){}throw new Error(detail?.error||'Le paiement ne peut pas Ãªtre ouvert. RÃ©essaie dans un instant.');}
+      if(data?.error)throw new Error(data.error);
+      if(!data?.url)throw new Error('Lien de paiement indisponible.');
+      location.href=data.url;
+    }catch(error){toast(error.message||'Impossible dâ€™ouvrir le paiement.');}
+    finally{S.coorgCheckoutPending=false;purchaseButton.disabled=false;refreshCoorgPurchasePrice();}
+    return;
+  }
+  if(e.target?.id==='endTrialToPay'){
+    if(!isAdmin())return toast('RÃ©servÃ© Ã  lâ€™administrateur.');
+    if(!confirm('Mettre fin maintenant Ã  ton essai gratuit ?\n\nLes fonctions organisateur premium ne seront plus accessibles tant quâ€™aucun abonnement nâ€™est actif. Tu pourras alors consulter les offres et tarifs. Cette action est immÃ©diate.'))return;
+    const b=e.target;b.disabled=true;b.textContent='Fin de lâ€™essaiâ€¦';
+    const {data,error}=await sb.rpc('end_my_organizer_trial',{p_workspace_id:S.workspace.id});
+    if(error){b.disabled=false;b.textContent='Je veux arrÃªter mon essai et voir les offres payantes';return toast(error.message);}
+    S.organizerAccess=data||{trial_active:false,requires_subscription:true,days_remaining:0};
+    await loadAll();
+    renderHome();
+    toast('Essai terminÃ©. Les offres payantes sont maintenant visibles.');
+    return;
+  }
+  if(e.target?.id==='homeRequestUpgrade'){
+    if(!isAdmin())return toast('RÃ©servÃ© Ã  lâ€™administrateur.');if(!confirm('Demander Ã  faire Ã©voluer ton espace SWÃ‰ pour dÃ©bloquer des modules avancÃ©s ?'))return;
+    const {error}=await sb.rpc('request_workspace_upgrade',{p_workspace_id:S.workspace.id});if(error)return toast(error.message);S.commercialAccess.upgrade_requested_at=new Date().toISOString();renderHome();toast('Demande dâ€™Ã©volution envoyÃ©e âœ…');return;
+  }
+});
+
+
+document.addEventListener('change',e=>{if(e.target?.id==='homeCoorgQty')refreshCoorgPurchasePrice();});
+document.addEventListener('input',e=>{if(e.target?.id==='homeCoorgQty')refreshCoorgPurchasePrice();});
+
+document.addEventListener('change',e=>{
+  if(e.target?.id==='myPlayerPublic'){
+    const on=e.target.checked;
+    if($('#myPlayerDiscoverable')){ $('#myPlayerDiscoverable').disabled=!on; if(!on)$('#myPlayerDiscoverable').checked=false; }
+    if($('#myPlayerNotify'))$('#myPlayerNotify').disabled=false;
+  }
+});
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  if(e.target?.id==='myPlayerCreate'){
+    const name=$('#myPlayerCreateName').value.trim();if(!name)return toast('Indique ton nom ou ton pseudo joueur.');
+    e.target.disabled=true;const {error}=await sb.rpc('ensure_my_global_player_profile',{p_display_name:name});e.target.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Ton ID joueur SWÃ‰ est crÃ©Ã© âœ…');return;
+  }
+  if(e.target?.id==='myPlayerSave'){
+    const name=$('#myPlayerName').value.trim();if(!name)return toast('Ton nom joueur est obligatoire.');
+    e.target.disabled=true;const {error}=await sb.rpc('update_my_global_player_profile',{p_display_name:name,p_is_public:$('#myPlayerPublic').checked,p_discoverable:$('#myPlayerDiscoverable').checked,p_notify_upcoming_swes:$('#myPlayerNotify').checked,p_home_area:$('#myPlayerArea').value.trim()||null});e.target.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Profil joueur mis Ã  jour âœ…');return;
+  }
+  if(e.target?.id==='mySweHistorySearch'){
+    const code=$('#mySweHistoryCode')?.value.trim();if(!code)return toast('Indique lâ€™ID du tournoi ou de la ligue.');
+    e.target.disabled=true;const {data,error}=await sb.rpc('find_swe_identity_source',{p_code:code});e.target.disabled=false;if(error)return toast(error.message);S.sweIdentitySource=data||null;renderSweIdentitySource();return;
+  }
+  const claimHistory=e.target?.closest?.('[data-claim-history-player]');if(claimHistory){
+    const src=S.sweIdentitySource;if(!src)return;const player=(src.players||[]).find(p=>String(p.player_id)===String(claimHistory.dataset.claimHistoryPlayer));
+    if(!confirm('Confirmer que tu es bien Â« '+(player?.name||'ce joueur')+' Â» ? Cette liaison associera ses statistiques Ã  ton compte SWÃ‰.'))return;
+    claimHistory.disabled=true;const {data,error}=await sb.rpc('claim_swe_identity_player',{p_source_type:src.source_type,p_source_id:src.source_id,p_player_id:claimHistory.dataset.claimHistoryPlayer});claimHistory.disabled=false;if(error)return toast(error.message);
+    if(data?.status==='disputed'){S.sweIdentitySource=null;renderSweIdentitySource();await loadMyPlayerDashboard();return toast('Conflit dÃ©tectÃ© : les deux comptes sont placÃ©s en vÃ©rification. Lâ€™Ã©quipe SWÃ‰ devra trancher.');}
+    S.sweIdentitySource=null;renderSweIdentitySource();await loadMyPlayerDashboard();if(S.workspace)await loadAll();toast('Profil Â« '+(data?.player_name||'joueur')+' Â» reliÃ© Ã  ton compte SWÃ‰ âœ…');return;
+  }
+  if(e.target?.id==='myPlayerSelfLink'){
+    const playerId=$('#myPlayerSelfMember')?.value;if(!playerId)return toast('Choisis ton profil membre dans la liste.');
+    const player=(S.players||[]).find(x=>String(x.id)===String(playerId));
+    if(!confirm('Relier dÃ©finitivement ton compte SWÃ‰ au membre Â« '+(player?.name||'sÃ©lectionnÃ©')+' Â» dans ce groupe ?'))return;
+    e.target.disabled=true;const {data,error}=await sb.rpc('link_my_member_player_to_swe',{p_workspace_id:S.workspace.id,p_player_id:playerId});e.target.disabled=false;
+    if(error)return toast(error.message);await loadAll();await loadMyPlayerDashboard();toast('Compte liÃ© Ã  Â« '+(data?.player_name||player?.name||'membre')+' Â» â€¢ ID '+(data?.public_player_id||'SWÃ‰')+' âœ…');return;
+  }
+  if(e.target?.id==='myPlayerRefresh'){await loadMyPlayerDashboard();toast('Profil actualisÃ© âœ…');return;}
+  const accept=e.target?.closest?.('[data-player-invite-accept]');if(accept){accept.disabled=true;const {data,error}=await sb.rpc('respond_global_player_tournament_invite',{p_invite_id:accept.dataset.playerInviteAccept,p_accept:true});accept.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast(data?.status==='waitlist'?'Invitation acceptÃ©e â€¢ tu es actuellement remplaÃ§ant.':'Invitation acceptÃ©e âœ…');return;}
+  const decline=e.target?.closest?.('[data-player-invite-decline]');if(decline){decline.disabled=true;const {error}=await sb.rpc('respond_global_player_tournament_invite',{p_invite_id:decline.dataset.playerInviteDecline,p_accept:false});decline.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Invitation refusÃ©e.');return;}
+  const direct=e.target?.closest?.('[data-player-direct-join]');if(direct){const tid=direct.dataset.playerDirectJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const pledge=Math.round(Math.max(0,Number(pledgeEl?.value||0))*100);direct.disabled=true;const {data,error}=await sb.rpc('join_discoverable_tournament',{p_tournament_id:tid,p_third_half_pledge_cents:pledge});direct.disabled=false;if(error)return toast(error.message);if(data?.payment_required){const {data:pay,error:pe}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:data.public_token,tournament_id:tid,player_id:data.player_id,payer_email:S.session?.user?.email||null,success_url:APP_URL+'?playerPayment=success',cancel_url:APP_URL+'?playerPayment=cancel'}});if(pe||pay?.error)return toast(pay?.error||pe?.message||'Impossible dâ€™ouvrir le paiement.');if(pay?.url){location.href=pay.url;return;}}await loadMyPlayerDashboard();toast(data?.status==='waitlist'?'Inscription enregistrÃ©e â€¢ tu es remplaÃ§ant.':'Inscription confirmÃ©e âœ…');return;}
+  const requestJoin=e.target?.closest?.('[data-player-request-join]');if(requestJoin){const tid=requestJoin.dataset.playerRequestJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const msgEl=document.querySelector('[data-request-message-for="'+tid+'"]');const pledge=Math.round(Math.max(0,Number(pledgeEl?.value||0))*100);requestJoin.disabled=true;const {error}=await sb.rpc('request_discoverable_tournament',{p_tournament_id:tid,p_message:msgEl?.value.trim()||null,p_third_half_pledge_cents:pledge});requestJoin.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Demande envoyÃ©e Ã  lâ€™organisateur âœ…');return;}
+  const payBtn=e.target?.closest?.('[data-player-pay]');if(payBtn){payBtn.disabled=true;const {data,error}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:payBtn.dataset.publicToken,tournament_id:payBtn.dataset.tournamentId,player_id:payBtn.dataset.playerId,payer_email:S.session?.user?.email||null,success_url:APP_URL+'?playerPayment=success',cancel_url:APP_URL+'?playerPayment=cancel'}});payBtn.disabled=false;if(error||data?.error)return toast(data?.error||error?.message||'Impossible dâ€™ouvrir le paiement.');if(data?.url)location.href=data.url;return;}
+  const open=e.target?.closest?.('[data-open-player-opportunity]');if(open){location.href=open.dataset.openPlayerOpportunity;return;}
+  if(e.target?.id==='playerDirectoryBtn'){
+    if(!isAdmin())return toast('RÃ©servÃ© Ã  lâ€™administrateur.');
+    e.target.disabled=true;const {data,error}=await sb.rpc('search_public_global_players',{p_workspace_id:S.workspace.id,p_query:$('#playerDirectorySearch').value.trim()||null,p_limit:50});e.target.disabled=false;if(error)return toast(error.message);S.playerDirectory=Array.isArray(data)?data:[];renderPlayerDirectoryCard();renderAdminPlayerRequests();return;
+  }
+  const invite=e.target?.closest?.('[data-directory-invite]');if(invite){
+    const tid=$('#playerDirectoryTournament').value;if(!tid)return toast('Choisis dâ€™abord le SwÃ© Ã  complÃ©ter.');
+    const row=(S.playerDirectory||[]).find(r=>String(r.global_player_id)===String(invite.dataset.directoryInvite));
+    if(!confirm('Inviter '+(row?.display_name||'ce joueur')+' Ã  rejoindre ce SwÃ© ?'))return;
+    invite.disabled=true;const {error}=await sb.rpc('invite_public_player_to_tournament',{p_workspace_id:S.workspace.id,p_tournament_id:tid,p_global_player_id:invite.dataset.directoryInvite,p_message:'Ton profil public correspond Ã  un besoin pour complÃ©ter ce SwÃ©.'});invite.disabled=false;if(error)return toast(error.message);toast('Invitation envoyÃ©e dans son espace joueur SWÃ‰ âœ…');return;
+  }
+});
+
+document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
+document.addEventListener('click',async e=>{
+  if(e.target?.id==='saveOrganizerSettings'){if(!isAdmin())return;const b=e.target;b.disabled=true;const {data,error}=await sb.rpc('update_my_organizer_settings',{p_workspace_id:S.workspace.id,p_legal_status:$('#organizerLegalStatus').value,p_whatsapp_group_url:$('#organizerWhatsappGroup').value.trim()||null,p_whatsapp_contact_phone:$('#organizerWhatsappPhone').value.trim()||null});b.disabled=false;if(error)return toast(error.message);S.organizerSettings=data||null;renderStripeBilling();toast('Profil organisateur mis Ã  jour âœ…');return;}
+  if(e.target?.id==='refreshPlayerRequests'){const {data,error}=await sb.rpc('list_workspace_player_requests',{p_workspace_id:S.workspace.id});if(error)return toast(error.message);S.playerRequests=Array.isArray(data)?data:[];renderAdminPlayerRequests();toast('Demandes actualisÃ©es âœ…');return;}
+  const a=e.target?.closest?.('[data-request-accept]');if(a){if(!confirm('Accepter cette demande de participation ?'))return;a.disabled=true;const {data,error}=await sb.rpc('respond_global_player_participation_request',{p_request_id:a.dataset.requestAccept,p_accept:true});a.disabled=false;if(error)return toast(error.message);await loadAll();renderAdminPlayerRequests();toast(data?.status==='payment_pending'?'Demande acceptÃ©e â€¢ le joueur doit maintenant payer sa place.':'Demande acceptÃ©e âœ…');return;}
+  const d=e.target?.closest?.('[data-request-decline]');if(d){if(!confirm('Refuser cette demande ?'))return;d.disabled=true;const {error}=await sb.rpc('respond_global_player_participation_request',{p_request_id:d.dataset.requestDecline,p_accept:false});d.disabled=false;if(error)return toast(error.message);await loadAll();renderAdminPlayerRequests();toast('Demande refusÃ©e.');return;}
+});
+
+$('#sendInvite').onclick=async()=>{
+  if(!S.workspace)return;
+  if(!(isAdmin()||(isCoorg()&&S.myPermissions.can_invite_coorganizers)))return toast('Tu nâ€™es pas autorisÃ© Ã  inviter un co-organisateur.');
+  if(S.coorgCount>=Number(S.workspaceFeatures.max_coorganizers||0))return toast('Limite de co-organisateurs atteinte.');
+  const email=$('#inviteEmail').value.trim().toLowerCase();if(!email)return;
+  const {data,error}=await sb.rpc('create_coorganizer_invite',{p_workspace_id:S.workspace.id,p_email:email});
+  if(error)return toast(error.message);
+  const inv=Array.isArray(data)?data[0]:data;
+  S.lastCreatedInvite=inv||null;
+  if(isAdmin()){const codeRes=await sb.rpc('admin_get_coorganizer_swe_code',{p_workspace_id:S.workspace.id,p_email:email});if(!codeRes.error&&codeRes.data){S.lastCreatedInvite.swe_code=codeRes.data.code;S.lastCreatedInvite.public_player_id=codeRes.data.public_player_id||null;try{await navigator.clipboard.writeText(codeRes.data.code)}catch(_e){}}}
+  $('#inviteEmail').value='';
+  if(isAdmin())await loadAll();else renderAccess();
+  toast(S.lastCreatedInvite?.swe_code?'Co-gestionnaire ajoutÃ© âœ… Code SWÃ‰ '+S.lastCreatedInvite.swe_code+' copiÃ©.':'Invitation crÃ©Ã©e âœ… Utilise Copier le lien ou WhatsApp.');
+};
+$('#copyPublicLink').onclick=async()=>{
+  const link=$('#publicLink').value;if(!link)return;
+  try{await navigator.clipboard.writeText(link);toast('Lien public copiÃ© âœ…')}
+  catch(e){$('#publicLink').focus();$('#publicLink').select();toast('Lien sÃ©lectionnÃ© : copie-le.')}
+};
+
+
+
+function guestLabel(pl){
+  if(!pl||pl.is_group_member!==false)return '';
+  const host=pl.guest_of_player_id?p(pl.guest_of_player_id):null;
+  return host?'Guest de '+host.name:'Guest';
+}
+function playerDisplayName(pl){
+  if(!pl)return '';
+  const g=guestLabel(pl);
+  return pl.name+(g?' â€” '+g:'');
+}
+function refreshGuestOfSelect(){
+  const sel=$('#guestOfPlayer');if(!sel)return;
+  const keep=sel.value;
+  sel.innerHTML='<option value="">Guest deâ€¦ (facultatif)</option>'+S.players.filter(x=>x.active&&x.is_group_member!==false).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');
+  if([...sel.options].some(o=>o.value===keep))sel.value=keep;
+}
+function skillRoleLabel(role){
+  return ({defenseur:'ğŸ›¡ï¸ DÃ©fenseur',metronome:'ğŸ¼ MÃ©tronome',ratisseur:'ğŸ§¹ Ratisseur',finisseur:'ğŸ¥… Finisseur',dribbleur:'ğŸª„ Dribbleur',frappeur:'ğŸ’¥ Frappeur',top_player:'â­ Top player'})[role]||'â€”';
+}
+function playerSkillAggregate(playerId){
+  return S.skillAggregates.find(r=>r.player_id===playerId)||null;
+}
+function playerSkillReviewSummary(player){
+  const all=S.skillReviews.filter(r=>r.player_id===player.id);
+  const adminUid=S.session?.user?.id||null;
+  const valid=all.filter(r=>Number.isFinite(Number(r.rating)));
+  const coorgReviews=valid.filter(r=>String(r.evaluator_user_id)!==String(adminUid));
+  const adminReview=valid.find(r=>String(r.evaluator_user_id)===String(adminUid))||null;
+  const avgField=(field)=>{
+    const vals=valid.map(r=>Number(r[field])).filter(Number.isFinite);
+    return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+  };
+  const roles={};
+  valid.forEach(r=>{if(r.preferred_role)roles[r.preferred_role]=(roles[r.preferred_role]||0)+1});
+  const topRole=Object.entries(roles).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
+  return {
+    reviews:valid,coorgReviews,adminReview,
+    count:valid.length,
+    avg:avgField('rating'),
+    cardio:avgField('cardio'),dribble:avgField('dribble'),collectif:avgField('collectif'),frappe:avgField('frappe'),
+    topRole
+  };
+}
+function renderPlayers(){
+  const box=$('#playersList');box.innerHTML='';
+  if(isCoorg()){
+    const info=document.createElement('div');info.className='readonly-note';
+    info.innerHTML=S.workspaceFeatures.player_ratings_enabled
+      ?'ğŸ‘¥ <b>'+S.players.length+' joueur'+(S.players.length>1?'s':'')+'</b> accessible'+(S.players.length>1?'s':'')+'. Tu peux consulter les critÃ¨res et donner ton Ã©valuation pour chaque joueur.<div style="margin-top:7px;padding:8px 10px;border-radius:10px;background:#fff3cd;color:#6b4f00"><b>ğŸ”’ Confidentiel :</b> les Ã©valuations sont croisÃ©es de maniÃ¨re indÃ©pendante et suivent lâ€™ID SWÃ‰ du joueur.</div>'
+      :'ğŸ‘¥ <b>'+S.players.length+' joueur'+(S.players.length>1?'s':'')+'</b> dans le groupe. Le module Notation est dÃ©sactivÃ© : seules les informations joueurs et les actions autorisÃ©es sont disponibles.';
+    box.appendChild(info);
+  }
+  refreshGuestOfSelect();
+  S.players.forEach(x=>{
+    const d=document.createElement('div');d.className='player'+(x.is_group_member===false?' guest-row':'');
+    const top=document.createElement('div');top.className='row';
+    const info=document.createElement('span');info.style.flex='1';
+    const g=guestLabel(x);
+    let meta=(x.active?'Actif':'Inactif')+(g?' â€¢ '+esc(g):' â€¢ Membre du groupe');
+    if(S.workspaceFeatures.player_ratings_enabled&&isAdmin()){
+      const aggregate=playerSkillAggregate(x.id);
+      meta+=aggregate&&Number(aggregate.voter_count)>0?' â€¢ Moyenne '+Number(aggregate.avg_rating).toFixed(1)+'/5 â€¢ '+aggregate.voter_count+' votant'+(Number(aggregate.voter_count)>1?'s':''):' â€¢ Aucun avis';
+    }else if(S.workspaceFeatures.player_ratings_enabled&&isCoorg()){
+      const aggregate=playerSkillAggregate(x.id);
+      if(aggregate&&Number(aggregate.voter_count)>0)meta+=' â€¢ Verdict des co-gestionnaires : '+Number(aggregate.avg_rating).toFixed(1)+'/5';
+    }
+    info.innerHTML='<b>'+esc(x.name)+'</b>'+(x.is_group_member===false?'<span class="guest-badge">Guest</span>':'')+
+      '<div class="muted">'+meta+'</div>';
+    if(isAdmin()){
+      const toggle=document.createElement('button');toggle.textContent=x.active?'DÃ©sactiver':'RÃ©activer';toggle.className=x.active?'player-action-disable':'player-action-enable';
+      toggle.onclick=async()=>{
+        const next=!x.active;
+        if(!confirm(next?'RÃ©activer '+x.name+' dans le groupe ?':'Suspendre '+x.name+' du groupe ? Son historique sera conservÃ©.'))return;
+        toggle.disabled=true;
+        const {error}=await sb.rpc('admin_set_player_active',{p_player_id:x.id,p_active:next});
+        toggle.disabled=false;
+        if(error)return toast(error.message);
+        await loadAll();
+        toast(next?'Joueur rÃ©activÃ© âœ…':'Joueur suspendu.');
+      };
+      const del=document.createElement('button');
+      del.textContent='ğŸ—‘ Supprimer';
+      del.className='danger smallbtn';
+      del.onclick=async()=>{
+        if(!confirm('Supprimer '+x.name+' du groupe ?\n\nSi ce joueur possÃ¨de dÃ©jÃ  un historique sportif, il sera suspendu afin de prÃ©server ses statistiques.'))return;
+        del.disabled=true;
+        const {data,error}=await sb.rpc('remove_player_member',{p_player_id:x.id});
+        del.disabled=false;
+        if(error)return toast(error.message);
+        await loadAll();
+        toast(data==='archived'?'Joueur suspendu : historique conservÃ©.':'Joueur supprimÃ©.');
+      };
+      top.append(info,toggle,del);
+    }else if(isCoorg()){
+      top.append(info);
+    }else top.append(info);
+    d.appendChild(top);
+
+    if(isAdmin()&&S.workspaceFeatures.player_ratings_enabled){
+      const summary=playerSkillReviewSummary(x);
+      const aggregate=playerSkillAggregate(x.id);
+      const reviewBox=document.createElement('div');reviewBox.style.cssText='margin-top:8px;padding:10px 12px;border:1px solid #dbe8df;border-radius:13px;background:#f8fbf9';
+      if(!summary.count){
+        reviewBox.innerHTML='<b>ğŸ“Š SynthÃ¨se des Ã©valuations</b><div class="muted small" style="margin-top:4px">Aucune Ã©valuation pour le moment.</div>';
+      }else{
+        const n=v=>v==null?'â€”':Number(v).toFixed(1)+'/5';
+        const chips='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">'+
+          '<span class="guest-badge">â¤ï¸ Cardio '+n(aggregate?.avg_cardio??summary.cardio)+'</span>'+
+          '<span class="guest-badge">ğŸª„ Dribble '+n(aggregate?.avg_dribble??summary.dribble)+'</span>'+
+          '<span class="guest-badge">ğŸ¤ Collectif '+n(aggregate?.avg_collectif??summary.collectif)+'</span>'+
+          '<span class="guest-badge">ğŸ¯ Frappe '+n(aggregate?.avg_frappe??summary.frappe)+'</span>'+
+          '<span class="guest-badge">'+skillRoleLabel(aggregate?.top_role||summary.topRole)+'</span></div>';
+        const roleName=r=>skillRoleLabel(r.preferred_role).replace(/^[^ ]+\s/,'');
+        const voters=summary.reviews.map(r=>{
+          const who=String(r.evaluator_user_id)===String(S.session?.user?.id)?'Admin':((r.evaluator_email||'Co-organisateur').split('@')[0]);
+          const detail='Cardio '+(r.cardio??'â€”')+'/5 â€¢ Dribble '+(r.dribble??'â€”')+'/5 â€¢ Collectif '+(r.collectif??'â€”')+'/5 â€¢ Frappe '+(r.frappe??'â€”')+'/5 â€¢ RÃ´le : '+roleName(r);
+          return '<span title="'+esc(detail)+'" style="display:inline-flex;gap:4px;align-items:center;margin:4px 6px 0 0;padding:5px 8px;border-radius:9px;background:#fff;border:1px solid #e3ebe6;cursor:help"><b>'+esc(who)+'</b> '+Number(r.rating).toFixed(1)+'/5 <small>â“˜</small></span>';
+        }).join('');
+        const count=Number(aggregate?.voter_count??summary.count);
+        const avg=aggregate?.avg_rating!=null?Number(aggregate.avg_rating):summary.avg;
+        reviewBox.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><b>ğŸ“Š SynthÃ¨se des Ã©valuations</b><span><b>'+avg.toFixed(1)+'/5</b> â€¢ '+count+' votant'+(count>1?'s':'')+'</span></div>'+chips+'<div class="small muted" style="margin-top:5px">Survole une note â“˜ pour voir son dÃ©tail.</div><div class="small" style="margin-top:2px">'+voters+'</div>';
+      }
+      d.appendChild(reviewBox);
+    }
+
+    if(isAdmin()){
+      const identityBox=document.createElement('div');identityBox.className='player-link-box';
+      if(x.global_player_id){
+        identityBox.innerHTML='<div><b>ğŸªª IdentitÃ© SWÃ‰ liÃ©e</b><div class="muted small">Ce membre est rattachÃ© Ã  un compte SWÃ‰. La liaison ne peut Ãªtre modifiÃ©e que par le Super Admin.</div></div><span class="linked-ok">âœ“ LIÃ‰</span>';
+      }else{
+        identityBox.innerHTML='<div><b>ğŸªª Aucun compte SWÃ‰ liÃ©</b><div class="muted small">Le joueur pourra rÃ©cupÃ©rer ses statistiques aprÃ¨s crÃ©ation de son compte, en recherchant lâ€™ID du tournoi ou lâ€™ID SWÃ‰ de la ligue puis en sÃ©lectionnant son nom.</div></div><span class="guest-badge">NON LIÃ‰</span>';
+      }
+      d.appendChild(identityBox);
+
+      const edit=document.createElement('div');edit.className='row';edit.style.marginTop='8px';edit.style.flexWrap='wrap';
+      const nameInput=document.createElement('input');nameInput.style.flex='1';nameInput.value=x.name||'';nameInput.placeholder='Nom du joueur';
+      const status=document.createElement('select');status.style.flex='1';
+      status.innerHTML='<option value="member">Membre</option><option value="guest">Guest</option>';
+      status.value=x.is_group_member===false?'guest':'member';
+
+      const host=document.createElement('select');host.style.flex='1';
+      host.innerHTML='<option value="">Guest deâ€¦</option>'+S.players.filter(y=>y.id!==x.id&&y.active&&y.is_group_member!==false).map(y=>'<option value="'+y.id+'">'+esc(y.name)+'</option>').join('');
+      host.value=x.guest_of_player_id||'';
+      host.classList.toggle('hidden',status.value!=='guest');
+      status.onchange=()=>host.classList.toggle('hidden',status.value!=='guest');
+
+      const phone=document.createElement('input');phone.type='tel';phone.inputMode='tel';phone.placeholder='Mobile (privÃ©)';
+      phone.style.flex='1';phone.value=(S.contacts.find(c=>c.player_id===x.id)?.phone_number)||'';
+
+      const save=document.createElement('button');save.textContent='Enregistrer les infos';save.className='player-action-save';
+      save.onclick=async()=>{
+        const isMember=status.value==='member';save.disabled=true;
+        const {error}=await sb.rpc('manager_update_player_personal_info',{
+          p_player_id:x.id,p_name:nameInput.value.trim(),p_is_group_member:isMember,
+          p_guest_of_player_id:isMember?null:(host.value||null),p_phone_number:phone.value.trim()||null
+        });
+        save.disabled=false;if(error)return toast(error.message);
+        x.name=nameInput.value.trim();x.is_group_member=isMember;x.guest_of_player_id=isMember?null:(host.value||null);
+        const found=S.contacts.find(c=>c.player_id===x.id);if(found)found.phone_number=phone.value.trim()||null;else S.contacts.push({player_id:x.id,phone_number:phone.value.trim()||null});
+        await loadAll();
+        toast('Informations de '+x.name+' mises Ã  jour âœ…');
+      };
+      edit.append(nameInput,status,host,phone,save);d.appendChild(edit);
+
+      if(x.is_group_member!==false){
+        const codeRow=document.createElement('div');codeRow.className='row';codeRow.style.marginTop='8px';codeRow.style.flexWrap='wrap';
+        const existing=S.teamCodes.find(c=>c.player_id===x.id);
+        const codeInfo=document.createElement('span');codeInfo.style.flex='1';
+        codeInfo.innerHTML='<b>Code crÃ©ation dâ€™Ã©quipe :</b> '+(existing?'<code style="font-size:1rem">'+esc(existing.code)+'</code> '+(existing.enabled?'ğŸŸ¢ AutorisÃ©':'âšª DÃ©sactivÃ©'):'Aucun code');
+        const gen=document.createElement('button');gen.textContent=existing?'RÃ©gÃ©nÃ©rer':'GÃ©nÃ©rer un code';gen.className='player-action-code';
+        gen.onclick=async()=>{
+          if(existing&&!confirm('RÃ©gÃ©nÃ©rer le code de '+x.name+' ? Lâ€™ancien code ne fonctionnera plus.'))return;
+          gen.disabled=true;
+          const {data,error}=await sb.rpc('admin_generate_player_team_code',{p_player_id:x.id});
+          gen.disabled=false;if(error)return toast(error.message);
+          await loadAll();toast('Nouveau code Ã©quipe : '+data);
+        };
+        codeRow.append(codeInfo,gen);
+        if(existing){
+          const tog=document.createElement('button');tog.textContent=existing.enabled?'DÃ©sactiver':'RÃ©activer';tog.className=existing.enabled?'player-action-disable':'player-action-enable';
+          tog.onclick=async()=>{
+            const {error}=await sb.rpc('admin_set_player_team_code_enabled',{p_player_id:x.id,p_enabled:!existing.enabled});
+            if(error)return toast(error.message);await loadAll();toast(existing.enabled?'Autorisation dÃ©sactivÃ©e.':'Autorisation rÃ©activÃ©e.');
+          };
+          codeRow.appendChild(tog);
+        }
+        d.appendChild(codeRow);
+      }
+    }
+    if(isCoorg()&&S.myPermissions.can_edit_player_personal_info){
+      const edit=document.createElement('div');edit.className='row';edit.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#f7f9ff;border:1px solid #dfe5f4;border-radius:14px';
+      const nameInput=document.createElement('input');nameInput.style.flex='1';nameInput.value=x.name||'';nameInput.placeholder='Nom du joueur';
+      const status=document.createElement('select');status.style.flex='1';status.innerHTML='<option value="member">Membre</option><option value="guest">Guest</option>';status.value=x.is_group_member===false?'guest':'member';
+      const host=document.createElement('select');host.style.flex='1';host.innerHTML='<option value="">Guest deâ€¦</option>'+S.players.filter(y=>y.id!==x.id&&y.active&&y.is_group_member!==false).map(y=>'<option value="'+y.id+'">'+esc(y.name)+'</option>').join('');host.value=x.guest_of_player_id||'';host.classList.toggle('hidden',status.value!=='guest');status.onchange=()=>host.classList.toggle('hidden',status.value!=='guest');
+      const phone=document.createElement('input');phone.type='tel';phone.inputMode='tel';phone.placeholder='Mobile (privÃ©)';phone.style.flex='1';phone.value=(S.contacts.find(c=>c.player_id===x.id)?.phone_number)||'';
+      const saveInfo=document.createElement('button');saveInfo.textContent='ğŸ’¾ Infos joueur';saveInfo.className='primary';
+      saveInfo.onclick=async()=>{const isMember=status.value==='member';saveInfo.disabled=true;const {error}=await sb.rpc('manager_update_player_personal_info',{p_player_id:x.id,p_name:nameInput.value.trim(),p_is_group_member:isMember,p_guest_of_player_id:isMember?null:(host.value||null),p_phone_number:phone.value.trim()||null});saveInfo.disabled=false;if(error)return toast(error.message);x.name=nameInput.value.trim();x.is_group_member=isMember;x.guest_of_player_id=isMember?null:(host.value||null);const found=S.contacts.find(c=>c.player_id===x.id);if(found)found.phone_number=phone.value.trim()||null;else S.contacts.push({player_id:x.id,phone_number:phone.value.trim()||null});await loadAll();toast('Informations mises Ã  jour âœ…');};
+      edit.append(nameInput,status,host,phone,saveInfo);d.appendChild(edit);
+    }
+    if(isCoorg()&&S.myPermissions.can_delete_members){
+      const deleteRow=document.createElement('div');deleteRow.className='row';deleteRow.style.cssText='margin-top:8px;justify-content:flex-end';
+      const del=document.createElement('button');del.textContent='ğŸ—‘ Supprimer du groupe';del.className='danger smallbtn';
+      del.onclick=async()=>{if(!confirm('Supprimer '+x.name+' du groupe ?\n\nSon historique sportif sera conservÃ© si nÃ©cessaire.'))return;del.disabled=true;const {data,error}=await sb.rpc('remove_player_member',{p_player_id:x.id});del.disabled=false;if(error)return toast(error.message);await loadAll();toast(data==='archived'?'Joueur suspendu : historique conservÃ©.':'Joueur supprimÃ©.');};
+      deleteRow.appendChild(del);d.appendChild(deleteRow);
+    }
+    if(isCoorg()&&S.myPermissions.can_generate_team_codes&&x.is_group_member!==false){
+      const codeRow=document.createElement('div');codeRow.className='row';codeRow.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#fffaf0;border:1px solid #f3dfae;border-radius:14px';
+      const existingCode=S.teamCodes.find(c=>c.player_id===x.id);
+      const codeInfo=document.createElement('span');codeInfo.style.flex='1';codeInfo.innerHTML='<b>Code Ã©quipe :</b> '+(existingCode?'<code>'+esc(existingCode.code)+'</code> '+(existingCode.enabled?'ğŸŸ¢':'âšª'):'Aucun code');
+      const gen=document.createElement('button');gen.textContent=existingCode?'RÃ©gÃ©nÃ©rer':'GÃ©nÃ©rer';gen.className='player-action-code';
+      gen.onclick=async()=>{if(existingCode&&!confirm('RÃ©gÃ©nÃ©rer le code de '+x.name+' ?'))return;gen.disabled=true;const {data,error}=await sb.rpc('admin_generate_player_team_code',{p_player_id:x.id});gen.disabled=false;if(error)return toast(error.message);const cur=S.teamCodes.find(c=>c.player_id===x.id);if(cur){cur.code=data;cur.enabled=true}else S.teamCodes.push({player_id:x.id,code:data,enabled:true,updated_at:new Date().toISOString()});renderPlayers();toast('Code Ã©quipe gÃ©nÃ©rÃ© : '+data);};
+      codeRow.append(codeInfo,gen);
+      if(existingCode){const tog=document.createElement('button');tog.textContent=existingCode.enabled?'DÃ©sactiver':'RÃ©activer';tog.className=existingCode.enabled?'player-action-disable':'player-action-enable';tog.onclick=async()=>{const {error}=await sb.rpc('admin_set_player_team_code_enabled',{p_player_id:x.id,p_enabled:!existingCode.enabled});if(error)return toast(error.message);existingCode.enabled=!existingCode.enabled;renderPlayers();};codeRow.appendChild(tog);}
+      d.appendChild(codeRow);
+    }
+    if(S.workspaceFeatures.player_ratings_enabled&&isCoorg()&&S.myLinkedPlayerId&&String(S.myLinkedPlayerId)===String(x.id)){
+      const selfNote=document.createElement('div');selfNote.style.cssText='margin-top:8px;padding:9px 10px;border-radius:12px;background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb';
+      selfNote.innerHTML='<b>ğŸ‘¤ Ton profil</b><div class="small">On te connaÃ®t ğŸ˜ : pas question de te mettre 5/5 partout ! Ton propre profil est donc hors vote ğŸ˜‚.</div>';
+      d.appendChild(selfNote);
+    }
+    if(S.workspaceFeatures.player_ratings_enabled&&(isAdmin()||isCoorg())&&!(isCoorg()&&S.myLinkedPlayerId&&String(S.myLinkedPlayerId)===String(x.id))){
+      const existing=S.myRatings.find(r=>r.player_id===x.id);
+      const rate=document.createElement('div');rate.className='player-skill-review player-rating-card';
+      const aggregate=playerSkillAggregate(x.id);
+      const aggText=aggregate&&Number(aggregate.voter_count)>0?(isCoorg()?'<div class="player-rating-verdict"><b>ğŸ•µï¸ Verdict collectif</b><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong></div>':'<div class="player-rating-verdict"><b>ğŸ•µï¸ Verdict collectif</b><span><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong> â€¢ '+aggregate.voter_count+' Ã©valuation'+(Number(aggregate.voter_count)>1?'s':'')+'</span></div>'):'<div class="player-rating-verdict is-empty">ğŸ“Š Pas encore assez dâ€™avis pour une moyenne.</div>';
+      const title=document.createElement('div');title.className='player-rating-head';title.innerHTML='<div class="player-rating-title-row"><b>âš½ Mon Ã©valuation</b><span class="player-rating-private">ğŸ”’ CONFIDENTIEL</span></div><div class="muted small player-rating-scale">1 Ã  renforcer Â· 2 moyen Â· 3 bon Â· 4 trÃ¨s bon Â· 5 excellent</div><div class="player-rating-balance">âš–ï¸ Ces critÃ¨res alimentent la crÃ©ation des Ã©quipes Ã©quilibrÃ©es.</div>'+aggText;
+      const criteria=document.createElement('div');criteria.className='player-rating-criteria';
+      const values={};
+      const labels={cardio:'â¤ï¸ Cardio',dribble:'ğŸª„ Dribble',collectif:'ğŸ¤ Collectif',frappe:'ğŸ¯ Frappe'};
+      const levelText={1:'Ã€ renforcer',2:'Moyen',3:'Bon',4:'TrÃ¨s bon',5:'Excellent'};
+      Object.entries(labels).forEach(([key,txt])=>{
+        const wrap=document.createElement('label');wrap.className='player-rating-field';
+        const cap=document.createElement('span');cap.className='player-rating-label';cap.textContent=txt;
+        const sel=document.createElement('select');sel.className='player-rating-select';sel.setAttribute('aria-label',txt);sel.innerHTML='<option value="">â€”</option>'+[1,2,3,4,5].map(n=>'<option value="'+n+'">'+n+'/5 Â· '+levelText[n]+'</option>').join('');
+        if(existing?.[key])sel.value=String(existing[key]);
+        values[key]=sel;wrap.append(cap,sel);criteria.appendChild(wrap);
+      });
+      const roleWrap=document.createElement('label');roleWrap.className='player-rating-role';
+      roleWrap.innerHTML='<span class="player-rating-label">ğŸ§­ RÃ´le de prÃ©dilection</span>';
+      const role=document.createElement('select');role.className='player-rating-select';role.setAttribute('aria-label','RÃ´le de prÃ©dilection');
+      role.innerHTML='<option value="">Choisirâ€¦</option><option value="defenseur">ğŸ›¡ï¸ DÃ©fenseur</option><option value="metronome">ğŸ¼ MÃ©tronome</option><option value="ratisseur">ğŸ§¹ Ratisseur</option><option value="finisseur">ğŸ¥… Finisseur</option><option value="dribbleur">ğŸª„ Dribbleur</option><option value="frappeur">ğŸ’¥ Frappeur</option><option value="top_player">â­ Top player</option>';
+      if(existing?.preferred_role)role.value=existing.preferred_role;roleWrap.appendChild(role);
+      const progress=document.createElement('div');progress.className='player-rating-progress';progress.innerHTML='<div><span>PrÃ©paration de lâ€™Ã©valuation</span><b>0/5</b></div><span class="player-rating-progress-track"><i></i></span>';
+      const updateProgress=()=>{const done=[...Object.values(values),role].filter(control=>control.value).length;progress.querySelector('b').textContent=done+'/5';progress.querySelector('i').style.width=(done*20)+'%';progress.classList.toggle('is-complete',done===5);Object.values(values).forEach(control=>control.closest('.player-rating-field')?.classList.toggle('is-filled',!!control.value));roleWrap.classList.toggle('is-filled',!!role.value);};
+      [...Object.values(values),role].forEach(control=>control.addEventListener('change',updateProgress));updateProgress();
+      const finalWarning=document.createElement('div');finalWarning.style.cssText='margin-top:10px;padding:10px 12px;border-radius:12px;background:#fff7d6;border:1px solid #f1c84b;color:#604500;font-weight:800';finalWarning.textContent=existing?'ğŸ”’ Cette Ã©valuation est dÃ©finitive. Seul le Super Admin peut la corriger.':'âš ï¸ AprÃ¨s validation, cette notation sera dÃ©finitive et non modifiable.';
+      if(existing)[...Object.values(values),role].forEach(control=>control.disabled=true);
+      const send=document.createElement('button');send.textContent=existing?'ğŸ”’ Ã‰valuation dÃ©finitive':'ğŸ’¾ Enregistrer mon Ã©valuation dÃ©finitive';send.className='primary';send.style.cssText='width:100%;margin-top:10px';send.disabled=!!existing;
+      send.onclick=async()=>{
+        const payload={p_player_id:x.id,p_cardio:Number(values.cardio.value),p_dribble:Number(values.dribble.value),p_collectif:Number(values.collectif.value),p_frappe:Number(values.frappe.value),p_preferred_role:role.value};
+        if(!payload.p_cardio||!payload.p_dribble||!payload.p_collectif||!payload.p_frappe||!payload.p_preferred_role)return toast('ComplÃ¨te les 4 critÃ¨res et le rÃ´le de prÃ©dilection.');
+        send.disabled=true;send.textContent='Enregistrementâ€¦';
+        const {error}=await sb.rpc('submit_player_skill_review',payload);
+        if(error){send.disabled=false;send.textContent=existing?'ğŸ’¾ Mettre Ã  jour mon Ã©valuation':'ğŸ’¾ Enregistrer mon Ã©valuation';return toast(error.message)}
+        const avg=(payload.p_cardio+payload.p_dribble+payload.p_collectif+payload.p_frappe)/4;
+        const saved={player_id:x.id,rating:avg,cardio:payload.p_cardio,dribble:payload.p_dribble,collectif:payload.p_collectif,frappe:payload.p_frappe,preferred_role:payload.p_preferred_role,updated_at:new Date().toISOString()};
+        const idx=S.myRatings.findIndex(r=>r.player_id===x.id);if(idx>=0)S.myRatings[idx]=saved;else S.myRatings.push(saved);
+        const {data:aggData,error:aggError}=await sb.rpc('get_player_skill_aggregates',{p_workspace_id:S.workspace.id});
+        if(!aggError)S.skillAggregates=Array.isArray(aggData)?aggData:[];
+        if(isAdmin()){
+          const {data:reviewData,error:reviewError}=await sb.rpc('get_admin_player_skill_reviews',{p_workspace_id:S.workspace.id});
+          if(!reviewError)S.skillReviews=Array.isArray(reviewData)?reviewData:[];
+        }
+        send.disabled=false;toast('Ã‰valuation de '+x.name+' enregistrÃ©e ğŸ”’ â€¢ moyenne mise Ã  jour');
+        renderPlayers();
+      };
+      rate.append(title,criteria,roleWrap,progress,finalWarning,send);d.appendChild(rate);
+    }
+    box.appendChild(d);
+  })
+}
+async function ensureWorkspace(){
+  if(S.workspace)return S.workspace;
+  const name=$('#newWorkspace').value.trim()||'SWÃ‰ Tournament 5/5';
+  const {data:workspaceId,error}=await sb.rpc('create_organizer_workspace_trial',{p_name:name,p_organizer_type:'group'});
+  if(error)throw error;
+  if(!workspaceId)throw new Error('Impossible de crÃ©er lâ€™espace.');
+  S.workspace={id:workspaceId,name,role:'admin'};
+  $('#workspaceSetup').classList.add('hidden');
+  $('#workspaceName').textContent=name+' â€¢ Administrateur';
+  return S.workspace;
+}
+$('#playerGroupStatus').onchange=()=>{
+  const isGuest=$('#playerGroupStatus').value==='guest';
+  $('#guestOfPlayer').classList.toggle('hidden',!isGuest);
+};
+$('#addPlayers').onclick=async()=>{
+  if(isCoorg()&&!S.myPermissions.can_add_members)return toast('Tu nâ€™es pas autorisÃ© Ã  ajouter des membres.');
+  const btn=$('#addPlayers');
+  const names=[...new Set($('#playersInput').value.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean))];
+  if(!names.length)return toast('Entre au moins un joueur.');
+  const isMember=$('#playerGroupStatus').value!=='guest';
+  const guestOf=isMember?null:($('#guestOfPlayer').value||null);
+  btn.disabled=true;btn.textContent='Enregistrementâ€¦';
+  try{
+    const workspace=await ensureWorkspace();
+    const rows=names.map(name=>({
+      workspace_id:workspace.id,
+      name,
+      active:true,
+      is_group_member:isMember,
+      guest_of_player_id:guestOf
+    }));
+    const {error}=await sb.from('players').upsert(rows,{onConflict:'workspace_id,name',ignoreDuplicates:true});
+    if(error)throw error;
+    $('#playersInput').value='';
+    $('#playerGroupStatus').value='member';
+    $('#guestOfPlayer').value='';
+    $('#guestOfPlayer').classList.add('hidden');
+    if(isAdmin()){
+      const {data:freshPlayers,error:playersError}=await sb.rpc('get_admin_workspace_players',{p_workspace_id:workspace.id});
+      if(playersError)throw playersError;S.players=freshPlayers||[];
+    }else{
+      const {data:freshPlayers,error:playersError}=await sb.rpc('get_workspace_players_safe',{p_workspace_id:workspace.id});
+      if(playersError)throw playersError;S.players=freshPlayers||[];
+    }
+    renderPlayers();
+    toast(names.length+' joueur'+(names.length>1?'s':'')+' enregistrÃ©'+(names.length>1?'s':'')+' âœ…');
+  }catch(error){toast(friendlyAuthError(error))}
+  finally{btn.disabled=false;btn.textContent='Enregistrer les joueurs'}
+};
+
+async function deleteTournament(t){
+  if(!hasAdminOps())return toast('Tu nâ€™es pas autorisÃ© Ã  supprimer un tournoi.');
+  const label=t.name||('Tournoi du '+t.tournament_date);
+  if(!confirm('Supprimer dÃ©finitivement Â« '+label+' Â» ?\n\nLes Ã©quipes, matchs, buts et donnÃ©es liÃ©es Ã  ce tournoi seront Ã©galement supprimÃ©s. Cette action est irrÃ©versible.'))return;
+  const {error}=await sb.rpc('delete_tournament_admin',{p_tournament_id:t.id});
+  if(error)return toast(error.message);
+  if(S.activeTour===t.id)S.activeTour=null;
+  await loadAll();
+  toast('Tournoi supprimÃ© âœ…');
+}
+
+function seasonNameForTournament(t){
+  const s=S.seasons.find(x=>x.id===t.season_id);
+  return s?s.name:'Sans saison';
+}
+
+
+
+function tournamentDeadlineMs(t){
+  if(!t||!t.registration_deadline)return null;
+  const ms=new Date(t.registration_deadline).getTime();
+  return Number.isFinite(ms)?ms:null;
+}
+function formatCountdown(ms){
+  if(ms<=0)return 'Inscriptions terminÃ©es';
+  const total=Math.floor(ms/1000);
+  const d=Math.floor(total/86400);
+  const hh=Math.floor((total%86400)/3600);
+  const mm=Math.floor((total%3600)/60);
+  const ss=total%60;
+  return (d?d+'j ':'')+String(hh).padStart(2,'0')+'h '+String(mm).padStart(2,'0')+'m '+String(ss).padStart(2,'0')+'s';
+}
+function updateTournamentCountdowns(){
+  document.querySelectorAll('[data-registration-deadline]').forEach(el=>{
+    const deadline=new Date(el.dataset.registrationDeadline).getTime();
+    if(!Number.isFinite(deadline)){el.textContent='âš ï¸ Date de clÃ´ture invalide';return}
+    const ms=deadline-Date.now();
+    const expired=ms<=0;
+    el.textContent=expired?'â›” Inscriptions terminÃ©es':('â±ï¸ ClÃ´ture dans '+formatCountdown(ms));
+    el.style.fontWeight='800';
+    el.style.fontSize='1.05rem';
+    el.style.color=expired?'#b91c1c':'#166534';
+  });
+  document.querySelectorAll('[data-tournament-start]').forEach(el=>{
+    const kickoff=new Date(el.dataset.tournamentStart).getTime();
+    if(!Number.isFinite(kickoff)){el.textContent='Coup dâ€™envoi Ã  confirmer';return}
+    const ms=kickoff-Date.now();
+    el.textContent=ms<=0?'âš½ Le coup dâ€™envoi est donnÃ©':'â±ï¸ Coup dâ€™envoi dans '+formatCountdown(ms).replace('Inscriptions terminÃ©es','00h 00m 00s');
+  });
+}
+if(!window.__sweDeadlineTimer){
+  window.__sweDeadlineTimer=setInterval(updateTournamentCountdowns,1000);
+}
+function tournamentAutoPlan(count){
+  const n=Math.max(0,Math.min(35,Number(count||0)));
+  if(n<10)return {teams:0,pitches:0,core:0,subs:n,rule:'10 joueurs minimum pour crÃ©er 2 Ã©quipes'};
+  const teams=Math.floor(n/5);
+  const core=teams*5;
+  const subs=n-core;
+  const pitches=teams<=3?1:(teams<=5?2:3);
+  return {
+    teams,
+    pitches,
+    core,
+    subs,
+    rule:teams%2
+      ?'2 buts dâ€™Ã©cart = lâ€™Ã©quipe dehors rentre, ou 10 min maximum'
+      :'Matchs de 10 min'
+  };
+}
+
+function registrationColorInfo(team){
+  const hex=String(team?.color||'#64748b').toLowerCase();
+  const names={
+    '#111827':'Noir','#2563eb':'Bleu','#f8fafc':'Blanc','#dc2626':'Rouge',
+    '#16a34a':'Vert','#eab308':'Jaune','#f97316':'Orange','#7c3aed':'Violet',
+    '#ec4899':'Rose','#78350f':'Marron','#64748b':'Gris'
+  };
+  return {hex,label:names[hex]||'Couleur personnalisÃ©e'};
+}
+function registrationGuestText(reg,playerMap){
+  const pl=playerMap.get(reg?.player_id);
+  if(pl?.is_group_member!==false)return 'Membre du groupe';
+  const hostId=reg?.registered_by_player_id||pl?.guest_of_player_id||null;
+  const host=hostId?playerMap.get(hostId):null;
+  return host?'Guest de '+host.name:'Guest';
+}
+function registrationSummaryHtml(tournamentId){
+  const tournament=S.tournaments.find(t=>t.id===tournamentId);
+  const regs=S.tPlayers.filter(r=>r.tournament_id===tournamentId&&r.present&&r.registration_status!=='waitlist');
+  const maxPlayers=Number(tournament?.max_players||20);
+  const remainingGlobal=Math.max(0,maxPlayers-regs.length);
+  const tournamentTeams=S.teams.filter(t=>t.tournament_id===tournamentId);
+  const teamIds=new Set(tournamentTeams.map(t=>t.id));
+  const teamPlayerRows=S.teamPlayers.filter(tp=>teamIds.has(tp.team_id));
+  const assignedIds=new Set(teamPlayerRows.map(tp=>tp.player_id));
+  const playerMap=new Map(S.players.map(pl=>[pl.id,pl]));
+  const regMap=new Map(regs.map(r=>[r.player_id,r]));
+
+  const freeRegs=regs.filter(r=>!assignedIds.has(r.player_id));
+  const freeHtml=freeRegs.length
+    ? freeRegs.map(r=>{
+        const pl=playerMap.get(r.player_id);
+        const guest=registrationGuestText(r,playerMap);
+        return '<div class="player row"><span style="flex:1">'+esc(pl?.name||'Joueur')+
+          (guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+
+          '</span><span class="muted">'+(r.is_substitute?'ğŸŸ  RemplaÃ§ant commun':'Ã‰quipe alÃ©atoire')+'</span></div>';
+      }).join('')
+    : '<p class="muted">Aucun joueur en Ã©quipe alÃ©atoire.</p>';
+
+  const teamsHtml=tournamentTeams.length
+    ? tournamentTeams.map(team=>{
+        const memberRows=teamPlayerRows.filter(tp=>tp.team_id===team.id);
+        const color=registrationColorInfo(team);
+        const membersHtml=memberRows.length?memberRows.map(tp=>{
+          const pl=playerMap.get(tp.player_id);
+          const guest=registrationGuestText(regMap.get(tp.player_id),playerMap);
+          return '<div style="margin-top:4px">â€¢ '+esc(pl?.name||'Joueur')+(guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+'</div>';
+        }).join(''):'<div class="muted" style="margin-top:5px">Aucun joueur</div>';
+        return '<div class="player" style="margin-top:8px">'+
+          '<div class="row"><span style="width:18px;height:18px;border-radius:50%;background:'+esc(color.hex)+';border:1px solid #cbd5e1;flex:0 0 auto"></span>'+
+          '<b style="flex:1">'+esc(team.name||'Ã‰quipe')+'</b><span class="muted">'+memberRows.length+' joueur'+(memberRows.length>1?'s':'')+'</span></div>'+
+          '<div class="muted" style="margin-top:4px">Couleur : <b>'+esc(color.label)+'</b></div>'+membersHtml+'</div>';
+      }).join('')
+    : '<p class="muted">Aucune Ã©quipe composÃ©e.</p>';
+
+  return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>ğŸ“Š '+regs.length+'/'+maxPlayers+' inscrits</b><div class="muted" style="margin-top:4px"><b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant dâ€™atteindre le nombre maximum dÃ©fini pour ce tournoi.</div></div>'+
+         '<div class="player" style="margin-top:10px;background:#f8fbf9"><b>ğŸ‘¤ Joueurs en Ã©quipe alÃ©atoire</b>'+freeHtml+'</div>'+
+         '<div class="player" style="margin-top:10px;background:#f8fbff"><b>ğŸ‘¥ Ã‰quipes dÃ©jÃ  composÃ©es</b>'+teamsHtml+'</div>';
+}
+
+function appendTournamentSeasonControl(container,t){
+  if(!container||!t||t.format==='league'||!hasAdminOps())return;
+  const wrap=document.createElement('div');
+  wrap.className='player';
+  wrap.style.marginTop='10px';
+  wrap.style.background='#f8fbf9';
+
+  const currentSeason=S.seasons.find(s=>String(s.id)===String(t.season_id||''));
+  wrap.innerHTML='<div><b>ğŸ“… Saison du tournoi</b><div class="muted" style="margin-top:4px">'+
+    (currentSeason
+      ?'Ce tournoi compte actuellement dans <b>'+esc(currentSeason.name)+'</b>. Ses buts et passes sont cumulÃ©s avec les autres tournois de cette saison.'
+      :'Ce tournoi est <b>hors saison</b>. Ses buts et passes restent uniquement dans les statistiques de ce tournoi et ne sont ajoutÃ©s Ã  aucun classement de saison.')+
+    '</div></div>';
+
+  const row=document.createElement('div');
+  row.className='row';
+  row.style.marginTop='8px';
+  const sel=document.createElement('select');
+  sel.style.flex='1';
+  sel.innerHTML='<option value="">Hors saison â€” statistiques du tournoi uniquement</option>'+
+    S.seasons.map(s=>'<option value="'+s.id+'">'+esc(s.name)+(s.is_active?' â€¢ active':'')+'</option>').join('');
+  sel.value=t.season_id||'';
+
+  const save=document.createElement('button');
+  save.type='button';
+  save.className='primary';
+  save.textContent='ğŸ’¾ Enregistrer la saison';
+  save.onclick=async()=>{
+    const newSeasonId=sel.value||null;
+    if(String(newSeasonId||'')===String(t.season_id||''))return toast('Aucun changement de saison.');
+    save.disabled=true;
+    const {error}=await sb.from('tournaments').update({season_id:newSeasonId}).eq('id',t.id);
+    if(error){save.disabled=false;return toast(error.message)}
+    await loadAll();
+    setView('tournaments');
+    toast(newSeasonId?'Tournoi ajoutÃ© Ã  la saison âœ…':'Tournoi retirÃ© de la saison âœ…');
+  };
+  row.append(sel,save);
+  wrap.appendChild(row);
+  container.appendChild(wrap);
+}
+
+function renderTournaments(){
+  // V40.02 : l'Ã©diteur de tournoi est protÃ©gÃ© des synchronisations automatiques.
+  const ss=$('#seasonSelect');
+  ss.innerHTML='<option value="">Sans saison</option>'+S.seasons.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join('');
+  const box=$('#tournamentList');box.innerHTML='';
+
+  const tournamentOnly=S.tournaments.filter(t=>t.format!=='league');
+  const current=tournamentOnly.filter(t=>t.status!=='finished');
+  const finished=tournamentOnly.filter(t=>t.status==='finished');
+
+  if(!current.length){
+    const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucun tournoi en cours.';box.appendChild(empty);
+  }
+  current.forEach(t=>{
+    const d=document.createElement('div');d.className='player tournament-current-card';
+    const top=document.createElement('div');top.className='tournament-current-head';
+    const pitchLabels=(t.reserved_pitch_ids||[]).map(id=>pitchName(id)).filter(Boolean);
+    const venueLabel=pitchLabels.length?(complexLabel(t.complex_id)+' â€¢ '+pitchLabels.join(', ')):(t.venue||'Terrains non renseignÃ©s');
+    const priceLabel=(Number(t.entry_fee_cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:2})+' â‚¬';
+    const generatedInfo=t.generated_team_count
+      ? t.generated_team_count+' Ã©quipes â€¢ '+(t.recommended_pitch_count||1)+' terrain'+((t.recommended_pitch_count||1)>1?'s':'')+' â€¢ '+(t.odd_team_rotation_rule?'RÃ¨gle 2 buts dâ€™Ã©cart / 10 min':'Matchs de 10 min')
+      : 'Ã‰quipes non gÃ©nÃ©rÃ©es';
+    top.innerHTML='<div><div class="tournament-current-name">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</div>'+
+      '<div class="tournament-badges"><span class="tournament-badge">ğŸ“… '+esc(t.tournament_date)+'</span><span class="tournament-badge">âš½ '+esc(formatLabel(t))+'</span><span class="tournament-badge">ğŸ† '+esc(seasonNameForTournament(t))+'</span></div>'+
+      '<div class="tournament-info-grid">'+
+        '<div class="tournament-info-item"><span class="tournament-info-label">Lieu / terrains</span><span class="tournament-info-value">ğŸ“ '+esc(venueLabel)+'</span></div>'+
+        '<div class="tournament-info-item"><span class="tournament-info-label">Horaire & prix</span><span class="tournament-info-value">ğŸ•˜ '+esc(t.start_time?String(t.start_time).slice(0,5):'Non renseignÃ©e')+' â€¢ ğŸ’¶ '+esc(priceLabel)+'</span></div>'+
+        '<div class="tournament-info-item"><span class="tournament-info-label">Organisation</span><span class="tournament-info-value">âš™ï¸ '+esc(generatedInfo)+'</span></div>'+
+        '<div class="tournament-info-item"><span class="tournament-info-label">RÃ©servation</span><span class="tournament-info-value">'+esc(t.reservation_reference||'Non renseignÃ©e')+'</span></div>'+
+      '</div>'+
+      (t.registration_deadline?'<div class="tournament-info-item" style="margin-top:8px"><span class="tournament-info-label">ClÃ´ture des inscriptions</span><div data-registration-deadline="'+esc(t.registration_deadline)+'"></div><span class="tournament-info-value">PrÃ©vue la veille Ã  17h'+(Number(t.registration_extension_hours||0)===3?' â€¢ prolongation +3h':'')+'</span></div>':'')+
+      '</div>';
+    const open=document.createElement('button');open.textContent=t.id===S.activeTour?'Actif':'Ouvrir';if(t.id===S.activeTour)open.className='green';
+    open.onclick=async()=>{S.activeTour=t.id;await loadTournament();renderAll();toast('Tournoi sÃ©lectionnÃ©')};
+    top.appendChild(open);
+    const waShare=document.createElement('button');waShare.textContent='ğŸŸ¢ Partager WhatsApp';waShare.onclick=()=>{const front='https://swetournament.fr/?swe='+encodeURIComponent(t.id);const mode=t.discovery_mode==='public'?'inscriptions directes':t.discovery_mode==='request'?'participation sur demande':'accÃ¨s par lien';const msg='âš½ '+(t.name||'Nouveau SwÃ©')+' â€¢ '+t.tournament_date+(t.start_time?' Ã  '+String(t.start_time).slice(0,5):'')+'\nğŸ“ '+(t.venue||'Lieu Ã  confirmer')+'\n'+mode+'\nğŸ‘‰ '+front;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');};top.appendChild(waShare);
+    if(S.organizerSettings?.whatsapp_group_url){const wg=document.createElement('button');wg.textContent='ğŸ’¬ Groupe WhatsApp';wg.onclick=()=>window.open(S.organizerSettings.whatsapp_group_url,'_blank','noopener');top.appendChild(wg);}
+    d.appendChild(top);
+
+    if(hasAdminOps()){
+      const reg=document.createElement('div');reg.className='player tournament-admin-block';reg.style.marginTop='12px';
+      const confirmed=S.activeTour===t.id?S.tPlayers.filter(x=>x.registration_status!=='waitlist'&&x.present).length:null;
+      reg.innerHTML='<div class="row"><span style="flex:1"><b>Inscriptions : '+(t.registration_open?'ğŸŸ¢ ouvertes':'ğŸ”´ fermÃ©es')+'</b><div class="muted">Maximum '+(t.max_players||20)+' joueurs'+(confirmed!==null?' â€¢ '+confirmed+' confirmÃ©'+(confirmed>1?'s':''):'')+'</div></span></div>';
+      const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
+      const max=document.createElement('input');max.type='number';max.min='10';max.max='35';max.value=t.max_players||35;max.style.maxWidth='105px';
+      const toggle=document.createElement('button');toggle.textContent=t.registration_open?'Fermer les inscriptions':'Ouvrir les inscriptions';toggle.className=t.registration_open?'danger':'primary';
+      const saveMax=document.createElement('button');saveMax.textContent='Modifier places';
+      toggle.onclick=async()=>{const {error}=await sb.from('tournaments').update({registration_open:!t.registration_open}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast(!t.registration_open?'Inscriptions ouvertes âœ…':'Inscriptions fermÃ©es')};
+      saveMax.onclick=async()=>{const n=Math.max(10,Math.min(35,Number(max.value)||35));const {error}=await sb.from('tournaments').update({max_players:n}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast('Nombre de places mis Ã  jour âœ…')};
+      row.append(max,saveMax,toggle);
+      if(t.format!=='league'&&Number(t.registration_extension_hours||0)<3){
+        const extend=document.createElement('button');
+        extend.type='button';
+        extend.textContent='+3h inscriptions';
+        extend.title='Disponible une seule fois si le nombre maximum dâ€™inscrits nâ€™est pas atteint.';
+        extend.onclick=async()=>{
+          extend.disabled=true;
+          const {data,error}=await sb.rpc('extend_tournament_registration_3h',{p_tournament_id:t.id});
+          if(error){extend.disabled=false;return toast(error.message)}
+          await loadAll();
+          toast('Inscriptions prolongÃ©es de 3 heures âœ…');
+        };
+        row.appendChild(extend);
+      }
+      reg.appendChild(row);
+      const discovery=document.createElement('div');discovery.className='tournament-discovery-admin';discovery.style.marginTop='10px';
+      const dm=document.createElement('select');dm.innerHTML='<option value="unlisted">Non rÃ©pertoriÃ©</option><option value="request">Sur demande</option><option value="public">Public â€¢ inscription directe</option>';dm.value=t.discovery_mode||'unlisted';
+      const ext=document.createElement('label');ext.className='row';ext.style.gap='6px';const extCb=document.createElement('input');extCb.type='checkbox';extCb.style.width='auto';extCb.checked=!!t.allow_external_players;ext.append(extCb,document.createTextNode('Joueurs externes'));
+      const pay=document.createElement('label');pay.className='row';pay.style.gap='6px';const payCb=document.createElement('input');payCb.type='checkbox';payCb.style.width='auto';payCb.checked=!!t.external_payment_required;payCb.disabled=!S.organizerSettings?.external_payment_ready;pay.append(payCb,document.createTextNode('Paiement externe requis'));
+      const online=document.createElement('label');online.className='row';const onlineCb=document.createElement('input');onlineCb.type='checkbox';onlineCb.style.width='auto';onlineCb.checked=!!t.online_payment_enabled;onlineCb.disabled=!S.organizerSettings?.external_payment_ready;online.append(onlineCb,document.createTextNode('ğŸ’³ Collecte en ligne'));const third=document.createElement('label');third.className='row';const thirdCb=document.createElement('input');thirdCb.type='checkbox';thirdCb.style.width='auto';thirdCb.checked=!!t.third_half_active;thirdCb.disabled=!S.workspaceFeatures.third_half_enabled;third.append(thirdCb,document.createTextNode('ğŸ§Š GlaciÃ¨re'));const saveDiscovery=document.createElement('button');saveDiscovery.textContent='Enregistrer les options';saveDiscovery.onclick=async()=>{if(dm.value!=='unlisted'&&!extCb.checked)return toast('Active les joueurs externes pour rendre ce SwÃ© visible.');if(payCb.checked&&Number(t.entry_fee_cents||0)<=0)return toast('Indique dâ€™abord un prix par participant.');const {error}=await sb.from('tournaments').update({discovery_mode:dm.value,allow_external_players:extCb.checked,external_payment_required:payCb.checked&&!!S.organizerSettings?.external_payment_ready,online_payment_enabled:onlineCb.checked&&!!S.organizerSettings?.external_payment_ready,third_half_active:thirdCb.checked&&!!S.workspaceFeatures.third_half_enabled}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast('VisibilitÃ© du SwÃ© mise Ã  jour âœ…');};
+      discovery.append(dm,ext,pay,online,third,saveDiscovery);reg.appendChild(discovery);
+
+      const editDetails=document.createElement('div');
+      editDetails.style.marginTop='10px';
+      const editBtn=document.createElement('button');
+      editBtn.type='button';
+      editBtn.textContent='âœï¸ Modifier date / terrain / heure / prix';
+
+      const editBox=document.createElement('div');
+      editBox.className='player'+(S.editingTournamentId===t.id?'':' hidden');
+      editBox.style.marginTop='8px';
+      editBox.onclick=e=>e.stopPropagation();
+      editBox.onchange=e=>e.stopPropagation();
+
+      const dateInput=document.createElement('input');
+      dateInput.type='date';
+      dateInput.value=t.tournament_date||'';
+
+      const complexSel=document.createElement('select');
+      complexSel.innerHTML='<option value="">Choisir le complexe</option>'+S.sportsComplexes.filter(c=>c.active!==false).map(c=>'<option value="'+c.id+'">'+esc(c.name)+(c.city?' â€¢ '+esc(c.city):'')+'</option>').join('');
+      complexSel.value=t.complex_id||'';
+
+      const pitchWrap=document.createElement('div');
+      pitchWrap.style.marginTop='8px';
+
+      const timeInput=document.createElement('input');
+      timeInput.type='time';
+      timeInput.value=t.start_time?String(t.start_time).slice(0,5):'09:00';
+
+      const priceInput=document.createElement('input');
+      priceInput.type='number';
+      priceInput.min='0';
+      priceInput.step='0.50';
+      priceInput.placeholder='Prix / participant (â‚¬)';
+      priceInput.value=(Number(t.entry_fee_cents||0)/100).toFixed(2);
+
+      const refInput=document.createElement('input');
+      refInput.placeholder='Nom ou nÂ° de rÃ©servation (facultatif)';
+      refInput.value=t.reservation_reference||'';
+
+      let selectedPitchIds=new Set((t.reserved_pitch_ids||[]).map(String));
+
+      const renderEditPitches=()=>{
+        const rows=S.sportsPitches.filter(p=>p.active!==false&&String(p.complex_id)===String(complexSel.value));
+        pitchWrap.innerHTML='<div class="muted" style="margin-bottom:6px"><b>Terrains rÃ©servÃ©s</b> â€¢ 1 Ã  3 terrains</div>'+
+          (rows.length
+            ? rows.map(p=>'<label class="player row" style="justify-content:flex-start"><input class="editTourPitchCheck" type="checkbox" value="'+p.id+'" style="width:auto" '+(selectedPitchIds.has(String(p.id))?'checked':'')+'><span>'+esc(p.name)+'</span></label>').join('')
+            : '<div class="muted">Aucun terrain disponible pour ce complexe.</div>');
+
+        pitchWrap.querySelectorAll('.editTourPitchCheck').forEach(cb=>{
+          cb.onchange=e=>{
+            e.stopPropagation();
+            const checked=[...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')];
+            if(checked.length>3){
+              cb.checked=false;
+              toast('Maximum 3 terrains pour un tournoi.');
+            }
+            selectedPitchIds=new Set([...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')].map(x=>String(x.value)));
+          };
+        });
+      };
+
+      complexSel.onchange=e=>{
+        e.stopPropagation();
+        selectedPitchIds=new Set();
+        renderEditPitches();
+      };
+
+      renderEditPitches();
+
+      const seasonEditSel=document.createElement('select');
+      seasonEditSel.innerHTML='<option value="">Hors saison â€” statistiques du tournoi uniquement</option>'+S.seasons.map(s=>'<option value="'+s.id+'">'+esc(s.name)+(s.is_active?' â€¢ active':'')+'</option>').join('');
+      seasonEditSel.value=t.season_id||'';
+
+      const saveDetails=document.createElement('button');
+      saveDetails.type='button';
+      saveDetails.className='primary';
+      saveDetails.textContent='ğŸ’¾ Enregistrer les modifications';
+
+      const cancelDetails=document.createElement('button');
+      cancelDetails.type='button';
+      cancelDetails.textContent='Annuler';
+
+      editBox.innerHTML='<div class="muted" style="margin-bottom:8px"><b>Modifier ce tournoi</b><br>La fenÃªtre reste ouverte tant que tu nâ€™enregistres pas ou que tu nâ€™annules pas.</div>';
+
+      const firstGrid=document.createElement('div');
+      firstGrid.className='grid g2';
+      firstGrid.append(dateInput,complexSel);
+      editBox.appendChild(firstGrid);
+      editBox.appendChild(pitchWrap);
+
+      const detailsGrid=document.createElement('div');
+      detailsGrid.className='grid g3';
+      detailsGrid.style.marginTop='8px';
+      detailsGrid.append(timeInput,priceInput,refInput);
+      editBox.appendChild(detailsGrid);
+
+      const seasonEditWrap=document.createElement('label');
+      seasonEditWrap.className='player';
+      seasonEditWrap.style.marginTop='8px';
+      seasonEditWrap.innerHTML='<span class="muted"><b>ğŸ“… Saison</b> â€” facultatif</span><div class="muted" style="margin:4px 0 7px">Si une saison est choisie, les buts et passes de ce tournoi seront cumulÃ©s dans son classement. Â« Hors saison Â» conserve uniquement les statistiques propres Ã  ce tournoi.</div>';
+      seasonEditWrap.appendChild(seasonEditSel);
+      editBox.appendChild(seasonEditWrap);
+
+      const editActions=document.createElement('div');
+      editActions.className='row';
+      editActions.style.marginTop='10px';
+      editActions.append(saveDetails,cancelDetails);
+      editBox.appendChild(editActions);
+
+      editBtn.onclick=e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        const opening=editBox.classList.contains('hidden');
+        if(opening){
+          S.editingTournamentId=t.id;
+          editBox.classList.remove('hidden');
+        }else{
+          S.editingTournamentId=null;
+          editBox.classList.add('hidden');
+        }
+      };
+
+      cancelDetails.onclick=e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        S.editingTournamentId=null;
+        editBox.classList.add('hidden');
+        // Reprendre la synchronisation aprÃ¨s fermeture volontaire.
+        setTimeout(safeAppSync,250);
+      };
+
+      saveDetails.onclick=async e=>{
+        e.preventDefault();
+        e.stopPropagation();
+
+        const tournamentDate=dateInput.value;
+        const complexId=complexSel.value;
+        const pitchIds=[...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')].map(x=>x.value);
+        const startTime=timeInput.value;
+        const price=Number(priceInput.value);
+
+        if(!tournamentDate)return toast('Choisis la date du tournoi.');
+        if(!complexId)return toast('Choisis le complexe sportif.');
+        if(!pitchIds.length)return toast('Choisis au moins 1 terrain rÃ©servÃ©.');
+        if(pitchIds.length>3)return toast('Maximum 3 terrains pour un tournoi.');
+        if(!startTime)return toast('Indique lâ€™heure de rÃ©servation.');
+        if(!Number.isFinite(price)||price<0)return toast('Indique un prix valide.');
+
+        const complex=S.sportsComplexes.find(c=>String(c.id)===String(complexId));
+        const selectedPitches=S.sportsPitches.filter(p=>pitchIds.includes(String(p.id))&&String(p.complex_id)===String(complexId));
+        if(selectedPitches.length!==pitchIds.length)return toast('Un terrain sÃ©lectionnÃ© est invalide.');
+
+        const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' â€” ');
+
+        saveDetails.disabled=true;
+        saveDetails.textContent='Enregistrementâ€¦';
+
+        const {error}=await sb.from('tournaments').update({
+          tournament_date:tournamentDate,
+          complex_id:complexId,
+          reserved_pitch_ids:pitchIds,
+          venue,
+          start_time:startTime,
+          entry_fee_cents:Math.round(price*100),
+          reservation_reference:refInput.value.trim()||null,
+          season_id:seasonEditSel.value||null
+        }).eq('id',t.id);
+
+        if(error){
+          saveDetails.disabled=false;
+          saveDetails.textContent='ğŸ’¾ Enregistrer les modifications';
+          return toast(error.message);
+        }
+
+        S.editingTournamentId=null;
+        await loadAll();
+        setView('tournaments');
+        toast('Tournoi modifiÃ© âœ… Date, terrain(s), heure, prix et saison mis Ã  jour.');
+      };
+
+      editDetails.append(editBtn,editBox);
+      reg.appendChild(editDetails);
+      window.SWERegistrationPresentation?.briefingEditor(reg,t,{ratingGroupName:S.workspace.rating_group_name,saveRatingGroupName:async name=>{const {error}=await sb.from('workspaces').update({rating_group_name:name||null}).eq('id',S.workspace.id).select('id').single();if(error)throw error;S.workspace.rating_group_name=name;},editing:active=>{S.editingTournamentId=active?t.id:null;},save:async briefing=>{const {error}=await sb.from('tournaments').update({registration_briefing:briefing}).eq('id',t.id);if(error)throw error;}});
+
+      const publicUrl=registrationLink(t);
+      const shareBox=document.createElement('div');shareBox.style.marginTop='10px';
+      shareBox.innerHTML='<div class="muted" style="margin-bottom:6px"><b>ğŸ”— Lien unique de ce tournoi</b></div>';
+      const linkRow=document.createElement('div');linkRow.className='row';
+      const linkInput=document.createElement('input');linkInput.readOnly=true;linkInput.value=publicUrl;linkInput.style.flex='1';linkInput.title='Lien unique du tournoi '+(t.name||t.tournament_date);
+      const copyBtn=document.createElement('button');copyBtn.textContent='Copier le lien';
+      const waBtn=document.createElement('button');waBtn.textContent='ğŸ“² WhatsApp';waBtn.className='primary';
+      copyBtn.onclick=async()=>{
+        if(!publicUrl)return toast('Lien public indisponible.');
+        try{await navigator.clipboard.writeText(publicUrl);toast('Lien unique du tournoi copiÃ© âœ…')}
+        catch(e){linkInput.focus();linkInput.select();toast('Lien sÃ©lectionnÃ© : copie-le.')}
+      };
+      waBtn.onclick=()=>{
+        if(!publicUrl)return toast('Lien public indisponible.');
+        const title=t.name||('Tournoi du '+t.tournament_date);
+        const msg='âš½ '+title+'\nğŸ“… '+t.tournament_date+'\n\nLes inscriptions sont ouvertes. Clique sur le lien, choisis ton nom puis indique si tu participes :\n'+publicUrl;
+        window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');
+      };
+      linkRow.append(linkInput,copyBtn,waBtn);shareBox.appendChild(linkRow);reg.appendChild(shareBox);
+
+      const deskBox=document.createElement('div');deskBox.className='payment-link-card';deskBox.style.marginTop='10px';
+      const deskUrl=t.payment_short_code?APP_URL+'?pay='+encodeURIComponent(String(t.payment_short_code).toUpperCase()):'';
+      deskBox.innerHTML='<div class="payment-link-head"><span>âœ…</span><div><b>Lien de suivi des paiements sur place</b><small>Permet uniquement de marquer manuellement les joueurs PAYÃ‰ / NON PAYÃ‰. Aucun encaissement en ligne depuis ce lien.</small></div><em>PRIVÃ‰</em></div>';
+      const deskRow=document.createElement('div');deskRow.className='payment-link-row';
+      const deskInput=document.createElement('input');deskInput.readOnly=true;deskInput.value=deskUrl||'Lien en cours de crÃ©ation';deskInput.className='short-link-input';
+      const deskCopy=document.createElement('button');deskCopy.textContent='ğŸ“‹ Copier';deskCopy.disabled=!deskUrl;
+      deskCopy.onclick=async()=>{try{await navigator.clipboard.writeText(deskInput.value);toast('Lien dâ€™encaissement copiÃ© âœ…')}catch(e){deskInput.focus();deskInput.select();toast('Lien sÃ©lectionnÃ© : copie-le.')}};
+      const deskCode=document.createElement('span');deskCode.className='short-code-badge';deskCode.textContent=t.payment_short_code?'Code : '+String(t.payment_short_code).toUpperCase():'Code indisponible';
+      deskRow.append(deskInput,deskCopy,deskCode);
+      if(isAdmin()){
+        const rotate=document.createElement('button');rotate.textContent='ğŸ” RÃ©gÃ©nÃ©rer';rotate.className='secondary';
+        rotate.title='Invalide immÃ©diatement lâ€™ancien lien dâ€™encaissement';
+        rotate.onclick=async()=>{
+          if(!confirm('RÃ©gÃ©nÃ©rer le lien de suivi des paiements ? Lâ€™ancien lien cessera immÃ©diatement de fonctionner.'))return;
+          rotate.disabled=true;
+          const {data,error}=await sb.rpc('rotate_tournament_payment_access',{p_tournament_id:t.id});
+          rotate.disabled=false;if(error)return toast(error.message);
+          t.payment_short_code=data?.short_code||t.payment_short_code;
+          deskInput.value=APP_URL+'?pay='+encodeURIComponent(String(t.payment_short_code).toUpperCase());
+          deskCode.textContent='Code : '+String(t.payment_short_code).toUpperCase();
+          toast('Nouveau lien de suivi des paiements gÃ©nÃ©rÃ© âœ…');
+        };
+        deskRow.appendChild(rotate);
+      }
+      deskBox.appendChild(deskRow);reg.appendChild(deskBox);
+      d.appendChild(reg);
+    }
+
+    const finish=document.createElement('button');finish.textContent='Terminer le tournoi';finish.style.marginTop='8px';
+    finish.onclick=async()=>{
+      if(!confirm('DÃ©clarer ce tournoi terminÃ© ? Il restera disponible dans lâ€™historique.'))return;
+      finish.disabled=true;
+      const {error}=await sb.rpc('finish_tournament_with_payment_report',{p_tournament_id:t.id});
+      if(error){finish.disabled=false;return toast(error.message)}
+      if(S.activeTour===t.id)S.activeTour=null;
+      await loadAll();
+      toast('Tournoi terminÃ© âœ…');
+    };
+    if(hasAdminOps()){
+      d.appendChild(finish);
+      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';del.style.margin='8px 0 0 8px';
+      del.onclick=async()=>await deleteTournament(t);
+      d.appendChild(del);
+    }else if(isCoorg()){
+      const del=makeDisabledActionButton('Supprimer','Seul lâ€™administrateur ou un admin temporaire peut supprimer un tournoi');
+      del.style.margin='8px 0 0 8px';d.appendChild(del);
+    }
+    if(!t.finished_at){
+      window.__sweOpenRegistrationLists=window.__sweOpenRegistrationLists||new Set();
+      const isRegOpen=window.__sweOpenRegistrationLists.has(t.id);
+      const regBtn=document.createElement('button');
+      regBtn.type='button';
+      regBtn.textContent=isRegOpen?'Masquer la liste des inscrits':'ğŸ‘¥ Afficher la liste des inscrits';
+      regBtn.style.marginTop='10px';
+      const regList=document.createElement('div');
+      regList.className=isRegOpen?'':'hidden';
+      regList.style.marginTop='10px';
+      if(isRegOpen&&S.activeTour===t.id)regList.innerHTML=registrationSummaryHtml(t.id);
+      else if(isRegOpen)regList.innerHTML='<p class="muted">Chargement des inscritsâ€¦</p>';
+
+      regBtn.onclick=async()=>{
+        const opening=!window.__sweOpenRegistrationLists.has(t.id);
+        if(opening){
+          window.__sweOpenRegistrationLists.add(t.id);
+          if(S.activeTour!==t.id){
+            S.activeTour=t.id;
+            await loadTournament();
+            renderAll();
+            return;
+          }
+          regList.innerHTML=registrationSummaryHtml(t.id);
+          regList.classList.remove('hidden');
+          regBtn.textContent='Masquer la liste des inscrits';
+        }else{
+          window.__sweOpenRegistrationLists.delete(t.id);
+          regList.classList.add('hidden');
+          regBtn.textContent='ğŸ‘¥ Afficher la liste des inscrits';
+        }
+      };
+      d.append(regBtn,regList);
+    }
+    appendTournamentSeasonControl(d,t);
+    box.appendChild(d);
+  });
+
+  if(finished.length){
+    const h=document.createElement('h2');h.className='sectiontitle';h.style.margin='20px 0 10px';h.textContent='Historique';box.appendChild(h);
+  }
+  finished.forEach(t=>{
+    const d=document.createElement('div');d.className='player';
+    const top=document.createElement('div');top.className='row';
+    top.innerHTML='<span style="flex:1"><b>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' â€¢ TerminÃ©</div><div class="muted">ğŸ“… '+esc(seasonNameForTournament(t))+'</div></span>';
+    const actions=document.createElement('div');actions.className='row';
+    const view=document.createElement('button');view.textContent='Voir les rÃ©sultats';view.className='primary';
+    view.onclick=async()=>await showTournamentHistory(t);
+    actions.appendChild(view);
+    if(isAdmin()){
+      const payReport=document.createElement('button');payReport.textContent='ğŸ§¾ Rapport paiements';
+      payReport.onclick=async()=>{
+        payReport.disabled=true;
+        const {data,error}=await sb.rpc('admin_get_tournament_payment_report',{p_tournament_id:t.id});
+        payReport.disabled=false;
+        if(error)return toast(error.message);
+        if(!data)return toast('Aucun rapport de paiement archivÃ© pour ce tournoi.');
+        paymentReportPrint(data,'Administrateur');
+      };
+      actions.appendChild(payReport);
+    }
+    if(hasAdminOps()){
+      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
+      del.onclick=async()=>await deleteTournament(t);
+      actions.appendChild(del);
+    }else if(isCoorg()){
+      actions.appendChild(makeDisabledActionButton('Supprimer','Seul lâ€™administrateur ou un admin temporaire peut supprimer un tournoi'));
+    }
+    top.appendChild(actions);
+    d.appendChild(top);
+    appendTournamentSeasonControl(d,t);
+    box.appendChild(d);
+  });
+
+  if(!tournamentOnly.length)box.innerHTML='<p class="muted">Aucun tournoi pour le moment.</p>';
+  updateTournamentCountdowns();
+}
+
+async function showTournamentHistory(t){
+  const {data:teams,error:te}=await sb.from('teams').select('*').eq('tournament_id',t.id).order('created_at');
+  if(te)return toast(te.message);
+  const {data:matches,error:me}=await sb.from('matches').select('*').eq('tournament_id',t.id).order('match_order');
+  if(me)return toast(me.message);
+  const mids=(matches||[]).map(m=>m.id);
+  let goals=[];
+  if(mids.length){
+    const {data,error}=await sb.from('goals').select('*').in('match_id',mids);
+    if(error)return toast(error.message);
+    goals=data||[];
+  }
+  const teamMap=new Map((teams||[]).map(x=>[x.id,x.name]));
+  const stats=(teams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
+  const sm=new Map(stats.map(x=>[x.id,x]));
+  (matches||[]).forEach(m=>{
+    const h=sm.get(m.home_team_id),a=sm.get(m.away_team_id);if(!h||!a)return;
+    h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;
+    if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}
+    else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}
+    else{h.n++;a.n++;h.pts++;a.pts++}
+  });
+  stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);
+
+  const ps=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
+  goals.forEach(g=>{
+    if(ps.has(g.scorer_player_id))ps.get(g.scorer_player_id).g++;
+    if(g.assister_player_id&&ps.has(g.assister_player_id))ps.get(g.assister_player_id).a++;
+  });
+  let scor=[...ps.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name));
+  let ass=[...ps.values()].filter(x=>x.a).sort((a,b)=>b.a-a.a||a.name.localeCompare(b.name));
+  scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
+
+  let panel=$('#historyPanel');
+  if(!panel){
+    panel=document.createElement('div');panel.id='historyPanel';panel.className='card';panel.style.marginTop='12px';
+    $('#tournamentList').parentElement.appendChild(panel);
+  }
+
+  const teamRows=stats.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ â€¢ '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
+  const scorerRows=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('');
+  const assistRows=ass.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('');
+  const matchRows=(matches||[]).map((m,i)=>{
+    const mg=goals.filter(g=>g.match_id===m.id);
+    const goalLines=mg.map(g=>{
+      const scorer=p(g.scorer_player_id);
+      const assister=g.assister_player_id?p(g.assister_player_id):null;
+      const team=teamMap.get(g.team_id);
+      return '<div class="small" style="margin-top:5px">âš½ '+esc(scorer?.name||'?')+
+        (assister?' <span class="muted">â† passe '+esc(assister.name)+'</span>':'')+
+        (team?' <span class="muted">â€¢ '+esc(team)+'</span>':'')+
+        '</div>';
+    }).join('');
+    return '<div class="player" style="padding:10px 0">'+
+      '<div class="muted" style="font-weight:700;margin-bottom:4px">Match '+(i+1)+'</div>'+
+      '<div style="font-size:1.05rem">'+esc(teamMap.get(m.home_team_id)||'?')+' <b>'+m.home_score+' - '+m.away_score+'</b> '+esc(teamMap.get(m.away_team_id)||'?')+'</div>'+
+      (goalLines||'<div class="small muted" style="margin-top:5px">Aucun buteur enregistrÃ©</div>')+
+      '</div>';
+  }).join('');
+
+  panel.innerHTML=
+    '<div class="row" style="justify-content:space-between"><div><h2 class="sectiontitle" style="margin:0">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</h2><div class="muted">'+t.tournament_date+'</div></div><button id="closeHistoryPanel">Fermer</button></div>'+
+    '<h3>ğŸ† Classement final</h3>'+(teamRows||'<p class="muted">Aucun classement.</p>')+
+    '<h3 style="margin-top:16px">âš½ Buteurs du tournoi</h3>'+(scorerRows||'<p class="muted">Aucun buteur.</p>')+
+    '<h3 style="margin-top:16px">ğŸ¯ Passeurs du tournoi</h3>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+
+    '<h3 style="margin-top:16px">ğŸ“‹ RÃ©sultats</h3>'+(matchRows||'<p class="muted">Aucun match enregistrÃ©.</p>');
+  $('#closeHistoryPanel').onclick=()=>panel.remove();
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+$('#newSeasonBtn').onclick=()=>$('#newSeasonBox').classList.toggle('hidden');
+$('#createSeason').onclick=async()=>{const name=$('#seasonName').value.trim();if(!name)return;const {error}=await sb.from('seasons').insert({workspace_id:S.workspace.id,name,starts_on:today(),is_active:true});if(error)return toast(error.message);$('#seasonName').value='';$('#newSeasonBox').classList.add('hidden');toast('Saison crÃ©Ã©e')};
+const newTournamentToggle=$('#newTournamentToggle');
+if(newTournamentToggle)newTournamentToggle.onclick=()=>{
+  S.tournamentCreateOpen=true;
+  S.seasonAdminOpen=false;
+  applyPermissions();
+  $('#tournamentAdminCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+};
+const cancelTournamentCreate=$('#cancelTournamentCreate');
+if(cancelTournamentCreate)cancelTournamentCreate.onclick=()=>{
+  S.tournamentCreateOpen=false;
+  applyPermissions();
+  $('#tournamentList')?.scrollIntoView({behavior:'smooth',block:'start'});
+};
+const seasonSettingsToggle=$('#seasonSettingsToggle');
+if(seasonSettingsToggle)seasonSettingsToggle.onclick=()=>{
+  S.seasonAdminOpen=!S.seasonAdminOpen;
+  S.tournamentCreateOpen=false;
+  applyPermissions();
+  if(S.seasonAdminOpen)$('#seasonAdminCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+$('#createTournament').onclick=async()=>{
+  if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_create_tournaments)return toast('Tu nâ€™es pas autorisÃ© Ã  crÃ©er un tournoi.');
+  const btn=$('#createTournament');
+  const date=$('#tourDate').value;
+  if(!date)return toast('Choisis une date.');
+  const deadlineLocal=$('#tourRegistrationDeadline')?.value||'';
+  const registrationDeadline=registrationDeadlineIso(deadlineLocal);
+  if(!registrationDeadline)return toast('Indique la date et lâ€™heure de fin des inscriptions.');
+  const eventStart=new Date(date+'T'+($('#tourStartTime')?.value||'09:00')+':00-04:00').getTime();
+  const deadlineMs=new Date(registrationDeadline).getTime();
+  if(deadlineMs<=Date.now())return toast('La fin des inscriptions doit Ãªtre dans le futur.');
+  if(deadlineMs>=eventStart)return toast('La fin des inscriptions doit Ãªtre avant le dÃ©but du tournoi.');
+  const complexId=$('#tourComplex')?.value||'';
+  const startTime=$('#tourStartTime')?.value||'';
+  const feeRaw=$('#tourEntryFee')?.value;
+  const pitchIds=[...document.querySelectorAll('.tourPitchCheck:checked')].map(x=>x.value);
+  if(!complexId)return toast('Choisis le complexe sportif.');
+  if(!pitchIds.length)return toast('Choisis au moins 1 terrain rÃ©servÃ©.');
+  if(pitchIds.length>3)return toast('Maximum 3 terrains pour un tournoi.');
+  if(!startTime)return toast('Indique lâ€™heure de rÃ©servation.');
+  if(feeRaw===''||Number(feeRaw)<0)return toast('Indique le prix par participant.');
+  const complex=S.sportsComplexes.find(c=>c.id===complexId);
+  const selectedPitches=S.sportsPitches.filter(p=>pitchIds.includes(p.id));
+  if(selectedPitches.length!==pitchIds.length)return toast('Un terrain sÃ©lectionnÃ© est invalide.');
+  btn.disabled=true;btn.textContent='CrÃ©ationâ€¦';
+  try{
+    const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' â€” ');
+    const row={
+      workspace_id:S.workspace.id,
+      season_id:$('#seasonSelect').value||null,
+      name:$('#tourName').value.trim()||null,
+      tournament_date:date,
+      format:$('#tourFormat').value,
+      status:'draft',
+      max_players:Math.max(10,Math.min(35,Number($('#tourMaxPlayers').value)||35)),
+      registration_open:$('#tourRegistrationOpen').checked,
+      registration_deadline:registrationDeadline,
+      complex_id:complexId,
+      reserved_pitch_ids:pitchIds,
+      venue,
+      start_time:startTime,
+      entry_fee_cents:Math.round(Number(feeRaw)*100),
+      reservation_reference:$('#tourReservationRef')?.value.trim()||null,
+      discovery_mode:$('#tourDiscoveryMode')?.value||'unlisted',
+      allow_external_players:!!$('#tourAllowExternal')?.checked,
+      external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked
+    };
+    if(S.workspaceFeatures.team_review_enabled){row.team_review_requested=true;row.team_review_duration_minutes=120;}
+    if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active Â« Accepter des joueurs externes Â» pour rendre ce SwÃ© visible aux joueurs solo.');
+    if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant dâ€™exiger un paiement en ligne.');
+    if(S.workspaceFeatures.third_half_enabled)row.cooler_suggested_cents=Math.round(Math.max(0,Number($('#tourCoolerSuggested')?.value)||0)*100);
+    const {data,error}=await sb.from('tournaments').insert(row).select().single();
+    if(error)throw error;
+    S.activeTour=data.id;
+    S.tournaments=[data,...S.tournaments.filter(t=>t.id!==data.id)].sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
+    S.tPlayers=[];S.teams=[];S.teamPlayers=[];S.matches=[];S.goals=[];
+    $('#tourName').value='';$('#tourReservationRef').value='';
+    S.tournamentCreateOpen=false;
+    renderAll();
+    setView('tournaments');
+    await loadAll();
+    setView('tournaments');
+    applyPermissions();
+    toast('Nouveau tournoi crÃ©Ã© âœ… Compte Ã  rebours des inscriptions activÃ©.');
+  }catch(error){
+    toast(error.message||'Impossible de crÃ©er le tournoi');
+  }finally{
+    btn.disabled=false;btn.textContent='CrÃ©er le tournoi';
+  }
+};
+
+function presentIds(){return new Set(S.tPlayers.filter(x=>x.present&&x.registration_status!=='waitlist').map(x=>x.player_id))} function teamPlayerIds(teamId){return S.teamPlayers.filter(x=>x.team_id===teamId).map(x=>x.player_id)}
+function hasGeneratedTournamentTeams(){return S.teams.some(team=>!team.is_preformed)}
+function teamReviewStatusLabel(status){
+  return ({not_started:'Pas dÃ©marrÃ©e',pending:'Avis en cours',redraw_requested:'Nouveau tirage demandÃ©',approved:'Composition validÃ©e',cancelled:'CrÃ©ation annulÃ©e'})[status]||status||'â€”';
+}
+function renderTeamReviewPanel(t){
+  const box=$('#teamReviewPanel');if(!box)return;
+  if(!t||t.format==='league'||!S.workspaceFeatures.team_review_enabled){box.classList.add('hidden');box.innerHTML='';return;}
+  const r=S.teamReviewState||{status:t.team_review_status||'not_started',max_redraws:Number(t.max_team_redraws||1),redraws_used:Number(t.team_redraws_used||0),eligible_count:0,validate_votes:0,redraw_votes:0};
+  const deadline=r.deadline?new Date(r.deadline):null;
+  const deadlineText=deadline&&!Number.isNaN(deadline.getTime())?deadline.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'â€”';
+  const remaining=Math.max(0,Number(r.redraws_remaining ?? (Number(r.max_redraws||0)-Number(r.redraws_used||0))));
+  const statusClass=String(r.status||'not_started').replace(/_/g,'-');
+  let html='<div class="team-review-head"><div><b>ğŸ—³ï¸ Validation collaborative du tirage</b><div class="muted">Les co-gestionnaires inscrits Ã  ce SwÃ© disposent de 2 heures pour donner leur avis. Les Ã©quipes restent masquÃ©es sur le lien public jusquâ€™Ã  validation.</div></div><span class="team-review-status '+statusClass+'">'+esc(teamReviewStatusLabel(r.status))+'</span></div>'+
+    '<div class="team-review-stats"><span>ğŸ‘¥ '+Number(r.eligible_count||0)+' co-gestionnaire(s) concernÃ©(s)</span><span>âœ… '+Number(r.validate_votes||0)+' valider</span><span>ğŸ”„ '+Number(r.redraw_votes||0)+' refaire</span><span>â™»ï¸ '+Number(r.redraws_used||0)+' / '+Number(r.max_redraws||0)+' nouveau(x) tirage(s)</span></div>';
+  if(r.status==='pending')html+='<div class="team-review-deadline">â³ Avis possibles jusquâ€™au <b>'+esc(deadlineText)+'</b>.</div>';
+  if(isAdmin()){
+    html+='<div class="team-review-admin"><label><span>Nombre maximum de nouveaux tirages</span><input id="teamReviewMaxRedraws" type="number" min="0" max="10" value="'+Number(r.max_redraws ?? t.max_team_redraws ?? 1)+'"></label><button id="saveTeamReviewLimit">ğŸ’¾ Enregistrer la limite</button>'+
+      (r.status==='pending'?'<button id="approveTeamsNow" class="primary">âœ… Valider maintenant</button>':'')+
+      (r.status==='redraw_requested'&&remaining>0?'<button id="applyTeamRedraw" class="primary">ğŸ”„ Refaire le tirage ('+remaining+' restant'+(remaining>1?'s':'')+')</button>':'')+
+      ((S.teams||[]).length?'<button id="cancelTeamGeneration" class="danger">â†© Annuler la crÃ©ation des Ã©quipes</button>':'')+'</div>';
+  }else if(isCoorg()){
+    if(r.status==='pending'&&r.my_eligible){
+      html+='<div class="team-review-vote"><b>Ton avis</b><div class="row"><button id="voteValidateTeams" class="'+(r.my_vote==='validate'?'primary':'')+'">âœ… Valider</button><button id="voteRedrawTeams" class="'+(r.my_vote==='redraw'?'danger':'')+'">ğŸ”„ Refaire le tirage</button></div>'+(r.my_vote?'<div class="muted">Ton choix actuel : <b>'+(r.my_vote==='validate'?'Valider':'Refaire le tirage')+'</b>. Tu peux le modifier tant que les 2 heures ne sont pas Ã©coulÃ©es.</div>':'')+'</div>';
+    }else if(r.status==='pending'&&!r.my_eligible){
+      html+='<div class="readonly-note">Le vote est rÃ©servÃ© aux co-gestionnaires qui sont eux-mÃªmes inscrits Ã  ce SwÃ©.</div>';
+    }
+  }
+  if(r.status==='redraw_requested')html+='<div class="readonly-note"><b>ğŸ”„ La majoritÃ© demande un nouveau tirage.</b> Lâ€™administrateur peut appliquer le prochain tirage dans la limite autorisÃ©e.</div>';
+  if(r.status==='approved')html+='<div class="readonly-note success-note"><b>âœ… Composition validÃ©e.</b> Les Ã©quipes peuvent maintenant apparaÃ®tre sur le lien dâ€™invitation.</div>';
+  box.innerHTML=html;box.classList.remove('hidden');
+  const save=$('#saveTeamReviewLimit');if(save)save.onclick=async()=>{const max=Math.max(0,Math.min(10,Number($('#teamReviewMaxRedraws').value)||0));save.disabled=true;const {error}=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:t.id,p_max_redraws:max,p_requested:true,p_duration_minutes:120});save.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Limite de nouveaux tirages enregistrÃ©e âœ…');};
+  const approve=$('#approveTeamsNow');if(approve)approve.onclick=async()=>{if(!confirm('Valider cette composition maintenant ? Elle deviendra visible sur le lien public.'))return;approve.disabled=true;const {error}=await sb.rpc('admin_approve_tournament_team_review',{p_tournament_id:t.id});approve.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Composition validÃ©e âœ…');};
+  const redraw=$('#applyTeamRedraw');if(redraw)redraw.onclick=()=>runSmartTeamGeneration(true);
+  const cancel=$('#cancelTeamGeneration');if(cancel)cancel.onclick=async()=>{if(!confirm('Annuler la crÃ©ation des Ã©quipes ?\n\nLes Ã©quipes gÃ©nÃ©rÃ©es, les matchs associÃ©s et la phase de validation seront supprimÃ©s. Les Ã©quipes prÃ©formÃ©es restent conservÃ©es.'))return;cancel.disabled=true;const {error}=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});cancel.disabled=false;if(error)return toast(error.message);await loadAll();S.activeTour=t.id;await loadTournament();renderAll();toast('CrÃ©ation des Ã©quipes annulÃ©e.');};
+  const vote=async decision=>{const {error}=await sb.rpc('vote_tournament_team_review',{p_tournament_id:t.id,p_decision:decision});if(error)return toast(error.message);await loadTournament();renderTeams();toast(decision==='validate'?'Avis enregistrÃ© : valider âœ…':'Avis enregistrÃ© : refaire le tirage ğŸ”„');};
+  const vb=$('#voteValidateTeams');if(vb)vb.onclick=()=>vote('validate');
+  const rb=$('#voteRedrawTeams');if(rb)rb.onclick=()=>vote('redraw');
+}
+
+const SWE_TEAM_COLOR_META={
+  '#111827':'Noir','#2563eb':'Bleu','#f8fafc':'Blanc','#dc2626':'Rouge','#16a34a':'Vert',
+  '#eab308':'Jaune','#f97316':'Orange','#7c3aed':'Violet','#ec4899':'Rose','#78350f':'Marron','#64748b':'Gris'
+};
+function sweTeamColor(team){
+  const raw=String(team?.color||'').trim().toLowerCase();
+  if(raw)return raw;
+  const name=String(team?.name||'').trim().toLowerCase();
+  const aliases={noir:'#111827',noirs:'#111827',bleu:'#2563eb',bleus:'#2563eb',blanc:'#f8fafc',blancs:'#f8fafc',rouge:'#dc2626',rouges:'#dc2626',vert:'#16a34a',verts:'#16a34a',jaune:'#eab308',jaunes:'#eab308',orange:'#f97316',oranges:'#f97316',violet:'#7c3aed',violets:'#7c3aed',rose:'#ec4899',roses:'#ec4899',marron:'#78350f',marrons:'#78350f',gris:'#64748b'};
+  return aliases[name]||'#64748b';
+}
+function sweTeamColorLabel(team){return SWE_TEAM_COLOR_META[sweTeamColor(team)]||'Couleur personnalisÃ©e';}
+function sweTeamTextColor(hex){return ['#f8fafc','#eab308'].includes(String(hex).toLowerCase())?'#111827':'#ffffff';}
+function tournamentCommonSubstitutes(){
+  const assigned=new Set(S.teamPlayers.map(x=>String(x.player_id)));
+  return S.tPlayers.filter(r=>r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!assigned.has(String(r.player_id)))
+    .map(r=>p(r.player_id)).filter(Boolean);
+}
+async function syncTournamentSubstitutes(tournamentId){
+  const result=await sb.rpc('sync_tournament_substitutes',{p_tournament_id:tournamentId});
+  if(result.error)throw result.error;
+  return result.data||null;
+}
+function chienBoulLabel(score){return 'ğŸ¶âš½ Note Ã©quipe Ã©valuÃ©e par Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
+
+function renderTeams(){
+  const t=S.teamCompetitionId?S.tournaments.find(x=>String(x.id)===String(S.teamCompetitionId))||null:null,att=$('#attendanceList'),box=$('#teamList');
+  const note=$('#teamNoCreatePermission'),controls=$('#teamManagementControls');
+  const compSel=$('#teamCompetitionSelect'),compStatus=$('#teamCompetitionStatus');
+  att.innerHTML='';box.innerHTML='';
+
+  const competitions=S.tournaments
+    .slice()
+    .sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
+  if(compSel){
+    const keep=S.teamCompetitionId||'';
+    compSel.innerHTML='<option value="">Choisir une compÃ©tition</option>'+competitions.map(c=>{
+      const kind=c.format==='league'?'ğŸ SwÃ© de Ligue':'âš½ Tournoi';
+      return '<option value="'+c.id+'">'+kind+' â€¢ '+esc(c.name||c.tournament_date)+' â€¢ '+esc(c.tournament_date)+(c.status==='finished'?' â€¢ terminÃ©':'')+'</option>';
+    }).join('');
+    if(competitions.some(c=>c.id===keep))compSel.value=keep;
+    compSel.onchange=async()=>{
+      const id=compSel.value;
+      if(!id){
+        S.teamCompetitionId=null;
+        renderTeams();return;
+      }
+      S.teamCompetitionId=id;
+      S.activeTour=id;
+      compSel.disabled=true;
+      await loadTournament();
+      if(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams)){
+        try{await syncTournamentSubstitutes(id);await loadTournament()}catch(error){console.warn('substitute synchronization',error)}
+      }
+      compSel.disabled=false;
+      renderTeams();
+      renderHome();
+    };
+  }
+
+  const attendanceCard=$('#attendanceAdminCard');
+  if(!t){
+    if(compStatus)compStatus.innerHTML='<span style="color:#64748b">SÃ©lectionne une compÃ©tition pour afficher les Ã©quipes et les joueurs inscrits.</span>';
+    att.innerHTML='';
+    box.innerHTML='';
+    if(note)note.classList.add('hidden');
+    if(controls)controls.classList.add('hidden');
+    if(attendanceCard)attendanceCard.classList.add('hidden');
+    return;
+  }
+  if(attendanceCard)attendanceCard.classList.remove('hidden');
+  if(compStatus){
+    const confirmedCount=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist').length;
+    const plan=t.format==='league'?null:tournamentAutoPlan(confirmedCount);
+    compStatus.innerHTML='<b>'+esc(t.format==='league'?'SwÃ© de Ligue':'Tournoi')+' :</b> '+esc(t.name||t.tournament_date)+' â€¢ '+esc(t.tournament_date)+
+      (plan?'<div class="player" style="margin-top:8px;background:#eef8f2"><b>âš™ï¸ Configuration automatique avec '+confirmedCount+' inscrit'+(confirmedCount>1?'s':'')+'</b><div class="muted" style="margin-top:5px">'+plan.teams+' Ã©quipes â€¢ '+plan.pitches+' terrain'+(plan.pitches>1?'s':'')+(plan.subs?' â€¢ '+plan.subs+' remplaÃ§ant'+(plan.subs>1?'s':'')+' commun'+(plan.subs>1?'s':'')+' (derniers inscrits)':'')+'<br>RÃ¨gle : '+esc(plan.rule)+(plan.subs?'<br>Les remplaÃ§ants peuvent jouer pour nâ€™importe quelle Ã©quipe.':'')+'</div></div>':'');
+  }
+
+  const ppt=$('#playersPerTeam');
+  if(ppt)ppt.classList.toggle('hidden',t.format!=='league');
+  renderTeamReviewPanel(t);
+
+  const canGenerate=hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams);
+  const canFullEdit=hasAdminOps();
+
+  if(controls)controls.classList.toggle('hidden',!canGenerate);
+  const genBtn=$('#smartAutoTeams');if(genBtn&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&hasGeneratedTournamentTeams()){genBtn.disabled=true;genBtn.title='Le tirage initial existe dÃ©jÃ . Utilise la validation collaborative ou annule la crÃ©ation.';}else if(genBtn){genBtn.disabled=false;genBtn.title='';}
+
+  if(!canFullEdit){
+    att.innerHTML='<div class="readonly-note">Tu peux consulter les joueurs inscrits et les Ã©quipes de cette compÃ©tition. La modification manuelle des prÃ©sences reste rÃ©servÃ©e Ã  lâ€™administrateur.</div>';
+    const registeredIds=new Set(S.tPlayers.filter(tp=>tp.present).map(tp=>tp.player_id));
+    const registeredPlayers=S.players.filter(x=>x.active&&registeredIds.has(x.id));
+    att.innerHTML+='<div class="muted" style="margin:10px 0 6px">'+(t.format==='league'
+      ?'<b>Important :</b> cette liste contient uniquement les inscrits Ã  ce SwÃ©, pas tous les membres de la Ligue.'
+      :'Liste des inscrits Ã  ce tournoi.')+'</div>'+
+      (registeredPlayers.map(x=>'<div class="player row"><span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((()=>{const z=S.tPlayers.find(tp=>tp.player_id===x.id);return z&&(z.registration_status==='waitlist'||z.is_substitute)})()?'RemplaÃ§ant':'Inscrit au SwÃ©')+'</span></div>').join('')||'<p class="muted">Aucun inscrit Ã  cette compÃ©tition.</p>');
+  }else{
+    const prs=presentIds();
+    if(t.format==='league'){
+      const sessionRows=S.tPlayers.filter(tp=>tp.present);
+      att.innerHTML='<div class="readonly-note"><b>ğŸ Inscrits Ã  CE SwÃ© de Ligue uniquement</b><div style="margin-top:5px">ÃŠtre membre de la Ligue ne signifie pas participer automatiquement Ã  ce SwÃ©. Les membres de la Ligue qui ne se sont pas inscrits Ã  ce SwÃ© ne sont pas affichÃ©s ici.</div></div>'+
+        (sessionRows.map(tp=>{
+          const x=p(tp.player_id);if(!x)return '';
+          return '<div class="player row"><span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((tp.registration_status==='waitlist'||tp.is_substitute)?'RemplaÃ§ant':'Inscrit au SwÃ©')+'</span></div>';
+        }).join('')||'<p class="muted">Aucun joueur inscrit Ã  ce SwÃ© pour le moment.</p>');
+    }else{
+      S.players.filter(x=>x.active).forEach(x=>{
+        const l=document.createElement('label');l.className='player row';
+        const c=document.createElement('input');c.type='checkbox';c.style.width='auto';c.checked=prs.has(x.id);
+        c.onchange=async()=>{
+          const joining=c.checked;
+          if(c.checked){
+            const confirmed=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist'&&tp.player_id!==x.id).length;
+            const status=confirmed<(t.max_players||20)?'confirmed':'waitlist';
+            const {error}=await sb.from('tournament_players').upsert({tournament_id:t.id,player_id:x.id,present:true,registration_status:status,registered_at:new Date().toISOString()},{onConflict:'tournament_id,player_id'});
+            if(error)return toast(error.message);
+          }else{
+            const {error}=await sb.from('tournament_players').update({present:false,registration_status:'cancelled',deregistered_at:new Date().toISOString()}).eq('tournament_id',t.id).eq('player_id',x.id);
+            if(error)return toast(error.message);
+          }
+          try{await syncTournamentSubstitutes(t.id)}catch(error){c.checked=!joining;return toast(error.message)}
+          await loadTournament();renderAll();
+          const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(x.id));
+          toast(joining?(fresh?.registration_status==='waitlist'||fresh?.is_substitute?'Joueur ajoutÃ© comme remplaÃ§ant ğŸŸ ':'Joueur ajoutÃ© aux confirmÃ©s âœ…'):'Joueur retirÃ© du tournoi.');
+        };
+        const tp=S.tPlayers.find(z=>z.player_id===x.id);
+        const label=document.createElement('span');label.style.flex='1';label.textContent=playerDisplayName(x);
+        if(tp?.registration_status==='waitlist'&&tp?.present){
+          const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='Liste dâ€™attente';
+          label.appendChild(document.createTextNode(' '));label.appendChild(badge);
+        }else if(tp?.is_substitute&&tp?.present){
+          const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='RemplaÃ§ant';
+          badge.style.background='#fff7ed';badge.style.borderColor='#fed7aa';badge.style.color='#b45309';
+          label.appendChild(document.createTextNode(' '));label.appendChild(badge);
+        }else if(tp&&!tp.present&&tp.registration_status==='cancelled'){
+          const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='DÃ©sinscrit';
+          badge.style.background='#fff1f2';badge.style.borderColor='#fecdd3';badge.style.color='#be123c';
+          label.appendChild(document.createTextNode(' '));label.appendChild(badge);
+          if(tp.deregistered_at){
+            const d=new Date(tp.deregistered_at);
+            if(!Number.isNaN(d.getTime())){
+              const when=document.createElement('small');when.className='muted';when.textContent=' â€¢ '+d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+              label.appendChild(when);
+            }
+          }
+        }
+        l.append(c,label);att.appendChild(l);
+      });
+    }
+  }
+
+  if(!S.teams.length){
+    if(note){
+      if(canGenerate){
+        note.classList.add('hidden');
+      }else{
+        note.classList.remove('hidden');
+        note.innerHTML='<b>â„¹ï¸ Les Ã©quipes ne sont pas encore crÃ©Ã©es.</b><div style="margin-top:5px">Tu peux consulter les inscrits, mais ton compte co-organisateur nâ€™a pas lâ€™autorisation de crÃ©er ou gÃ©nÃ©rer les Ã©quipes. Lâ€™administrateur doit les crÃ©er ou tâ€™accorder le droit Â« GÃ©nÃ©rer les Ã©quipes Â».</div>';
+      }
+    }
+    box.innerHTML=canGenerate
+      ? '<p class="muted">Aucune Ã©quipe crÃ©Ã©e pour cette compÃ©tition. Tu peux les crÃ©er ou les gÃ©nÃ©rer ci-dessus.</p>'
+      : '';
+    return;
+  }
+
+  if(note)note.classList.add('hidden');
+  const prs=presentIds();
+
+  S.teams.forEach(team=>{
+    const d=document.createElement('div');d.className='team swe-team-card';
+    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg),colorLabel=sweTeamColorLabel(team);
+    d.style.setProperty('--team-color',bg);
+    const head=document.createElement('div');head.className='row swe-team-card-head';head.style.justifyContent='space-between';head.style.background=bg;head.style.color=fg;
+    const titleWrap=document.createElement('div');
+    const title=document.createElement('b');title.innerHTML=esc(team.name)+' <span class="team-color-name">â€¢ '+esc(colorLabel)+'</span>';titleWrap.appendChild(title);
+    const score=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
+    if(score){
+      const meta=document.createElement('div');meta.className='team-balance-badges';
+      meta.innerHTML='<span class="chien-boul-badge">'+esc(chienBoulLabel(score.team_score))+'</span><span class="team-mention">'+esc(score.mention||'Ã‰quipe qui peut surprendre')+'</span>'+(Number(score.free_slots||0)>0?'<span class="team-free">'+Number(score.free_slots)+' place'+(Number(score.free_slots)>1?'s':'')+' libre'+(Number(score.free_slots)>1?'s':'')+'</span>':'<span class="team-locked">Ã‰quipe complÃ¨te</span>');
+      titleWrap.appendChild(meta);
+    }
+    head.appendChild(titleWrap);
+
+    if(canFullEdit){
+      const rename=document.createElement('button');rename.textContent='âœï¸ Renommer';rename.className='secondary';
+      rename.onclick=async()=>{
+        const next=prompt('Nouveau nom de lâ€™Ã©quipe',team.name);
+        if(next===null)return;
+        const name=next.trim();
+        if(!name||name.length>40)return toast('Le nom doit contenir entre 1 et 40 caractÃ¨res.');
+        rename.disabled=true;
+        const {error}=await sb.from('teams').update({name}).eq('id',team.id).select('id').single();
+        if(error){rename.disabled=false;return toast(error.message)}
+        await loadTournament();renderAll();toast('Ã‰quipe renommÃ©e âœ…');
+      };
+      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
+      del.onclick=async()=>{
+        const hasMatches=S.matches.some(m=>m.home_team_id===team.id||m.away_team_id===team.id);
+        const msg=hasMatches
+          ? 'Supprimer cette Ã©quipe ? Les matchs, buts et statistiques liÃ©s Ã  cette Ã©quipe seront aussi supprimÃ©s.'
+          : 'Supprimer cette Ã©quipe ?';
+        if(!confirm(msg))return;
+        del.disabled=true;
+        const {error}=await sb.from('teams').delete().eq('id',team.id);
+        if(error){del.disabled=false;return toast(error.message)}
+        await syncTournamentSubstitutes(t.id);await loadTournament();
+        if(t.format!=='league'&&Number(t.generated_team_count||0)>0&&!hasGeneratedTournamentTeams()){
+          const reset=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});
+          if(reset.error)return toast('Ã‰quipe supprimÃ©e, mais le tirage doit Ãªtre annulÃ© depuis le panneau de validation.');
+          await loadAll();S.activeTour=t.id;S.teamCompetitionId=t.id;await loadTournament();
+        }
+        renderAll();toast('Ã‰quipe supprimÃ©e âœ…');
+      };
+      head.append(rename,del);
+    }
+    d.appendChild(head);
+
+    if(canFullEdit){
+      const sel=document.createElement('select');
+      sel.innerHTML='<option value="">Ajouter un joueur inscrit...</option>'+S.players.filter(x=>prs.has(x.id)&&!S.teamPlayers.some(tp=>tp.player_id===x.id)).map(x=>{
+        const first=(x.temporary_league_member&&x.league_origin_id===t.league_id)||x.is_group_member===false;
+        return '<option value="'+x.id+'">'+esc(playerDisplayName(x))+(first?' â€¢ 1Ã¨re fois':'')+'</option>';
+      }).join('');
+      sel.onchange=async()=>{
+        if(!sel.value)return;
+        if(teamPlayerIds(team.id).length>=Number(t.team_size||5))return toast('Cette Ã©quipe est complÃ¨te. Retire dâ€™abord un joueur pour effectuer un remplacement.');
+        const {error}=await sb.from('team_players').insert({team_id:team.id,player_id:sel.value});
+        if(error)return toast(error.message);
+        try{await syncTournamentSubstitutes(t.id)}catch(e){return toast(e.message)}
+        await loadTournament();renderTeams();
+      };
+      d.appendChild(sel);
+    }
+
+    teamPlayerIds(team.id).forEach(id=>{
+      const pl=p(id);if(!pl)return;
+      const r=document.createElement('div');
+      r.className='row small '+(pl.is_group_member===false?'guest-row':'');
+      r.innerHTML='<span style="flex:1">'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span>';
+      if(canFullEdit){
+        const b=document.createElement('button');b.textContent='Ã—';
+        b.onclick=async()=>{const {error}=await sb.from('team_players').delete().eq('team_id',team.id).eq('player_id',id);if(error)return toast(error.message);try{await syncTournamentSubstitutes(t.id)}catch(e){return toast(e.message)}await loadTournament();renderTeams();};
+        r.appendChild(b);
+      }
+      d.appendChild(r);
+    });
+    box.appendChild(d);
+  });
+
+  const commonSubs=tournamentCommonSubstitutes();
+  if(commonSubs.length){
+    const sub=document.createElement('div');sub.className='team swe-substitutes-card';
+    sub.innerHTML='<div class="swe-substitutes-head"><b>ğŸŸ  RemplaÃ§ants communs</b><span>Peuvent entrer dans nâ€™importe quelle Ã©quipe</span></div><div class="swe-substitutes-list">'+commonSubs.map(pl=>'<span>â†ª '+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <em>Guest</em>':'')+'</span>').join('')+'</div>';
+    box.appendChild(sub);
+  }
+}
+
+function exportTeamsToPdf(){
+  const t=currentTour();
+  if(!t)return toast('Choisis dâ€™abord une compÃ©tition.');
+  if(!S.teams.length)return toast('Aucune Ã©quipe Ã  exporter.');
+  const subs=tournamentCommonSubstitutes();
+  const cards=S.teams.map(team=>{
+    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg),label=sweTeamColorLabel(team);
+    const score=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
+    const names=teamPlayerIds(team.id).map(id=>p(id)).filter(Boolean).map(pl=>'<li>'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <small>Guest</small>':'')+'</li>').join('');
+    return '<section class="team"><header style="background:'+bg+';color:'+fg+'"><strong>ğŸ‘• '+esc(team.name)+'</strong><span>'+esc(label)+'</span></header>'+(score?'<div class="academy">'+esc(chienBoulLabel(score.team_score))+(score.mention?' â€¢ '+esc(score.mention):'')+'</div>':'')+'<ol>'+(names||'<li>Aucun joueur</li>')+'</ol></section>';
+  }).join('');
+  const subHtml=subs.length?'<section class="subs"><h2>ğŸŸ  RemplaÃ§ants communs</h2><p>Peuvent jouer pour nâ€™importe quelle Ã©quipe.</p><div>'+subs.map(pl=>'<span>'+esc(playerDisplayName(pl))+'</span>').join('')+'</div></section>':'';
+  const w=window.open('','_blank','noopener,noreferrer');
+  if(!w)return toast('Autorise les fenÃªtres pop-up pour gÃ©nÃ©rer le PDF.');
+  const title='Ã‰quipes - '+esc(t.name||t.tournament_date||'SWÃ‰');
+  w.document.open();
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>'+title+'</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251f;margin:0}h1{margin:0;font-size:25px}.meta{color:#66756e;margin:5px 0 18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.team{border:1px solid #d9e2dd;border-radius:12px;overflow:hidden;break-inside:avoid}.team header{padding:12px 14px;display:flex;justify-content:space-between;gap:12px;font-size:17px}.team header span{font-weight:700}.academy{padding:8px 14px;background:#fff8df;font-weight:700;font-size:13px}.team ol{margin:10px 0 12px;padding:0 14px 0 36px}.team li{padding:4px 0}.team small{color:#777}.subs{margin-top:14px;padding:12px 14px;border:2px dashed #f59e0b;border-radius:12px;background:#fff8eb;break-inside:avoid}.subs h2{font-size:17px;margin:0 0 3px}.subs p{margin:0 0 8px;color:#8a5a00}.subs div{display:flex;flex-wrap:wrap;gap:7px}.subs span{background:#fff;border:1px solid #f6c65b;border-radius:999px;padding:6px 10px;font-weight:700}.foot{margin-top:18px;border-top:1px solid #ddd;padding-top:8px;color:#777;font-size:11px}@media print{button{display:none}}@media(max-width:650px){.grid{grid-template-columns:1fr}}</style></head><body><h1>âš½ SWÃ‰ TOURNAMENT - Ã‰quipes</h1><div class="meta">'+esc(t.name||'')+' â€¢ '+esc(t.tournament_date||'')+'</div><div class="grid">'+cards+'</div>'+subHtml+'<div class="foot">ğŸ¶âš½ Ã‰quilibre selon Chien Boul Academy â€¢ GÃ©nÃ©rÃ© par SWÃ‰ Tournament</div><script>setTimeout(()=>window.print(),250)<\/script></body></html>');
+  w.document.close();
+}
+const exportTeamsPdfBtn=$('#exportTeamsPdf');if(exportTeamsPdfBtn)exportTeamsPdfBtn.onclick=exportTeamsToPdf;
+
+$('#addTeam').onclick=async()=>{
+  if(!(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams)))return toast('Tu nâ€™as pas lâ€™autorisation de crÃ©er une Ã©quipe.');
+  const t=currentTour(),name=$('#teamName').value.trim(),color=$('#teamColor').value;
+  if(!t)return toast('Choisis dâ€™abord le tournoi ou le SwÃ© de Ligue concernÃ©.');
+  if(!name)return toast('Indique le nom de lâ€™Ã©quipe.');
+  const {error}=await sb.from('teams').insert({tournament_id:t.id,name,color});
+  if(error)return toast(error.message);
+  $('#teamName').value='';
+  await loadTournament();renderTeams();toast('Ã‰quipe crÃ©Ã©e pour Â« '+(t.name||t.tournament_date)+' Â» âœ…');
+};
+async function runSmartTeamGeneration(isRedraw=false){
+  if(isRedraw&&!isAdmin())return toast('Seul lâ€™administrateur peut appliquer un nouveau tirage.');
+  if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_generate_teams)return toast('Tu nâ€™es pas autorisÃ© Ã  gÃ©nÃ©rer les Ã©quipes.');
+  const t=currentTour();if(!t)return toast('Choisis dâ€™abord le tournoi ou le SwÃ© de Ligue concernÃ©.');
+  if(!isRedraw&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&hasGeneratedTournamentTeams())return toast('Un tirage existe dÃ©jÃ . Utilise la validation collaborative ou annule la crÃ©ation avant de repartir de zÃ©ro.');
+  if(isRedraw&&S.teamReviewState?.status!=='redraw_requested')return toast('Aucun nouveau tirage nâ€™a Ã©tÃ© demandÃ©.');
+  const confirmed=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist').length;
+  if(t.format!=='league'&&confirmed<10)return toast('Il faut au moins 10 joueurs confirmÃ©s pour crÃ©er 2 Ã©quipes.');
+  if(t.format==='league'&&confirmed<4)return toast('Il faut au moins 4 joueurs confirmÃ©s.');
+  const perTeam=Math.max(2,Math.min(11,Number($('#playersPerTeam').value)||5));
+  const message=isRedraw?'Appliquer un nouveau tirage ?\n\nCe tirage consommera 1 des nouveaux tirages autorisÃ©s pour ce tournoi et relancera une fenÃªtre dâ€™avis de 2 heures.':'GÃ©nÃ©rer les Ã©quipes ?\n\nâ€¢ Les Ã©quipes prÃ©formÃ©es complÃ¨tes restent intactes.\nâ€¢ Les joueurs ayant dÃ©jÃ  acceptÃ© leur Ã©quipe restent verrouillÃ©s.\nâ€¢ Les invitations non confirmÃ©es et les inscrits en Ã©quipe alÃ©atoire sont redistribuÃ©s.\nâ€¢ Les places libres sont complÃ©tÃ©es en recherchant le meilleur Ã©quilibre.\nâ€¢ Les anciens matchs/buts liÃ©s Ã  une ancienne rÃ©partition seront supprimÃ©s.';
+  if((isRedraw||S.matches.length||S.teams.length)&&!confirm(message))return;
+  const btn=isRedraw?$('#applyTeamRedraw'):$('#smartAutoTeams');if(btn){btn.disabled=true;btn.textContent=isRedraw?'Nouveau tirageâ€¦':'GÃ©nÃ©rationâ€¦';}
+  try{
+    const targetId=t.id;
+    S.activeTour=targetId;S.teamCompetitionId=targetId;
+    if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&isAdmin()){
+      const configured=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:targetId,p_max_redraws:Number(t.max_team_redraws??1),p_requested:true,p_duration_minutes:120});
+      if(configured.error)throw configured.error;
+    }
+    const call=t.format==='league'?sb.rpc('generate_balanced_teams',{p_tournament_id:t.id,p_players_per_team:perTeam}):sb.rpc('generate_swe_tournament_teams',{p_tournament_id:t.id});
+    const {data,error}=await call;if(error)throw error;
+    let reviewError=null;
+    if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled){
+      const review=await sb.rpc('start_tournament_team_review',{p_tournament_id:t.id,p_is_redraw:!!isRedraw});
+      reviewError=review.error||null;
+    }
+    await loadAll();S.activeTour=targetId;S.teamCompetitionId=targetId;await loadTournament();renderAll();setView('teams');
+    const n=Number(data?.team_count||S.teams.length||0);
+    if(t.format==='league')$('#teamBalanceInfo').textContent=n+' Ã©quipes gÃ©nÃ©rÃ©es automatiquement selon les niveaux privÃ©s dÃ©finis par lâ€™administrateur.';
+    else{
+      const subs=Number(data?.substitute_count||0),pitches=Number(data?.pitch_count||1),scores=(data?.team_scores||[]).map(x=>x.team_name+' '+Number(x.score||0).toFixed(1)+'/5 â€¢ '+x.mention).join(' Â· ');
+      $('#teamBalanceInfo').innerHTML='<b>'+n+' Ã©quipes â€¢ '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' â€¢ '+subs+' remplaÃ§ant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>ğŸ”’ Les Ã©quipes complÃ¨tes et les joueurs ayant acceptÃ© leur place ont Ã©tÃ© conservÃ©s. Les autres joueurs ont Ã©tÃ© rÃ©partis dans les places libres pour Ã©quilibrer les niveaux.'+(scores?'<br><b>âš–ï¸ Note moyenne Ã©quipes :</b> '+esc(scores):'')+'<br>RÃ¨gle automatique : '+(data?.odd_team_rule?'2 buts dâ€™Ã©cart = lâ€™Ã©quipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(S.workspaceFeatures.team_review_enabled?(reviewError?'<br><b>âš ï¸ Avis des co-gestionnaires :</b> les Ã©quipes sont crÃ©Ã©es, mais le lancement des votes a Ã©chouÃ©. Relance la page puis rÃ©essaie.':'<br><b>ğŸ—³ï¸ Validation :</b> les Ã©quipes restent masquÃ©es du lien public pendant la fenÃªtre dâ€™avis des co-gestionnaires prÃ©sents.'):'');
+    }
+    toast(reviewError?'Ã‰quipes gÃ©nÃ©rÃ©es, mais les votes nâ€™ont pas dÃ©marrÃ© : '+reviewError.message:(isRedraw?'Nouveau tirage crÃ©Ã©. Nouvelle fenÃªtre dâ€™avis ouverte âœ…':n+' Ã©quipes gÃ©nÃ©rÃ©es âœ…'));
+  }catch(e){toast(e.message||'Impossible de gÃ©nÃ©rer les Ã©quipes')}
+  finally{if(btn){btn.disabled=false;btn.textContent=isRedraw?'ğŸ”„ Refaire le tirage':'âš¡ GÃ©nÃ©rer Ã©quipes Ã©quilibrÃ©es';}}
+}
+$('#smartAutoTeams').onclick=()=>runSmartTeamGeneration(false);
+
+function matchOptions(){return '<option value="">Choisir</option>'+S.teams.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')}
+function buildMatchPlayerManager(match,home,away){
+  const wrap=document.createElement('div');
+  wrap.className='player match-player-manager';
+  wrap.style.marginTop='12px';
+  wrap.style.background='#f8fbf9';
+  const canMove=canEditCurrentMatches();
+  const rows=S.matchAssignments.filter(a=>String(a.match_id)===String(match.id));
+  const assignedMap=new Map(rows.map(a=>[a.player_id,a.team_id||'']));
+  const homeBase=new Set(teamPlayerIds(home.id).map(String));
+  const awayBase=new Set(teamPlayerIds(away.id).map(String));
+  const tournamentPlayers=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist')
+    .map(tp=>({tp,pl:p(tp.player_id)})).filter(x=>x.pl)
+    .sort((a,b)=>String(a.pl.name).localeCompare(String(b.pl.name)));
+  const starters=tournamentPlayers.filter(({pl})=>homeBase.has(String(pl.id))||awayBase.has(String(pl.id))||[home.id,away.id].map(String).includes(String(assignedMap.get(pl.id)||'')));
+  const substitutes=tournamentPlayers.filter(({pl})=>!starters.some(x=>String(x.pl.id)===String(pl.id)));
+
+  wrap.innerHTML='<div class="row" style="justify-content:space-between"><div><b>ğŸ”„ Composition du match</b><div class="muted">Les listes sont repliÃ©es pour garder la page lisible pendant la saisie des scores.</div></div></div>';
+  const formula=document.createElement('div');formula.className='muted';formula.style.marginTop='6px';
+  if(S.workspaceFeatures.player_ratings_enabled)formula.innerHTML='â­ Note automatique : victoire 6 â€¢ nul 5 â€¢ dÃ©faite 4 â€¢ +1/but â€¢ +0,5/passe â€¢ maximum 10.';
+  wrap.appendChild(formula);
+
+  const makePlayerRow=({tp,pl})=>{
+    const currentTeam=assignedMap.has(pl.id)?assignedMap.get(pl.id):(homeBase.has(String(pl.id))?home.id:(awayBase.has(String(pl.id))?away.id:''));
+    const row=document.createElement('div');row.className='row small match-player-row';row.style.padding='7px 0';row.style.borderBottom='1px solid #edf2ef';
+    const name=document.createElement('span');name.style.flex='1';name.innerHTML='<b>'+esc(pl.name)+'</b>'+(tp.is_substitute?' <span class="guest-badge">RemplaÃ§ant commun</span>':'');
+    const sel=document.createElement('select');sel.className='match-player-team-select';sel.disabled=!canMove;
+    sel.innerHTML='<option value="">Hors match / remplaÃ§ant</option><option value="'+home.id+'">'+esc(home.name)+'</option><option value="'+away.id+'">'+esc(away.name)+'</option>';
+    sel.value=currentTeam||'';
+    const future=document.createElement('label');future.className='row match-future-label';future.style.justifyContent='flex-start';future.style.gap='4px';future.style.fontSize='11px';
+    const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.disabled=!canMove;future.append(cb,document.createTextNode(' matchs suivants'));
+    const save=document.createElement('button');save.textContent='DÃ©placer';save.className='smallbtn';save.disabled=!canMove;
+    save.onclick=async()=>{save.disabled=true;const {error}=await sb.rpc('set_match_player_assignment',{p_match_id:match.id,p_player_id:pl.id,p_team_id:sel.value||null,p_apply_future:cb.checked});if(error){save.disabled=false;return toast(error.message)}await loadTournament();renderMatches();toast(cb.checked?'Joueur dÃ©placÃ© pour ce match et les suivants âœ…':'Joueur dÃ©placÃ© pour ce match âœ…');};
+    row.append(name,sel,future,save);return row;
+  };
+  const makeDetails=(title,items,cls)=>{
+    const det=document.createElement('details');det.className='match-player-details '+cls;
+    const sum=document.createElement('summary');sum.innerHTML='<b>'+title+'</b><span class="muted">'+items.length+' joueur'+(items.length>1?'s':'')+'</span>';det.appendChild(sum);
+    const list=document.createElement('div');list.className='match-player-list';items.forEach(x=>list.appendChild(makePlayerRow(x)));det.appendChild(list);return det;
+  };
+  wrap.appendChild(makeDetails('ğŸ‘¥ Joueurs des 2 Ã©quipes',starters,'match-starters-details'));
+  if(substitutes.length)wrap.appendChild(makeDetails('ğŸŸ  RemplaÃ§ants du tournoi',substitutes,'match-subs-details'));
+
+  if(S.workspaceFeatures.player_ratings_enabled){
+    const notes=document.createElement('details');notes.className='match-player-details match-notes-details';
+    const rated=S.matchAssignments.filter(a=>a.match_id===match.id&&a.team_id).map(a=>{const pl=p(a.player_id),rr=ratingForMatchPlayer(match,a.player_id,a.team_id,S.goals);return pl&&rr?{pl,rr,team:a.team_id}:null;}).filter(Boolean).sort((a,b)=>b.rr.rating-a.rr.rating||a.pl.name.localeCompare(b.pl.name));
+    notes.innerHTML='<summary><b>â­ Notes des joueurs</b><span class="muted">'+rated.length+' Ã©valuÃ©'+(rated.length>1?'s':'')+'</span></summary><div class="muted" style="padding:8px 2px">'+(rated.length?rated.map(x=>esc(x.pl.name)+' <b>'+x.rr.rating.toFixed(1)+'/10</b> ('+x.rr.result+' â€¢ âš½ '+x.rr.goals+' â€¢ ğŸ¯ '+x.rr.assists+')').join('<br>'):'Aucune note calculable pour le moment.')+'</div>';
+    wrap.appendChild(notes);
+  }
+  return wrap;
+}
+
+function renderMatches(){
+  const current=currentTour();
+  const selector=$('#matchCompetitionSelect');
+  const selectorStatus=$('#matchCompetitionStatus');
+  const accessHelp=$('#matchAccessHelp');
+  const eligible=S.tournaments
+    .filter(t=>t.status!=='finished')
+    .sort((a,b)=>String(a.tournament_date).localeCompare(String(b.tournament_date)));
+  if(selector){
+    const keep=current?.id||'';
+    selector.innerHTML='<option value="">Choisir une compÃ©tition</option>'+eligible.map(t=>{
+      const kind=t.format==='league'?'ğŸ SwÃ© de Ligue':'âš½ Tournoi';
+      return '<option value="'+t.id+'">'+kind+' â€¢ '+esc(t.name||t.tournament_date)+' â€¢ '+esc(t.tournament_date)+'</option>';
+    }).join('');
+    if(eligible.some(t=>t.id===keep))selector.value=keep;
+    selector.onchange=async()=>{
+      const id=selector.value;
+      if(!id)return;
+      S.activeTour=id;
+      selector.disabled=true;
+      await loadTournament();
+      selector.disabled=false;
+      renderMatches();
+      renderHome();
+    };
+  }
+  if(accessHelp&&isCoorg()&&!hasTemporaryAdmin()&&S.myPermissions.can_enter_scores){
+    accessHelp.innerHTML='Ton profil est autorisÃ© Ã  <b>saisir les scores et les buteurs/passeurs pendant les matchs</b>. Choisis la compÃ©tition ci-dessous.';
+  }
+  if(selectorStatus){
+    if(current){
+      selectorStatus.innerHTML=(current.format==='league'?'SwÃ© de Ligue : ':'Tournoi : ')+esc(current.name||current.tournament_date)+' â€¢ '+S.matches.length+' match'+(S.matches.length>1?'s':'')+
+        (current.format!=='league'&&S.teams.length
+          ?'<div class="player" style="margin-top:8px;background:#fff8e8;border:1px solid #f2d18a"><b>â±ï¸ RÃ¨gle de rotation automatique</b><div class="muted" style="margin-top:5px">'+
+             (S.teams.length%2
+               ?'Nombre dâ€™Ã©quipes impair ('+S.teams.length+') : <b>2 buts dâ€™Ã©cart = lâ€™Ã©quipe dehors rentre</b>. Sinon, le match sâ€™arrÃªte Ã  <b>10 minutes</b>.'
+               :'Nombre dâ€™Ã©quipes pair ('+S.teams.length+') : tous les matchs durent <b>10 minutes</b>.')+
+           '</div></div>'
+          :'');
+    }else selectorStatus.textContent='Aucune compÃ©tition sÃ©lectionnÃ©e.';
+  }
+  const isLeagueMatch=current?.format==='league';
+  const req=$('#leaguePitchRequirement');
+  if(req)req.classList.toggle('hidden',!isLeagueMatch);
+  const rr=$('#roundRobin');
+  if(rr){
+    rr.disabled=!!isLeagueMatch;
+    rr.title=isLeagueMatch?'En Ligue, crÃ©e chaque match individuellement afin dâ€™indiquer son terrain.':'';
+  }
+  $('#homeTeam').innerHTML=matchOptions();
+  $('#awayTeam').innerHTML=matchOptions();
+  const box=$('#matchesList');box.innerHTML='';
+  S.matches.forEach((m,i)=>{
+    const home=tm(m.home_team_id),away=tm(m.away_team_id);if(!home||!away)return;
+    const d=document.createElement('div');d.className='card match';
+    d.innerHTML='<div class="muted">Match '+(i+1)+(m.pitch?' â€¢ '+esc(m.pitch):'')+(m.round_label?' â€¢ '+esc(m.round_label):'')+'</div><div class="row" style="justify-content:space-between"><b>'+esc(home.name)+'</b><span class="score">'+m.home_score+' - '+m.away_score+'</span><b>'+esc(away.name)+'</b></div>';
+
+    if(canEditCurrentMatches()){
+      const scoreEdit=document.createElement('div');scoreEdit.className='grid g3';scoreEdit.style.marginTop='10px';
+      const hs=document.createElement('input'),ascore=document.createElement('input'),saveScore=document.createElement('button');
+      hs.type='number';hs.min='0';hs.value=Number(m.home_score||0);hs.placeholder=home.name;
+      ascore.type='number';ascore.min='0';ascore.value=Number(m.away_score||0);ascore.placeholder=away.name;
+      saveScore.textContent='ğŸ’¾ Score';saveScore.className='primary';
+      saveScore.onclick=async()=>{
+        saveScore.disabled=true;
+        const {error}=await sb.from('matches').update({home_score:Math.max(0,Number(hs.value)||0),away_score:Math.max(0,Number(ascore.value)||0),status:'finished',finished_at:new Date().toISOString()}).eq('id',m.id);
+        if(error){saveScore.disabled=false;return toast(error.message)}
+        await loadTournament();renderMatches();toast('Score enregistrÃ© et notes recalculÃ©es âœ…');
+      };
+      scoreEdit.append(hs,ascore,saveScore);d.appendChild(scoreEdit);
+    }
+    d.appendChild(buildMatchPlayerManager(m,home,away));
+
+    if(canManageMatchStructure()){
+      const actions=document.createElement('div');actions.className='row';actions.style.marginTop='8px';
+      const edit=document.createElement('button');edit.textContent='Modifier';
+      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
+      actions.append(edit,del);d.appendChild(actions);
+
+      edit.onclick=async()=>{
+        const editor=document.createElement('div');editor.className='grid g2';editor.style.marginTop='8px';
+        const hs=document.createElement('select'),as2=document.createElement('select'),ps=document.createElement('select'),rl=document.createElement('input');
+        hs.innerHTML=S.teams.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
+        as2.innerHTML=S.teams.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
+        ps.innerHTML='<option value="">Terrain</option><option value="Carrefour">Carrefour</option><option value="Mercedes">Mercedes</option><option value="Boulogne">Boulogne</option>';
+        hs.value=m.home_team_id;as2.value=m.away_team_id;ps.value=m.pitch||'';rl.value=m.round_label||'';rl.placeholder='Tour / phase (facultatif)';
+        const save=document.createElement('button');save.textContent='Enregistrer';save.className='primary';
+        const cancel=document.createElement('button');cancel.textContent='Annuler';
+        editor.append(hs,as2,ps,rl,save,cancel);
+        d.appendChild(editor);edit.disabled=true;
+        cancel.onclick=()=>{editor.remove();edit.disabled=false};
+        save.onclick=async()=>{
+          if(hs.value===as2.value)return toast('Choisis deux Ã©quipes diffÃ©rentes');
+          save.disabled=true;
+          const {error}=await sb.from('matches').update({home_team_id:hs.value,away_team_id:as2.value,pitch:ps.value||null,round_label:rl.value.trim()||null}).eq('id',m.id);
+          if(error){save.disabled=false;return toast(error.message)}
+          await loadTournament();renderAll();toast('Match modifiÃ© âœ…');
+        };
+      };
+
+      del.onclick=async()=>{
+        const goalCount=S.goals.filter(g=>g.match_id===m.id).length;
+        const msg=goalCount?'Supprimer ce match ? Les '+goalCount+' but(s) liÃ©s seront aussi supprimÃ©s.':'Supprimer ce match ?';
+        if(!confirm(msg))return;
+        const {error}=await sb.from('matches').delete().eq('id',m.id);
+        if(error)return toast(error.message);
+        await loadTournament();renderAll();toast('Match supprimÃ© âœ…');
+      };
+    }
+
+    const form=document.createElement('div');form.className='grid g3';
+    const team=document.createElement('select'),sc=document.createElement('select'),as=document.createElement('select');
+    team.innerHTML='<option value="'+home.id+'">'+esc(home.name)+'</option><option value="'+away.id+'">'+esc(away.name)+'</option>';
+    const savedTeam=S.goalTeamSelections[m.id];
+    if(savedTeam===home.id||savedTeam===away.id)team.value=savedTeam;
+    function fill(){
+      S.goalTeamSelections[m.id]=team.value;
+      const ids=matchTeamPlayerIds(m.id,team.value);
+      sc.innerHTML='<option value="">Buteur</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
+      as.innerHTML='<option value="">Sans passe</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
+    }
+    fill();team.onchange=fill;form.append(team,sc,as);
+    const b=document.createElement('button');b.textContent='+ But';b.className='primary';
+    b.onclick=async()=>{
+      if(!sc.value)return toast('Choisis le buteur');
+      if(as.value===sc.value)return toast('Buteur et passeur diffÃ©rents');
+      const selectedTeam=team.value;S.goalTeamSelections[m.id]=selectedTeam;b.disabled=true;
+      const {error}=await sb.from('goals').insert({match_id:m.id,team_id:selectedTeam,scorer_player_id:sc.value,assister_player_id:as.value||null});
+      b.disabled=false;if(error)return toast(error.message);
+      sc.value='';as.value='';await loadTournament();renderAll();toast('But ajoutÃ© âœ…');
+    };
+    if(canEditCurrentMatches())d.append(form,b);
+
+    const hist=document.createElement('div');hist.style.marginTop='8px';
+    S.goals.filter(g=>g.match_id===m.id).forEach(g=>{
+      const r=document.createElement('div');r.className='row small';
+      r.innerHTML='<span style="flex:1">âš½ '+esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' â† '+esc(p(g.assister_player_id)?.name||''):'')+'</span>';
+      const x=document.createElement('button');x.textContent='Annuler';
+      x.onclick=async()=>{const {error}=await sb.from('goals').delete().eq('id',g.id);if(error)return toast(error.message);await loadTournament();renderAll();toast('But annulÃ©')};
+      if(canEditCurrentMatches())r.appendChild(x);hist.appendChild(r);
+    });
+    d.appendChild(hist);box.appendChild(d);
+  });
+  if(!current){
+    box.innerHTML='<div class="card"><p class="muted">Choisis dâ€™abord un tournoi ou un SwÃ© de Ligue ci-dessus.</p></div>';
+  }else if(!S.matches.length){
+    box.innerHTML='<div class="card"><p class="muted">Aucun match nâ€™est encore crÃ©Ã© pour cette compÃ©tition. DÃ¨s que lâ€™administrateur crÃ©e les matchs, ils apparaÃ®tront ici pour la saisie des scores.</p></div>';
+  }
+}
+
+$('#addMatch').onclick=async()=>{
+  if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_enter_scores)return toast('Tu nâ€™es pas autorisÃ© Ã  saisir les scores.');
+  const t=currentTour(),home=$('#homeTeam').value,away=$('#awayTeam').value,pitch=$('#pitch').value;
+  if(!t||!home||!away||home===away)return toast('Choisis deux Ã©quipes diffÃ©rentes');
+  if(t.format==='league'&&!pitch)return toast('Pour un match de Ligue, indique obligatoirement le terrain.');
+  const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:S.matches.length+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null});
+  if(error)toast(error.message);else{$('#pitch').value='';$('#roundLabel').value=''}
+};
+$('#roundRobin').onclick=async()=>{const t=currentTour();if(!t||S.teams.length<2)return toast('CrÃ©e les Ã©quipes dâ€™abord');if(t.format==='league')return toast('En Ligue, crÃ©e les matchs un par un afin dâ€™indiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent dÃ©jÃ ');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs gÃ©nÃ©rÃ©s')};
+
+
+async function renderLeague(){
+  const disabled=$('#leagueFeatureDisabled'),createCard=$('#leagueCreateCard');
+  if(!disabled||!createCard)return;
+  const enabled=!!S.workspaceFeatures.league_enabled;
+  disabled.classList.toggle('hidden',enabled);
+  const canCreate=hasAdminOps()||(isCoorg()&&S.myPermissions.can_create_tournaments);
+  createCard.classList.toggle('hidden',!enabled||!hasAdminOps());
+  $('#leagueSessionCard')?.classList.toggle('hidden',!enabled||!canCreate);
+  $('#leagueAdminRegistrationCard')?.classList.add('hidden');
+  const canScoreLeague=hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores);
+  $('#leagueScoringCard')?.classList.toggle('hidden',!enabled||!canScoreLeague);
+  document.querySelectorAll('#view-league .card').forEach(c=>{if(c!==disabled)c.style.opacity=enabled?'':'0.55'});
+  if(!enabled)return;
+
+  if($('#leagueStart')&&!$('#leagueStart').value)$('#leagueStart').value=today();
+  if($('#leagueSessionDate')&&!$('#leagueSessionDate').value){$('#leagueSessionDate').value=today();if($('#leagueSessionRegistrationDeadline')&&!$('#leagueSessionRegistrationDeadline').value)$('#leagueSessionRegistrationDeadline').value=defaultRegistrationDeadlineLocal($('#leagueSessionDate').value);}
+
+  const leagueSessionSelect=$('#leagueSessionLeague');
+  const leagueSessionForm=$('#leagueSessionForm');
+  const noLeague=$('#noLeagueForSession');
+  const activeLeagues=S.leagues.filter(l=>l.status!=='finished');
+  if(leagueSessionSelect){
+    const keep=leagueSessionSelect.value||S.activeLeague||'';
+    leagueSessionSelect.innerHTML='<option value="">Choisir une Ligue</option>'+activeLeagues.map(l=>'<option value="'+l.id+'">'+esc(l.name)+'</option>').join('');
+    if(activeLeagues.some(l=>l.id===keep))leagueSessionSelect.value=keep;
+    leagueSessionSelect.onchange=()=>{if(leagueSessionSelect.value){S.activeLeague=leagueSessionSelect.value;renderLeague();}};
+  }
+  if(!activeLeagues.length){
+    if(leagueSessionForm)leagueSessionForm.classList.add('hidden');
+    if(noLeague){
+      noLeague.classList.remove('hidden');
+      noLeague.innerHTML=hasAdminOps()
+        ? '<b>â„¹ï¸ Aucune Ligue disponible.</b><div style="margin-top:5px">CrÃ©e dâ€™abord une Ligue dans la section Â« CrÃ©er une Ligue Â» avant de pouvoir crÃ©er un SwÃ© de Ligue.</div>'
+        : '<b>â„¹ï¸ Aucune Ligue disponible.</b><div style="margin-top:5px">Demande Ã  lâ€™administrateur de crÃ©er une Ligue avant de pouvoir crÃ©er un SwÃ© de Ligue.</div>';
+    }
+  }else{
+    if(leagueSessionForm)leagueSessionForm.classList.remove('hidden');
+    if(noLeague)noLeague.classList.add('hidden');
+  }
+
+  const list=$('#leagueList');list.innerHTML='';
+  if(!S.leagues.length)list.innerHTML='<p class="muted">Aucune Ligue crÃ©Ã©e pour le moment.</p>';
+  S.leagues.forEach(l=>{
+    const d=document.createElement('div');d.className='player';d.style.marginBottom='10px';
+    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(l.name)+'</b><div class="muted">'+l.starts_on+(l.ends_on?' â†’ '+l.ends_on:'')+' â€¢ '+(l.status==='finished'?'TerminÃ©e':'Active')+'</div><div class="muted" style="margin-top:4px">ğŸ‘¥ Tous les membres actifs du groupe peuvent participer. Lâ€™inscription se fait uniquement Ã  chaque SwÃ© de Ligue.</div></span></div>';
+    const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
+    const open=document.createElement('button');open.textContent=l.id===S.activeLeague?'Ligue sÃ©lectionnÃ©e':'Ouvrir';open.className=l.id===S.activeLeague?'green':'';
+    open.onclick=()=>{S.activeLeague=l.id;renderLeague();};
+    row.appendChild(open);
+    if(hasAdminOps()&&l.status!=='finished'){
+      const finish=document.createElement('button');finish.textContent='Terminer';finish.className='danger';
+      finish.onclick=async()=>{if(!confirm('Terminer cette Ligue ? Les inscriptions seront fermÃ©es.'))return;const {error}=await sb.rpc('finish_league',{p_league_id:l.id});if(error)return toast(error.message);await loadAll();setView('league');};
+      row.appendChild(finish);
+    }
+    if(isAdmin()){
+      const del=document.createElement('button');del.textContent='ğŸ—‘ï¸ Supprimer la Ligue';del.className='danger';
+      del.onclick=async()=>{
+        const warning='âš ï¸ ATTENTION â€” SUPPRESSION IRRÃ‰VERSIBLE\n\nLa Ligue Â« '+(l.name||'Sans nom')+' Â» va Ãªtre supprimÃ©e dÃ©finitivement.\n\nCela supprimera Ã©galement tous les SwÃ©s rattachÃ©s Ã  cette Ligue et leurs donnÃ©es associÃ©es (inscriptions, Ã©quipes, matchs, scores, buts et passes).\n\nCette action ne peut pas Ãªtre annulÃ©e.\n\nConfirmer la suppression ?';
+        if(!confirm(warning))return;
+        del.disabled=true;del.textContent='Suppressionâ€¦';
+        const {error}=await sb.rpc('delete_league_admin',{p_league_id:l.id});
+        if(error){del.disabled=false;del.textContent='ğŸ—‘ï¸ Supprimer la Ligue';return toast(error.message);}
+        if(S.activeLeague===l.id)S.activeLeague=null;
+        if(S.activeTour&&S.tournaments.find(t=>t.id===S.activeTour)?.league_id===l.id)S.activeTour=null;
+        await loadAll();
+        setView('league');
+        toast('Ligue supprimÃ©e dÃ©finitivement âœ…');
+      };
+      row.appendChild(del);
+    }
+    d.appendChild(row);list.appendChild(d);
+  });
+
+  const league=S.leagues.find(l=>l.id===S.activeLeague)||null;
+  const info=$('#activeLeagueInfo'),shareBox=$('#leagueRegistrationShare');
+  if(!league){
+    info.innerHTML='<p class="muted">SÃ©lectionne ou crÃ©e une Ligue.</p>';shareBox.innerHTML='';
+    $('#leaguePrizesCard')?.classList.add('hidden');
+    $('#leagueDays').innerHTML='<p class="muted">Aucun SwÃ© de Ligue.</p>';
+    $('#leagueScorers').innerHTML='<p class="muted">Aucune donnÃ©e.</p>';
+    $('#leagueAssists').innerHTML='<p class="muted">Aucune donnÃ©e.</p>';
+    if($('#generateLeagueTeams'))$('#generateLeagueTeams').disabled=true;
+    if($('#leagueAdminSessionTools'))$('#leagueAdminSessionTools').classList.add('hidden');
+    if($('#leagueAdminNoSession'))$('#leagueAdminNoSession').classList.remove('hidden');
+    if($('#leagueScoringBody'))$('#leagueScoringBody').innerHTML='<p class="muted">SÃ©lectionne une Ligue puis un SwÃ© pour saisir son rÃ©sultat.</p>';
+    return;
+  }
+  info.innerHTML='<div class="player"><b>'+esc(league.name)+'</b><div class="muted">ğŸ“… Du '+esc(league.starts_on)+(league.ends_on?' au '+esc(league.ends_on):' â€¢ sans date de fin')+'</div><div class="muted" style="margin-top:5px"><b>ğŸ‘¥ Tous les membres actifs du groupe sont Ã©ligibles Ã  cette Ligue.</b></div></div>'+
+    '<div class="readonly-note" style="margin-top:8px"><b>Fonctionnement :</b> aucune inscription Ã  la Ligue nâ€™est nÃ©cessaire. Un joueur sâ€™inscrit uniquement au <b>SwÃ© de Ligue</b> auquel il souhaite participer.</div>';
+
+  const prizeCard=$('#leaguePrizesCard'),prizeToggle=$('#leaguePrizesEnabled'),prizeFields=$('#leaguePrizeFields'),prizeReadonly=$('#leaguePrizeReadonly');
+  if(prizeCard){
+    prizeCard.classList.toggle('hidden',!league);
+    const canPrizeAdmin=hasAdminOps();
+    if(prizeToggle){
+      prizeToggle.checked=!!league.prizes_enabled;
+      prizeToggle.disabled=!canPrizeAdmin;
+    }
+    if(prizeFields)prizeFields.classList.toggle('hidden',!league.prizes_enabled||!canPrizeAdmin);
+    if($('#leaguePrizeFirst'))$('#leaguePrizeFirst').value=league.prize_first||'';
+    if($('#leaguePrizeSecond'))$('#leaguePrizeSecond').value=league.prize_second||'';
+    if($('#leaguePrizeThird'))$('#leaguePrizeThird').value=league.prize_third||'';
+    if(prizeReadonly){
+      prizeReadonly.innerHTML=league.prizes_enabled
+        ? 'ğŸ¥‡ '+esc(league.prize_first||'Lot Ã  dÃ©finir ultÃ©rieurement')+'<br>ğŸ¥ˆ '+esc(league.prize_second||'Lot Ã  dÃ©finir ultÃ©rieurement')+'<br>ğŸ¥‰ '+esc(league.prize_third||'Lot Ã  dÃ©finir ultÃ©rieurement')
+        : 'Aucun lot annoncÃ© pour cette Ligue.';
+    }
+    if(prizeToggle&&canPrizeAdmin){
+      prizeToggle.onchange=()=>{
+        if(prizeFields)prizeFields.classList.toggle('hidden',!prizeToggle.checked);
+      };
+    }
+  }
+  shareBox.innerHTML='<div class="readonly-note"><b>Pas dâ€™inscription Ã  la Ligue.</b> Utilise le lien dâ€™inscription du SwÃ© de Ligue concernÃ© dans la liste ci-dessous.</div>';
+
+  const leagueTours=S.tournaments.filter(t=>t.format==='league'&&t.league_id===league.id).sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
+  const box=$('#leagueDays');box.innerHTML='';
+  if(!leagueTours.length)box.innerHTML='<p class="muted">Aucun SwÃ© crÃ©Ã© dans cette Ligue.</p>';
+  leagueTours.forEach(t=>{
+    const d=document.createElement('div');d.className='player';
+    const pitchLabels=(t.reserved_pitch_ids||[]).map(id=>pitchName(id)).filter(Boolean);
+    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(t.name||('SwÃ© Ligue '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' â€¢ '+(t.status==='finished'?'TerminÃ©':'Ã€ jouer')+'</div>'+
+      '<div class="muted" style="margin-top:3px">ğŸ“ '+esc(pitchLabels.length?(complexLabel(t.complex_id)+' â€¢ '+pitchLabels.join(', ')):(t.venue||'Terrain non renseignÃ©'))+(t.start_time?' â€¢ ğŸ•˜ '+esc(String(t.start_time).slice(0,5)):'')+' â€¢ ğŸ’¶ '+(Number(t.entry_fee_cents||0)/100).toLocaleString('fr-FR')+' â‚¬</div>'+
+      (t.reservation_reference?'<div class="muted">RÃ©servation : '+esc(t.reservation_reference)+'</div>':'')+
+      (t.registration_deadline?'<div data-registration-deadline="'+esc(t.registration_deadline)+'" style="margin-top:6px"></div><div class="muted">Fin des inscriptions : '+new Date(t.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div>':'')+
+      '</span></div>';
+    const row=document.createElement('div');row.className='row';row.style.marginTop='8px';row.style.flexWrap='wrap';
+    const open=document.createElement('button');open.textContent=t.id===S.activeTour?'SwÃ© sÃ©lectionnÃ©':'Ouvrir';open.onclick=async()=>{S.activeTour=t.id;await loadTournament();renderAll();toast('SwÃ© de Ligue sÃ©lectionnÃ©')};row.appendChild(open);
+    if(t.registration_open&&S.workspace?.public_token){
+      const share=document.createElement('button');share.textContent='ğŸ”— Lien de ce SwÃ©';
+      const url=registrationLink(t);
+      share.onclick=async()=>{try{await navigator.clipboard.writeText(url);toast('Lien du SwÃ© copiÃ© âœ…')}catch(e){}};
+      row.appendChild(share);
+    }
+    if(isAdmin()){
+      const del=document.createElement('button');
+      del.className='danger';
+      del.textContent='ğŸ—‘ï¸ Supprimer le SwÃ©';
+      del.onclick=async()=>{
+        const label=t.name||('SwÃ© du '+t.tournament_date);
+        const warning='âš ï¸ SUPPRESSION IRRÃ‰VERSIBLE\n\nLe SwÃ© Â« '+label+' Â» va Ãªtre supprimÃ© dÃ©finitivement.\n\nCela supprimera aussi ses inscriptions, Ã©quipes, match(s), scores, buts et passes dÃ©cisives rattachÃ©s Ã  ce SwÃ©.\n\nLes autres SwÃ©s et la Ligue ne seront pas supprimÃ©s.\n\nConfirmer la suppression ?';
+        if(!confirm(warning))return;
+        const typed=prompt('Pour confirmer, saisis exactement SUPPRIMER');
+        if(typed!=='SUPPRIMER')return toast('Suppression annulÃ©e.');
+        del.disabled=true;del.textContent='Suppressionâ€¦';
+        const {error}=await sb.rpc('delete_league_session_admin',{p_tournament_id:t.id});
+        if(error){del.disabled=false;del.textContent='ğŸ—‘ï¸ Supprimer le SwÃ©';return toast(error.message);}
+        if(S.activeTour===t.id)S.activeTour=null;
+        await loadAll();
+        setView('league');
+        toast('SwÃ© supprimÃ© dÃ©finitivement âœ…');
+      };
+      row.appendChild(del);
+    }
+    d.appendChild(row);box.appendChild(d);
+  });
+
+  const current=currentTour();
+  const gen=$('#generateLeagueTeams');
+  const currentIsLeagueSession=current?.format==='league'&&current?.league_id===league.id;
+  if(gen){
+    gen.disabled=!(currentIsLeagueSession&&hasAdminOps());
+    gen.title=currentIsLeagueSession?'CrÃ©er 2 Ã©quipes avec les inscrits confirmÃ©s':'SÃ©lectionne un SwÃ© de cette Ligue';
+  }
+
+  if(hasAdminOps()){
+    const tools=$('#leagueAdminSessionTools'),noSession=$('#leagueAdminNoSession');
+    if(currentIsLeagueSession){
+      tools?.classList.remove('hidden');noSession?.classList.add('hidden');
+
+      const {data:registered,error:regError}=await sb.rpc('get_registered_players_for_tournament',{p_tournament_id:current.id});
+      const rows=regError?[]:(Array.isArray(registered)?registered:[]);
+      const presentRows=rows.filter(r=>r.present);
+      const regIds=new Set(presentRows.map(r=>r.player_id));
+      const confirmedLeagueIds=new Set(S.leaguePlayers.filter(lp=>lp.league_id===league.id&&lp.status==='confirmed').map(lp=>lp.player_id));
+      const available=S.players
+        .filter(p=>p.active&&confirmedLeagueIds.has(p.id)&&!regIds.has(p.id))
+        .sort((a,b)=>a.name.localeCompare(b.name));
+
+      const selectedSessionLabel=$('#leagueAdminSelectedSession');
+      if(selectedSessionLabel)selectedSessionLabel.textContent=(current.name||('SwÃ© du '+current.tournament_date))+' â€¢ '+current.tournament_date;
+      const registeredTitle=$('#leagueRegisteredTitle');
+      if(registeredTitle)registeredTitle.textContent='Inscrits Ã  CE SwÃ© uniquement â€” '+(current.name||('SwÃ© du '+current.tournament_date));
+      const manualSel=$('#leagueManualPlayerSelect');
+      if(manualSel)manualSel.innerHTML=available.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+
+      const count=$('#leagueRegisteredCount');
+      if(count)count.textContent=presentRows.length+' participant'+(presentRows.length>1?'s':'')+' Ã  ce SwÃ©';
+      const list=$('#leagueRegisteredPlayersList');
+      if(list){
+        list.innerHTML=presentRows.length?presentRows.map((r,i)=>'<div class="player row"><b style="min-width:30px">'+(i+1)+'.</b><span style="flex:1">'+esc(r.player_name)+(r.is_group_member===false?' <span class="guest-badge">InvitÃ©</span>':'')+'</span><span class="guest-badge">'+(r.registration_status==='waitlist'||r.is_substitute?'RemplaÃ§ant':'ConfirmÃ©')+'</span></div>').join(''):'<p class="muted">Aucun inscrit pour ce SwÃ©.</p>';
+      }
+
+      const saved=$('#leagueSavedTeams');
+      if(saved){
+        if(S.teams.length){
+          saved.innerHTML=S.teams.map(team=>{
+            const names=S.teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>S.players.find(p=>p.id===tp.player_id)?.name).filter(Boolean);
+            return '<div class="team" style="margin-bottom:8px"><div class="row"><span style="width:18px;height:18px;border-radius:50%;background:'+esc(team.color||'#64748b')+';border:1px solid #cbd5e1"></span><b>'+esc(team.name)+'</b></div><div class="muted" style="margin-top:6px">'+(names.length?names.map(esc).join(' â€¢ '):'Aucun joueur')+'</div></div>';
+          }).join('');
+        }else saved.innerHTML='<p class="muted">Les Ã©quipes ne sont pas encore crÃ©Ã©es.</p>';
+      }
+
+      const createText=$('#leagueTeamsCreationText');
+      if(createText)createText.textContent=S.teams.length
+        ? 'Les Ã©quipes de ce SwÃ© sont dÃ©jÃ  enregistrÃ©es. Tu peux les consulter ci-dessous.'
+        : 'CrÃ©e automatiquement 2 Ã©quipes Ã  partir des joueurs confirmÃ©s inscrits Ã  ce SwÃ©.';
+      if(gen){
+        gen.classList.toggle('hidden',S.teams.length>0);
+      }
+    }else{
+      tools?.classList.add('hidden');noSession?.classList.remove('hidden');
+      if(noSession)noSession.textContent='SÃ©lectionne un SwÃ© de cette Ligue dans la liste ci-dessus pour gÃ©rer ses inscrits et ses Ã©quipes.';
+    }
+  }
+
+
+  // V40.02 â€” Saisie du rÃ©sultat directement depuis l'onglet Ligue.
+  const scoringCard=$('#leagueScoringCard'),scoringBody=$('#leagueScoringBody'),scoringLabel=$('#leagueScoringSessionLabel');
+  if(scoringCard)scoringCard.classList.toggle('hidden',!canScoreLeague);
+  if(canScoreLeague&&scoringBody){
+    const scoringTour=currentTour();
+    const validSession=scoringTour?.format==='league'&&scoringTour?.league_id===league.id;
+    if(!validSession){
+      if(scoringLabel)scoringLabel.textContent='SÃ©lectionne un SwÃ© dans Â« SwÃ©s de la Ligue Â» pour saisir le rÃ©sultat.';
+      scoringBody.innerHTML='<p class="muted">Aucun SwÃ© de cette Ligue nâ€™est sÃ©lectionnÃ©.</p>';
+    }else{
+      if(scoringLabel)scoringLabel.textContent=(scoringTour.name||('SwÃ© du '+scoringTour.tournament_date))+' â€¢ '+scoringTour.tournament_date;
+      if(!S.teams.length){
+        scoringBody.innerHTML='<div class="readonly-note"><b>Ã‰quipes non crÃ©Ã©es.</b><div style="margin-top:5px">CrÃ©e dâ€™abord les 2 Ã©quipes de ce SwÃ©. Le formulaire de rÃ©sultat apparaÃ®tra ensuite ici.</div></div>';
+      }else if(!S.matches.length){
+        scoringBody.innerHTML='<div class="readonly-note"><b>Match non crÃ©Ã©.</b><div style="margin-top:5px">Le SwÃ© possÃ¨de ses Ã©quipes mais aucun match. Va dans lâ€™onglet Matchs pour crÃ©er le match de Ligue.</div></div>';
+      }else{
+        const m=S.matches[0],home=tm(m.home_team_id),away=tm(m.away_team_id);
+        if(!home||!away){
+          scoringBody.innerHTML='<p class="muted">Impossible de charger les deux Ã©quipes de ce SwÃ©.</p>';
+        }else{
+          const goals=S.goals.filter(g=>g.match_id===m.id);
+          const playersForTeam=teamId=>teamPlayerIds(teamId).map(id=>p(id)).filter(Boolean);
+          const goalRows=goals.map(g=>{
+            const scorer=p(g.scorer_player_id),assister=g.assister_player_id?p(g.assister_player_id):null;
+            return '<div class="player row" style="margin-top:6px"><span style="flex:1">âš½ <b>'+esc(scorer?.name||'?')+'</b>'+(assister?' <span class="muted">â† passe : '+esc(assister.name)+'</span>':' <span class="muted">â€¢ sans passe</span>')+'</span><button type="button" class="danger leagueDeleteGoal" data-goal="'+g.id+'">Annuler</button></div>';
+          }).join('')||'<p class="muted">Aucun buteur enregistrÃ©.</p>';
+
+          scoringBody.innerHTML=
+            '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4">'+
+              '<div class="muted">'+(m.pitch?'ğŸ“ '+esc(m.pitch)+' â€¢ ':'')+'1 SwÃ© = 1 match dâ€™environ 60 min</div>'+
+              '<div class="grid g2" style="margin-top:10px">'+
+                '<label><span class="muted">'+esc(home.name)+'</span><input id="leagueHomeScore" type="number" min="0" value="'+Number(m.home_score||0)+'"></label>'+
+                '<label><span class="muted">'+esc(away.name)+'</span><input id="leagueAwayScore" type="number" min="0" value="'+Number(m.away_score||0)+'"></label>'+
+              '</div>'+
+              '<button id="leagueSaveScore" class="primary" style="margin-top:10px">ğŸ’¾ Enregistrer le score</button>'+
+            '</div>'+
+            '<div class="player" style="margin-top:12px">'+
+              '<b>â• Ajouter un buteur / passeur</b>'+
+              '<div class="grid g3" style="margin-top:8px">'+
+                '<select id="leagueGoalTeam"><option value="'+home.id+'">'+esc(home.name)+'</option><option value="'+away.id+'">'+esc(away.name)+'</option></select>'+
+                '<select id="leagueGoalScorer"><option value="">Buteur</option></select>'+
+                '<select id="leagueGoalAssist"><option value="">Sans passe dÃ©cisive</option></select>'+
+              '</div>'+
+              '<button id="leagueAddGoal" class="primary" style="margin-top:10px">+ Ajouter le but</button>'+
+            '</div>'+
+            '<div style="margin-top:12px"><h3 style="margin-bottom:8px">Buteurs enregistrÃ©s sur ce SwÃ©</h3>'+goalRows+'</div>';
+
+          const teamSel=$('#leagueGoalTeam'),scorerSel=$('#leagueGoalScorer'),assistSel=$('#leagueGoalAssist');
+          const fillLeagueGoalPlayers=()=>{
+            const roster=playersForTeam(teamSel.value);
+            scorerSel.innerHTML='<option value="">Buteur</option>'+roster.map(pl=>'<option value="'+pl.id+'">'+esc(pl.name)+'</option>').join('');
+            assistSel.innerHTML='<option value="">Sans passe dÃ©cisive</option>'+roster.map(pl=>'<option value="'+pl.id+'">'+esc(pl.name)+'</option>').join('');
+          };
+          teamSel.onchange=fillLeagueGoalPlayers;fillLeagueGoalPlayers();
+
+          $('#leagueSaveScore').onclick=async()=>{
+            const hs=Math.max(0,Number($('#leagueHomeScore').value)||0),as=Math.max(0,Number($('#leagueAwayScore').value)||0);
+            const b=$('#leagueSaveScore');b.disabled=true;
+            const {error}=await sb.from('matches').update({home_score:hs,away_score:as,status:'finished',finished_at:new Date().toISOString()}).eq('id',m.id);
+            b.disabled=false;if(error)return toast(error.message);
+            await loadTournament();await renderLeague();toast('RÃ©sultat du SwÃ© enregistrÃ© âœ…');
+          };
+
+          $('#leagueAddGoal').onclick=async()=>{
+            if(!scorerSel.value)return toast('Choisis le buteur.');
+            if(assistSel.value===scorerSel.value)return toast('Le buteur et le passeur doivent Ãªtre diffÃ©rents.');
+            const b=$('#leagueAddGoal');b.disabled=true;
+            const {error}=await sb.from('goals').insert({match_id:m.id,team_id:teamSel.value,scorer_player_id:scorerSel.value,assister_player_id:assistSel.value||null});
+            b.disabled=false;if(error)return toast(error.message);
+            await loadTournament();await renderLeague();toast('Buteur / passeur ajoutÃ© âœ…');
+          };
+
+          scoringBody.querySelectorAll('.leagueDeleteGoal').forEach(btn=>{
+            btn.onclick=async()=>{
+              if(!confirm('Annuler ce but et sa passe dÃ©cisive Ã©ventuelle ?'))return;
+              btn.disabled=true;
+              const {error}=await sb.from('goals').delete().eq('id',btn.dataset.goal);
+              if(error){btn.disabled=false;return toast(error.message)}
+              await loadTournament();await renderLeague();toast('But annulÃ©.');
+            };
+          });
+        }
+      }
+    }
+  }
+
+  const {data,error}=await sb.rpc('get_league_rankings',{p_league_id:league.id});
+  if(error){$('#leagueScorers').innerHTML='<p class="muted">'+esc(error.message)+'</p>';$('#leagueAssists').innerHTML='';return}
+  let rows=Array.isArray(data)?data:[];
+  let scor=rows.filter(x=>Number(x.goals)>0).sort((a,b)=>Number(b.goals)-Number(a.goals)||String(a.player_name).localeCompare(String(b.player_name)));
+  let ass=rows.filter(x=>Number(x.assists)>0).sort((a,b)=>Number(b.assists)-Number(a.assists)||String(a.player_name).localeCompare(String(b.player_name)));
+  scor=competitionRanks(scor,'goals');ass=competitionRanks(ass,'assists');
+  $('#leagueScorers').innerHTML=scor.map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.player_name)+'</span><b class="right">'+x.goals+' but'+(Number(x.goals)>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but pour le moment.</p>';
+  $('#leagueAssists').innerHTML=ass.map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.player_name)+'</span><b class="right">'+x.assists+' passe'+(Number(x.assists)>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe pour le moment.</p>';
+}
+
+$('#createLeague').onclick=async()=>{
+  if(!hasAdminOps())return toast('Seul lâ€™administrateur peut crÃ©er une Ligue.');
+  const name=$('#leagueName').value.trim(),start=$('#leagueStart').value,end=$('#leagueEnd').value||null;
+  if(!name||!start)return toast('Indique le nom et la date de dÃ©but.');
+  const {data,error}=await sb.rpc('create_league',{p_workspace_id:S.workspace.id,p_name:name,p_starts_on:start,p_ends_on:end});
+  if(error)return toast(error.message);
+  S.activeLeague=data;$('#leagueName').value='';$('#leagueEnd').value='';
+  await loadAll();setView('league');toast('Ligue crÃ©Ã©e âœ…');
+};
+
+$('#saveLeaguePrizes').onclick=async()=>{
+  if(!hasAdminOps())return toast('Seul lâ€™administrateur peut dÃ©finir les lots.');
+  const league=S.leagues.find(l=>l.id===S.activeLeague);
+  if(!league)return toast('SÃ©lectionne une Ligue.');
+  const enabled=!!$('#leaguePrizesEnabled')?.checked;
+  const {error}=await sb.rpc('set_league_prizes',{
+    p_league_id:league.id,
+    p_enabled:enabled,
+    p_first:$('#leaguePrizeFirst')?.value.trim()||null,
+    p_second:$('#leaguePrizeSecond')?.value.trim()||null,
+    p_third:$('#leaguePrizeThird')?.value.trim()||null
+  });
+  if(error)return toast(error.message);
+  await loadAll();setView('league');
+  toast(enabled?'Lots du Top 3 enregistrÃ©s âœ…':'Lots dÃ©sactivÃ©s pour cette Ligue.');
+};
+
+$('#createLeagueSession').onclick=async()=>{
+  if(!S.leagues.some(l=>l.status!=='finished'))return toast(hasAdminOps()?'CrÃ©e dâ€™abord une Ligue.':'Demande Ã  lâ€™administrateur de crÃ©er une Ligue.');
+  const leagueId=$('#leagueSessionLeague')?.value||'';
+  const league=S.leagues.find(l=>l.id===leagueId&&l.status!=='finished');
+  if(!league)return toast('Choisis la Ligue concernÃ©e.');
+  const date=$('#leagueSessionDate').value;if(!date)return toast('Choisis la date du SwÃ©.');
+  const deadlineLocal=$('#leagueSessionRegistrationDeadline')?.value||'';
+  const registrationDeadline=registrationDeadlineIso(deadlineLocal);
+  if(!registrationDeadline)return toast('Indique la date et lâ€™heure de fin des inscriptions.');
+  const eventStart=new Date(date+'T'+($('#leagueSessionStartTime')?.value||'09:00')+':00-04:00').getTime();
+  const deadlineMs=new Date(registrationDeadline).getTime();
+  if(deadlineMs<=Date.now())return toast('La fin des inscriptions doit Ãªtre dans le futur.');
+  if(deadlineMs>=eventStart)return toast('La fin des inscriptions doit Ãªtre avant le dÃ©but du SwÃ©.');
+  const complexId=$('#leagueSessionComplex')?.value||'';
+  const pitchId=$('#leagueSessionPitch')?.value||'';
+  const startTime=$('#leagueSessionStartTime')?.value||'';
+  const feeRaw=$('#leagueSessionEntryFee')?.value;
+  if(!complexId)return toast('Choisis le complexe du SwÃ©.');
+  if(!pitchId)return toast('Choisis le terrain du SwÃ©.');
+  if(!startTime)return toast('Indique lâ€™heure de rÃ©servation.');
+  if(feeRaw===''||Number(feeRaw)<0)return toast('Indique le prix par participant.');
+  const {data,error}=await sb.rpc('create_league_session_v2',{
+    p_league_id:league.id,
+    p_date:date,
+    p_name:$('#leagueSessionName').value.trim()||null,
+    p_max_players:100,
+    p_complex_id:complexId,
+    p_pitch_id:pitchId,
+    p_start_time:startTime,
+    p_entry_fee_cents:Math.round(Number(feeRaw)*100),
+    p_reservation_reference:$('#leagueSessionReservationRef')?.value.trim()||null,
+    p_cooler_suggested_cents:S.workspaceFeatures.third_half_enabled?Math.round(Math.max(0,Number($('#leagueSessionCoolerSuggested')?.value)||0)*100):0,
+    p_registration_deadline:registrationDeadline
+  });
+  if(error)return toast(error.message);
+  S.activeLeague=league.id;S.activeTour=data;
+  $('#leagueSessionName').value='';$('#leagueSessionReservationRef').value='';$('#leagueSessionRegistrationDeadline').value=defaultRegistrationDeadlineLocal($('#leagueSessionDate').value);
+  await loadAll();setView('league');toast('SwÃ© crÃ©Ã© dans Â« '+league.name+' Â» âœ…');
+};
+
+$('#leagueManualAddPlayer').onclick=async()=>{
+  if(!hasAdminOps())return toast('Seul lâ€™administrateur peut ajouter manuellement un inscrit.');
+  const t=currentTour();
+  const league=S.leagues.find(l=>l.id===S.activeLeague);
+  if(!t||t.format!=='league'||!league||t.league_id!==league.id)return toast('SÃ©lectionne un SwÃ© de cette Ligue.');
+  const sel=$('#leagueManualPlayerSelect');
+  const ids=sel?[...sel.selectedOptions].map(o=>o.value).filter(Boolean):[];
+  if(!ids.length)return toast('SÃ©lectionne au moins une personne.');
+  const b=$('#leagueManualAddPlayer');b.disabled=true;b.textContent='Ajoutâ€¦';
+  let added=0,waitlisted=0,failed=0;
+  for(const pid of ids){
+    const {data,error}=await sb.rpc('admin_add_registered_member_to_league_session',{p_tournament_id:t.id,p_player_id:pid});
+    if(error)failed++; else {added++; if(data==='waitlist')waitlisted++;}
+  }
+  b.disabled=false;b.textContent='Ajouter la sÃ©lection';
+  await loadTournament();await renderLeague();
+  if(failed)return toast(added+' ajoutÃ©(s), '+failed+' Ã©chec(s).');
+  toast(added+' personne'+(added>1?'s':'')+' ajoutÃ©e'+(added>1?'s':'')+(waitlisted?' â€¢ '+waitlisted+' remplaÃ§ant(s)':'')+' âœ…');
+};
+
+$('#generateLeagueTeams').onclick=async()=>{
+  const t=currentTour();if(!t||t.format!=='league')return toast('Ouvre une journÃ©e de Ligue.');
+  if(!hasAdminOps())return toast('Seul lâ€™administrateur peut crÃ©er les Ã©quipes depuis lâ€™onglet Ligue.');
+  if(S.teams.length)return toast('Les Ã©quipes de ce SwÃ© sont dÃ©jÃ  enregistrÃ©es.');
+  const b=$('#generateLeagueTeams');b.disabled=true;b.textContent='CrÃ©ationâ€¦';
+  const {data,error}=await sb.rpc('generate_league_two_teams',{p_tournament_id:t.id});
+  b.disabled=false;b.textContent='CrÃ©er les Ã©quipes avec les inscrits';
+  if(error)return toast(error.message);
+  await loadTournament();renderAll();
+  $('#leagueGenerationInfo').textContent='2 Ã©quipes crÃ©Ã©es avec '+Number(data?.player_count||0)+' joueurs confirmÃ©s.';
+  toast('Ã‰quipes de Ligue crÃ©Ã©es âœ…');
+};
+
+
+async function rankingDataset(){
+  const t=currentTour();
+  if(S.rankMode==='day'){
+    const mids=S.matches.map(m=>m.id);
+    return {goals:S.goals||[],matches:S.matches||[],tournaments:t?[t]:[]};
+  }
+  let seasonId=t?.season_id||null;
+  if(!seasonId){
+    const activeSeason=S.seasons.find(s=>s.is_active)||S.seasons[0];
+    seasonId=activeSeason?.id||null;
+  }
+  if(!seasonId)return {goals:[],matches:[],tournaments:[]};
+  let tournaments=S.tournaments.filter(x=>x.season_id===seasonId&&x.format!=='league');
+  tournaments=tournaments.filter(x=>x.status==='finished'||x.id===S.activeTour);
+  const tids=tournaments.map(x=>x.id);
+  if(!tids.length)return {goals:[],matches:[],tournaments:[]};
+  const mr=await sb.from('matches').select('*').in('tournament_id',tids);
+  const matches=mr.data||[];
+  const mids=matches.map(x=>x.id);
+  if(!mids.length)return {goals:[],matches,tournaments};
+  const gr=await sb.from('goals').select('*').in('match_id',mids);
+  return {goals:gr.data||[],matches,tournaments};
+}
+
+function competitionRanks(arr,key){let prev=null,rank=0;return arr.map((x,i)=>{if(x[key]!==prev){rank=i+1;prev=x[key]}return {...x,rank}})}
+
+async function renderRanking(){
+  const ds=await rankingDataset(),goals=ds.goals,matches=ds.matches,tournaments=ds.tournaments;
+  const seasonShareCard=$('#seasonPublicShareCard'),seasonShareInput=$('#seasonPublicShareLink');
+  if(seasonShareCard)seasonShareCard.classList.toggle('hidden',!isAdmin());
+  if(seasonShareInput)seasonShareInput.value=seasonPublicRankingLink();
+  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,guest_of_player_id:x.guest_of_player_id,g:0,a:0,matchIds:new Set(),tournamentIds:new Set()}]));
+  const matchMap=new Map(matches.map(m=>[m.id,m]));
+  goals.forEach(g=>{
+    const m=matchMap.get(g.match_id);
+    if(stats.has(g.scorer_player_id)){
+      const s=stats.get(g.scorer_player_id);s.g++;s.matchIds.add(g.match_id);if(m)s.tournamentIds.add(m.tournament_id);
+    }
+    if(g.assister_player_id&&stats.has(g.assister_player_id)){
+      const a=stats.get(g.assister_player_id);a.a++;a.matchIds.add(g.match_id);if(m)a.tournamentIds.add(m.tournament_id);
+    }
+  });
+
+  // Count appearances even without a goal/assist, using team membership for each tournament.
+  for(const tour of tournaments){
+    const {data:teams}=await sb.from('teams').select('id').eq('tournament_id',tour.id);
+    const teamIds=(teams||[]).map(x=>x.id);
+    if(!teamIds.length)continue;
+    const {data:tp}=await sb.from('team_players').select('*').in('team_id',teamIds);
+    const playerTeam=new Map((tp||[]).map(x=>[x.player_id,x.team_id]));
+    const tourMatches=matches.filter(m=>m.tournament_id===tour.id);
+    for(const [playerId,teamId] of playerTeam.entries()){
+      const s=stats.get(playerId);if(!s)continue;
+      const played=tourMatches.filter(m=>m.home_team_id===teamId||m.away_team_id===teamId);
+      if(played.length){
+        s.tournamentIds.add(tour.id);
+        played.forEach(m=>s.matchIds.add(m.id));
+      }
+    }
+  }
+
+  const allMatchIds=matches.map(m=>m.id);
+  let rankingAssignments=[];
+  if(allMatchIds.length){
+    const {data:ma,error:maError}=await sb.from('match_player_assignments').select('*').in('match_id',allMatchIds);
+    if(!maError)rankingAssignments=ma||[];
+  }
+
+  const playerSeasonStats=new Map(S.players.map(x=>[x.id,{
+    id:x.id,name:x.name,is_group_member:x.is_group_member,
+    trophies:0,matchWins:0,g:0,a:0,ratingTotal:0,ratingMatches:0,avg:0
+  }]));
+  goals.forEach(g=>{
+    if(playerSeasonStats.has(g.scorer_player_id))playerSeasonStats.get(g.scorer_player_id).g++;
+    if(g.assister_player_id&&playerSeasonStats.has(g.assister_player_id))playerSeasonStats.get(g.assister_player_id).a++;
+  });
+
+  matches.forEach(m=>{
+    const winner=Number(m.home_score)>Number(m.away_score)?m.home_team_id:(Number(m.away_score)>Number(m.home_score)?m.away_team_id:null);
+    rankingAssignments.filter(a=>a.match_id===m.id&&a.team_id).forEach(a=>{
+      const st=playerSeasonStats.get(a.player_id);if(!st)return;
+      if(winner&&String(a.team_id)===String(winner))st.matchWins++;
+      if(S.workspaceFeatures.player_ratings_enabled){
+        const rr=ratingForMatchPlayer(m,a.player_id,a.team_id,goals);
+        if(rr){st.ratingTotal+=rr.rating;st.ratingMatches++;}
+      }
+    });
+  });
+
+  for(const tour of tournaments.filter(t=>t.status==='finished')){
+    const tourMatches=matches.filter(m=>m.tournament_id===tour.id);
+    if(!tourMatches.length)continue;
+    const {data:tTeams}=await sb.from('teams').select('id,name').eq('tournament_id',tour.id);
+    const rows=(tTeams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
+    const sm=new Map(rows.map(x=>[x.id,x]));
+    tourMatches.forEach(m=>{
+      const a=sm.get(m.home_team_id),b=sm.get(m.away_team_id);if(!a||!b)return;
+      a.mj++;b.mj++;a.bp+=Number(m.home_score||0);a.bc+=Number(m.away_score||0);b.bp+=Number(m.away_score||0);b.bc+=Number(m.home_score||0);
+      if(Number(m.home_score)>Number(m.away_score)){a.v++;b.d++;a.pts+=3}
+      else if(Number(m.away_score)>Number(m.home_score)){b.v++;a.d++;b.pts+=3}
+      else{a.n++;b.n++;a.pts++;b.pts++}
+    });
+    rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
+    const champion=rows[0];if(!champion)continue;
+    const mids=new Set(tourMatches.map(m=>m.id));
+    const champs=new Set(rankingAssignments.filter(a=>mids.has(a.match_id)&&String(a.team_id)===String(champion.id)).map(a=>a.player_id));
+    champs.forEach(pid=>{if(playerSeasonStats.has(pid))playerSeasonStats.get(pid).trophies++;});
+  }
+  playerSeasonStats.forEach(s=>{s.avg=s.ratingMatches?s.ratingTotal/s.ratingMatches:0;});
+
+  const trophyRows=[...playerSeasonStats.values()].filter(x=>x.trophies||x.matchWins||x.g||x.a)
+    .sort((a,b)=>b.trophies-a.trophies||b.matchWins-a.matchWins||b.g-a.g||b.a-a.a||b.avg-a.avg||a.name.localeCompare(b.name));
+  const topPlayerRows=[...playerSeasonStats.values()].filter(x=>x.ratingMatches)
+    .sort((a,b)=>b.avg-a.avg||b.g-a.g||b.a-a.a||b.trophies-a.trophies||a.name.localeCompare(b.name));
+
+  let trophyExpanded=false,adminTopExpanded=false;
+  const renderTrophies=()=>{
+    const visible=trophyExpanded?trophyRows:trophyRows.slice(0,10);
+    const box=$('#playerTrophyRank');
+    if(box)box.innerHTML=visible.map((x,i)=>{
+      const pos=trophyRows.indexOf(x)+1;
+      return '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+(pos===1?'ğŸ‘‘':pos)+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.matchWins+' victoire'+(x.matchWins>1?'s':'')+' de match â€¢ âš½ '+x.g+' â€¢ ğŸ¯ '+x.a+(x.ratingMatches?' â€¢ â­ '+x.avg.toFixed(1):'')+'</div></span><b class="right">ğŸ† '+x.trophies+'</b></div>';
+    }).join('')||'<p class="muted">Aucun trophÃ©e enregistrÃ©.</p>';
+    const b=$('#togglePlayerTrophyRank');if(b){b.classList.toggle('hidden',trophyRows.length<=10);b.textContent=trophyExpanded?'RÃ©duire':'DÃ©velopper';}
+  };
+  const renderAdminTop=()=>{
+    const visible=adminTopExpanded?topPlayerRows:topPlayerRows.slice(0,10);
+    const box=$('#adminTopPlayerRank');
+    if(box)box.innerHTML=visible.map((x,i)=>{
+      const pos=topPlayerRows.indexOf(x)+1;
+      return '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+(pos===1?'ğŸ‘‘':pos)+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.ratingMatches+' match'+(x.ratingMatches>1?'s':'')+' â€¢ ğŸ† '+x.trophies+' â€¢ âš½ '+x.g+' â€¢ ğŸ¯ '+x.a+'</div></span><b class="right">â­ '+x.avg.toFixed(1)+'</b></div>';
+    }).join('')||'<p class="muted">Aucune note disponible.</p>';
+    const b=$('#toggleAdminTopPlayerRank');if(b){b.classList.toggle('hidden',topPlayerRows.length<=10);b.textContent=adminTopExpanded?'RÃ©duire':'DÃ©velopper';}
+  };
+  renderTrophies();renderAdminTop();
+  if($('#togglePlayerTrophyRank'))$('#togglePlayerTrophyRank').onclick=()=>{trophyExpanded=!trophyExpanded;renderTrophies();};
+  if($('#toggleAdminTopPlayerRank'))$('#toggleAdminTopPlayerRank').onclick=()=>{adminTopExpanded=!adminTopExpanded;renderAdminTop();};
+  if($('#sharePlayerTrophyRank'))$('#sharePlayerTrophyRank').onclick=async()=>{
+    let text='ğŸ† TROPHÃ‰ES REMPORTÃ‰S PAR JOUEUR\\n\\n';
+    trophyRows.forEach((x,i)=>text+=(i+1)+'. '+x.name+' â€” '+x.trophies+' trophÃ©e'+(x.trophies>1?'s':'')+' â€¢ '+x.matchWins+' victoire'+(x.matchWins>1?'s':'')+' â€¢ âš½ '+x.g+' â€¢ ğŸ¯ '+x.a+'\\n');
+    if(navigator.share){try{await navigator.share({title:'TrophÃ©es remportÃ©s par joueur',text});return}catch(e){}}
+    try{await navigator.clipboard.writeText(text);toast('Classement des trophÃ©es copiÃ© âœ…')}catch(e){toast('Copie impossible')}
+  };
+
+  let scor=[...stats.values()].filter(x=>x.g||x.matchIds.size||x.tournamentIds.size)
+    .sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
+  let ass=[...stats.values()].filter(x=>x.a)
+    .sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
+  scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
+
+  $('#scorerRank').innerHTML=scor.map(x=>
+    '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span><b>'+esc(x.name)+'</b>'+(x.is_group_member===false?'<span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'<div class="muted">'+x.tournamentIds.size+' tournoi'+(x.tournamentIds.size>1?'s':'')+' â€¢ '+x.matchIds.size+' match'+(x.matchIds.size>1?'s':'')+'</div></span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>'
+  ).join('')||'<p class="muted">Aucune donnÃ©e</p>';
+
+  $('#assistRank').innerHTML=ass.map(x=>
+    '<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>'
+  ).join('')||'<p class="muted">Aucune donnÃ©e</p>';
+
+  renderTeamRanking();
+
+  let txt='âš½ '+(S.rankMode==='season'?'CLASSEMENT BUTEURS DE LA SAISON':'CLASSEMENT BUTEURS DU TOURNOI')+'\n\n';
+  scor.forEach(x=>txt+=x.rank+'. '+x.name+' â€” '+x.g+' but'+(x.g>1?'s':'')+' â€¢ '+x.tournamentIds.size+' tournoi'+(x.tournamentIds.size>1?'s':'')+' â€¢ '+x.matchIds.size+' match'+(x.matchIds.size>1?'s':'')+'\n');
+  txt+='\nğŸ¯ PASSEURS\n';
+  ass.forEach(x=>txt+=x.rank+'. '+x.name+' â€” '+x.a+' passe'+(x.a>1?'s':'')+'\n');
+  txt+='\nğŸ† TROPHÃ‰ES REMPORTÃ‰S PAR JOUEUR\n';
+  trophyRows.forEach((x,i)=>txt+=(i+1)+'. '+x.name+' â€” '+x.trophies+' trophÃ©e'+(x.trophies>1?'s':'')+'\n');
+  if(S.workspaceFeatures.player_ratings_enabled){
+    txt+='\nâ­ TOP PLAYER\n';
+    topPlayerRows.forEach((x,i)=>txt+=(i+1)+'. '+x.name+' â€” '+x.avg.toFixed(1)+'/10\n');
+  }
+  $('#shareText').value=txt;
+}
+
+function renderTeamRanking(){const r=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(r.map(x=>[x.id,x]));S.matches.forEach(m=>{const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});r.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);$('#teamRank').innerHTML=r.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune Ã©quipe</p>'}
+document.querySelectorAll('.rankMode').forEach(b=>b.onclick=()=>{S.rankMode=b.dataset.mode;document.querySelectorAll('.rankMode').forEach(x=>x.classList.toggle('primary',x===b));renderRanking()});
+$('#shareWhatsapp').onclick=async()=>{const text=$('#shareText').value;if(navigator.share){try{await navigator.share({title:'Classement du tournoi',text});return}catch{}}await navigator.clipboard.writeText(text);toast('RÃ©sumÃ© copiÃ©')};
+if($('#copySeasonPublicShareLink'))$('#copySeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');try{await navigator.clipboard.writeText(link);toast('Lien de la saison copiÃ© âœ…')}catch(e){$('#seasonPublicShareLink').select();document.execCommand('copy');toast('Lien de la saison copiÃ© âœ…')}};
+if($('#shareSeasonPublicShareLink'))$('#shareSeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');const season=S.seasons.find(x=>x.is_active)||S.seasons[0],seasonName=String(season?.name||'en cours').replace(/^saison\s+/i,''),message='Voici les rÃ©sultats de la saison '+seasonName;if(navigator.share){try{await navigator.share({title:'RÃ©sultats de la saison SWÃ‰',text:message,url:link});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(message+'\n'+link);toast('Message et lien copiÃ©s âœ…')}catch(e){toast('Partage indisponible')}};
+if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{const link=$('#seasonPublicShareLink').value;if(link)window.open(link,'_blank','noopener')};
+
+function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js?v=4203',{updateViaCache:'none'})
+    .then(reg=>{
+      reg.update().catch(()=>{});
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        if(sessionStorage.getItem('SW_BUILD_RELOAD_4203'))return;
+        sessionStorage.setItem('SW_BUILD_RELOAD_4203','1');
+        location.reload();
+      },{once:true});
+      return reg;
+    })
+    .then(reg=>reg.update())
+    .catch(()=>{});
+}
+sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){S.session=session;showRecoveryForm();return}setTimeout(authState,0)});
+
+function latestTournamentForVisual(){
+  return currentTour()||S.tournaments[0]||null;
+}
+
+const VISUAL_W=1080, VISUAL_H=1350;
+let currentVisualBlob=null;
+let currentVisualFilename='tournoi-du-dimanche.png';
+
+function vRoundRect(ctx,x,y,w,h,r,fill,stroke){
+  const rr=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);
+  ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}
+}
+function vText(ctx,text,x,y,maxWidth,font,color,align='left'){
+  ctx.font=font;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='alphabetic';
+  ctx.fillText(String(text),x,y,maxWidth);
+}
+function vWrap(ctx,text,maxWidth){
+  const words=String(text||'').split(/\s+/);const lines=[];let line='';
+  words.forEach(word=>{
+    const test=line?line+' '+word:word;
+    if(ctx.measureText(test).width>maxWidth && line){lines.push(line);line=word}else line=test;
+  });
+  if(line)lines.push(line);
+  return lines;
+}
+function vDrawWrapped(ctx,text,x,y,maxWidth,lineHeight,font,color,maxLines=3){
+  ctx.font=font;ctx.fillStyle=color;ctx.textAlign='left';
+  const lines=vWrap(ctx,text,maxWidth).slice(0,maxLines);
+  lines.forEach((line,i)=>ctx.fillText(line,x,y+i*lineHeight,maxWidth));
+  return y+lines.length*lineHeight;
+}
+function visualDate(t){
+  try{return new Date((t?.tournament_date||'')+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
+  catch(e){return t?.tournament_date||''}
+}
+function visualTheme(ctx,title,t){
+  const g=ctx.createLinearGradient(0,0,1080,1350);
+  g.addColorStop(0,'#08291d');g.addColorStop(.6,'#0d3b29');g.addColorStop(1,'#061c14');
+  ctx.fillStyle=g;ctx.fillRect(0,0,VISUAL_W,VISUAL_H);
+  ctx.globalAlpha=.08;ctx.fillStyle='#ffffff';
+  for(let i=0;i<16;i++){ctx.beginPath();ctx.arc(80+i*75,110+(i%3)*42,22,0,Math.PI*2);ctx.fill()}
+  ctx.globalAlpha=1;
+  vText(ctx,'âš½ SWÃ‰ TOURNAMENT 5/5',70,105,940,'700 34px Arial','#9ee6b8');
+  vText(ctx,title,70,180,940,'800 62px Arial','#ffffff');
+  vText(ctx,visualDate(t),70,228,940,'500 28px Arial','#c9e7d5');
+  ctx.fillStyle='#36c36c';ctx.fillRect(70,258,115,7);
+}
+function visualFooter(ctx,t){
+  vText(ctx,(t?.name||'SWÃ‰ TOURNAMENT 5/5'),70,1292,760,'600 24px Arial','#a8c9b6');
+  vText(ctx,'GÃ©nÃ©rÃ© par lâ€™app',1010,1292,300,'500 22px Arial','#7da28e','right');
+}
+
+function makeVisualTeams(ctx,t){
+  visualTheme(ctx,'Ã‰QUIPES',t);
+  let y=320;
+  const cards=S.teams.slice(0,8);
+  cards.forEach((team,idx)=>{
+    const ids=teamPlayerIds(team.id);
+    const names=ids.map(id=>playerDisplayName(p(id))).filter(Boolean);
+    const cardH=Math.max(118,78+Math.ceil(names.length/2)*38);
+    vRoundRect(ctx,70,y,940,cardH,24,'#ffffff');
+    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg);
+    vRoundRect(ctx,90,y+22,185,52,15,bg);
+    vText(ctx,'ğŸ‘• '+team.name,182,y+57,165,'800 23px Arial',fg,'center');
+    vText(ctx,sweTeamColorLabel(team),295,y+57,120,'700 18px Arial','#66756e');
+    const balance=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
+    if(balance){
+      vText(ctx,'ğŸ¶ Chien Boul Academy '+Number(balance.team_score||0).toFixed(1)+'/5',930,y+58,310,'700 19px Arial','#0c6b3d','right');
+    }
+    let tx=285,ty=y+50;
+    names.forEach((name,i)=>{
+      const col=i%2,row=Math.floor(i/2);
+      vText(ctx,'â€¢ '+name,tx+col*345,ty+row*38,320,'600 24px Arial','#183428');
+    });
+    y+=cardH+20;
+  });
+  if(!cards.length)vText(ctx,'Aucune Ã©quipe crÃ©Ã©e',70,390,940,'600 34px Arial','#ffffff');
+  const subs=tournamentCommonSubstitutes();
+  if(subs.length && y<1195){
+    const h=Math.max(74,54+Math.ceil(subs.length/3)*30);
+    vRoundRect(ctx,70,y,940,h,20,'#fff4d6');
+    vText(ctx,'ğŸŸ  REMPLAÃ‡ANTS COMMUNS',95,y+38,300,'800 21px Arial','#9a5a00');
+    subs.forEach((pl,i)=>{const col=i%3,row=Math.floor(i/3);vText(ctx,playerDisplayName(pl),405+col*195,y+36+row*30,180,'600 18px Arial','#5b4a2e');});
+  }
+  visualFooter(ctx,t);
+}
+
+function makeVisualResults(ctx,t){
+  visualTheme(ctx,'RÃ‰SULTATS',t);
+  let y=315;
+  const matches=S.matches.slice(0,12);
+  matches.forEach((m,i)=>{
+    const home=tm(m.home_team_id)?.name||'?';
+    const away=tm(m.away_team_id)?.name||'?';
+    vRoundRect(ctx,70,y,940,76,20,'#ffffff');
+    vText(ctx,'M'+(i+1),102,y+49,70,'800 22px Arial','#0c6b3d');
+    vText(ctx,home,205,y+49,270,'700 25px Arial','#183428','right');
+    vRoundRect(ctx,480,y+15,120,48,14,'#0d3b29');
+    vText(ctx,(m.home_score??0)+' - '+(m.away_score??0),540,y+49,105,'800 28px Arial','#ffffff','center');
+    vText(ctx,away,625,y+49,270,'700 25px Arial','#183428');
+    if(m.pitch)vText(ctx,m.pitch,975,y+49,120,'600 20px Arial','#6b8075','right');
+    y+=90;
+  });
+  if(!matches.length)vText(ctx,'Aucun match enregistrÃ©',70,390,940,'600 34px Arial','#ffffff');
+  visualFooter(ctx,t);
+}
+
+function tournamentScorerVisualData(){
+  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,g:0,guest:x.is_group_member===false}]));
+  S.goals.forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++});
+  let arr=[...stats.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name));
+  let prev=null,rank=0;
+  return arr.map((x,i)=>{if(x.g!==prev){rank=i+1;prev=x.g}return {...x,rank}});
+}
+function makeVisualScorers(ctx,t){
+  visualTheme(ctx,'CLASSEMENT BUTEURS',t);
+  const arr=tournamentScorerVisualData().slice(0,14);
+  let y=315;
+  arr.forEach((x,i)=>{
+    const podium=x.rank<=3;
+    vRoundRect(ctx,70,y,940,64,18,podium?'#e9f8ef':'#ffffff');
+    const medal=x.rank===1?'ğŸ¥‡':x.rank===2?'ğŸ¥ˆ':x.rank===3?'ğŸ¥‰':String(x.rank);
+    vText(ctx,medal,105,y+43,60,'800 27px Arial','#0c6b3d');
+    vText(ctx,x.name+(x.guest?'  â€¢ Guest':''),190,y+43,630,'700 25px Arial',x.guest?'#718079':'#183428');
+    vText(ctx,x.g+' but'+(x.g>1?'s':''),955,y+43,160,'800 26px Arial','#0c6b3d','right');
+    y+=76;
+  });
+  if(!arr.length)vText(ctx,'Aucun but enregistrÃ©',70,390,940,'600 34px Arial','#ffffff');
+  visualFooter(ctx,t);
+}
+
+async function generateVisual(kind){
+  const t=latestTournamentForVisual();
+  if(!t)return toast('Aucun tournoi disponible.');
+  const canvas=$('#visualCanvas'),ctx=canvas.getContext('2d');
+  canvas.width=VISUAL_W;canvas.height=VISUAL_H;
+  if(kind==='teams')makeVisualTeams(ctx,t);
+  else if(kind==='results')makeVisualResults(ctx,t);
+  else makeVisualScorers(ctx,t);
+  currentVisualFilename='tournoi-'+kind+'-'+(t.tournament_date||'').replaceAll('-','')+'.png';
+  currentVisualBlob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png',1));
+  $('#visualPreviewBox').classList.remove('hidden');
+  $('#visualPreviewBox').scrollIntoView({behavior:'smooth',block:'center'});
+  toast('Visuel gÃ©nÃ©rÃ© âœ…');
+}
+
+async function saveCurrentVisual(){
+  if(!currentVisualBlob)return toast('GÃ©nÃ¨re dâ€™abord un visuel.');
+  const url=URL.createObjectURL(currentVisualBlob);
+  const a=document.createElement('a');a.href=url;a.download=currentVisualFilename;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+async function shareCurrentVisual(){
+  if(!currentVisualBlob)return toast('GÃ©nÃ¨re dâ€™abord un visuel.');
+  const file=new File([currentVisualBlob],currentVisualFilename,{type:'image/png'});
+  if(navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
+    try{
+      await navigator.share({files:[file],title:'SWÃ‰ TOURNAMENT 5/5'});
+      return;
+    }catch(e){if(e.name==='AbortError')return;}
+  }
+  saveCurrentVisual();
+  toast('Partage de fichier non disponible : image enregistrÃ©e.');
+}
+$('#visualTeams').onclick=()=>generateVisual('teams');
+$('#visualResults').onclick=()=>generateVisual('results');
+$('#visualScorers').onclick=()=>generateVisual('scorers');
+$('#downloadVisual').onclick=saveCurrentVisual;
+$('#shareVisual').onclick=shareCurrentVisual;
+$('#closeVisual').onclick=()=>$('#visualPreviewBox').classList.add('hidden');
+
+function publicHistoryReturnUrl(token){
+  const q=swePublicParams();
+  const out=new URLSearchParams();
+  out.set('public',token);
+  for(const key of ['tournament','view','mode','league']){
+    const value=q.get(key);
+    if(value)out.set(key,value);
+  }
+  return APP_URL+'?'+out.toString();
+}
+function publicHistoryUrl(token,historyId){
+  const q=swePublicParams();
+  const stored=sweStoredPublicRegistrationContext();
+  const remembered=stored.public===String(token)?stored:{};
+  const out=new URLSearchParams();
+  out.set('public',token);
+  out.set('history',historyId);
+  const short=q.get('s')||remembered.s;if(/^[A-Za-z0-9]{1,32}$/.test(short||''))out.set('from_s',short);
+  for(const key of ['tournament','view','mode','league']){
+    const value=q.get(key)||remembered[key];
+    if(value)out.set('from_'+key,value);
+  }
+  return APP_URL+'?'+out.toString();
+}
+function publicHistoryBackUrl(token){
+  const q=swePublicParams();
+  const stored=sweStoredPublicRegistrationContext();
+  const remembered=stored.public===String(token)?stored:{};
+  const short=q.get('from_s')||remembered.s;if(/^[A-Za-z0-9]{1,32}$/.test(short||''))return APP_URL+'?s='+encodeURIComponent(short);
+  const out=new URLSearchParams();
+  out.set('public',token);
+  for(const key of ['tournament','view','mode','league']){
+    const value=q.get('from_'+key)||remembered[key];
+    if(value)out.set(key,value);
+  }
+  return APP_URL+'?'+out.toString();
+}
+
+function swePublicParams(){
+  const q=new URLSearchParams(location.search);
+  const r=window.__sweResolvedShortLink;
+  if(r){
+    if(r.tournament)q.set('tournament',r.tournament);
+    if(r.view)q.set('view',r.view);
+    if(r.league)q.set('league',r.league);
+  }
+  return q;
+}
+function sweRememberPublicRegistrationContext(){
+  const q=swePublicParams();
+  if(q.get('history'))return;
+  const ctx={public:String(q.get('public')||publicTokenFromUrl||'')};
+  for(const key of ['s','tournament','view','mode','league']){
+    const v=q.get(key);
+    if(v)ctx[key]=v;
+  }
+  if(ctx.tournament||ctx.view||ctx.mode||ctx.league){
+    try{sessionStorage.setItem('swe_public_registration_context',JSON.stringify(ctx));}catch(e){}
+  }
+}
+function sweStoredPublicRegistrationContext(){
+  try{
+    const raw=sessionStorage.getItem('swe_public_registration_context');
+    const obj=raw?JSON.parse(raw):null;
+    return obj&&typeof obj==='object'?obj:{};
+  }catch(e){return {}}
+}
+function paymentMoney(cents){
+  return (Number(cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' â‚¬';
+}
+function paymentReportPrint(report,editorName=''){
+  if(!report)return;
+  let host=document.getElementById('swePaymentPrintHost');
+  if(host)host.remove();
+  host=document.createElement('div');
+  host.id='swePaymentPrintHost';
+  host.className='payment-print-host';
+  const players=Array.isArray(report.players)?report.players:[];
+  const walkins=Array.isArray(report.walkins)?report.walkins:[];
+  const rows=[...players.map(r=>({...r,walkin:false})),...walkins.map(r=>({...r,walkin:true}))];
+  const paid=rows.filter(r=>!!r.paid).length;
+  const unpaid=rows.filter(r=>!r.paid).length;
+  const total=rows.filter(r=>!!r.paid).reduce((sum,r)=>sum+Number(r.amount_cents||report.entry_fee_cents||0),0);
+  const fmt=(iso)=>{if(!iso)return 'â€”';try{return new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(new Date(iso));}catch(e){return String(iso)}};
+  const body=rows.map(r=>'<tr><td>'+esc(r.player_name||'Joueur')+(r.walkin?' <small>(ajoutÃ© sur place)</small>':'')+'</td><td>'+esc(paymentMoney(r.amount_cents||report.entry_fee_cents||0))+'</td><td>'+(r.paid?'PAYÃ‰':'NON PAYÃ‰')+'</td><td>'+esc(r.collector_name||'â€”')+'</td><td>'+esc(fmt(r.paid_at))+'</td></tr>').join('');
+  host.innerHTML='<div class="payment-print-sheet"><h1>'+esc(report.tournament_name||('SwÃ© du '+(report.tournament_date||'')))+'</h1><p>Date du SwÃ© : '+esc(report.tournament_date||'â€”')+' â€¢ Prix par participant : '+esc(paymentMoney(report.entry_fee_cents||0))+'</p>'+(editorName?'<p>Rapport Ã©ditÃ© par : '+esc(editorName)+'</p>':'')+'<div class="payment-print-summary"><b>'+paid+' payÃ©'+(paid>1?'s':'')+'</b><b>'+unpaid+' non payÃ©'+(unpaid>1?'s':'')+'</b><b>Total encaissÃ© : '+esc(paymentMoney(total))+'</b></div><table><thead><tr><th>Joueur</th><th>Montant</th><th>Statut</th><th>EnregistrÃ© par</th><th>Date / heure</th></tr></thead><tbody>'+body+'</tbody></table><p class="payment-print-foot">Rapport de suivi manuel des paiements sur place â€” SWÃ‰ Tournament.</p></div>';
+  document.body.appendChild(host);
+  requestAnimationFrame(()=>setTimeout(()=>window.print(),40));
+}
+
+async function bootPaymentDesk(token){
+  S.publicMode=true;
+  if(window.__swePublicRegistrationInterval){clearInterval(window.__swePublicRegistrationInterval);window.__swePublicRegistrationInterval=null;}
+  $('#auth').classList.add('hidden');
+  $('#main').classList.add('hidden');
+  $('#publicView').classList.remove('hidden');
+  const root=$('#publicView');
+  root.innerHTML='<header class="top"><h1 class="public-title"><img src="./favicon.png?v=4218" class="brand-mark" alt="SWÃ‰">Suivi des paiements sur place</h1><div class="public-sub">SWÃ‰ TOURNAMENT 5/5 â€¢ saisie manuelle uniquement</div></header><div class="card"><div id="paymentDeskContent"><p class="muted">Chargement de la liste des inscritsâ€¦</p></div></div>';
+  let snapshot=null;
+  const collectorStorageKey='swe_payment_collector_name';
+  const rememberedCollector=()=>{try{return (localStorage.getItem(collectorStorageKey)||'').trim();}catch(e){return ''}};
+  const saveCollector=(name,remember)=>{try{if(remember&&name.trim())localStorage.setItem(collectorStorageKey,name.trim());else if(!remember)localStorage.removeItem(collectorStorageKey);}catch(e){}};
+  const fmtDateTime=(iso)=>{if(!iso)return 'â€”';try{return new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(new Date(iso));}catch(e){return iso}};
+  const getCollector=()=>($('#paymentDeskCollector')?.value||'').trim();
+  const ensureCollector=()=>{const n=getCollector();if(!n){toast('Indique ton prÃ©nom / nom avant de continuer.');$('#paymentDeskCollector')?.focus();return '';}saveCollector(n,!!$('#paymentDeskRememberCollector')?.checked);return n;};
+  async function loadDesk(){
+    const content=$('#paymentDeskContent');if(!content)return;
+    const {data,error}=await sb.rpc('payment_desk_snapshot',{p_token:token});
+    if(error||!data){content.innerHTML='<h2 class="sectiontitle">Lien indisponible</h2><p class="muted">'+esc(error?.message||'Ce lien de suivi est invalide ou dÃ©sactivÃ©.')+'</p>';return;}
+    snapshot=data;renderDesk();
+  }
+  function currentReport(){
+    const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='waitlist');
+    return {tournament_name:snapshot?.tournament_name,tournament_date:snapshot?.tournament_date,entry_fee_cents:snapshot?.entry_fee_cents||0,
+      players:all.map(r=>({player_name:r.player_name,paid:!!r.manual_paid_at,paid_at:r.manual_paid_at,collector_name:r.manual_paid_collector_name,amount_cents:snapshot?.entry_fee_cents||0})),
+      walkins:(snapshot?.walkins||[]).map(r=>({player_name:r.player_name,paid:true,paid_at:r.paid_at,collector_name:r.collector_name,amount_cents:r.amount_cents,walkin:true}))};
+  }
+  function renderDesk(){
+    const content=$('#paymentDeskContent');if(!content||!snapshot)return;
+    const all=(snapshot.players||[]).filter(r=>r.present||r.registration_status==='late_withdrawal');
+    const confirmed=all.filter(r=>r.registration_status!=='waitlist'&&r.registration_status!=='late_withdrawal'&&!r.is_substitute);
+    const walkins=snapshot.walkins||[];
+    const paidCount=confirmed.filter(r=>!!r.manual_paid_at).length+walkins.length;
+    const unpaidCount=Math.max(0,confirmed.filter(r=>!r.manual_paid_at).length);
+    const price=Number(snapshot.entry_fee_cents||0);
+    const totalCollected=paidCount*price;
+    const savedName=rememberedCollector();
+    content.innerHTML='<div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:230px"><h2 class="sectiontitle" style="margin-bottom:5px">ğŸ’¶ '+esc(snapshot.tournament_name||('SwÃ© du '+snapshot.tournament_date))+'</h2><div class="muted">ğŸ“… '+esc(snapshot.tournament_date||'')+'</div><div class="payment-price-highlight">Prix Ã  payer : <b>'+esc(paymentMoney(price))+'</b> par joueur</div><div class="muted" style="margin-top:5px">Indique ton prÃ©nom, puis marque simplement qui a payÃ© sur place.</div></div><button id="paymentDeskRefresh">â†» Actualiser</button></div>'+ 
+      '<div class="player" style="margin-top:14px;background:#f8fafc"><label for="paymentDeskCollector"><b>ğŸ‘¤ Ton prÃ©nom / nom</b></label><input id="paymentDeskCollector" maxlength="60" placeholder="Ex. Laurent" value="'+esc(savedName)+'" autocomplete="name" style="margin-top:6px"><label class="row" style="gap:8px;margin-top:8px;justify-content:flex-start"><input id="paymentDeskRememberCollector" type="checkbox" style="width:auto" '+(savedName?'checked':'')+'><span>MÃ©moriser ce nom sur cet appareil pour la prochaine fois</span></label><div class="muted" style="margin-top:5px">Le nom est enregistrÃ© avec chaque validation de paiement.</div></div>'+ 
+      '<div class="grid g3" style="margin-top:14px"><div class="player" style="background:#eef8f2"><b style="font-size:1.2rem">'+paidCount+'</b><div class="muted">PayÃ©'+(paidCount>1?'s':'')+'</div></div><div class="player" style="background:#fff3e8"><b style="font-size:1.2rem">'+unpaidCount+'</b><div class="muted">Non payÃ©'+(unpaidCount>1?'s':'')+'</div></div><div class="player"><b style="font-size:1.2rem">'+esc(paymentMoney(totalCollected))+'</b><div class="muted">Total encaissÃ©</div></div></div>'+ 
+      '<div class="payment-walkin-card"><div><b>â• Joueur absent de la liste</b><div class="muted">Sâ€™il se prÃ©sente et paie, ajoute simplement son nom. Le montant utilisÃ© sera '+esc(paymentMoney(price))+'.</div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input id="paymentDeskWalkinName" maxlength="80" placeholder="Nom / prÃ©nom du joueur" style="flex:1;min-width:220px"><button id="paymentDeskAddWalkin" class="primary">Ajouter comme PAYÃ‰</button></div></div>'+ 
+      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px"><div style="flex:1;min-width:220px"><input id="paymentDeskSearch" placeholder="ğŸ” Rechercher un joueur" autocomplete="off"></div><button id="paymentDeskPrint">ğŸ–¨ï¸ Imprimer / Enregistrer PDF</button></div><div id="paymentDeskRows" style="margin-top:10px"></div>'+ 
+      (walkins.length?'<div style="margin-top:16px"><h3 class="sectiontitle">AjoutÃ©s sur place</h3><div id="paymentDeskWalkins"></div></div>':'')+
+      '<div class="readonly-note" style="margin-top:12px">ğŸ” Lien privÃ© : suivi manuel uniquement. Ã€ la clÃ´ture du tournoi, un rapport dÃ©finitif est archivÃ© et disponible pour lâ€™administrateur.</div>';
+    const rowsBox=$('#paymentDeskRows');
+    const draw=()=>{
+      const q=($('#paymentDeskSearch')?.value||'').trim().toLowerCase();
+      const rows=all.filter(r=>!q||String(r.player_name||'').toLowerCase().includes(q));
+      rowsBox.innerHTML='';
+      if(!rows.length){rowsBox.innerHTML='<p class="muted">Aucun joueur correspondant.</p>';return;}
+      rows.forEach(r=>{
+        const wait=r.registration_status==='waitlist';
+        const withdrawn=r.registration_status==='late_withdrawal';
+        const substitute=!!r.is_substitute;
+        const paid=!!r.manual_paid_at;
+        const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';if(withdrawn){d.style.opacity='.58';d.style.background='#f3f4f6'}
+        const audit=paid&&r.manual_paid_collector_name?'<div class="muted" style="margin-top:3px">Saisi par '+esc(r.manual_paid_collector_name)+' â€¢ '+esc(fmtDateTime(r.manual_paid_at))+'</div>':'';
+        const statusText=withdrawn?'âš ï¸ DÃ©sistement de derniÃ¨re minute':(substitute?'ğŸŸ  RemplaÃ§ant':(wait?'â³ Liste dâ€™attente':'âœ… Inscrit confirmÃ©'));const withdrawalInfo=withdrawn?'<div class="muted" style="margin-top:3px">RetirÃ© de la feuille active'+(r.withdrawal_note?' â€¢ '+esc(r.withdrawal_note):'')+'</div>':'';d.innerHTML='<span style="flex:1;min-width:170px"><b>'+esc(r.player_name||'Joueur')+'</b><div class="muted" style="margin-top:3px">'+statusText+(withdrawn?'':' â€¢ '+esc(paymentMoney(price)))+'</div>'+withdrawalInfo+audit+'</span><span class="guest-badge" style="background:'+(withdrawn?'#e5e7eb':(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7')))+';color:'+(withdrawn?'#4b5563':(paid?'#176a36':(wait?'#9a5b00':'#b3261e')))+'">'+(withdrawn?'DÃ‰SISTEMENT':(paid?'PAYÃ‰':'NON PAYÃ‰'))+'</span>';
+        if(!wait&&!withdrawn){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'â†© Marquer non payÃ©':'âœ… Marquer payÃ©';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);}
+        rowsBox.appendChild(d);
+      });
+    };
+    const walkBox=$('#paymentDeskWalkins');
+    if(walkBox){walkBox.innerHTML='';walkins.forEach(r=>{const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.innerHTML='<span style="flex:1"><b>'+esc(r.player_name)+'</b><div class="muted">PAYÃ‰ â€¢ '+esc(paymentMoney(r.amount_cents||price))+' â€¢ Saisi par '+esc(r.collector_name||'â€”')+' â€¢ '+esc(fmtDateTime(r.paid_at))+'</div></span><span class="guest-badge" style="background:#e8f7ec;color:#176a36">PAYÃ‰</span>';const del=document.createElement('button');del.className='danger';del.textContent='Retirer';del.onclick=async()=>{if(!confirm('Retirer '+r.player_name+' de la feuille de paiement ?'))return;const {error}=await sb.rpc('payment_desk_delete_walkin',{p_token:token,p_walkin_id:r.id});if(error)return toast(error.message);await loadDesk();};d.appendChild(del);walkBox.appendChild(d);});}
+    $('#paymentDeskSearch').oninput=draw;
+    $('#paymentDeskRefresh').onclick=loadDesk;
+    $('#paymentDeskPrint').onclick=()=>paymentReportPrint(currentReport(),getCollector());
+    $('#paymentDeskAddWalkin').onclick=async()=>{const collector=ensureCollector();if(!collector)return;const name=($('#paymentDeskWalkinName')?.value||'').trim();if(!name){toast('Indique le nom du joueur Ã  ajouter.');return;}const btn=$('#paymentDeskAddWalkin');btn.disabled=true;const {error}=await sb.rpc('payment_desk_add_walkin',{p_token:token,p_player_name:name,p_collector_name:collector});if(error){btn.disabled=false;return toast(error.message);}await loadDesk();toast(name+' ajoutÃ© comme payÃ© âœ…');};
+    const collectorInput=$('#paymentDeskCollector');const rememberBox=$('#paymentDeskRememberCollector');
+    if(collectorInput)collectorInput.onchange=()=>saveCollector(collectorInput.value,!!rememberBox?.checked);
+    if(rememberBox)rememberBox.onchange=()=>saveCollector(collectorInput?.value||'',rememberBox.checked);
+    draw();
+  }
+  await loadDesk();
+}
+
+let publicBootState=null;
+async function bootPublic(token){
+  const key=String(token)+'|'+location.search;
+  if(publicBootState?.key===key){
+    if(publicBootState.loading)return publicBootState.loading;
+    if(publicBootState.loaded)return publicBootState.refresh?.();
+  }
+  const state={key,loaded:false,refresh:null};publicBootState=state;
+  state.loading=loadPublicPage(token,state);
+  try{state.loaded=(await state.loading)!==false;}finally{state.loading=null;}
+}
+async function loadPublicPage(token,bootState){
+  S.publicMode=true;
+  if(window.__sweResolvedShortLink){
+    const r=window.__sweResolvedShortLink;
+    // Inject resolved values into the in-memory URL parameter object only.
+    // The browser address remains the original short URL (?s=...).
+    if(r.tournament)urlParams.set('tournament',r.tournament);
+    if(r.view)urlParams.set('view',r.view);
+    if(r.league)urlParams.set('league',r.league);
+  }
+  sweRememberPublicRegistrationContext();
+  // V40.02 â€” Ã©tat global pour Ã©viter qu'un ancien rafraÃ®chissement public
+  // reconstruise le formulaire d'inscription Ã©quipe aprÃ¨s validation du code.
+  window.__swePublicTeamEditing=false;
+  if(window.__swePublicRegistrationInterval){
+    clearInterval(window.__swePublicRegistrationInterval);
+    window.__swePublicRegistrationInterval=null;
+  }
+  $('#auth').classList.add('hidden');
+  $('#main').classList.add('hidden');
+  $('#publicView').classList.remove('hidden');
+  let parsed;
+  try{
+    const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
+    if(error)throw error;
+    if(!data)throw new Error('Lien public invalide ou dÃ©sactivÃ©.');
+    parsed=data;
+  }catch(e){
+    $('#publicWorkspaceName').textContent='Lien indisponible';
+    $('#publicSeasonScorers').innerHTML='<p class="muted">'+esc(e.message||e)+'</p>';
+    return false;
+  }
+  const P=parsed;
+  let ratingGroupName='';
+  let refreshSeasonRankings=()=>{};
+  const pageParams=swePublicParams();
+  const viewedTournament=pageParams.get('history')||pageParams.get('tournament');
+  const viewedLeague=pageParams.get('league');
+  window.swePageViewContext={page:pageParams.get('history')?'history':viewedTournament?'registration':viewedLeague?'league':'workspace',token,id:viewedTournament||viewedLeague||null};
+  document.dispatchEvent(new Event('swe:page-view'));
+  const publicThirdHalf=!!P.workspace?.third_half_enabled;
+  $('#publicWorkspaceName').textContent=P.workspace?.name||'SWÃ‰ TOURNAMENT 5/5';
+  let players=P.players||[],seasons=P.seasons||[],leagues=P.leagues||[],leaguePlayers=P.league_players||[],tournaments=(P.tournaments||[]).sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
+  let teams=P.teams||[],teamPlayers=P.team_players||[],teamInvitations=P.team_player_invitations||[],matches=P.matches||[],goals=P.goals||[],matchAssignments=P.match_player_assignments||[];
+  const publicPlayerRatingsEnabled=!!P.features?.player_ratings_enabled&&!!P.features?.top_player_enabled;
+  const publicTeamReviewEnabled=!!P.features?.team_review_enabled;
+  const publicTeamReviewStates=P.team_review_states||[];
+  S.sportsComplexes=P.sports_complexes||[];
+  S.sportsPitches=P.sports_pitches||[];
+  let registrations=P.tournament_players||[];
+  let tournamentGroupLevels=P.tournament_group_levels||[];
+  const publicParamsTop=swePublicParams();
+  const requestedPublicView=publicParamsTop.get('view')||'';
+  const legacyMode=publicParamsTop.get('mode')||'';
+  const leagueJoinId=publicParamsTop.get('league');
+  const isLeagueRegistration=(requestedPublicView==='league')||(!requestedPublicView&&legacyMode==='league'&&leagueJoinId&&!publicParamsTop.get('tournament'));
+  if(isLeagueRegistration&&leagueJoinId&&!publicParamsTop.get('tournament')){
+    const league=leagues.find(l=>l.id===leagueJoinId);
+    if(!league){
+      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SWÃ‰">SWÃ‰ TOURNAMENT 5/5</h1></header><div class="card"><p>Ligue introuvable.</p></div>';return;
+    }
+
+    const groupMembers=players.filter(p=>p.active&&p.is_group_member!==false).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    const confirmedIds=new Set(leaguePlayers.filter(lp=>lp.league_id===league.id&&lp.status==='confirmed').map(lp=>lp.player_id));
+    const confirmedMembers=players.filter(p=>p.active&&confirmedIds.has(p.id)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+
+    // Une Ligue = une succession de SwÃ©s. Chaque SwÃ© de Ligue correspond Ã  UN match long (~60 min).
+    // Les statistiques ci-dessous ne prennent que les SwÃ©s rattachÃ©s Ã  CETTE Ligue.
+    const leagueSessions=tournaments
+      .filter(t=>t.format==='league'&&t.league_id===league.id)
+      .sort((a,b)=>String(a.tournament_date).localeCompare(String(b.tournament_date)));
+    const leagueTournamentIds=new Set(leagueSessions.map(t=>t.id));
+    const leagueMatches=matches
+      .filter(m=>leagueTournamentIds.has(m.tournament_id))
+      .sort((a,b)=>{
+        const ta=leagueSessions.find(t=>t.id===a.tournament_id),tb=leagueSessions.find(t=>t.id===b.tournament_id);
+        return String(ta?.tournament_date||'').localeCompare(String(tb?.tournament_date||''))||(Number(a.match_order||0)-Number(b.match_order||0));
+      });
+    const leagueMatchIds=new Set(leagueMatches.map(m=>m.id));
+
+    // Inclure tous les joueurs ayant rÃ©ellement participÃ© Ã  la Ligue, y compris les "1Ã¨re fois".
+    const leaguePlayerIds=new Set(confirmedIds);
+    const leagueTeamIds=new Set();
+    leagueMatches.forEach(m=>{leagueTeamIds.add(m.home_team_id);leagueTeamIds.add(m.away_team_id);});
+    teamPlayers.filter(tp=>leagueTeamIds.has(tp.team_id)).forEach(tp=>leaguePlayerIds.add(tp.player_id));
+    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{
+      if(g.scorer_player_id)leaguePlayerIds.add(g.scorer_player_id);
+      if(g.assister_player_id)leaguePlayerIds.add(g.assister_player_id);
+    });
+    const leaguePeople=players.filter(p=>leaguePlayerIds.has(p.id));
+    const leagueStats=new Map(leaguePeople.map(p=>[p.id,{id:p.id,name:p.name,g:0,a:0,w:0}]));
+
+    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{
+      if(leagueStats.has(g.scorer_player_id))leagueStats.get(g.scorer_player_id).g++;
+      if(g.assister_player_id&&leagueStats.has(g.assister_player_id))leagueStats.get(g.assister_player_id).a++;
+    });
+
+    // Top Player = nombre de SwÃ©s / matchs de Ligue gagnÃ©s.
+    leagueMatches.forEach(m=>{
+      const hs=Number(m.home_score||0),as=Number(m.away_score||0);
+      if(hs===as)return;
+      const winnerId=hs>as?m.home_team_id:m.away_team_id;
+      teamPlayers.filter(tp=>tp.team_id===winnerId).forEach(tp=>{
+        if(leagueStats.has(tp.player_id))leagueStats.get(tp.player_id).w++;
+      });
+    });
+
+    let leagueScorers=[...leagueStats.values()].filter(x=>x.g>0).sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
+    let prevGoals=null,goalRank=0;
+    leagueScorers=leagueScorers.map((x,i)=>{if(x.g!==prevGoals){goalRank=i+1;prevGoals=x.g}return {...x,rank:goalRank}});
+
+    let leagueAssists=[...leagueStats.values()].filter(x=>x.a>0).sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
+    let prevAssists=null,assistRank=0;
+    leagueAssists=leagueAssists.map((x,i)=>{if(x.a!==prevAssists){assistRank=i+1;prevAssists=x.a}return {...x,rank:assistRank}});
+
+    let leagueWinners=[...leagueStats.values()].filter(x=>x.w>0).sort((a,b)=>b.w-a.w||b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
+    let prevWins=null,winRank=0;
+    leagueWinners=leagueWinners.map((x,i)=>{if(x.w!==prevWins){winRank=i+1;prevWins=x.w}return {...x,rank:winRank}});
+
+    const scorersHtml=leagueScorers.slice(0,10).map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but enregistrÃ© pour le moment.</p>';
+    const assistsHtml=leagueAssists.slice(0,10).map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe enregistrÃ©e pour le moment.</p>';
+    const winnersHtml=leagueWinners.slice(0,10).map(x=>'<div class="rank"><b>'+(x.rank===1?'ğŸ‘‘':x.rank)+'</b><span><b>'+esc(x.name)+'</b><div class="muted">Top Player â€¢ victoires en SwÃ© de Ligue</div></span><b class="right">'+x.w+' victoire'+(x.w>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune victoire individuelle enregistrÃ©e pour le moment.</p>';
+
+    const memberHtml=confirmedMembers.map((p,i)=>{
+      const first=p.temporary_league_member&&p.league_origin_id===league.id;
+      return '<div class="player row"><span style="flex:1"><b>'+esc(p.name)+'</b>'+(first?' <span class="guest-badge">ğŸ†• 1Ã¨re fois</span>':'')+'</span><span class="muted">#'+(i+1)+'</span></div>';
+    }).join('')||'<p class="muted">Aucun membre inscrit pour le moment.</p>';
+
+    const prizeHtml=league.prizes_enabled
+      ? '<div class="card" style="background:linear-gradient(145deg,#fff8df,#fffdf5);border:1px solid #f4df9f"><h2 class="sectiontitle">ğŸ Lots de la Ligue</h2>'+
+        '<div class="muted" style="margin-bottom:8px">Des lots sont prÃ©vus pour le classement des buteurs.</div>'+
+        '<div class="player">ğŸ¥‡ <b>1er buteur :</b> '+esc(league.prize_first||'Lot Ã  dÃ©finir ultÃ©rieurement')+'</div>'+
+        '<div class="player">ğŸ¥ˆ <b>2e buteur :</b> '+esc(league.prize_second||'Lot Ã  dÃ©finir ultÃ©rieurement')+'</div>'+
+        '<div class="player">ğŸ¥‰ <b>3e buteur :</b> '+esc(league.prize_third||'Lot Ã  dÃ©finir ultÃ©rieurement')+'</div></div>'
+      : '';
+
+    // Dernier SwÃ© de Ligue ayant effectivement un match : afficher UNIQUEMENT ses deux Ã©quipes.
+    const sessionsWithMatch=leagueSessions.filter(s=>leagueMatches.some(m=>m.tournament_id===s.id));
+    const latestLeagueSession=sessionsWithMatch.length?sessionsWithMatch[sessionsWithMatch.length-1]:null;
+    const latestLeagueMatches=latestLeagueSession?leagueMatches.filter(m=>m.tournament_id===latestLeagueSession.id):[];
+    // Le format attendu est 1 SwÃ© = 1 match de 60 min. Si plusieurs anciens matchs existent, on montre le dernier enregistrÃ©.
+    const latestLeagueMatch=latestLeagueMatches.length?latestLeagueMatches[latestLeagueMatches.length-1]:null;
+
+    let latestSweHtml='';
+    if(latestLeagueSession&&latestLeagueMatch){
+      const home=teams.find(t=>t.id===latestLeagueMatch.home_team_id);
+      const away=teams.find(t=>t.id===latestLeagueMatch.away_team_id);
+      const involved=[home,away].filter(Boolean);
+      const cards=involved.map(team=>{
+        const members=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>players.find(p=>p.id===tp.player_id)).filter(Boolean);
+        const isWinner=Number(latestLeagueMatch.home_score||0)!==Number(latestLeagueMatch.away_score||0) &&
+          ((Number(latestLeagueMatch.home_score||0)>Number(latestLeagueMatch.away_score||0)&&team.id===latestLeagueMatch.home_team_id)||
+           (Number(latestLeagueMatch.away_score||0)>Number(latestLeagueMatch.home_score||0)&&team.id===latestLeagueMatch.away_team_id));
+        return '<div class="public-team-card">'+
+          '<div class="public-team-head"><div>'+(isWinner?'ğŸ‘‘ ':'')+esc(team.name)+'</div>'+(isWinner?'<div class="public-team-shirt">ğŸ† Vainqueur du dernier SwÃ©</div>':'')+'</div>'+
+          '<div class="public-team-players">'+(members.map(pl=>'<div class="public-team-player">'+esc(pl.name)+'</div>').join('')||'<div class="muted">Composition non enregistrÃ©e</div>')+'</div>'+
+        '</div>';
+      }).join('');
+      const mg=goals.filter(g=>g.match_id===latestLeagueMatch.id);
+      const goalLines=mg.map(g=>{
+        const scorer=players.find(p=>p.id===g.scorer_player_id);
+        const assister=g.assister_player_id?players.find(p=>p.id===g.assister_player_id):null;
+        return '<div class="small" style="margin-top:5px">âš½ '+esc(scorer?.name||'?')+(assister?' <span class="muted">â† passe '+esc(assister.name)+'</span>':'')+'</div>';
+      }).join('');
+      latestSweHtml=
+        '<div class="card"><div class="row" style="justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">'+
+          '<div><h2 class="sectiontitle">ğŸ”¥ Dernier SwÃ© de Ligue</h2><div class="muted">'+esc(latestLeagueSession.name||latestLeagueSession.tournament_date)+' â€¢ '+esc(latestLeagueSession.tournament_date)+' â€¢ 1 match dâ€™environ 60 min</div></div>'+
+          '<span class="guest-badge">FORMAT LIGUE</span>'+
+        '</div>'+
+        '<div class="player" style="margin-top:10px"><div class="row" style="justify-content:space-between;gap:8px"><b>'+esc(home?.name||'Ã‰quipe A')+'</b><span class="score">'+Number(latestLeagueMatch.home_score||0)+' - '+Number(latestLeagueMatch.away_score||0)+'</span><b>'+esc(away?.name||'Ã‰quipe B')+'</b></div>'+(goalLines?'<div style="margin-top:8px">'+goalLines+'</div>':'')+'</div>'+
+        '<h3 style="margin-top:15px">ğŸ‘¥ Les Ã©quipes qui se sont affrontÃ©es</h3><div id="publicLeagueLastTeams" style="display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px">'+cards+'</div>'+
+        '</div>';
+    }else{
+      latestSweHtml='<div class="card" style="background:#f8fbf9"><h2 class="sectiontitle">ğŸ”¥ Dernier SwÃ© de Ligue</h2><p class="muted">Aucun match de Ligue nâ€™a encore Ã©tÃ© enregistrÃ©.</p></div>';
+    }
+
+    $('#publicView').innerHTML=
+      '<header class="top"><h1>ğŸ '+esc(league.name)+'</h1><div class="public-sub">SWÃ‰ TOURNAMENT 5/5 â€¢ Ligue â€¢ 1 SwÃ© = 1 match dâ€™environ 60 min</div></header>'+
+      '<div class="card"><h2 class="sectiontitle">ğŸ“… Saison de la Ligue</h2><div class="player"><b>DÃ©but :</b> '+esc(league.starts_on)+'</div><div class="player"><b>Fin :</b> '+esc(league.ends_on||'Non dÃ©finie')+'</div><div class="muted" style="margin-top:8px">Contrairement au format Tournoi (environ 5 Ã  8 matchs sur 2h), un SwÃ© de Ligue correspond Ã  un seul match long dâ€™environ 60 minutes.</div></div>'+
+      '<div class="grid g3">'+
+        '<div class="card"><h2 class="sectiontitle">âš½ Meilleurs buteurs</h2>'+scorersHtml+'</div>'+
+        '<div class="card"><h2 class="sectiontitle">ğŸ¯ Meilleurs passeurs</h2>'+assistsHtml+'</div>'+
+        '<div class="card"><h2 class="sectiontitle">ğŸ‘‘ Top Player</h2><div class="muted" style="margin-bottom:8px">Classement par nombre de SwÃ©s de Ligue gagnÃ©s.</div>'+winnersHtml+'</div>'+
+      '</div>'+
+      latestSweHtml+
+      prizeHtml+
+      '<div class="card"><h2 class="sectiontitle">Rejoindre la Ligue</h2><p class="muted">Si tu es dÃ©jÃ  membre du groupe, sÃ©lectionne ton nom. Sinon, lâ€™option Â« 1Ã¨re fois Â» reste disponible uniquement pour lâ€™inscription Ã  la Ligue.</p>'+
+      '<select id="publicLeaguePlayer"><option value="">Choisis ton nom</option>'+groupMembers.map(p=>'<option value="'+p.id+'">'+esc(p.name)+(confirmedIds.has(p.id)?' â€¢ dÃ©jÃ  inscrit':'')+'</option>').join('')+'</select>'+
+      '<div class="space"></div><div class="row"><button id="publicLeagueJoin" class="primary">Je rejoins la Ligue</button><button id="publicLeagueLeave">Me retirer</button></div><div id="publicLeagueStatus" class="muted" style="margin-top:8px"></div>'+
+      '<div class="player" style="margin-top:14px;background:#f8fbf9"><b>ğŸ†• PremiÃ¨re fois avec le groupe ?</b><div class="muted" style="margin:5px 0 8px">Entre ton nom pour tâ€™inscrire Ã  cette Ligue. Tu pourras participer aux prochains SwÃ©s de Ligue.</div><input id="publicNewLeaguePlayerName" maxlength="60" placeholder="Ton prÃ©nom / nom"><div class="space"></div><button id="publicNewLeagueJoin" class="primary">Mâ€™inscrire pour cette Ligue</button><div id="publicNewLeagueStatus" class="muted" style="margin-top:8px"></div></div></div>'+
+      '<div class="card"><h2 class="sectiontitle">ğŸ‘¥ Membres de la Ligue ('+confirmedMembers.length+')</h2><div class="readonly-note" style="margin-bottom:10px"><b>Attention :</b> cette liste correspond aux membres de la Ligue. Elle ne signifie pas quâ€™ils participent au prochain SwÃ©. Chaque SwÃ© nÃ©cessite une inscription sÃ©parÃ©e.</div><div id="publicLeagueMembers">'+memberHtml+'</div></div>';
+
+    $('#publicLeagueJoin').onclick=async()=>{
+      const pid=$('#publicLeaguePlayer').value;
+      if(!pid)return $('#publicLeagueStatus').textContent='Choisis ton nom.';
+      const {error}=await sb.rpc('public_league_registration',{p_token:token,p_league_id:league.id,p_player_id:pid,p_action:'join'});
+      if(error)return $('#publicLeagueStatus').textContent=error.message;
+      $('#publicLeagueStatus').textContent='ğŸŸ¢ Participation Ã  la Ligue confirmÃ©e !';
+      setTimeout(()=>location.reload(),500);
+    };
+    $('#publicLeagueLeave').onclick=async()=>{
+      const pid=$('#publicLeaguePlayer').value;
+      if(!pid)return $('#publicLeagueStatus').textContent='Choisis ton nom.';
+      const {error}=await sb.rpc('public_league_registration',{p_token:token,p_league_id:league.id,p_player_id:pid,p_action:'leave'});
+      if(error)return $('#publicLeagueStatus').textContent=error.message;
+      $('#publicLeagueStatus').textContent='Inscription retirÃ©e.';
+      setTimeout(()=>location.reload(),500);
+    };
+    $('#publicNewLeagueJoin').onclick=async()=>{
+      const name=$('#publicNewLeaguePlayerName').value.trim();
+      if(!name)return $('#publicNewLeagueStatus').textContent='Entre ton nom.';
+      const b=$('#publicNewLeagueJoin');b.disabled=true;
+      const {error}=await sb.rpc('public_register_new_league_player',{p_token:token,p_league_id:league.id,p_name:name});
+      b.disabled=false;
+      if(error)return $('#publicNewLeagueStatus').textContent=error.message;
+      $('#publicNewLeagueStatus').textContent='ğŸŸ¢ Inscription confirmÃ©e ! Ton nom est ajoutÃ© aux membres de cette Ligue pour la saison.';
+      setTimeout(()=>location.reload(),600);
+    };
+    return;
+  }
+
+  const historyId=swePublicParams().get('history');
+  if(historyId){
+    // The shared registration link is never modified. We only remember its context locally
+    // so every "Retour" from history returns to the exact tournament / SwÃ© that opened it.
+
+    const ht=tournaments.find(x=>x.id===historyId);
+    if(!ht){
+      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SWÃ‰">SWÃ‰ TOURNAMENT 5/5</h1></header><div class="card"><p>Tournoi introuvable.</p><button id="backPublic">â† Retour Ã  mon inscription</button></div>';
+      $('#backPublic').onclick=()=>location.href=publicHistoryBackUrl(token);
+      return;
+    }
+    const tteams=teams.filter(x=>x.tournament_id===ht.id);
+    const tmatches=matches.filter(x=>x.tournament_id===ht.id).sort((a,b)=>(a.match_order||0)-(b.match_order||0));
+    const mids=new Set(tmatches.map(m=>m.id));
+    const tgoals=goals.filter(g=>mids.has(g.match_id));
+    const tmap2=new Map(tteams.map(x=>[x.id,x.name]));
+    const pmap2=new Map(players.map(x=>[x.id,x]));
+    const standings=tteams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
+    const sm=new Map(standings.map(x=>[x.id,x]));
+    tmatches.forEach(m=>{
+      const a=sm.get(m.home_team_id),z=sm.get(m.away_team_id);if(!a||!z)return;
+      a.mj++;z.mj++;a.bp+=m.home_score;a.bc+=m.away_score;z.bp+=m.away_score;z.bc+=m.home_score;
+      if(m.home_score>m.away_score){a.v++;z.d++;a.pts+=3}else if(m.away_score>m.home_score){z.v++;a.d++;z.pts+=3}else{a.n++;z.n++;a.pts++;z.pts++}
+    });
+    standings.sort((a,z)=>z.pts-a.pts||(z.bp-z.bc)-(a.bp-a.bc)||z.bp-a.bp);
+    const teamRows=standings.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ â€¢ '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
+    const stats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false,guest_of:x.guest_of_player_id}]));
+    tgoals.forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++});
+    let scor=[...stats.values()].filter(x=>x.g).sort((a,z)=>z.g-a.g||a.name.localeCompare(z.name));
+    let prev=null,rank=0;scor=scor.map((x,i)=>{if(x.g!==prev){rank=i+1;prev=x.g}return {...x,rank}});
+    let ass=[...stats.values()].filter(x=>x.a).sort((a,z)=>z.a-a.a||a.name.localeCompare(z.name));
+    let ap=null,ar=0;ass=ass.map((x,i)=>{if(x.a!==ap){ar=i+1;ap=x.a}return {...x,rank:ar}});
+    const historyRankRows=(arr,type,expanded=false)=>{
+      const visible=expanded?arr:arr.slice(0,10);
+      return visible.map((x,i)=>{
+        const right=type==='g'?(x.g+' but'+(x.g>1?'s':'')):type==='a'?(x.a+' passe'+(x.a>1?'s':'')):('â­ '+x.avg.toFixed(1));
+        const pos=type==='top'?(i===0?'ğŸ‘‘':(i+1)):x.rank;
+        const extra=type==='top'?'<div class="muted">'+x.matches+' match'+(x.matches>1?'s':'')+' â€¢ âš½ '+x.g+' â€¢ ğŸ¯ '+x.a+'</div>':'';
+        return '<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+pos+'</b><span><b>'+esc(x.name)+'</b>'+extra+'</span><b class="right">'+right+'</b></div>';
+      }).join('');
+    };
+    const histTop=publicPlayerRatingsEnabled?topPlayersFromData(tmatches,tgoals,matchAssignments,players,new Set([ht.id])):[];
+    const matchRows=tmatches.map((m,i)=>{
+      const mg=tgoals.filter(g=>g.match_id===m.id);
+      const goalBlock=(teamId)=>{
+        const rows=mg.filter(g=>String(g.team_id)===String(teamId)).map(g=>{
+          const sc=pmap2.get(g.scorer_player_id),as=g.assister_player_id?pmap2.get(g.assister_player_id):null;
+          return '<div class="small" style="margin-top:5px">âš½ '+esc(sc?.name||'?')+(as?' <span class="muted">â† '+esc(as.name)+'</span>':'')+'</div>';
+        }).join('');
+        return rows||'<div class="small muted" style="margin-top:5px">Aucun buteur</div>';
+      };
+      const rated=publicPlayerRatingsEnabled?matchAssignments.filter(a=>a.match_id===m.id&&a.team_id).map(a=>{
+        const pl=pmap2.get(a.player_id),rr=ratingForMatchPlayer(m,a.player_id,a.team_id,tgoals);
+        return rr&&pl?{name:pl.name,r:rr.rating,team:a.team_id}:null;
+      }).filter(Boolean):[];
+      const best= rated.length?Math.max(...rated.map(x=>x.r)):null;
+      const noteCol=(teamId)=>{
+        const rows=rated.filter(x=>String(x.team)===String(teamId)).sort((a,b)=>b.r-a.r||a.name.localeCompare(b.name));
+        return rows.map(n=>'<div class="small" style="padding:4px 0">'+(n.r===best?'â­ ':'')+esc(n.name)+' <b style="float:right">'+n.r.toFixed(1)+'/10</b></div>').join('')||'<div class="small muted">Aucune note</div>';
+      };
+      const notesHtml=publicPlayerRatingsEnabled?'<div class="notes-columns" style="margin-top:10px">'+
+        '<div class="player notes-column" style="margin:0"><b>'+esc(tmap2.get(m.home_team_id)||'?')+'</b>'+noteCol(m.home_team_id)+'</div>'+
+        '<div class="player notes-column" style="margin:0"><b>'+esc(tmap2.get(m.away_team_id)||'?')+'</b>'+noteCol(m.away_team_id)+'</div>'+
+        '</div>':'';
+      return '<div class="player"><div class="muted">Match '+(i+1)+(m.pitch?' â€¢ '+esc(m.pitch):'')+'</div>'+
+        '<div class="history-scoreline" style="margin-top:6px">'+
+          '<b class="history-team-name">'+esc(tmap2.get(m.home_team_id)||'?')+'</b>'+
+          '<div class="score">'+m.home_score+' - '+m.away_score+'</div>'+
+          '<b class="history-team-name">'+esc(tmap2.get(m.away_team_id)||'?')+'</b>'+
+          '<div class="history-goals home">'+goalBlock(m.home_team_id)+'</div>'+
+          '<div class="history-goals away">'+goalBlock(m.away_team_id)+'</div>'+
+        '</div>'+notesHtml+'</div>';
+    }).join('');
+    const standingOrder=new Map(standings.map((x,i)=>[x.id,i]));
+    const sortedHistoryTeams=tteams.slice().sort((a,b)=>(standingOrder.get(a.id)??999)-(standingOrder.get(b.id)??999)||String(a.name).localeCompare(String(b.name)));
+    const teamsRows='<div style="display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px">'+sortedHistoryTeams.map(team=>{
+      const ids=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>tp.player_id);
+      const rank=(standingOrder.get(team.id)??999)+1;
+      return '<div class="team" style="min-width:230px;flex:0 0 230px;'+(rank===1?'border:2px solid #d6a800;box-shadow:0 3px 12px rgba(214,168,0,.14);':'')+'"><div class="row" style="justify-content:space-between"><b>'+(rank===1?'ğŸ‘‘ ':'')+esc(team.name)+'</b><span class="guest-badge">'+(rank===1?'ğŸ† Vainqueur':'#'+rank)+'</span></div>'+ids.map(id=>'<div class="small" style="margin-top:6px">'+esc(pmap2.get(id)?.name||'?')+'</div>').join('')+'</div>';
+    }).join('')+'</div>';
+    $('#publicView').innerHTML=
+      '<header class="top"><div class="row" style="justify-content:space-between"><div><h1>âš½ '+esc(ht.name||'SWÃ‰ TOURNAMENT 5/5')+'</h1><div class="public-sub">'+ht.tournament_date+' â€¢ Historique</div></div><button id="backPublic">â† Retour</button></div></header>'+
+      '<div class="card"><h2 class="sectiontitle">ğŸ‘¥ Ã‰quipes</h2>'+ (teamsRows||'<p class="muted">Aucune Ã©quipe.</p>') +'</div>'+
+      '<div class="card"><h2 class="sectiontitle">ğŸ† Classement final</h2>'+ (teamRows||'<p class="muted">Aucun classement.</p>') +'</div>'+
+      '<div class="grid g2"><div class="card"><h2 class="sectiontitle">âš½ Buteurs</h2><div id="historyScorersBox">'+(historyRankRows(scor,'g')||'<p class="muted">Aucun buteur.</p>')+'</div>'+(scor.length>10?'<button id="historyToggleScorers" style="margin-top:10px">DÃ©velopper</button>':'')+'</div>'+
+      '<div class="card"><h2 class="sectiontitle">ğŸ¯ Passeurs</h2><div id="historyAssistsBox">'+(historyRankRows(ass,'a')||'<p class="muted">Aucun passeur.</p>')+'</div>'+(ass.length>10?'<button id="historyToggleAssists" style="margin-top:10px">DÃ©velopper</button>':'')+'</div></div>'+
+      (publicPlayerRatingsEnabled?'<div class="card"><h2 class="sectiontitle">â­ Top Player du tournoi</h2><div class="muted" style="margin-bottom:8px">Classement des meilleures performances individuelles du tournoi.</div><div id="historyTopPlayerBox">'+(historyRankRows(histTop,'top')||'<p class="muted">Aucune note disponible.</p>')+'</div>'+(histTop.length>10?'<button id="historyToggleTopPlayer" style="margin-top:10px">DÃ©velopper</button>':'')+'</div>':'')+
+      '<div class="card"><h2 class="sectiontitle">ğŸ“‹ RÃ©sultats & notes</h2>'+ (matchRows||'<p class="muted">Aucun match.</p>') +'</div>';
+    let histScExpanded=false,histAssExpanded=false,histTopExpanded=false;
+    if($('#historyToggleScorers'))$('#historyToggleScorers').onclick=()=>{histScExpanded=!histScExpanded;$('#historyScorersBox').innerHTML=historyRankRows(scor,'g',histScExpanded);$('#historyToggleScorers').textContent=histScExpanded?'RÃ©duire':'DÃ©velopper';};
+    if($('#historyToggleAssists'))$('#historyToggleAssists').onclick=()=>{histAssExpanded=!histAssExpanded;$('#historyAssistsBox').innerHTML=historyRankRows(ass,'a',histAssExpanded);$('#historyToggleAssists').textContent=histAssExpanded?'RÃ©duire':'DÃ©velopper';};
+    if($('#historyToggleTopPlayer'))$('#historyToggleTopPlayer').onclick=()=>{histTopExpanded=!histTopExpanded;$('#historyTopPlayerBox').innerHTML=historyRankRows(histTop,'top',histTopExpanded);$('#historyToggleTopPlayer').textContent=histTopExpanded?'RÃ©duire':'DÃ©velopper';};
+    $('#backPublic').onclick=()=>location.href=publicHistoryBackUrl(token);
+    return;
+  }
+  const openTours=[...tournaments].filter(t=>t.status!=='finished'&&t.registration_open).sort((a,b)=>String(a.tournament_date).localeCompare(String(b.tournament_date)));
+  const publicParams=swePublicParams();
+  const requestedTournament=publicParams.get('tournament');
+  const requestedView=publicParams.get('view')||'';
+  const requestedMode=publicParams.get('mode')||'';
+  const wantsLeagueSession=requestedView==='league-session'||(!requestedView&&requestedMode==='league_session');
+  const wantsTournament=requestedView==='tournament'||(!requestedView&&requestedMode==='tournament');
+  const modeMatches=t=>wantsLeagueSession?t.format==='league':(wantsTournament?t.format!=='league':true);
+  const consultationOnly=!requestedTournament&&!requestedView&&!requestedMode&&!publicParams.get('league')&&!publicParams.get('history');
+  let regTour=null;
+  if(requestedTournament){
+    regTour=tournaments.find(t=>t.id===requestedTournament&&modeMatches(t))||null;
+  }else if(!consultationOnly&&(wantsLeagueSession||wantsTournament)){
+    regTour=openTours.find(modeMatches)||null;
+  }
+  const regBox=$('#publicRegistration');
+  let registrationPresentation=null;
+  let registrationCoorganizers=[],registrationRatingWindows=[],registrationIsCoorganizer=false,registrationPersonalInstruction='';
+  let presentationMetadataAt=0;
+  async function loadPresentationMetadata(){
+    if(!regTour||regTour.format==='league'||Date.now()-presentationMetadataAt<30000)return;
+    presentationMetadataAt=Date.now();
+    const session=await sb.auth.getSession();
+    registrationIsCoorganizer=false;registrationCoorganizers=[];registrationRatingWindows=[];registrationPersonalInstruction='';
+    if(!session.data?.session){registrationPresentation?.updateMissions();return;}
+    const {data,error}=await sb.rpc('get_my_tournament_presentation_v1',{p_tournament_id:regTour.id});
+    if(error||!data){registrationPresentation?.updateMissions();return;}
+    registrationIsCoorganizer=data.is_coorganizer===true;
+    registrationPersonalInstruction=String(data.personal_instructions||'').trim();
+    registrationCoorganizers=data.is_coorganizer&&data.my_player_id?[data.my_player_id]:[];registrationRatingWindows=data.tournament_rating_windows||[];
+    registrationPresentation?.updateMissions();
+  }
+  if(requestedTournament&&!regTour){
+    $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SWÃ‰">SWÃ‰ TOURNAMENT 5/5</h1></header><div class="card"><h2 class="sectiontitle">Lien dâ€™inscription indisponible</h2><p class="muted">Ce lien ne correspond pas Ã  une inscription ouverte, ou le type de compÃ©tition ne correspond pas au lien gÃ©nÃ©rÃ©. Aucun autre tournoi ni aucune Ligue ne sera affichÃ© Ã  sa place.</p></div>';
+    return;
+  }
+
+  // V40.02 â€” informations utiles visibles dÃ¨s la premiÃ¨re page, avant le choix solo/Ã©quipe.
+  function renderPublicQuickStats(){
+    const box=$('#publicQuickStats');
+    if(!box)return;
+    if(!regTour){box.innerHTML='';return;}
+    const activeRegs=registrations.filter(r=>r.tournament_id===regTour.id&&r.present);
+    const confirmed=activeRegs.filter(r=>r.registration_status!=='waitlist').length;
+    const waiting=activeRegs.filter(r=>r.registration_status==='waitlist').length;
+    const substitutes=activeRegs.filter(r=>r.registration_status!=='waitlist'&&r.is_substitute).length;
+    const maxPlayers=Number(regTour.max_players||35);
+    const remaining=Math.max(0,maxPlayers-confirmed);
+    const fee=(Number(regTour.entry_fee_cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:Number(regTour.entry_fee_cents||0)%100?2:0,maximumFractionDigits:2});
+    let deadline='Ã€ prÃ©ciser';
+    if(regTour.registration_deadline){
+      const d=new Date(regTour.registration_deadline);
+      if(!Number.isNaN(d.getTime())) deadline=d.toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',', ' â€¢');
+    }
+    const item=(icon,label,value,extra='')=>'<div class="player" style="margin:0;background:#fbfaf6;border:1px solid #eadfca;min-height:74px"><div class="muted" style="font-size:.78rem">'+icon+' '+label+'</div><div style="font-size:1.08rem;font-weight:900;margin-top:3px">'+value+'</div>'+(extra?'<div class="muted" style="font-size:.75rem;margin-top:2px">'+extra+'</div>':'')+'</div>';
+    box.innerHTML=
+      item('ğŸ‘¥','Inscrits',activeRegs.length+' / '+maxPlayers,(substitutes?substitutes+' remplaÃ§ant'+(substitutes>1?'s':''):'')+(waiting?(substitutes?' â€¢ ':'')+waiting+' en attente':''))+
+      item('ğŸŸï¸','Places restantes',Math.max(0,maxPlayers-activeRegs.length),activeRegs.length>=maxPlayers?'Complet â€” liste dâ€™attente':'')+
+      (()=>{
+        const gl=tournamentGroupLevels.find(x=>String(x.tournament_id)===String(regTour.id));
+        const score=gl&&Number.isFinite(Number(gl.avg_rating))?Number(gl.avg_rating):null;
+        const label=score===null?'En cours dâ€™Ã©valuation':(score<1.5?'Ã€ renforcer':score<2.5?'Moyen':score<3.5?'Bon':score<4.5?'TrÃ¨s bon':'Excellent');
+        return item('âš¡','Niveau du groupe',score===null?label:(score.toFixed(1).replace('.',',')+' / 5 â€” '+label),'GÃ©nÃ©rÃ© automatiquement en fonction du niveau des joueurs du groupe.');
+      })()+
+      item('ğŸ“…','Rendez-vous',esc(regTour.tournament_date||'Ã€ prÃ©ciser')+(regTour.start_time?' â€¢ '+esc(String(regTour.start_time).slice(0,5)):''),esc(regTour.venue||'Terrain Ã  prÃ©ciser'))+
+      item('â³','Fin des inscriptions',esc(deadline))+
+      item('ğŸ’¶','Participation',fee+' â‚¬','par joueur');
+  }
+  renderPublicQuickStats();
+
+  function publicGuestLabel(pl){
+    if(!pl)return '';
+    if(pl.is_group_member!==false)return 'Membre du groupe';
+    const host=players.find(x=>x.id===pl.guest_of_player_id);
+    return host?'Guest de '+host.name:'Guest';
+  }
+  function isFirstTimePublicPlayer(playerId,tournamentId){
+    if(regTour?.format!=='league')return false;
+    const pl=players.find(x=>x.id===playerId);
+    if(!pl||pl.is_group_member!==false)return false;
+    return !registrations.some(r=>r.player_id===playerId&&r.tournament_id!==tournamentId&&r.present);
+  }
+
+  function publicRegistrationSummaryHtml(){
+    if(!regTour)return '';
+    const regs=registrations.filter(r=>r.tournament_id===regTour.id&&r.present&&r.registration_status!=='waitlist');
+    const maxPlayers=Number(regTour.max_players||20);
+    const remainingGlobal=Math.max(0,maxPlayers-regs.length);
+    const tourTeams=teams.filter(t=>t.tournament_id===regTour.id);
+    const ids=new Set(tourTeams.map(t=>t.id));
+    const tpRows=teamPlayers.filter(tp=>ids.has(tp.team_id));
+    const assigned=new Set(tpRows.map(tp=>tp.player_id));
+    const pmap=new Map(players.map(pl=>[pl.id,pl]));
+    const regMap=new Map(regs.map(r=>[r.player_id,r]));
+
+    const guestText=r=>{
+      const pl=pmap.get(r?.player_id);
+      if(pl?.is_group_member!==false)return 'Membre du groupe';
+      const hostId=r?.registered_by_player_id||pl?.guest_of_player_id||null;
+      const host=hostId?pmap.get(hostId):null;
+      return host?'Guest de '+host.name:'Guest';
+    };
+    const colorInfo=team=>{
+      const hex=String(team?.color||'#64748b').toLowerCase();
+      const names={'#111827':'Noir','#2563eb':'Bleu','#f8fafc':'Blanc','#dc2626':'Rouge','#16a34a':'Vert','#eab308':'Jaune','#f97316':'Orange','#7c3aed':'Violet','#ec4899':'Rose','#78350f':'Marron','#64748b':'Gris'};
+      return {hex,label:names[hex]||'Couleur personnalisÃ©e'};
+    };
+
+    const free=regs.filter(r=>!assigned.has(r.player_id));
+    const freeHtml=free.length
+      ? free.map(r=>{
+          const pl=pmap.get(r.player_id);
+          const guest=guestText(r);
+          const pendingInvite=teamInvitations.find(i=>i.tournament_id===regTour.id&&String(i.player_id)===String(r.player_id)&&i.status==='pending');
+          const pendingTeam=pendingInvite?tourTeams.find(t=>String(t.id)===String(pendingInvite.team_id)):null;
+          const freeState=pendingTeam?'â³ Proposition : '+pendingTeam.name:(r.is_substitute?'ğŸŸ  RemplaÃ§ant commun':'ğŸ² Ã‰quipe alÃ©atoire');
+          const when=publicRegistrationDateTime(r.registered_at||r.created_at);
+          return '<div class="player row" style="align-items:flex-start"><span style="flex:1">'+esc(pl?.name||'Joueur')+
+            (guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+
+            (when?'<div class="muted" style="margin-top:3px;font-size:12px">ğŸ•’ Inscrit le '+esc(when)+'</div>':'')+
+            '</span><span class="muted" style="padding-top:2px">'+esc(freeState)+'</span></div>';
+        }).join('')
+      : '<p class="muted">Aucun joueur en Ã©quipe alÃ©atoire.</p>';
+
+    const teamsHtml=tourTeams.length
+      ? tourTeams.map(team=>{
+          const rows=tpRows.filter(tp=>tp.team_id===team.id);
+          const color=colorInfo(team);
+          const pendingRows=teamInvitations.filter(i=>i.tournament_id===regTour.id&&String(i.team_id)===String(team.id)&&i.status==='pending');
+          const membersHtml=(rows.length||pendingRows.length)
+            ? rows.map(tp=>{
+                const pl=pmap.get(tp.player_id);
+                const guest=guestText(regMap.get(tp.player_id));
+                const reg=regMap.get(tp.player_id);
+                const when=publicRegistrationDateTime(reg?.registered_at||reg?.created_at);
+                return '<div style="margin-top:7px">âœ… '+esc(pl?.name||'Joueur')+(guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin:2px 0 0 22px;font-size:12px">ğŸ•’ Inscrit le '+esc(when)+'</div>':'')+'</div>';
+              }).join('')+pendingRows.map(inv=>{
+                const pl=pmap.get(inv.player_id);
+                return '<div style="margin-top:4px">â³ '+esc(pl?.name||'Joueur')+' <span class="muted">â€¢ en attente dâ€™accord</span></div>';
+              }).join('')
+            : '<div class="muted" style="margin-top:5px">Aucun joueur</div>';
+          return '<div class="player" style="margin-top:8px"><div class="row">'+
+            '<span style="width:18px;height:18px;border-radius:50%;background:'+esc(color.hex)+';border:1px solid #cbd5e1;flex:0 0 auto"></span>'+
+            '<b style="flex:1">'+esc(team.name||'Ã‰quipe')+'</b><span class="muted">'+rows.length+'/5 confirmÃ©'+(rows.length>1?'s':'')+(pendingRows.length?' â€¢ '+pendingRows.length+' en attente':'')+'</span></div>'+
+            '<div class="muted" style="margin-top:4px">Couleur : <b>'+esc(color.label)+'</b></div>'+membersHtml+'</div>';
+        }).join('')
+      : '<p class="muted">Aucune Ã©quipe composÃ©e.</p>';
+
+    return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>ğŸ“Š '+regs.length+'/'+maxPlayers+' inscrits</b><div class="muted" style="margin-top:4px"><b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant dâ€™atteindre la limite dâ€™inscrits.</div></div>'+
+           (free.length?'<div class="player" style="margin-top:10px;background:#f8fbf9"><b>ğŸ‘¤ Joueurs en Ã©quipe alÃ©atoire</b>'+freeHtml+'</div>':'')+
+           (tourTeams.length?'<div class="player" style="margin-top:10px;background:#f8fbff"><b>ğŸ‘¥ Ã‰quipes dÃ©jÃ  composÃ©es</b>'+teamsHtml+'</div>':'');
+  }
+
+  function publicRegistrationDateTime(value){
+    if(!value)return '';
+    try{
+      return new Date(value).toLocaleString('fr-FR',{timeZone:'America/Martinique',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    }catch(e){return ''}
+  }
+
+  function renderPublicRegistrationList(){
+    if(!regTour||!regBox)return;
+    const regs=registrations.filter(r=>r.tournament_id===regTour.id).sort((a,b)=>String(a.registered_at||a.created_at||'').localeCompare(String(b.registered_at||b.created_at||'')));
+    const confirmed=regs.filter(r=>r.registration_status!=='waitlist'&&r.present);
+    const waiting=regs.filter(r=>r.registration_status==='waitlist');
+    const playerMap=new Map(players.map(x=>[x.id,x]));
+    const listRows=confirmed.map((r,i)=>{
+      const pl=playerMap.get(r.player_id);if(!pl)return '';
+      const host=(pl?.is_group_member===false&&r.registered_by_player_id)?playerMap.get(r.registered_by_player_id):null;
+      const guest=pl?.is_group_member!==false?'Membre du groupe':(host?('Guest de '+host.name):publicGuestLabel(pl));
+      const first=isFirstTimePublicPlayer(pl.id,regTour.id);
+      const when=publicRegistrationDateTime(r.registered_at||r.created_at);
+      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b><span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">ğŸ†• 1Ã¨re fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">ğŸ•’ Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:'+(r.is_substitute?'#b45309':'#15803d')+'">'+(r.is_substitute?'RemplaÃ§ant':'ConfirmÃ©')+'</span></div>';
+    }).filter(Boolean);
+    const waitRows=waiting.map((r,i)=>{
+      const pl=playerMap.get(r.player_id);if(!pl)return '';
+      const host=(pl?.is_group_member===false&&r.registered_by_player_id)?playerMap.get(r.registered_by_player_id):null;
+      const guest=pl?.is_group_member!==false?'Membre du groupe':(host?('Guest de '+host.name):publicGuestLabel(pl));
+      const first=isFirstTimePublicPlayer(pl.id,regTour.id);
+      const when=publicRegistrationDateTime(r.registered_at||r.created_at);
+      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b><span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">ğŸ†• 1Ã¨re fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">ğŸ•’ Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:#b45309">Attente</span></div>';
+    }).join('');
+    const maxPublic=Number(regTour.max_players||20);
+    const activePublic=regs.filter(r=>r.present);
+    const subsPublic=confirmed.filter(r=>r.is_substitute);
+    const remainingPublic=Math.max(0,maxPublic-activePublic.length);
+    const count=$('#publicRegCount');if(count)count.textContent=activePublic.length+'/'+maxPublic+' inscrits â€¢ '+remainingPublic+' place'+(remainingPublic>1?'s':'')+' restante'+(remainingPublic>1?'s':'')+(subsPublic.length?' â€¢ '+subsPublic.length+' remplaÃ§ant'+(subsPublic.length>1?'s':''):'')+(waiting.length?' â€¢ '+waiting.length+' en attente':'');
+    const list=$('#publicRegisteredList');if(list){
+      const expanded=!!$('#publicMoreRegistrations')?.open;
+      list.innerHTML=listRows.slice(0,5).join('')+(listRows.length>5?'<details id="publicMoreRegistrations"'+(expanded?' open':'')+'><summary><span class="when-closed">Voir les '+(listRows.length-5)+' autres inscrits</span><span class="when-open">Masquer la suite de la liste</span></summary>'+listRows.slice(5).join('')+'</details>':'');
+    }
+    const wlist=$('#publicWaitList');if(wlist){wlist.innerHTML=waitRows;wlist.parentElement.classList.toggle('hidden',!waiting.length)}
+  }
+
+  if(regTour){
+    const linkedLeague=regTour.format==='league'?leagues.find(l=>l.id===regTour.league_id):null;
+    $('#publicWorkspaceName').textContent=regTour.format==='league'
+      ?(regTour.name||('SwÃ© de '+(linkedLeague?.name||'Ligue')))
+      :(regTour.name||('Tournoi du '+regTour.tournament_date));
+    const regs=registrations.filter(r=>r.tournament_id===regTour.id);
+    const confirmedRows=regs.filter(r=>r.registration_status!=='waitlist'&&r.present);
+    const confirmed=confirmedRows.length;
+    const substitutes=confirmedRows.filter(r=>r.is_substitute).length;
+    const waiting=regs.filter(r=>r.registration_status==='waitlist'&&r.present).length;
+    const publicAutoPlan=regTour.format==='league'?null:tournamentAutoPlan(confirmed);
+    const publicFee=(Number(regTour.entry_fee_cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:Number(regTour.entry_fee_cents||0)%100?2:0,maximumFractionDigits:2});
+    const reservedPitchNames=(regTour.reserved_pitch_ids||[]).map(id=>S.sportsPitches.find(p=>p.id===id)?.name).filter(Boolean);
+    const publicTerrainLabel=reservedPitchNames.length?reservedPitchNames.join(', '):(regTour.venue||'Ã€ prÃ©ciser');
+    const publicTime=regTour.start_time?String(regTour.start_time).slice(0,5):'Ã€ prÃ©ciser';
+    regBox.innerHTML=
+      '<div class="player"><b>'+esc(regTour.name||('Tournoi du '+regTour.tournament_date))+'</b><div id="publicRegCount" class="muted">'+confirmed+'/'+(regTour.max_players||35)+' inscrits'+(substitutes?' â€¢ '+substitutes+' remplaÃ§ant'+(substitutes>1?'s':''):'')+(waiting?' â€¢ '+waiting+' en attente':'')+'</div>'+
+      (regTour.format!=='league'?(()=>{const plan=tournamentAutoPlan(confirmed);return '<div style="margin-top:7px;font-weight:800">âš™ï¸ ScÃ©nario actuel : '+(plan.teams?plan.teams+' Ã©quipe'+(plan.teams>1?'s':'')+' â€¢ '+plan.pitches+' terrain'+(plan.pitches>1?'s':'')+(plan.subs?' â€¢ '+plan.subs+' remplaÃ§ant'+(plan.subs>1?'s':'')+' commun'+(plan.subs>1?'s':''):''):'moins de 10 joueurs â€” Ã©quipes non gÃ©nÃ©rables')+'</div>'})():'')+
+      (regTour.registration_deadline?'<div style="margin-top:8px;padding:9px 11px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0"><b>â±ï¸ Compte Ã  rebours des inscriptions</b><div data-registration-deadline="'+esc(regTour.registration_deadline)+'" style="margin-top:4px"></div><div class="muted">Fin des inscriptions : '+new Date(regTour.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div></div>':'')+'</div>'+
+      (regTour.format!=='league'
+        ? '<div class="player" style="margin-top:12px;background:#eef8f2;border:1px solid #b7dfc4"><b>ğŸ“ Infos pratiques</b><div class="muted" style="margin-top:6px;line-height:1.7">Complexe / terrains : <b>'+esc(publicTerrainLabel)+'</b><br>Heure de rÃ©servation : <b>'+esc(publicTime)+'</b><br>Prix : <b>'+esc(publicFee)+' â‚¬ / participant</b>'+(regTour.reservation_reference?'<br>RÃ©servation : <b>'+esc(regTour.reservation_reference)+'</b>':'')+'</div><div class="muted" style="margin-top:8px;line-height:1.7"><b>Programme :</b><br>8h45 : arrivÃ©e, paiement + Ã©chauffement<br>9h00 : dÃ©but du tournoi â€” les premiÃ¨res Ã©quipes arrivÃ©es commencent'+(regTour.third_half_active?'<br>11h00 : 3e mi-temps':'')+'</div></div>'
+        : '')+
+      (publicAutoPlan&&confirmed>=10?'<div class="player" style="margin-top:12px;background:#eef8f2;border:1px solid #b7dfc4"><b>âš™ï¸ Format prÃ©vu avec '+confirmed+' inscrits</b><div class="muted" style="margin-top:5px;line-height:1.6">'+publicAutoPlan.teams+' Ã©quipes â€¢ '+publicAutoPlan.pitches+' terrain'+(publicAutoPlan.pitches>1?'s':'')+(publicAutoPlan.subs?' â€¢ '+publicAutoPlan.subs+' remplaÃ§ant'+(publicAutoPlan.subs>1?'s':'')+' commun'+(publicAutoPlan.subs>1?'s':''):'')+'.'+(publicAutoPlan.subs?' Les remplaÃ§ants pourront jouer pour nâ€™importe quelle Ã©quipe.':'')+'</div></div>':'')+
+      '<div class="player" style="margin-top:12px;background:#f8fbf9"><b>âœ… Inscription</b><div class="muted" style="margin-top:6px;line-height:1.6">Inscris-toi en cliquant sur <b>Â« Je participe Â»</b>. Si tu viens accompagnÃ©, indique le nom de tes invitÃ©s. Chaque membre peut ajouter jusquâ€™Ã  <b>5 invitÃ©s maximum</b>.</div></div>'+
+      '<div class="space"></div><select id="publicPlayerSelect"><option value="">Choisis ton nom</option></select>'+
+      '<div id="publicSelectedStatus" class="muted" style="margin-top:7px">Choisis ton nom pour voir ton statut.</div><div class="muted" style="margin-top:5px">Si un autre joueur tâ€™a proposÃ© une Ã©quipe, les boutons <b>Accepter</b> / <b>Refuser</b> apparaÃ®tront ici aprÃ¨s sÃ©lection de ton nom.</div><div id="publicTeamInvitationDecision" class="hidden" style="margin-top:10px"></div>'+
+      '<div class="space"></div><div id="publicParticipationActions" class="row"><button id="publicJoin" class="primary">âœ… Je participe</button><button id="publicLeave">âŒ Je ne participe pas</button></div>'+
+      '<div id="publicPaymentBox" data-payment-controller="app" class="hidden" style="margin-top:12px"></div>'+
+      (regTour.format==='league'
+        ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>ğŸ†• PremiÃ¨re fois ?</b><div class="muted" style="margin:5px 0 8px">Tu nâ€™es pas encore membre du groupe ? Entre ton nom pour tâ€™inscrire Ã  cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton prÃ©nom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">Mâ€™inscrire pour la premiÃ¨re fois</button></div>'
+        : '<div class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa"><b>ğŸ¤ Tu ne participes pas mais tu invites quelquâ€™un ?</b><div class="muted" style="margin-top:6px;line-height:1.6">Aucun problÃ¨me : <b>sÃ©lectionne simplement ton nom</b> dans la liste ci-dessus, sans cliquer sur Â« Je participe Â», puis saisis le nom de ton invitÃ© ci-dessous. Ton invitÃ© sera rattachÃ© Ã  ton nom et <b>toi, tu ne seras pas inscrit au tournoi</b>.</div></div>')+
+      '<details class="player" id="publicGuestFields" style="margin-top:12px"><summary style="cursor:pointer"><b>ğŸ‘¤ Mes invitÃ©s</b></summary><div class="muted" style="margin:4px 0 8px">'+
+        (regTour.format==='league'
+          ? 'SÃ©lectionne ton nom ci-dessus puis ajoute tes invitÃ©s un par un. Tu peux en ajouter jusquâ€™Ã  <b>5 au total</b> pour ce SwÃ©.'
+          : 'Pour un tournoi, une personne extÃ©rieure ne peut pas sâ€™inscrire seule : elle doit Ãªtre <b>invitÃ©e par un membre du groupe</b>. SÃ©lectionne ton nom puis ajoute ton ou tes invitÃ©s, mÃªme si toi-mÃªme tu ne participes pas. Tu peux en ajouter jusquâ€™Ã  <b>5 au total</b>.')+
+      '</div><div id="publicPreviousGuestsWrap" class="hidden"><label for="publicPreviousGuest"><b>Retrouver un ancien invitÃ©</b></label><select id="publicPreviousGuest"><option value="">Ajouter un nouvel invitÃ©</option></select><p class="muted">Les invitÃ©s dÃ©jÃ  inscrits Ã  cette Ã©dition sont indiquÃ©s dans la liste.</p></div><label for="publicGuestName">Nom de lâ€™invitÃ©</label><input id="publicGuestName" maxlength="60" placeholder="Nom du nouvel invitÃ© ou de lâ€™invitÃ© sÃ©lectionnÃ©"><label class="row" style="margin-top:8px;justify-content:flex-start"><input id="publicGuestMember" type="checkbox" style="width:auto"><span>Ajouter cet invitÃ© comme membre du groupe</span></label><div id="publicGuestPhoneWrap" class="hidden" style="margin-top:8px"><input id="publicGuestPhone" type="tel" inputmode="tel" placeholder="NumÃ©ro de mobile de lâ€™invitÃ©"><div class="muted" style="margin-top:4px">Le numÃ©ro est demandÃ© uniquement pour crÃ©er sa fiche membre. Il reste privÃ© et visible uniquement par lâ€™administrateur.</div></div><div class="space"></div><button id="publicAddGuest" class="primary">+ Ajouter mon invitÃ©</button></details>'+
+      '<div id="publicRegStatus" class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;line-height:1.6"><b>ğŸŸ  Comment fonctionne le statut Â« RemplaÃ§ant Â» ?</b><div class="muted" style="margin-top:6px">Le statut remplaÃ§ant est attribuÃ© uniquement lorsquâ€™il nâ€™y a pas encore assez de joueurs pour constituer une Ã©quipe complÃ¨te supplÃ©mentaire de <b>5 joueurs</b>.<br><br><b>Exemple :</b> avec <b>14 inscrits</b>, on peut former <b>2 Ã©quipes complÃ¨tes de 5</b> : les joueurs classÃ©s de la 11e Ã  la 14e place sont donc <b>4 remplaÃ§ants</b>. DÃ¨s quâ€™un <b>15e joueur</b> sâ€™inscrit, ces 5 joueurs forment la <b>3e Ã©quipe complÃ¨te</b> et ne sont plus remplaÃ§ants.<br><br>MÃªme principe ensuite : 16 Ã  19 inscrits = remplaÃ§ants pour prÃ©parer la 4e Ã©quipe ; Ã  20 inscrits = 4 Ã©quipes complÃ¨tes. Lâ€™ordre est basÃ© sur la <b>date et lâ€™heure dâ€™inscription</b>, affichÃ©es sous le nom de chaque joueur dans la liste.</div></div>'+
+      '<h3 style="margin-top:18px">ğŸ‘¥ Liste des inscrits</h3><div id="publicRegisteredList"></div>'+
+      '<div id="publicWaitWrap" class="'+(waiting?'':'hidden')+'"><h3 style="margin-top:14px">â³ Liste dâ€™attente</h3><div id="publicWaitList"></div></div>';
+    renderPublicRegistrationList();
+    updateTournamentCountdowns();
+    const publicDeadline=tournamentDeadlineMs(regTour);
+    const publicRegistrationExpired=regTour.format!=='league'&&publicDeadline!==null&&Date.now()>=publicDeadline;
+    if(publicRegistrationExpired){
+      const st=$('#publicRegStatus');
+      if(st)st.innerHTML='<b>â›” Inscriptions terminÃ©es.</b> La clÃ´ture Ã©tait fixÃ©e la veille du tournoi Ã  17h.';
+      ['publicJoin','publicAddGuest','publicNewPlayerJoin'].forEach(id=>{const b=$('#'+id);if(b)b.disabled=true;});
+    }
+
+    if(publicThirdHalf&&regTour.third_half_active){document.querySelectorAll('#publicThirdHalfDonorCard').forEach(x=>x.remove());
+      const donorCard=document.createElement('div');donorCard.id='publicThirdHalfDonorCard';
+      donorCard.className='card';
+      donorCard.innerHTML='<h2 class="sectiontitle">ğŸ§Š Top donateurs de la 3e mi-temps</h2><p class="muted">Le classement apparaÃ®tra ici dÃ¨s que les participations Ã  la glaciÃ¨re seront enregistrÃ©es par lâ€™organisateur.</p><div id="publicCoolerDonors"></div>';
+      regBox.parentElement?.insertBefore(donorCard,regBox.nextSibling);
+    }
+
+    setTimeout(updateTournamentCountdowns,0);
+    const PUBLIC_GUEST_LIMIT=5;
+
+    function publicGuestUsage(hostId){
+      const used=registrations.filter(r=>
+        r.tournament_id===regTour.id &&
+        String(r.registered_by_player_id||'')===String(hostId||'')
+      ).length;
+      return {used,remaining:Math.max(0,PUBLIC_GUEST_LIMIT-used)};
+    }
+
+    function refreshPublicPlayerSelect(){
+      const sel=$('#publicPlayerSelect');
+      if(!sel)return;
+      const previous=sel.value;
+      const members=players.filter(x=>x.active&&x.is_group_member!==false).sort((a,b)=>a.name.localeCompare(b.name));
+      const signature=JSON.stringify(members.map(x=>[x.id,x.name]));
+      if(sel.dataset.memberSignature===signature||document.activeElement===sel)return;
+      sel.dataset.memberSignature=signature;
+      sel.innerHTML='<option value="">Choisis ton nom</option>'+members.map(x=>{
+        // La liste reste volontairement simple : le statut et les invitÃ©s sont affichÃ©s juste en dessous aprÃ¨s sÃ©lection.
+        return '<option value="'+x.id+'">'+esc(x.name)+'</option>';
+      }).join('');
+      if([...sel.options].some(o=>o.value===previous))sel.value=previous;
+    }
+
+    function renderPreviousGuests(){
+      const select=$('#publicPreviousGuest'),wrap=$('#publicPreviousGuestsWrap'),host=$('#publicPlayerSelect')?.value;
+      if(!select||!wrap)return;
+      const previousIds=new Set(registrations.filter(r=>r.tournament_id!==regTour.id&&(String(r.registered_by_player_id||'')===String(host)||players.some(p=>p.id===r.player_id&&String(p.guest_of_player_id||'')===String(host)))).map(r=>r.player_id));
+      const previous=host?players.filter(p=>p.is_group_member===false&&previousIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name)):[];
+      wrap.classList.toggle('hidden',!previous.length);
+      if(document.activeElement===select)return;
+      const old=select.value,html='<option value="">Ajouter un nouvel invitÃ©</option>'+previous.map(p=>{const present=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===p.id&&r.present);return '<option value="'+p.id+'" '+(present?'disabled':'')+'>'+esc(p.name)+(present?' â€” dÃ©jÃ  inscrit':'')+'</option>';}).join('');
+      if(select.innerHTML!==html){select.innerHTML=html;if([...select.options].some(o=>o.value===old&&!o.disabled))select.value=old;}
+    }
+    $('#publicPreviousGuest').onchange=()=>{const p=players.find(p=>p.id===$('#publicPreviousGuest').value);$('#publicGuestName').value=p?.name||'';if(p){$('#publicGuestMember').checked=false;$('#publicGuestPhone').value='';$('#publicGuestPhoneWrap').classList.add('hidden');}};
+    $('#publicGuestName').addEventListener('input',()=>{$('#publicPreviousGuest').value='';});
+    function updateSelectedRegistrationStatus(){
+      renderPreviousGuests();
+      const pid=$('#publicPlayerSelect')?.value;
+      const status=$('#publicSelectedStatus');
+      if(!status)return;
+      if(!pid){status.textContent='Choisis ton nom pour voir ton statut et le nombre dâ€™invitÃ©s quâ€™il te reste.';return}
+      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
+      const cancelledReg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&!r.present&&r.registration_status==='cancelled');
+      const usage=publicGuestUsage(pid);
+      const inviteText=usage.remaining>0
+        ?' â€¢ '+usage.used+'/'+PUBLIC_GUEST_LIMIT+' invitÃ©'+(usage.used>1?'s':'')+' utilisÃ©'+(usage.used>1?'s':'')+' â€” '+usage.remaining+' restant'+(usage.remaining>1?'s':'')+'.'
+        :' â€¢ '+usage.used+'/'+PUBLIC_GUEST_LIMIT+' invitÃ©s utilisÃ©s â€” aucune invitation restante.';
+      if(!reg){
+        status.textContent=(cancelledReg
+          ?'ğŸ”´ Tu tâ€™es dÃ©sinscrit de ce SwÃ©. Tu peux te rÃ©inscrire tant que les inscriptions sont ouvertes.'
+          :(regTour.format==='league'
+            ?'âšª Tu nâ€™es pas encore inscrit Ã  ce SwÃ©.'
+            :'âšª Tu ne participes pas actuellement. Tu peux quand mÃªme inviter quelquâ€™un ci-dessous sans tâ€™inscrire.'))+inviteText;
+      }else{
+        const assignedTeamIds=new Set(teams.filter(t=>t.tournament_id===regTour.id).map(t=>t.id));
+        const inTeam=teamPlayers.some(tp=>String(tp.player_id)===String(pid)&&assignedTeamIds.has(tp.team_id));
+        const when=publicRegistrationDateTime(reg.registered_at);
+        status.textContent=((reg.registration_status==='waitlist'||reg.is_substitute)
+          ?'ğŸŸ  Tu es dÃ©jÃ  inscrit comme remplaÃ§ant pour complÃ©ter la prochaine Ã©quipe.'
+          :(inTeam?'ğŸŸ¢ Tu es dÃ©jÃ  inscrit dans une Ã©quipe.':'ğŸŸ¢ Tu es dÃ©jÃ  inscrit et confirmÃ©.'))+(when?' â€¢ Inscription : '+when:'')+inviteText;
+      }
+      const addGuestBtn=$('#publicAddGuest');
+      if(addGuestBtn){
+        addGuestBtn.disabled=usage.remaining<=0;
+        addGuestBtn.textContent=usage.remaining<=0
+          ?'Limite de 5 invitÃ©s atteinte'
+          :'+ Ajouter mon invitÃ© ('+usage.remaining+' restant'+(usage.remaining>1?'s':'')+')';
+      }
+    }
+    let publicPaymentSeq=0;
+    let publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};
+    let publicPaymentLoadingFor=null;
+    let publicStripeConfirmLastAt=0;
+    let publicStripeConfirmRunning=false;
+    async function confirmPublicStripePayment(pid,sessionId=null,force=false){
+      if(!pid||publicStripeConfirmRunning)return false;
+      const now=Date.now();
+      if(!force&&now-publicStripeConfirmLastAt<20000)return false;
+      publicStripeConfirmLastAt=now;publicStripeConfirmRunning=true;
+      try{
+        const {data,error}=await sb.functions.invoke('stripe-confirm-entry-payment',{body:{public_token:token,tournament_id:regTour.id,player_id:pid,session_id:sessionId||null}});
+        if(error||data?.error)return false;
+        if(data?.paid){
+          publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};
+          return true;
+        }
+        return false;
+      }catch(_e){return false;}finally{publicStripeConfirmRunning=false;}
+    }
+    const publicMoney=cents=>(Number(cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' â‚¬';
+    function publicOnsitePriceLabel(){
+      const cents=regTour.onsite_entry_fee_cents;
+      return cents!=null&&Number.isFinite(Number(cents))&&Number(cents)>=0?publicMoney(cents):'Tarif Ã  confirmer auprÃ¨s du complexe';
+    }
+    function applyPublicPaymentView(box,html,bg,border){
+      box.className='player';
+      box.style.background=bg||'#f8fbff';
+      box.style.border=border||'1px solid #cbdcf5';
+      if(box.innerHTML!==html)box.innerHTML=html;
+    }
+    async function renderPublicPaymentBox(options={}){
+      const box=$('#publicPaymentBox');
+      if(!box)return;
+      const pid=$('#publicPlayerSelect')?.value;
+      if(!pid||regTour.status==='finished'){++publicPaymentSeq;publicPaymentLoadingFor=null;publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
+      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
+      if(!reg){
+        ++publicPaymentSeq;publicPaymentLoadingFor=null;
+        publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;
+      }
+      if(publicPaymentLoadingFor===pid)return;
+      const seq=++publicPaymentSeq;
+      const samePlayer=publicPaymentCache.playerId===pid&&publicPaymentCache.html;
+      if(samePlayer){
+        applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
+      }else{
+        applyPublicPaymentView(box,'<b>ğŸ’³ Paiement de la participation</b><div class="muted" style="margin-top:5px">VÃ©rification du statutâ€¦</div>','#f8fbff','1px solid #cbdcf5');
+      }
+      publicPaymentLoadingFor=pid;
+      try{
+        const [{data,error},{data:choiceData,error:choiceError}]=await Promise.all([
+          sb.rpc('public_tournament_payment_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid}),
+          sb.rpc('public_tournament_payment_choice_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid})
+        ]);
+        if(seq!==publicPaymentSeq||$('#publicPlayerSelect')?.value!==pid||!box.isConnected)return;
+        if(error||choiceError){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.innerHTML='<b>ğŸ’³ Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
+        const st=data||{};
+        if(st.reason==='waitlist'){
+          const html='<b>ğŸŸ  Paiement en attente de confirmation</b><div class="muted" style="margin-top:5px;line-height:1.6">Tu es actuellement remplaÃ§ant. Le paiement sera proposÃ© automatiquement lorsquâ€™une place confirmÃ©e se libÃ©rera.</div>';
+          publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
+          return;
+        }
+        if(st.reason==='online_disabled'){box.className='hidden';box.innerHTML='';return;}if(st.reason==='free'||Number(st.entry_fee_cents||0)<=0){box.className='hidden';box.innerHTML='';return;}
+        if(st.payment_status==='paid'){
+          const html='<b>âœ… Participation payÃ©e en ligne</b><div class="muted" style="margin-top:5px">Paiement confirmÃ© par Stripe'+(st.paid_at?' â€¢ '+new Date(st.paid_at).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'}):'')+'.</div>';
+          publicPaymentCache={playerId:pid,status:st,html,bg:'#eef8f2',border:'1px solid #b7dfc4'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
+          return;
+        }
+        const choice=choiceData||{};
+        if(choice.manual_paid_at){
+          const html='<b>âœ… Participation payÃ©e sur place</b><div class="muted" style="margin-top:5px">Le complexe a confirmÃ© la rÃ©ception de ton paiement'+(choice.manual_paid_at?' â€¢ '+new Date(choice.manual_paid_at).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'}):'')+'.</div>';
+          publicPaymentCache={playerId:pid,status:st,html,bg:'#eef8f2',border:'1px solid #b7dfc4'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
+          return;
+        }
+        if(choice.payment_preference==='onsite'){
+          const html='<b>ğŸŸï¸ Paiement sur place choisi</b><div style="margin-top:7px">Tarif public sur place : <b style="font-size:1.05rem">'+publicOnsitePriceLabel()+'</b></div><div class="muted" style="margin-top:5px">Ton inscription est enregistrÃ©e. Le complexe confirmera ton paiement lorsquâ€™il le recevra.</div><button id="publicSwitchOnline" style="width:100%;margin-top:10px">ğŸ’³ Finalement payer en ligne</button>';
+          publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
+          $('#publicSwitchOnline').onclick=async()=>{await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'online'});publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};await renderPublicPaymentBox({skipStripeReconcile:true});};
+          return;
+        }
+        if(!st.available){
+          const html='<b>ğŸ’³ Paiement en ligne momentanÃ©ment indisponible</b><div class="muted" style="margin-top:5px">Lâ€™organisateur finalise actuellement la configuration des paiements.</div>';
+          publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
+          return;
+        }
+        const pending=['created','pending'].includes(String(st.payment_status||''));
+        if(pending&&!options.skipStripeReconcile){
+          // RÃ©conciliation silencieuse : une actualisation ou un joueur dÃ©jÃ  sÃ©lectionnÃ©
+          // ne doit jamais dÃ©clencher un popup de confirmation.
+          confirmPublicStripePayment(pid,null,false).then(async paid=>{if(paid){await renderPublicPaymentBox({skipStripeReconcile:true});}});
+        }
+        const html='<div><b style="font-size:1.02rem">ğŸ’¶ Comment veux-tu payer ?</b><div class="muted" style="margin-top:5px">Choisis ton mode de paiement pour cette inscription.</div></div>'+ 
+          '<div class="grid g2" style="gap:9px;margin-top:12px">'+
+            '<button id="publicPayEntry" class="primary" style="min-height:64px"><span style="font-size:1.05rem">ğŸ’³ Payer en ligne</span><br><span style="font-size:.76rem;font-weight:700">Gagner du temps â€¢ sÃ©curisÃ© par Stripe</span></button>'+ 
+            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">ğŸŸï¸ Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicOnsitePriceLabel()+' tarif public</span></button>'+ 
+          '</div>'+ 
+          '<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e4e8ee"><div style="font-weight:850;font-size:.88rem">Paiement en ligne acceptÃ©</div><div class="muted" style="font-size:.70rem;line-height:1.35;margin:3px 0 8px">Selon ton appareil, ton navigateur et les moyens de paiement disponibles sur Stripe.</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">'+
+            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="display:flex;align-items:center;justify-content:center;gap:6px;height:28px"><span style="font-weight:950;font-size:.72rem;background:#1434CB;color:#fff;border-radius:4px;padding:3px 5px;font-style:italic">VISA</span><span aria-label="Mastercard" style="display:inline-flex;align-items:center"><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#EB001B;margin-right:-5px"></i><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#F79E1B;opacity:.92"></i></span></div><div class="muted" style="font-size:.67rem">Carte bancaire</div></div>'+
+            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" style="display:block;max-width:58px;max-height:24px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Apple Pay</div></div>'+
+            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" style="display:block;max-width:64px;max-height:24px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Google Pay</div></div>'+
+            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/7/73/Revolut_logo.svg" alt="Revolut Pay" style="display:block;max-width:72px;max-height:22px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Revolut Pay</div></div>'+
+          '</div></div>'+ 
+          (pending?'<div class="muted" style="margin-top:8px">Un paiement en ligne a dÃ©jÃ  Ã©tÃ© commencÃ© mais nâ€™est pas encore confirmÃ©.</div>':'')+
+          '<div class="muted" style="margin-top:8px;font-size:.76rem;text-align:center">âœ¨ Paiement en ligne pour gagner du temps, ou paiement sur place au tarif public du complexe.</div>';
+        publicPaymentCache={playerId:pid,status:st,html,bg:'#f8fbff',border:'1px solid #cbdcf5'};
+        applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
+        $('#publicPayEntry').onclick=async()=>{
+          const b=$('#publicPayEntry');if(!b)return;b.disabled=true;b.textContent='Ouverture du paiementâ€¦';
+          await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'online'});
+          const u=new URL(location.href);u.searchParams.delete('stripe');u.searchParams.delete('session_id');u.searchParams.delete('pay_player');
+          const sep=u.search?'&':'?';
+          const success=u.toString()+sep+'stripe=success&pay_player='+encodeURIComponent(pid)+'&session_id={CHECKOUT_SESSION_ID}';
+          const cancel=u.toString()+sep+'stripe=cancel&pay_player='+encodeURIComponent(pid);
+          const {data:checkout,error:checkoutError}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:token,tournament_id:regTour.id,player_id:pid,success_url:success,cancel_url:cancel}});
+          if(checkoutError||checkout?.error){b.disabled=false;b.textContent='ğŸ’³ Payer '+publicMoney(st.total_cents);return toast(checkout?.error||checkoutError?.message||'Impossible dâ€™ouvrir le paiement.');}
+          if(checkout?.url)location.href=checkout.url;
+          else{b.disabled=false;b.textContent='ğŸ’³ Payer en ligne';toast('Lien de paiement indisponible.');}
+        };
+        const onsiteBtn=$('#publicPayOnsite');
+        if(onsiteBtn)onsiteBtn.onclick=async()=>{
+          onsiteBtn.disabled=true;onsiteBtn.textContent='Enregistrementâ€¦';
+          const {error}=await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'onsite'});
+          if(error){onsiteBtn.disabled=false;onsiteBtn.textContent='ğŸŸï¸ Payer sur place';return toast(error.message);}
+          publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};
+          toast('Paiement sur place enregistrÃ© âœ…');
+          await renderPublicPaymentBox({skipStripeReconcile:true});
+        };
+      }catch(e){
+        if(seq===publicPaymentSeq&&!publicPaymentCache.html)box.innerHTML='<b>ğŸ’³ Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';
+      }finally{
+        if(seq===publicPaymentSeq&&publicPaymentLoadingFor===pid)publicPaymentLoadingFor=null;
+      }
+    }
+
+    function renderTeamInvitationDecision(){
+      const box=$('#publicTeamInvitationDecision');
+      const pid=$('#publicPlayerSelect')?.value;
+      if(!box)return;
+      const inv=teamInvitations.find(i=>i.tournament_id===regTour.id&&String(i.player_id)===String(pid||'')&&i.status==='pending');
+      if(!inv){box.className='hidden';box.style.display='none';box.innerHTML='';return}
+      const team=teams.find(t=>String(t.id)===String(inv.team_id));
+      const inviter=players.find(pl=>String(pl.id)===String(inv.invited_by_player_id||''));
+      box.className='player';
+      box.style.display='block';
+      box.style.background='#fff8e8';box.style.border='1px solid #f2d18a';
+      box.innerHTML='<b>ğŸ‘¥ Proposition dâ€™Ã©quipe</b><div class="muted" style="margin-top:5px;line-height:1.6">'+
+        (inviter?'<b>'+esc(inviter.name)+'</b> tâ€™a proposÃ© de rejoindre ':'Tu as Ã©tÃ© ajoutÃ© Ã  ')+
+        '<b>'+esc(team?.name||'cette Ã©quipe')+'</b>. Tu restes libre de choisir : si tu refuses, ton inscription est conservÃ©e en <b>Ã‰quipe alÃ©atoire</b>.</div>'+
+        '<div class="row" style="margin-top:10px"><button id="acceptTeamInvitation" class="primary">âœ… Accepter lâ€™Ã©quipe</button><button id="declineTeamInvitation">ğŸ² Refuser / Ã©quipe alÃ©atoire</button></div>';
+      $('#acceptTeamInvitation').onclick=async()=>{
+        const b=$('#acceptTeamInvitation');b.disabled=true;
+        const {error}=await sb.rpc('public_respond_team_invitation',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_accept:true});
+        b.disabled=false;if(error)return toast(error.message);
+        toast('Ã‰quipe acceptÃ©e âœ…');await refreshPublicRegistration();
+      };
+      $('#declineTeamInvitation').onclick=async()=>{
+        const b=$('#declineTeamInvitation');b.disabled=true;
+        const {error}=await sb.rpc('public_respond_team_invitation',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_accept:false});
+        b.disabled=false;if(error)return toast(error.message);
+        toast('Tu restes en Ã‰quipe alÃ©atoire ğŸ²');await refreshPublicRegistration();
+      };
+    }
+    refreshPublicPlayerSelect();
+    $('#publicPlayerSelect').onchange=()=>{updateSelectedRegistrationStatus();renderTeamInvitationDecision();renderPublicPaymentBox();};
+    const payPlayerFromUrl=publicParams.get('pay_player');
+    if(payPlayerFromUrl&&[...$('#publicPlayerSelect').options].some(o=>o.value===payPlayerFromUrl))$('#publicPlayerSelect').value=payPlayerFromUrl;
+    updateSelectedRegistrationStatus();
+    renderTeamInvitationDecision();
+    const stripeReturn=publicParams.get('stripe');
+    const stripeSessionId=publicParams.get('session_id');
+    if(stripeReturn==='success'&&payPlayerFromUrl){
+      // Le popup Stripe n'est autorisÃ© qu'une seule fois pour une vraie session de retour Checkout.
+      // Le joueur sÃ©lectionnÃ©, les rafraÃ®chissements automatiques et les rÃ©ouvertures de page restent silencieux.
+      const returnKey='swe_stripe_return_seen_'+String(stripeSessionId||'no-session');
+      const alreadyShown=sessionStorage.getItem(returnKey)==='1';
+      if(!alreadyShown){
+        sessionStorage.setItem(returnKey,'1');
+        toast('Paiement envoyÃ© âœ… VÃ©rification auprÃ¨s de Stripeâ€¦');
+      }
+      confirmPublicStripePayment(payPlayerFromUrl,stripeSessionId,true).then(async paid=>{
+        await renderPublicPaymentBox({skipStripeReconcile:true});
+        if(!alreadyShown){
+          if(paid)toast('âœ… Paiement confirmÃ© par Stripe');
+          else toast('Paiement reÃ§u par Stripe, confirmation en coursâ€¦');
+        }
+        // Nettoie immÃ©diatement les paramÃ¨tres Stripe pour empÃªcher tout nouveau popup
+        // lors d'un refresh, d'un changement de joueur ou d'un retour arriÃ¨re.
+        try{
+          const clean=new URL(location.href);
+          clean.searchParams.delete('stripe');
+          clean.searchParams.delete('session_id');
+          clean.searchParams.delete('pay_player');
+          history.replaceState({},'',clean.toString());
+        }catch(_e){}
+      });
+    }else{
+      renderPublicPaymentBox();
+    }
+    if(stripeReturn==='cancel')toast('Paiement annulÃ©. Tu peux le reprendre quand tu veux.');
+    $('#publicGuestMember').onchange=()=>{
+      const wrap=$('#publicGuestPhoneWrap');
+      const phone=$('#publicGuestPhone');
+      if($('#publicGuestMember').checked){
+        wrap.classList.remove('hidden');
+        setTimeout(()=>phone.focus(),50);
+      }else{
+        wrap.classList.add('hidden');
+        phone.value='';
+      }
+    };
+
+    let publicRefreshSeq=0;
+    async function refreshPublicRegistration(){
+      const seq=++publicRefreshSeq;
+      try{
+        const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
+        if(error||!data||seq!==publicRefreshSeq)return;
+        players=data.players||players;
+        seasons=data.seasons||seasons;
+        const freshTour=(data.tournaments||[]).find(t=>t.id===regTour.id);
+        if(freshTour)regTour=freshTour;
+        tournaments=data.tournaments||tournaments;matches=data.matches||matches;goals=data.goals||goals;
+        loadPresentationMetadata().catch(()=>{});
+        registrations=data.tournament_players||registrations;
+        tournamentGroupLevels=data.tournament_group_levels||tournamentGroupLevels;
+        renderPublicQuickStats();
+        teams=data.teams||teams;
+        teamPlayers=data.team_players||teamPlayers;
+        teamInvitations=data.team_player_invitations||teamInvitations;
+        matchAssignments=data.match_player_assignments||matchAssignments;
+        renderPublicRegistrationList();
+        refreshPublicPlayerSelect();
+        updateSelectedRegistrationStatus();
+        renderTeamInvitationDecision();
+        renderPublicPaymentBox({backgroundRefresh:true});
+        // Ne pas reconstruire le formulaire Ã©quipe pendant que lâ€™utilisateur le remplit.
+        // Le rafraÃ®chissement automatique de 8 s reste actif pour les donnÃ©es, mais ne reset plus l'inscription Ã©quipe.
+        if(typeof renderPublicTeamBuilder==='function'&&!window.__swePublicTeamEditing)renderPublicTeamBuilder();
+        refreshSeasonRankings();
+        registrationPresentation?.update();
+        updateTournamentCountdowns();
+      }catch(e){}
+    }
+
+    bootState.refresh=refreshPublicRegistration;
+
+    function showRegistrationConfirmation(playerName,data){
+      const pos=Number(data?.position||0);
+      const isSub=!!data?.is_substitute;
+      const subPos=Number(data?.substitute_position||0);
+      const nextTeam=Math.ceil(Math.max(11,pos)/5)*5;
+      const title=isSub?'ğŸŸ  Inscription confirmÃ©e â€” remplaÃ§ant':'âœ… Inscription confirmÃ©e';
+      const when=publicRegistrationDateTime(data?.registered_at||new Date().toISOString());
+      const detail=isSub
+        ? `<b>${esc(playerName)}</b>, tu es le <b>${pos}e inscrit</b> et actuellement <b>remplaÃ§ant${subPos?' nÂ°'+subPos:''}</b>.<br>${when?'<span style="font-size:13px;color:#64748b">ğŸ•’ Inscrit le '+esc(when)+'</span><br>':''}<br>Pourquoi ? Une nouvelle Ã©quipe nâ€™est confirmÃ©e que lorsquâ€™un groupe complet de <b>5 joueurs</b> est atteint. Par exemple, <b>14 inscrits = 2 Ã©quipes de 5 + 4 remplaÃ§ants</b>. Ã€ <b>15 inscrits</b>, ces 5 joueurs deviennent la <b>3e Ã©quipe complÃ¨te</b>.<br><br>DÃ¨s que nous atteignons <b>${nextTeam} inscrits</b>, ton statut sera automatiquement mis Ã  jour.`
+        : `<b>${esc(playerName)}</b>, ton inscription est bien enregistrÃ©e.<br>${when?'<span style="font-size:13px;color:#64748b">ğŸ•’ Inscrit le '+esc(when)+'</span><br>':''}<br>Tu es actuellement le <b>${pos}e inscrit</b>.`;
+      const old=document.getElementById('registrationConfirmOverlay');if(old)old.remove();
+      const ov=document.createElement('div');ov.id='registrationConfirmOverlay';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+      ov.innerHTML=`<div style="width:min(92vw,440px);background:#fff;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28);text-align:center"><div style="font-size:21px;font-weight:900;margin-bottom:12px">${title}</div><div style="font-size:16px;line-height:1.55;color:#334155">${detail}</div><button id="registrationConfirmOk" class="primary" style="margin-top:20px;min-width:150px">OK</button></div>`;
+      document.body.appendChild(ov);
+      const close=()=>ov.remove();
+      ov.querySelector('#registrationConfirmOk').onclick=close;
+      ov.onclick=e=>{if(e.target===ov)close()};
+    }
+
+    $('#publicJoin').onclick=async()=>{
+      if(regTour.format!=='league'&&tournamentDeadlineMs(regTour)!==null&&Date.now()>=tournamentDeadlineMs(regTour))return $('#publicRegStatus').textContent='â›” Les inscriptions sont terminÃ©es.';
+      const pid=$('#publicPlayerSelect').value;if(!pid)return $('#publicRegStatus').textContent='Choisis ton nom.';
+      const b=$('#publicJoin');b.disabled=true;
+      const {data,error}=await sb.rpc('public_tournament_registration',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_action:'join'});
+      b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
+      const selectedName=($('#publicPlayerSelect').selectedOptions?.[0]?.textContent||'Joueur').replace(/\s+â€”.*$/,'').trim();
+      $('#publicRegStatus').textContent=data?.is_substitute?'ğŸŸ  Inscription confirmÃ©e : tu es actuellement remplaÃ§ant.':'ğŸŸ¢ Inscription confirmÃ©e !';
+      showRegistrationConfirmation(selectedName,data);
+      await refreshPublicRegistration();
+    };
+    if($('#publicNewPlayerJoin'))$('#publicNewPlayerJoin').onclick=async()=>{
+      const name=$('#publicNewPlayerName').value.trim();
+      if(!name)return $('#publicRegStatus').textContent='Entre ton nom pour tâ€™inscrire.';
+      const b=$('#publicNewPlayerJoin');b.disabled=true;
+      const {data,error}=await sb.rpc('public_register_new_tournament_player',{p_token:token,p_tournament_id:regTour.id,p_name:name});
+      b.disabled=false;
+      if(error)return $('#publicRegStatus').textContent=error.message;
+      $('#publicNewPlayerName').value='';
+      $('#publicRegStatus').textContent=data?.status==='waitlist'
+        ? 'ğŸŸ  Quota atteint : tu es inscrit comme remplaÃ§ant. ğŸ†• 1Ã¨re fois'
+        : 'ğŸŸ¢ Inscription confirmÃ©e ! ğŸ†• 1Ã¨re fois';
+      await refreshPublicRegistration();
+    };
+    $('#publicLeave').onclick=async()=>{
+      const pid=$('#publicPlayerSelect').value;if(!pid)return $('#publicRegStatus').textContent='Choisis ton nom.';
+      const b=$('#publicLeave');b.disabled=true;
+      const {error}=await sb.rpc('public_tournament_registration',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_action:'absent'});
+      b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
+      $('#publicRegStatus').textContent='Inscription retirÃ©e.';
+      await refreshPublicRegistration();
+    };
+    $('#publicAddGuest').onclick=async()=>{
+      if(regTour.format!=='league'&&tournamentDeadlineMs(regTour)!==null&&Date.now()>=tournamentDeadlineMs(regTour))return $('#publicRegStatus').textContent='â›” Les inscriptions sont terminÃ©es.';
+      const host=$('#publicPlayerSelect').value;
+      const guestName=$('#publicGuestName').value.trim();
+      if(!host)return $('#publicRegStatus').textContent='Choisis dâ€™abord ton nom dans la liste ci-dessus. Tu peux ajouter un invitÃ© mÃªme si tu es dÃ©jÃ  inscrit.';
+      if(!guestName)return $('#publicRegStatus').textContent='Entre le nom de ton invitÃ©.';
+      const existingGuest=players.find(p=>p.id===$('#publicPreviousGuest')?.value);
+      if(existingGuest&&registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===existingGuest.id&&r.present))return $('#publicRegStatus').textContent='Cet invitÃ© est dÃ©jÃ  inscrit Ã  cette Ã©dition.';
+      const usageBefore=publicGuestUsage(host);
+      if(usageBefore.remaining<=0)return $('#publicRegStatus').textContent='Tu as dÃ©jÃ  utilisÃ© tes 5 invitations pour ce tournoi.';
+      const phone=$('#publicGuestPhone').value.trim();
+      const addMember=$('#publicGuestMember').checked;
+      if(addMember&&!phone)return $('#publicRegStatus').textContent='Pour ajouter ton invitÃ© comme membre du groupe, indique son numÃ©ro de mobile.';
+      const b=$('#publicAddGuest');b.disabled=true;
+      const {data,error}=await sb.rpc('public_register_tournament_guest',{p_token:token,p_tournament_id:regTour.id,p_host_player_id:host,p_guest_name:guestName,p_phone_number:phone||null,p_add_as_member:addMember});
       b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
       $('#publicGuestName').value='';$('#publicPreviousGuest').value='';$('#publicGuestPhone').value='';$('#publicGuestMember').checked=false;
       const used=publicGuestUsage(host).used+1;
