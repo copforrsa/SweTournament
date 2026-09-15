@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const {JSDOM}=require('jsdom');
 
 const root=path.join(__dirname,'..');
 const js=fs.readFileSync(path.join(root,'coorganizer-dashboard-v4399.js'),'utf8');
@@ -58,4 +59,14 @@ test('dashboard has mobile layout and accessible states',()=>{
   assert.match(js,/aria-label="Profil actif"/);
   assert.match(js,/aria-valuemin="0"/);
   assert.match(js,/data-dismiss-intro aria-label=/);
+});
+
+test('dashboard renders Naya immediately even when server calls never resolve',async()=>{
+  const dom=new JSDOM('<!doctype html><body><main id="main"><header class="top"><div class="row"><div></div></div></header><div id="view-home"></div></main></body>',{url:'https://app.swetournament.fr',runScripts:'outside-only'});
+  const w=dom.window,d=w.document;
+  w.S={session:{user:{email:'laurencesarahlouison@gmail.com',user_metadata:{}}},workspace:{id:'ws',role:'coorganizer'},memberships:[{workspace_id:'ws',role:'coorganizer',workspaces:{name:'Tournoi du dimanche'}}],tournaments:[{id:'tour',name:'Tournoi du dimanche'}],activeTour:'tour',playerDashboard:{profile:{nickname:'Nayasarah'}},myPermissions:{can_view_players:true},workspaceFeatures:{rankings_enabled:true},players:[],teams:[],matches:[],tPlayers:[],skillAggregates:[],matchAssignments:[],goals:[]};
+  w.isCoorg=()=>true;w.ratingForMatchPlayer=()=>null;w.setView=()=>{};w.sb={rpc:()=>new Promise(()=>{})};
+  w.eval(js);d.dispatchEvent(new w.Event('DOMContentLoaded'));await new Promise(r=>setTimeout(r,240));
+  const root=d.getElementById('sweCoorgDashboard4399');assert.ok(root);assert.match(root.textContent,/Nayasarah/);assert.doesNotMatch(root.textContent,/Chargement de ton espace/);
+  dom.window.close();
 });
