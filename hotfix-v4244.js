@@ -36,6 +36,7 @@ async function boot(){
  await load('/superadmin-rating-correction-v4400.js?v=4400','superadmin-rating-correction-v4400');
  await load('/navigation-ranking-r9.js?v=4405','navigation-ranking-r12');
  await load('/ranking-premium-visuals-v4405.js?v=4405','ranking-premium-visuals-v4405');
+ await load('/substitute-fair-play-rules-v4406.js?v=4406','substitute-fair-play-rules-v4406');
  applyBuild();setTimeout(applyBuild,250);setTimeout(applyBuild,1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();window.addEventListener('pageshow',()=>setTimeout(applyBuild,50));document.addEventListener('swe:rendered',()=>setTimeout(applyBuild,0));
