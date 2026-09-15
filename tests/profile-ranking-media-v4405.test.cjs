@@ -18,6 +18,8 @@ test('three signature football avatars are available to players and super admins
   }
   assert.match(read('football-avatar-picker-v4404.js'),/Ballon Inferno/);
   assert.match(read('forssadmin/admin-player-identity-v4321.js'),/super_admin_set_player_avatar_v1/);
+  assert.match(read('forssadmin/admin-player-identity-v4321.js'),/getElementById\('playersBody'\)/);
+  assert.doesNotMatch(read('forssadmin/admin-player-identity-v4321.js'),/querySelector\('#content table'\)/);
 });
 
 test('ranking controls use a forced hidden state and WhatsApp direct link',()=>{
