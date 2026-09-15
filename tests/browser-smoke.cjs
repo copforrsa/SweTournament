@@ -125,7 +125,8 @@ async function checkMobileCoorgRights(context,base){
  await page.addScriptTag({content:'var S={session:{user:{id:"coorg"}},workspace:{role:"coorganizer"},myPermissions:{can_view_players:true,can_create_tournaments:false,can_generate_teams:false,can_enter_scores:false}};function isCoorg(){return S.workspace.role==="coorganizer"}'});
  await page.addScriptTag({url:base+'/mobile-coorg-rights-v4362.js?v=test'});
  await page.waitForFunction(()=>document.querySelector('[data-view="tournaments"]').classList.contains('swe-mobile-right-denied'));
- assert.deepEqual(await page.locator('.swe-mobile-right-denied').evaluateAll(nodes=>nodes.map(n=>n.dataset.view)),['tournaments','teams','matches','permissions','ranking']);
+ assert.deepEqual(await page.locator('.swe-mobile-right-denied').evaluateAll(nodes=>nodes.map(n=>n.dataset.view)),['tournaments','teams','matches','permissions']);
+ assert.equal(await page.locator('[data-view="ranking"]').getAttribute('aria-disabled'),'false','Le classement reste accessible aux co-gestionnaires sur mobile');
  assert.equal(await page.locator('[data-view="players"]').getAttribute('aria-disabled'),'false');
  assert.notEqual(await page.locator('[data-view="matches"]').evaluate(e=>getComputedStyle(e).display),'none');
  assert.ok(Number(await page.locator('[data-view="matches"]').evaluate(e=>getComputedStyle(e).opacity))<0.5);
