@@ -65,6 +65,11 @@ window.addEventListener('pageshow',()=>{if(!userIsEditing())setTimeout(safeAppSy
 const $=s=>document.querySelector(s);
 const toast=t=>{const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function playerAvatarHtml(pl,size='sm'){
+  const src=String(pl?.avatar_url||'').trim();
+  if(!src)return '<span class="swe-player-avatar swe-player-avatar-'+size+' swe-player-avatar-fallback" aria-hidden="true">⚽</span>';
+  return '<img class="swe-player-avatar swe-player-avatar-'+size+'" src="'+esc(src)+'" alt="Photo de '+esc(pl?.name||'joueur')+'" loading="lazy" decoding="async">';
+}
 function renderPlatformFooter(){
   const footer=$('#platformFooter');
   if(!footer)return;
@@ -1794,8 +1799,9 @@ async function renderRegisteredPlayersAdmin(){
   if(!rows.length){box.innerHTML='<p class="muted">Aucun joueur inscrit pour le moment.</p>';return}
   box.innerHTML='';
   rows.filter(r=>r.present).forEach((r,i)=>{
+    const pl=(S.players||[]).find(p=>String(p.id)===String(r.player_id));
     const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';
-    d.innerHTML='<b style="min-width:28px">'+(i+1)+'.</b><span style="flex:1">'+esc(r.player_name)+(r.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span><span class="guest-badge">'+(r.registration_status==='waitlist'||r.is_substitute?'Remplaçant':'Confirmé')+'</span>';
+    d.innerHTML='<b style="min-width:28px">'+(i+1)+'.</b>'+playerAvatarHtml(pl)+'<span style="flex:1">'+esc(r.player_name)+(r.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span><span class="guest-badge">'+(r.registration_status==='waitlist'||r.is_substitute?'Remplaçant':'Confirmé')+'</span>';
     const remove=document.createElement('button');remove.className='danger';remove.textContent='Retirer';remove.onclick=async()=>{
       if(!confirm('Retirer '+r.player_name+' de cette inscription ?'))return;
       const {error}=await sb.rpc('remove_registered_member_from_tournament',{p_tournament_id:t.id,p_player_id:r.player_id});
@@ -3374,7 +3380,7 @@ function renderTeams(){
     att.innerHTML+='<div class="muted" style="margin:10px 0 6px">'+(t.format==='league'
       ?'<b>Important :</b> cette liste contient uniquement les inscrits à ce Swé, pas tous les membres de la Ligue.'
       :'Liste des inscrits à ce tournoi.')+'</div>'+
-      (registeredPlayers.map(x=>'<div class="player row"><span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((()=>{const z=S.tPlayers.find(tp=>tp.player_id===x.id);return z&&(z.registration_status==='waitlist'||z.is_substitute)})()?'Remplaçant':'Inscrit au Swé')+'</span></div>').join('')||'<p class="muted">Aucun inscrit à cette compétition.</p>');
+      (registeredPlayers.map(x=>'<div class="player row">'+playerAvatarHtml(x)+'<span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((()=>{const z=S.tPlayers.find(tp=>tp.player_id===x.id);return z&&(z.registration_status==='waitlist'||z.is_substitute)})()?'Remplaçant':'Inscrit au Swé')+'</span></div>').join('')||'<p class="muted">Aucun inscrit à cette compétition.</p>');
   }else{
     const prs=presentIds();
     if(t.format==='league'){
@@ -3382,7 +3388,7 @@ function renderTeams(){
       att.innerHTML='<div class="readonly-note"><b>🏁 Inscrits à CE Swé de Ligue uniquement</b><div style="margin-top:5px">Être membre de la Ligue ne signifie pas participer automatiquement à ce Swé. Les membres de la Ligue qui ne se sont pas inscrits à ce Swé ne sont pas affichés ici.</div></div>'+
         (sessionRows.map(tp=>{
           const x=p(tp.player_id);if(!x)return '';
-          return '<div class="player row"><span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((tp.registration_status==='waitlist'||tp.is_substitute)?'Remplaçant':'Inscrit au Swé')+'</span></div>';
+          return '<div class="player row">'+playerAvatarHtml(x)+'<span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((tp.registration_status==='waitlist'||tp.is_substitute)?'Remplaçant':'Inscrit au Swé')+'</span></div>';
         }).join('')||'<p class="muted">Aucun joueur inscrit à ce Swé pour le moment.</p>');
     }else{
       S.players.filter(x=>x.active).forEach(x=>{
@@ -3518,7 +3524,7 @@ function renderTeams(){
       const pl=p(id);if(!pl)return;
       const r=document.createElement('div');
       r.className='row small '+(pl.is_group_member===false?'guest-row':'');
-      r.innerHTML='<span style="flex:1">'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span>';
+      r.innerHTML=playerAvatarHtml(pl)+'<span style="flex:1">'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span>';
       if(canFullEdit){
         const b=document.createElement('button');b.textContent='×';
         b.onclick=async()=>{const {error}=await sb.from('team_players').delete().eq('team_id',team.id).eq('player_id',id);if(error)return toast(error.message);try{await syncTournamentSubstitutes(t.id)}catch(e){return toast(e.message)}await loadTournament();renderTeams();};
@@ -5274,7 +5280,7 @@ async function loadPublicPage(token,bootState){
       const guest=pl?.is_group_member!==false?'Membre du groupe':(host?('Guest de '+host.name):publicGuestLabel(pl));
       const first=isFirstTimePublicPlayer(pl.id,regTour.id);
       const when=publicRegistrationDateTime(r.registered_at||r.created_at);
-      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b><span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">🆕 1ère fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">🕒 Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:'+(r.is_substitute?'#b45309':'#15803d')+'">'+(r.is_substitute?'Remplaçant':'Confirmé')+'</span></div>';
+      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b>'+playerAvatarHtml(pl)+'<span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">🆕 1ère fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">🕒 Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:'+(r.is_substitute?'#b45309':'#15803d')+'">'+(r.is_substitute?'Remplaçant':'Confirmé')+'</span></div>';
     }).filter(Boolean);
     const waitRows=waiting.map((r,i)=>{
       const pl=playerMap.get(r.player_id);if(!pl)return '';
@@ -5282,7 +5288,7 @@ async function loadPublicPage(token,bootState){
       const guest=pl?.is_group_member!==false?'Membre du groupe':(host?('Guest de '+host.name):publicGuestLabel(pl));
       const first=isFirstTimePublicPlayer(pl.id,regTour.id);
       const when=publicRegistrationDateTime(r.registered_at||r.created_at);
-      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b><span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">🆕 1ère fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">🕒 Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:#b45309">Attente</span></div>';
+      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b>'+playerAvatarHtml(pl)+'<span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">🆕 1ère fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">🕒 Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:#b45309">Attente</span></div>';
     }).join('');
     const maxPublic=Number(regTour.max_players||20);
     const activePublic=regs.filter(r=>r.present);
@@ -6098,7 +6104,7 @@ async function loadPublicPage(token,bootState){
     let lastSweHtml='<div class="card" style="background:#f8fbf9"><h2 class="sectiontitle">🔥 Dernier Swé de la Ligue</h2><p class="muted">Aucun match n’a encore été joué dans cette Ligue. Aucune équipe de tournoi n’est affichée.</p></div>';
     if(latestSession&&latestMatch){
       const home=tmap.get(latestMatch.home_team_id),away=tmap.get(latestMatch.away_team_id);
-      const teamCard=team=>{if(!team)return '';const members=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>pmap.get(tp.player_id)).filter(Boolean);return '<div class="public-team-card"><div class="public-team-head"><b>'+esc(team.name)+'</b></div><div class="public-team-players">'+(members.map(pl=>'<div class="public-team-player">'+esc(pl.name)+'</div>').join('')||'<div class="muted">Composition non enregistrée</div>')+'</div></div>';};
+      const teamCard=team=>{if(!team)return '';const members=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>pmap.get(tp.player_id)).filter(Boolean);return '<div class="public-team-card"><div class="public-team-head"><b>'+esc(team.name)+'</b></div><div class="public-team-players">'+(members.map(pl=>'<div class="public-team-player swe-player-with-avatar">'+playerAvatarHtml(pl)+esc(pl.name)+'</div>').join('')||'<div class="muted">Composition non enregistrée</div>')+'</div></div>';};
       lastSweHtml='<div class="card"><h2 class="sectiontitle">🔥 Dernier Swé de la Ligue</h2><div class="muted">'+esc(latestSession.name||latestSession.tournament_date)+' • '+esc(latestSession.tournament_date)+'</div><div class="player" style="margin-top:10px"><div class="row" style="justify-content:space-between;gap:8px"><b>'+esc(home?.name||'Équipe A')+'</b><span class="score">'+Number(latestMatch.home_score||0)+' - '+Number(latestMatch.away_score||0)+'</span><b>'+esc(away?.name||'Équipe B')+'</b></div></div><div style="display:flex;gap:12px;overflow-x:auto;margin-top:12px">'+teamCard(home)+teamCard(away)+'</div></div>';
     }
 
@@ -6331,7 +6337,7 @@ async function loadPublicPage(token,bootState){
     const championTeamId=trs.length?trs[0].id:null;
     $('#publicTeams').innerHTML=lteams.map(team=>{
       const bg=inferredTeamColor(team),fg=teamTextColor(bg),label=teamColorLabel(team);
-            const playersHtml=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>{const pl=pmap.get(tp.player_id);return pl?'<div class="public-team-player">'+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('');
+            const playersHtml=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>{const pl=pmap.get(tp.player_id);return pl?'<div class="public-team-player swe-player-with-avatar">'+playerAvatarHtml(pl)+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('');
       const crown=team.id===championTeamId?'👑 ':'';
       const champ=team.id===championTeamId?'<div class="public-team-shirt">🏆 Équipe victorieuse</div>':'';
       const avg=Number(team.team_score||0)>0?'<div class="public-team-average">🐶⚽ <b>Note équipe évaluée par Chien Boul Academy : '+Number(team.team_score).toFixed(1)+'/5</b>'+(team.mention?' • '+esc(team.mention):'')+'</div>':'';return '<div class="public-team-card"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+'<div class="public-team-shirt">👕 Maillots : '+esc(label)+'</div></div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
