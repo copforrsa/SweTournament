@@ -6,7 +6,7 @@ const js=fs.readFileSync(path.join(__dirname,'..','navigation-ranking-r9.js'),'u
 
 test('archived ranking is isolated from the active tournament and player rows stay clickable',async()=>{
   const dom=new JSDOM(`<!doctype html><body>
-    <div id="view-ranking"><div class="card"><div><button class="rankMode" data-mode="day">Tournoi</button><button class="rankMode primary" data-mode="season">Saison</button></div></div><div class="card"><h2 class="sectiontitle">Partager</h2><textarea id="shareText"></textarea><div class="space"></div><button id="shareWhatsapp">Partager</button></div><div id="teamRank"></div></div>
+    <div id="view-ranking"><div class="card"><div><button class="rankMode" data-mode="day">Tournoi</button><button class="rankMode primary" data-mode="season">Saison</button></div></div><div class="card"><h2 class="sectiontitle">Partager</h2><textarea id="shareText"></textarea><div class="space"></div><button id="shareWhatsapp">Partager</button></div><div id="scorerRank"></div><div id="assistRank"></div><div id="teamRank"></div></div>
     <div id="view-players"><div id="playersList"><div class="player" id="zoe"><div class="row"><b>Zoé</b></div></div><div class="player" id="alice"><div class="row"><b>Alice</b></div></div></div></div>
   </body>`,{url:'https://app.swetournament.fr',runScripts:'outside-only'});
   const w=dom.window,d=w.document,queries=[];
@@ -20,10 +20,25 @@ test('archived ranking is isolated from the active tournament and player rows st
   d.dispatchEvent(new w.Event('DOMContentLoaded'));
   const select=d.getElementById('sweRankingTournamentSelectR9');
   assert.ok(select);assert.equal(select.querySelectorAll('optgroup').length,2);assert.match(select.textContent,/Finale été/);
+  assert.equal(d.getElementById('sweRankingTournamentPickerR9').hidden,true);
   assert.equal(d.querySelector('#playersList .player').id,'alice');d.getElementById('zoe').click();assert.equal(clicks,1);
   assert.ok(d.getElementById('shareText').closest('.card').classList.contains('swe-premium-share'));
   select.value='old';select.dispatchEvent(new w.Event('change'));await new Promise(r=>setTimeout(r,20));
   assert.equal(w.S.activeTour,'live');assert.equal(w.S.rankingTournamentId,'old');assert.equal(w.S.rankMode,'day');assert.ok(queries.some(([,value])=>value==='old'));
+  assert.equal(d.getElementById('sweRankingTournamentPickerR9').hidden,false);
+  dom.window.close();
+});
+
+test('rankings show ten rows first and can be expanded',async()=>{
+  const ranks=Array.from({length:13},(_,i)=>`<div class="rank">${i+1}</div>`).join('');
+  const dom=new JSDOM(`<!doctype html><body><div id="view-ranking"><div class="card"><button class="rankMode primary" data-mode="day">Tournoi</button><button class="rankMode" data-mode="season">Saison</button></div><div id="scorerRank">${ranks}</div><div id="assistRank">${ranks}</div><div id="teamRank">${ranks}</div></div></body>`,{url:'https://app.swetournament.fr',runScripts:'outside-only'});
+  const w=dom.window,d=w.document;
+  w.S={activeTour:'live',rankingTournamentId:'live',rankMode:'day',tournaments:[{id:'live',name:'SWÉ actuel',status:'open'}],seasons:[]};
+  w.sb={};w.rankingDataset=async()=>({goals:[],matches:[],tournaments:[]});w.renderTeamRanking=()=>{};w.renderRanking=async()=>{};w.renderPlayers=()=>{};
+  w.eval(js);d.dispatchEvent(new w.Event('DOMContentLoaded'));
+  assert.equal([...d.querySelectorAll('#scorerRank .rank')].filter(x=>!x.hidden).length,10);
+  const more=d.getElementById('sweMorescorerRank');assert.ok(more);assert.match(more.textContent,/3 buteurs/);
+  more.click();assert.equal([...d.querySelectorAll('#scorerRank .rank')].filter(x=>!x.hidden).length,13);assert.equal(more.textContent,'Réduire');
   dom.window.close();
 });
 

@@ -25,7 +25,7 @@ async function boot(){
  await load('/auth-access-clean-v4352.js?v=4399-player-r9','auth-access-clean-v4352-r9');await load('/mobile-nav-v4361.js?v=4377','mobile-nav-v4361');await load('/mobile-coorg-rights-v4362.js?v=4399-player-r9','mobile-coorg-rights-v4362-r9');await load('/coorganizer-invite-reliability-v4392.js?v=4392','coorganizer-invite-reliability-v4392');await load('/player-activity-attendance-v4393.js?v=4398-edge-stable','player-activity-attendance-v4393');await load('/rating-report-reliability-v4394.js?v=4394','rating-report-reliability-v4394');await load('/team-composition-visual-v4395.js?v=4395','team-composition-visual-v4395');await load('/coorganizer-dashboard-v4399.js?v=4399-player-r10','coorganizer-dashboard-v4399-r10');
  await load('/player-profile-compact.js?v=4399-player-r1','player-profile-compact');
  await load('/player-home.js?v=4399-player-r8','player-home');
- await load('/navigation-ranking-r9.js?v=4399-player-r9','navigation-ranking-r9');
+ await load('/navigation-ranking-r9.js?v=4399-player-r11','navigation-ranking-r11');
  applyBuild();setTimeout(applyBuild,250);setTimeout(applyBuild,1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();window.addEventListener('pageshow',()=>setTimeout(applyBuild,50));document.addEventListener('swe:rendered',()=>setTimeout(applyBuild,0));
