@@ -7,14 +7,14 @@ html[data-swe-auth-player-clean="1"] .app{
 
 /* La page d'entrée joueur ne montre que la mire de connexion. */
 html[data-swe-auth-player-clean="1"] #auth>.top,
-html[data-swe-auth-player-clean="1"] #signup,
-html[data-swe-auth-player-clean="1"] #signupConsentRow,
 html[data-swe-auth-player-clean="1"] #loginCard>p.muted:last-child,
 html[data-swe-auth-player-clean="1"] #sweLoginOffers4252,
 html[data-swe-auth-player-clean="1"] #sweComplexHome4281,
 html[data-swe-auth-player-clean="1"] #swePublicTabs4310{
   display:none!important;
 }
+html[data-swe-auth-player-clean="1"]:not([data-swe-auth-allow-signup="1"]) #signup,
+html[data-swe-auth-player-clean="1"]:not([data-swe-auth-allow-signup="1"]) #signupConsentRow{display:none!important}
 
 /* L'ancien bloc commercial d'accueil ne doit pas réapparaître depuis le parcours joueur. */
 html[data-swe-auth-player-clean="1"] #homeEcosystemCard{
