@@ -501,7 +501,7 @@
         <div id="thirdHalfTournamentCreate" class="player hidden" style="margin-top:12px;background:#fff8ed;border:1px solid #fed7aa">
           <label class="row" style="justify-content:flex-start"><input id="tourThirdHalfActive" type="checkbox" style="width:auto"><span><b>🧊 Activer la 3e mi-temps / Glacière pour ce tournoi</b></span></label>
           <div class="muted" style="margin:5px 0 10px">Module 3e mi-temps actif. Tu peux suggérer une contribution à la cagnotte aux joueurs, y compris aux joueurs solo qui s’inscrivent ou demandent une place.</div>
-          <label><span class="muted">Participation glacière conseillée (€)</span><input id="tourCoolerSuggested" type="number" min="0" step="0.50" value="0"></label>
+          <label><span class="muted">Participation glacière fixe (€)</span><input id="tourCoolerSuggested" type="number" min="0" max="5" step="0.50" value="0"><small>Montant libre désactivé • maximum 5 € par personne.</small></label>
         </div>
         <div class="space"></div><div class="row"><button id="createTournament" class="primary">Créer le tournoi</button><button id="cancelTournamentCreate" type="button">Annuler</button></div>
       </div>
@@ -633,7 +633,7 @@
           <div id="thirdHalfLeagueCreate" class="player hidden" style="margin-top:12px;background:#fff8ed;border:1px solid #fed7aa">
             <b>🧊 3e mi-temps & participation</b>
             <div class="muted" style="margin:5px 0 10px">Prix du Swé de Ligue et participation glacière. Le paiement en ligne sera activé avec Stripe dans une prochaine étape.</div>
-            <label><span class="muted">Participation glacière conseillée (€)</span><input id="leagueSessionCoolerSuggested" type="number" min="0" step="0.50" value="0"></label>
+            <label><span class="muted">Participation glacière fixe (€)</span><input id="leagueSessionCoolerSuggested" type="number" min="0" max="5" step="0.50" value="0"><small>Montant libre désactivé • maximum 5 € par personne.</small></label>
           </div>
           <div class="space"></div>
           <button id="createLeagueSession" class="primary">Créer le Swé de Ligue</button>
@@ -900,7 +900,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
 <script src="./registration-presentation.js?v=4386-substitutes" defer></script>
 <script src="./offres.js?v=offres-r1" defer></script>
-<script src="./app.js?v=4409-avatars" defer></script>
+<script src="./app.js?v=4410-glaciere-inscription" defer></script>
 <script src="./mobile-coorg-rights-v4362.js?v=4379" data-swe-loader="mobile-coorg-rights-v4362" defer></script>
 <script src="./hotfix-v4227.js?v=4377" defer></script>
 <script src="./hotfix-v4228.js?v=4400" defer></script>

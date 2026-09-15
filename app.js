@@ -30,7 +30,7 @@ window.addEventListener('error', (e) => {
   if(t){t.textContent='Erreur de chargement de l’application. Recharge la page.';t.style.display='block';}
 });
 
-const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
+const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
 
 let safeSyncTimer=null;
 let safeSyncBusy=false;
@@ -1048,23 +1048,38 @@ document.addEventListener('click',async e=>{
 
 
 async function loadThirdHalfFunds(){
-  if(!S.workspace||!isAdmin()||!S.workspaceFeatures.third_half_enabled){S.thirdHalfFunds=[];renderThirdHalfFunds();return;}
-  const {data,error}=await sb.rpc('get_admin_third_half_funds',{p_workspace_id:S.workspace.id});
-  if(error){toast(error.message);S.thirdHalfFunds=[];}else S.thirdHalfFunds=Array.isArray(data)?data:[];
+  if(!S.workspace||!isAdmin()||!S.workspaceFeatures.third_half_enabled){S.thirdHalfFunds=[];S.thirdHalfPackages=[];renderThirdHalfFunds();return;}
+  const {data,error}=await sb.rpc('get_admin_third_half_setup_v2',{p_workspace_id:S.workspace.id});
+  if(error){toast(error.message);S.thirdHalfFunds=[];S.thirdHalfPackages=[];}
+  else{S.thirdHalfFunds=Array.isArray(data?.tournaments)?data.tournaments:[];S.thirdHalfPackages=Array.isArray(data?.packages)?data.packages:[];}
   renderThirdHalfFunds();
 }
 function renderThirdHalfFunds(){
   const box=$('#coolerFundsList');if(!box)return;
   const rows=S.thirdHalfFunds||[];
   if(!rows.length){box.innerHTML='<div class="muted">Aucun Swé actif à administrer pour la glacière.</div>';return;}
-  box.innerHTML=rows.map((r,i)=>{const target=Number(r.target_amount_cents||0),collected=Number(r.collected_amount_cents||0),pct=target?Math.min(100,Math.round(collected/target*100)):0;return '<div class="cooler-fund" data-cooler-row="'+esc(r.tournament_id)+'"><div class="cooler-fund-head"><div><b>'+esc(r.tournament_name||'Swé')+'</b><div class="muted">📅 '+esc(r.tournament_date||'')+' • '+(r.format==='league'?'Swé de Ligue':'Tournoi')+'</div></div><span class="cooler-status '+esc(r.status||'draft')+'">'+esc(String(r.status||'draft').toUpperCase())+'</span></div><div class="cooler-progress"><span style="width:'+pct+'%"></span></div><div class="muted small" style="margin-top:5px">Collecté : <b>'+euroCents(collected)+'</b>'+(target?' / objectif '+euroCents(target):' • aucun objectif défini')+'</div><div class="grid g2"><label><span class="muted">Statut</span><select data-cooler-status><option value="draft" '+(r.status==='draft'?'selected':'')+'>Brouillon</option><option value="open" '+(r.status==='open'?'selected':'')+'>Ouverte</option><option value="paused" '+(r.status==='paused'?'selected':'')+'>En pause</option><option value="closed" '+(r.status==='closed'?'selected':'')+'>Clôturée</option></select></label><label><span class="muted">Solution de cagnotte</span><select data-cooler-provider><option value="">Choisir</option>'+['Revolut','Leetchi','PayPal','Sumeria','Autre'].map(x=>'<option '+(r.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Lien de cagnotte</span><input data-cooler-link type="url" placeholder="https://..." value="'+esc(r.payment_link||'')+'"></label><label><span class="muted">Participation conseillée (€)</span><input data-cooler-suggested type="number" min="0" step="0.50" value="'+(Number(r.suggested_amount_cents||0)/100)+'"></label><label><span class="muted">Objectif (€)</span><input data-cooler-target type="number" min="0" step="0.50" value="'+(target/100)+'"></label><label><span class="muted">Montant collecté (€)</span><input data-cooler-collected type="number" min="0" step="0.50" value="'+(collected/100)+'"></label></div><label style="margin-top:10px"><span class="muted">Note admin</span><textarea data-cooler-notes rows="2" placeholder="Ex. boissons, glace, repas...">'+esc(r.notes||'')+'</textarea></label><label class="player row" style="justify-content:flex-start;margin-top:10px"><input data-cooler-share type="checkbox" style="width:auto" '+(r.share_enabled?'checked':'')+'><span><b>Partager le lien aux joueurs</b><div class="muted">Le partage n’est possible que si un lien HTTPS est renseigné.</div></span></label>'+(r.payment_link?'<div class="cooler-link-preview" style="margin-top:7px">🔗 '+esc(r.payment_link)+'</div>':'')+'<div class="row" style="margin-top:10px"><button class="primary" data-save-cooler>💾 Enregistrer</button>'+(r.payment_link?'<button data-copy-cooler-link>Copier le lien</button>':'')+'</div></div>'}).join('');
+  box.innerHTML=rows.map(r=>{
+    const target=Number(r.target_amount_cents||0),collected=Number(r.collected_amount_cents||0),pct=target?Math.min(100,Math.round(collected/target*100)):0;
+    const people=Array.isArray(r.eligible_responsibles)?r.eligible_responsibles:[];
+    const responsibleOptions='<option value="">À désigner après une inscription…</option>'+people.map(p=>'<option value="'+esc(p.player_id)+'" '+(String(p.player_id)===String(r.responsible_player_id||'')?'selected':'')+'>'+esc(p.name)+(p.account_linked?' • compte SWÉ lié':' • compte à relier')+'</option>').join('');
+    const packages=(S.thirdHalfPackages||[]).filter(p=>String(p.complex_id)===String(r.complex_id||''));
+    const selected=new Set((r.selected_package_ids||[]).map(String));
+    const packageHtml=packages.length?'<div class="cooler-package-grid">'+packages.map(p=>'<label class="cooler-package"><input type="checkbox" data-cooler-package="'+esc(p.id)+'" '+(selected.has(String(p.id))?'checked':'')+'><span><b>'+esc(p.name)+'</b><small>'+esc(p.description||'Pack partenaire')+' • '+euroCents(p.public_price_cents)+'</small></span></label>').join('')+'</div>':'<div class="muted">Aucun pack SWÉ actif pour ce complexe.</div>';
+    return '<div class="cooler-fund" data-cooler-row="'+esc(r.tournament_id)+'"><div class="cooler-fund-head"><div><b>'+esc(r.tournament_name||'Swé')+'</b><div class="muted">📅 '+esc(r.tournament_date||'')+(r.complex_name?' • '+esc(r.complex_name):'')+'</div></div><span class="cooler-status '+esc(r.status||'draft')+'">'+esc(String(r.status||'draft').toUpperCase())+'</span></div><div class="cooler-progress"><span style="width:'+pct+'%"></span></div><div class="muted small" style="margin-top:5px">Collecté : <b>'+euroCents(collected)+'</b>'+(target?' / objectif '+euroCents(target):' • aucun objectif défini')+'</div><div class="cooler-owner-panel"><label><span class="muted">🧊 Responsable de la glacière</span><select data-cooler-responsible>'+responsibleOptions+'</select></label><div class="muted">Seul le compte SWÉ lié à ce joueur pourra enregistrer son lien personnel depuis la page d’inscription.</div></div><div class="grid g2"><label><span class="muted">Statut</span><select data-cooler-status><option value="draft" '+(r.status==='draft'?'selected':'')+'>Brouillon</option><option value="open" '+(r.status==='open'?'selected':'')+'>Ouverte</option><option value="paused" '+(r.status==='paused'?'selected':'')+'>En pause</option><option value="closed" '+(r.status==='closed'?'selected':'')+'>Clôturée</option></select></label><label><span class="muted">Solution de paiement</span><select data-cooler-provider><option value="">Le responsable la renseignera</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option '+(r.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Lien du responsable</span><input data-cooler-link type="url" maxlength="500" placeholder="https://..." value="'+esc(r.payment_link||'')+'"></label><label><span class="muted">Montant fixe par personne (€)</span><input data-cooler-suggested type="number" min="0" max="5" step="0.50" value="'+(Number(r.suggested_amount_cents||0)/100)+'"><small>Maximum autorisé : 5 €.</small></label><label><span class="muted">Objectif (€)</span><input data-cooler-target type="number" min="0" step="0.50" value="'+(target/100)+'"></label><label><span class="muted">Montant collecté (€)</span><input data-cooler-collected type="number" min="0" step="0.50" value="'+(collected/100)+'"></label></div><div class="cooler-pack-panel"><b>🥤 Packs partenaires proposés pendant l’inscription</b>'+packageHtml+'</div><label style="margin-top:10px"><span class="muted">Note admin</span><textarea data-cooler-notes rows="2" placeholder="Ex. boissons, glace, repas...">'+esc(r.notes||'')+'</textarea></label><label class="player row" style="justify-content:flex-start;margin-top:10px"><input data-cooler-share type="checkbox" style="width:auto" '+(r.share_enabled?'checked':'')+'><span><b>Partager le lien aux inscrits</b><div class="muted">Le lien apparaît uniquement lorsque le responsable l’a configuré.</div></span></label>'+(r.payment_link?'<div class="cooler-link-preview" style="margin-top:7px">🔗 '+esc(r.payment_link)+'</div>':'')+'<div class="row" style="margin-top:10px"><button class="primary" data-save-cooler>💾 Enregistrer</button>'+(r.payment_link?'<button data-copy-cooler-link>Copier le lien</button>':'')+'</div></div>';
+  }).join('');
 }
 document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
 document.addEventListener('click',async e=>{
   if(e.target?.id==='refreshCoolerFunds'){await loadThirdHalfFunds();return;}
   const row=e.target?.closest?.('[data-cooler-row]');if(!row)return;
   if(e.target?.matches?.('[data-copy-cooler-link]')){const link=row.querySelector('[data-cooler-link]')?.value.trim();if(!link)return;try{await navigator.clipboard.writeText(link);toast('Lien de cagnotte copié ✅')}catch(_e){toast('Copie impossible')}return;}
-  if(e.target?.matches?.('[data-save-cooler]')){const b=e.target;b.disabled=true;const cents=x=>Math.round(Math.max(0,Number(x?.value||0))*100);const {error}=await sb.rpc('admin_save_third_half_fund',{p_tournament_id:row.dataset.coolerRow,p_status:row.querySelector('[data-cooler-status]').value,p_provider:row.querySelector('[data-cooler-provider]').value||null,p_payment_link:row.querySelector('[data-cooler-link]').value.trim()||null,p_target_amount_cents:cents(row.querySelector('[data-cooler-target]')),p_collected_amount_cents:cents(row.querySelector('[data-cooler-collected]')),p_suggested_amount_cents:cents(row.querySelector('[data-cooler-suggested]')),p_notes:row.querySelector('[data-cooler-notes]').value.trim()||null,p_share_enabled:row.querySelector('[data-cooler-share]').checked});b.disabled=false;if(error)return toast(error.message);toast('Cagnotte mise à jour ✅');await loadThirdHalfFunds();return;}
+  if(e.target?.matches?.('[data-save-cooler]')){
+    const b=e.target;b.disabled=true;const cents=x=>Math.round(Math.max(0,Number(x?.value||0))*100);
+    const amount=cents(row.querySelector('[data-cooler-suggested]'));if(amount>500){b.disabled=false;return toast('La participation glacière est limitée à 5 €.');}
+    const packages=[...row.querySelectorAll('[data-cooler-package]:checked')].map(x=>x.dataset.coolerPackage);
+    const {error}=await sb.rpc('admin_save_third_half_setup_v2',{p_tournament_id:row.dataset.coolerRow,p_status:row.querySelector('[data-cooler-status]').value,p_provider:row.querySelector('[data-cooler-provider]').value||null,p_payment_link:row.querySelector('[data-cooler-link]').value.trim()||null,p_target_amount_cents:cents(row.querySelector('[data-cooler-target]')),p_collected_amount_cents:cents(row.querySelector('[data-cooler-collected]')),p_suggested_amount_cents:amount,p_notes:row.querySelector('[data-cooler-notes]').value.trim()||null,p_share_enabled:row.querySelector('[data-cooler-share]').checked,p_selected_package_ids:packages,p_responsible_player_id:row.querySelector('[data-cooler-responsible]').value||null});
+    b.disabled=false;if(error)return toast(error.message);toast('Glacière intégrée à l’inscription ✅');await loadThirdHalfFunds();return;
+  }
 });
 async function loadMyPlayerDashboard(){
   if(!S.session){S.playerDashboard=null;return null;}
@@ -1119,7 +1134,7 @@ function renderMyPlayerHub(){
   const reqs=Array.isArray(d.requests)?d.requests:[];
   if($('#myPlayerRequests'))$('#myPlayerRequests').innerHTML=reqs.length?reqs.map(r=>'<div class="player"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>'+esc(r.workspace_name)+' • '+esc(r.tournament_name||'Swé')+'</b><div class="muted">'+esc(r.tournament_date||'')+(r.start_time?' • '+esc(String(r.start_time).slice(0,5)):'')+'</div></div><span class="guest-badge">'+(r.status==='pending'?'EN ATTENTE':r.status==='accepted'?'ACCEPTÉE':'REFUSÉE')+'</span></div>'+(r.message?'<div class="small" style="margin-top:6px">'+esc(r.message)+'</div>':'')+(r.registration_status==='payment_pending'?'<div class="row" style="margin-top:9px">'+playerPaymentButton(r)+'</div>':'')+'</div>').join(''):'<div class="muted">Aucune demande envoyée.</div>';
   const focusSwe=new URLSearchParams(location.search).get('joinSwe');const opp=(Array.isArray(d.upcoming_swes)?[...d.upcoming_swes]:[]).sort((a,b)=>String(a.tournament_id)===String(focusSwe)?-1:String(b.tournament_id)===String(focusSwe)?1:0);
-  if($('#myPlayerOpportunities'))$('#myPlayerOpportunities').innerHTML=opp.length?opp.map(o=>{const mode=o.discovery_mode==='public'?'PUBLIC • INSCRIPTION DIRECTE':'SUR DEMANDE';const fee=Number(o.entry_fee_cents||0);const payment=o.external_payment_required?'<div class="player-opportunity-price">💳 Paiement en ligne requis • confirmation automatique</div>':'<div class="player-opportunity-price free">✓ Aucun paiement en ligne imposé au joueur externe</div>';const third=o.third_half_enabled?'<label class="player-pledge"><span>🧊 3e mi-temps</span><input type="number" min="0" step="0.50" data-pledge-for="'+o.tournament_id+'" placeholder="Contribution €" value="'+(Number(o.cooler_suggested_cents||0)/100||'')+'"></label>':'';return '<div class="player player-opportunity"><span class="guest-badge">'+esc(mode)+'</span><h3>'+esc(o.workspace_name)+' • '+esc(o.tournament_name||'Swé')+'</h3><div class="muted">📅 '+esc(o.tournament_date||'')+(o.start_time?' • '+esc(String(o.start_time).slice(0,5)):'')+'</div><div class="muted">📍 '+esc(o.venue||'Lieu à confirmer')+' • '+Number(o.remaining_places||0)+' place(s) restante(s)</div>'+payment+third+(o.discovery_mode==='public'?'<button class="primary" data-player-direct-join="'+o.tournament_id+'" style="margin-top:10px">⚡ Je participe</button>':'<textarea data-request-message-for="'+o.tournament_id+'" rows="2" placeholder="Message à l’organisateur (facultatif)" style="margin-top:10px"></textarea><button class="primary" data-player-request-join="'+o.tournament_id+'" style="margin-top:8px">🙋 Demander à participer</button>')+'</div>'}).join(''):'<div class="muted">Aucun nouveau Swé à afficher pour le moment.</div>';
+  if($('#myPlayerOpportunities'))$('#myPlayerOpportunities').innerHTML=opp.length?opp.map(o=>{const mode=o.discovery_mode==='public'?'PUBLIC • INSCRIPTION DIRECTE':'SUR DEMANDE';const fee=Number(o.entry_fee_cents||0);const payment=o.external_payment_required?'<div class="player-opportunity-price">💳 Paiement en ligne requis • confirmation automatique</div>':'<div class="player-opportunity-price free">✓ Aucun paiement en ligne imposé au joueur externe</div>';const third=o.third_half_enabled?'<label class="player-pledge"><span>🧊 3e mi-temps • 5 € max</span><input type="number" min="0" max="5" step="0.50" data-pledge-for="'+o.tournament_id+'" placeholder="Contribution €" value="'+(Math.min(500,Number(o.cooler_suggested_cents||0))/100||'')+'"></label>':'';return '<div class="player player-opportunity"><span class="guest-badge">'+esc(mode)+'</span><h3>'+esc(o.workspace_name)+' • '+esc(o.tournament_name||'Swé')+'</h3><div class="muted">📅 '+esc(o.tournament_date||'')+(o.start_time?' • '+esc(String(o.start_time).slice(0,5)):'')+'</div><div class="muted">📍 '+esc(o.venue||'Lieu à confirmer')+' • '+Number(o.remaining_places||0)+' place(s) restante(s)</div>'+payment+third+(o.discovery_mode==='public'?'<button class="primary" data-player-direct-join="'+o.tournament_id+'" style="margin-top:10px">⚡ Je participe</button>':'<textarea data-request-message-for="'+o.tournament_id+'" rows="2" placeholder="Message à l’organisateur (facultatif)" style="margin-top:10px"></textarea><button class="primary" data-player-request-join="'+o.tournament_id+'" style="margin-top:8px">🙋 Demander à participer</button>')+'</div>'}).join(''):'<div class="muted">Aucun nouveau Swé à afficher pour le moment.</div>';
 }
 function renderPlayerDirectoryCard(){
   const card=$('#playerDirectoryCard');if(!card)return;
@@ -2140,8 +2155,8 @@ document.addEventListener('click',async e=>{
   if(e.target?.id==='myPlayerRefresh'){await loadMyPlayerDashboard();toast('Profil actualisé ✅');return;}
   const accept=e.target?.closest?.('[data-player-invite-accept]');if(accept){accept.disabled=true;const {data,error}=await sb.rpc('respond_global_player_tournament_invite',{p_invite_id:accept.dataset.playerInviteAccept,p_accept:true});accept.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast(data?.status==='waitlist'?'Invitation acceptée • tu es actuellement remplaçant.':'Invitation acceptée ✅');return;}
   const decline=e.target?.closest?.('[data-player-invite-decline]');if(decline){decline.disabled=true;const {error}=await sb.rpc('respond_global_player_tournament_invite',{p_invite_id:decline.dataset.playerInviteDecline,p_accept:false});decline.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Invitation refusée.');return;}
-  const direct=e.target?.closest?.('[data-player-direct-join]');if(direct){const tid=direct.dataset.playerDirectJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const pledge=Math.round(Math.max(0,Number(pledgeEl?.value||0))*100);direct.disabled=true;const {data,error}=await sb.rpc('join_discoverable_tournament',{p_tournament_id:tid,p_third_half_pledge_cents:pledge});direct.disabled=false;if(error)return toast(error.message);if(data?.payment_required){const {data:pay,error:pe}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:data.public_token,tournament_id:tid,player_id:data.player_id,payer_email:S.session?.user?.email||null,success_url:APP_URL+'?playerPayment=success',cancel_url:APP_URL+'?playerPayment=cancel'}});if(pe||pay?.error)return toast(pay?.error||pe?.message||'Impossible d’ouvrir le paiement.');if(pay?.url){location.href=pay.url;return;}}await loadMyPlayerDashboard();toast(data?.status==='waitlist'?'Inscription enregistrée • tu es remplaçant.':'Inscription confirmée ✅');return;}
-  const requestJoin=e.target?.closest?.('[data-player-request-join]');if(requestJoin){const tid=requestJoin.dataset.playerRequestJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const msgEl=document.querySelector('[data-request-message-for="'+tid+'"]');const pledge=Math.round(Math.max(0,Number(pledgeEl?.value||0))*100);requestJoin.disabled=true;const {error}=await sb.rpc('request_discoverable_tournament',{p_tournament_id:tid,p_message:msgEl?.value.trim()||null,p_third_half_pledge_cents:pledge});requestJoin.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Demande envoyée à l’organisateur ✅');return;}
+  const direct=e.target?.closest?.('[data-player-direct-join]');if(direct){const tid=direct.dataset.playerDirectJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const pledge=Math.min(500,Math.round(Math.max(0,Number(pledgeEl?.value||0))*100));direct.disabled=true;const {data,error}=await sb.rpc('join_discoverable_tournament',{p_tournament_id:tid,p_third_half_pledge_cents:pledge});direct.disabled=false;if(error)return toast(error.message);if(data?.payment_required){const {data:pay,error:pe}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:data.public_token,tournament_id:tid,player_id:data.player_id,payer_email:S.session?.user?.email||null,success_url:APP_URL+'?playerPayment=success',cancel_url:APP_URL+'?playerPayment=cancel'}});if(pe||pay?.error)return toast(pay?.error||pe?.message||'Impossible d’ouvrir le paiement.');if(pay?.url){location.href=pay.url;return;}}await loadMyPlayerDashboard();toast(data?.status==='waitlist'?'Inscription enregistrée • tu es remplaçant.':'Inscription confirmée ✅');return;}
+  const requestJoin=e.target?.closest?.('[data-player-request-join]');if(requestJoin){const tid=requestJoin.dataset.playerRequestJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const msgEl=document.querySelector('[data-request-message-for="'+tid+'"]');const pledge=Math.min(500,Math.round(Math.max(0,Number(pledgeEl?.value||0))*100));requestJoin.disabled=true;const {error}=await sb.rpc('request_discoverable_tournament',{p_tournament_id:tid,p_message:msgEl?.value.trim()||null,p_third_half_pledge_cents:pledge});requestJoin.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Demande envoyée à l’organisateur ✅');return;}
   const payBtn=e.target?.closest?.('[data-player-pay]');if(payBtn){payBtn.disabled=true;const {data,error}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:payBtn.dataset.publicToken,tournament_id:payBtn.dataset.tournamentId,player_id:payBtn.dataset.playerId,payer_email:S.session?.user?.email||null,success_url:APP_URL+'?playerPayment=success',cancel_url:APP_URL+'?playerPayment=cancel'}});payBtn.disabled=false;if(error||data?.error)return toast(data?.error||error?.message||'Impossible d’ouvrir le paiement.');if(data?.url)location.href=data.url;return;}
   const open=e.target?.closest?.('[data-open-player-opportunity]');if(open){location.href=open.dataset.openPlayerOpportunity;return;}
   if(e.target?.id==='playerDirectoryBtn'){
@@ -3224,7 +3239,7 @@ $('#createTournament').onclick=async()=>{
     if(S.workspaceFeatures.team_review_enabled){row.team_review_requested=true;row.team_review_duration_minutes=120;}
     if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active « Accepter des joueurs externes » pour rendre ce Swé visible aux joueurs solo.');
     if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant d’exiger un paiement en ligne.');
-    if(S.workspaceFeatures.third_half_enabled)row.cooler_suggested_cents=Math.round(Math.max(0,Number($('#tourCoolerSuggested')?.value)||0)*100);
+    if(S.workspaceFeatures.third_half_enabled)row.cooler_suggested_cents=Math.min(500,Math.round(Math.max(0,Number($('#tourCoolerSuggested')?.value)||0)*100));
     const {data,error}=await sb.from('tournaments').insert(row).select().single();
     if(error)throw error;
     S.activeTour=data.id;
@@ -4198,7 +4213,7 @@ $('#createLeagueSession').onclick=async()=>{
     p_start_time:startTime,
     p_entry_fee_cents:Math.round(Number(feeRaw)*100),
     p_reservation_reference:$('#leagueSessionReservationRef')?.value.trim()||null,
-    p_cooler_suggested_cents:S.workspaceFeatures.third_half_enabled?Math.round(Math.max(0,Number($('#leagueSessionCoolerSuggested')?.value)||0)*100):0,
+    p_cooler_suggested_cents:S.workspaceFeatures.third_half_enabled?Math.min(500,Math.round(Math.max(0,Number($('#leagueSessionCoolerSuggested')?.value)||0)*100)):0,
     p_registration_deadline:registrationDeadline
   });
   if(error)return toast(error.message);
@@ -4424,7 +4439,7 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=4203',{updateViaCache:'none'})
+  navigator.serviceWorker.register('./sw.js?v=4410',{updateViaCache:'none'})
     .then(reg=>{
       reg.update().catch(()=>{});
       navigator.serviceWorker.addEventListener('controllerchange',()=>{
@@ -5330,6 +5345,7 @@ async function loadPublicPage(token,bootState){
       '<div id="publicSelectedStatus" class="muted" style="margin-top:7px">Choisis ton nom pour voir ton statut.</div><div class="muted" style="margin-top:5px">Si un autre joueur t’a proposé une équipe, les boutons <b>Accepter</b> / <b>Refuser</b> apparaîtront ici après sélection de ton nom.</div><div id="publicTeamInvitationDecision" class="hidden" style="margin-top:10px"></div>'+
       '<div class="space"></div><div id="publicParticipationActions" class="row"><button id="publicJoin" class="primary">✅ Je participe</button><button id="publicLeave">❌ Je ne participe pas</button></div>'+
       '<div id="publicPaymentBox" data-payment-controller="app" class="hidden" style="margin-top:12px"></div>'+
+      '<div id="publicThirdHalfRegistration" class="hidden" style="margin-top:12px"></div>'+
       (regTour.format==='league'
         ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>🆕 Première fois ?</b><div class="muted" style="margin:5px 0 8px">Tu n’es pas encore membre du groupe ? Entre ton nom pour t’inscrire à cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton prénom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">M’inscrire pour la première fois</button></div>'
         : '<div class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa"><b>🤝 Tu ne participes pas mais tu invites quelqu’un ?</b><div class="muted" style="margin-top:6px;line-height:1.6">Aucun problème : <b>sélectionne simplement ton nom</b> dans la liste ci-dessus, sans cliquer sur « Je participe », puis saisis le nom de ton invité ci-dessous. Ton invité sera rattaché à ton nom et <b>toi, tu ne seras pas inscrit au tournoi</b>.</div></div>')+
@@ -5360,6 +5376,59 @@ async function loadPublicPage(token,bootState){
 
     setTimeout(updateTournamentCountdowns,0);
     const PUBLIC_GUEST_LIMIT=5;
+    let publicThirdHalfState=null;
+    let publicThirdHalfLoadedAt=0;
+
+    function publicThirdHalfPackagesHtml(state){
+      const packs=Array.isArray(state?.packages)?state.packages:[];
+      if(!packs.length)return '';
+      return '<div class="third-half-pack-list"><b>🥤 Packs proposés avec ce Swé</b>'+packs.map(p=>'<div class="third-half-pack"><div><b>'+esc(p.name)+'</b><small>'+esc(p.description||'Pack partenaire du complexe')+(p.contains_alcohol?' • Réservé aux adultes':'')+'</small></div><strong>'+euroCents(p.public_price_cents)+'</strong></div>').join('')+'<div class="muted">Offres publiées par SWÉ pour le complexe associé au tournoi.</div></div>';
+    }
+
+    function renderPublicThirdHalfRegistration(){
+      const box=$('#publicThirdHalfRegistration');if(!box)return;
+      const state=publicThirdHalfState;
+      if(!publicThirdHalf||!regTour.third_half_active||!state?.enabled){box.className='hidden';box.innerHTML='';return;}
+      const pid=$('#publicPlayerSelect')?.value||'';
+      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
+      const amount=Math.max(0,Math.min(500,Number(state.suggested_amount_cents||0)));
+      const owner=String(pid)===String(state.responsible_player_id||'');
+      const ownerName=state.responsible_player_name||'À désigner';
+      let action='';
+      if(!state.responsible_player_id){
+        action='<div class="third-half-pending">Le responsable de la glacière sera choisi parmi les inscrits.</div>';
+      }else if(!pid){
+        action='<div class="third-half-pending">Choisis ton nom pour afficher l’action qui te concerne.</div>';
+      }else if(!reg){
+        action='<div class="third-half-pending">Inscris-toi au Swé pour accéder à la participation glacière.</div>';
+      }else if(owner&&state.can_manage){
+        action='<div class="third-half-owner-form"><b>🧊 Tu es responsable de la glacière</b><div class="muted">Ajoute ton lien personnel. Aucun montant libre : la demande est limitée à 5 €.</div><div class="grid g2"><label><span class="muted">Solution</span><select id="publicCoolerProvider"><option value="">Choisir…</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option '+(state.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Montant fixe</span><select id="publicCoolerAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(amount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label></div><label><span class="muted">Ton lien HTTPS</span><input id="publicCoolerLink" type="url" maxlength="500" placeholder="https://..." value="'+esc(state.payment_link||'')+'"></label><button id="publicSaveCoolerLink" class="primary" type="button">Activer mon lien pour les inscrits</button></div>';
+      }else if(owner&&!state.can_manage){
+        action='<div class="third-half-pending"><b>'+esc(ownerName)+', tu as été choisi pour la glacière.</b><br>Connecte-toi avec le compte SWÉ lié à ton profil pour ajouter ton lien personnel.</div>';
+      }else if(state.payment_link_ready&&state.payment_link){
+        action='<a class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
+      }else{
+        action='<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
+      }
+      box.className='third-half-registration';
+      box.innerHTML='<div class="third-half-registration-head"><div><span>MODULE 3E MI-TEMPS</span><h3>🧊 La glacière du match</h3></div><div class="third-half-owner"><small>Responsable</small><b>'+esc(ownerName)+'</b></div></div>'+publicThirdHalfPackagesHtml(state)+action;
+      const save=$('#publicSaveCoolerLink');if(save)save.onclick=async()=>{
+        const provider=$('#publicCoolerProvider')?.value||'',link=$('#publicCoolerLink')?.value.trim()||'',fixed=Number($('#publicCoolerAmount')?.value||0);
+        if(!provider)return toast('Choisis ta solution de paiement.');if(!/^https:\/\/\S+$/i.test(link))return toast('Ajoute un lien HTTPS valide.');if(fixed<50||fixed>500)return toast('Le montant doit rester entre 0,50 € et 5 €.');
+        save.disabled=true;save.textContent='Enregistrement…';
+        const {error}=await sb.rpc('save_my_third_half_payment_link_v1',{p_tournament_id:regTour.id,p_player_id:pid,p_provider:provider,p_payment_link:link,p_suggested_amount_cents:fixed});
+        save.disabled=false;if(error){save.textContent='Activer mon lien pour les inscrits';return toast(error.message);}
+        toast('Lien glacière activé ✅');await loadPublicThirdHalfRegistration(true);
+      };
+    }
+
+    async function loadPublicThirdHalfRegistration(force=false){
+      if(!publicThirdHalf||!regTour.third_half_active)return renderPublicThirdHalfRegistration();
+      if(!force&&Date.now()-publicThirdHalfLoadedAt<20000)return renderPublicThirdHalfRegistration();
+      const {data,error}=await sb.rpc('get_public_third_half_registration_v1',{p_token:token,p_tournament_id:regTour.id});
+      if(!error&&data){publicThirdHalfState=data;publicThirdHalfLoadedAt=Date.now();}
+      renderPublicThirdHalfRegistration();
+    }
 
     function publicGuestUsage(hostId){
       const used=registrations.filter(r=>
@@ -5594,11 +5663,12 @@ async function loadPublicPage(token,bootState){
       };
     }
     refreshPublicPlayerSelect();
-    $('#publicPlayerSelect').onchange=()=>{updateSelectedRegistrationStatus();renderTeamInvitationDecision();renderPublicPaymentBox();};
+    $('#publicPlayerSelect').onchange=()=>{updateSelectedRegistrationStatus();renderTeamInvitationDecision();renderPublicPaymentBox();renderPublicThirdHalfRegistration();};
     const payPlayerFromUrl=publicParams.get('pay_player');
     if(payPlayerFromUrl&&[...$('#publicPlayerSelect').options].some(o=>o.value===payPlayerFromUrl))$('#publicPlayerSelect').value=payPlayerFromUrl;
     updateSelectedRegistrationStatus();
     renderTeamInvitationDecision();
+    loadPublicThirdHalfRegistration(true);
     const stripeReturn=publicParams.get('stripe');
     const stripeSessionId=publicParams.get('session_id');
     if(stripeReturn==='success'&&payPlayerFromUrl){
@@ -5666,6 +5736,7 @@ async function loadPublicPage(token,bootState){
         updateSelectedRegistrationStatus();
         renderTeamInvitationDecision();
         renderPublicPaymentBox({backgroundRefresh:true});
+        loadPublicThirdHalfRegistration();
         // Ne pas reconstruire le formulaire équipe pendant que l’utilisateur le remplit.
         // Le rafraîchissement automatique de 8 s reste actif pour les données, mais ne reset plus l'inscription équipe.
         if(typeof renderPublicTeamBuilder==='function'&&!window.__swePublicTeamEditing)renderPublicTeamBuilder();
