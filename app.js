@@ -1,6414 +1,5824 @@
-const { createClient } = window.supabase;
-const noStoreFetch=(input,init={})=>fetch(input,{...init,cache:'no-store'});
-const sb=createClient('https://fbppesfxkvledwjemwsn.supabase.co','sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp',{
-  global:{fetch:noStoreFetch},
-  auth:{
-    ...(new URLSearchParams(location.search).has('test_tournament')?{storageKey:'swe-forssadmin-auth-v1'}:{}),
-    flowType:'pkce',
-    persistSession:true,
-    autoRefreshToken:true,
-    detectSessionInUrl:true
-  }
-});
-
-// V41 security foundation: never leak bearer links through Referrer and clear sensitive
-// checkout/payment-desk parameters from browser history as soon as they are captured.
-const SECURITY_VERSION='41.00';
-function sanitizeSensitiveUrlParams(){
-  try{
-    const u=new URL(location.href);
-    const sensitive=['coorg_session_id'];
-    let changed=false;
-    sensitive.forEach(k=>{if(u.searchParams.has(k)){u.searchParams.delete(k);changed=true;}});
-    if(changed) history.replaceState({},'',u.toString());
-  }catch(_){}
-}
-window.addEventListener('pageshow',()=>sanitizeSensitiveUrlParams());
-
-window.addEventListener('error', (e) => {
-  const t=document.querySelector('#toast');
-  if(t){t.textContent='Erreur de chargement de l‚Äôapplication. Recharge la page.';t.style.display='block';}
-});
-
-const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
-
-let safeSyncTimer=null;
-let safeSyncBusy=false;
-let lastUserInteractionAt=0;
-function markUserInteraction(){lastUserInteractionAt=Date.now();}
-['input','change','keydown','pointerdown','touchstart'].forEach(evt=>document.addEventListener(evt,e=>{
-  if(e.target?.closest?.('#main')) markUserInteraction();
-},{capture:true,passive:true}));
-function userIsEditing(){
-  const a=document.activeElement;
-  if(a&&a.closest?.('#main')&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable))return true;
-  return Date.now()-lastUserInteractionAt<30000;
-}
-async function safeAppSync(){
-  // Ne jamais reconstruire l'interface pendant une saisie terrain.
-  if(safeSyncBusy || userIsEditing() || S.editingTournamentId || S.publicMode || !S.session || !S.workspace || document.visibilityState==='hidden' || document.querySelector('#view-permissions.active')) return;
-  safeSyncBusy=true;
-  try{ await loadAll(); }
-  catch(e){ console.warn('safeAppSync',e); }
-  finally{ safeSyncBusy=false; }
-}
-function startSafeAppSync(){
-  if(safeSyncTimer) clearInterval(safeSyncTimer);
-  // Rafra√Æchissement de s√©curit√© moins agressif : le temps r√©el reste prioritaire.
-  safeSyncTimer=setInterval(safeAppSync,60000);
-}
-document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&!userIsEditing()) setTimeout(safeAppSync,800);
-});
-window.addEventListener('pageshow',()=>{if(!userIsEditing())setTimeout(safeAppSync,800)});
-
-const $=s=>document.querySelector(s);
-const toast=t=>{const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)};
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function renderPlatformFooter(){
-  const footer=$('#platformFooter');
-  if(!footer)return;
-  const cfg=S.platformSettings||{};
-  const enabled=cfg.footer_enabled!==false;
-  footer.classList.toggle('hidden',!enabled);
-  if(!enabled)return;
-
-  const company=$('#platformFooterCompany');
-  const text=$('#platformFooterText');
-  const links=$('#platformFooterLinks');
-  if(company)company.textContent=cfg.footer_company_name||'SW√â Tournament';
-  if(text)text.textContent=cfg.footer_legal_text||'';
-  if(links){
-    links.classList.add('platform-footer-links');
-    const items=[];
-    if(cfg.footer_contact_email)items.push('<a href=\"mailto:'+esc(cfg.footer_contact_email)+'\">Contact</a>');
-    if(cfg.footer_legal_url)items.push('<a href=\"'+esc(cfg.footer_legal_url)+'\" target=\"_blank\" rel=\"noopener noreferrer\">Mentions l√©gales</a>');
-    if(cfg.footer_privacy_url)items.push('<a href=\"'+esc(cfg.footer_privacy_url)+'\" target=\"_blank\" rel=\"noopener noreferrer\">Confidentialit√©</a>');
-    if(cfg.footer_terms_url)items.push('<a href=\"'+esc(cfg.footer_terms_url)+'\" target=\"_blank\" rel=\"noopener noreferrer\">CGU / CGV</a>');
-    links.innerHTML=items.join('');
-  }
-}
-const today=()=>new Date().toISOString().slice(0,10); $('#tourDate').value=today();
-function defaultRegistrationDeadlineLocal(dateStr){
-  if(!dateStr)return '';
-  const d=new Date(dateStr+'T12:00:00-04:00');
-  d.setDate(d.getDate()-1);
-  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
-  return y+'-'+m+'-'+day+'T17:00';
-}
-function registrationDeadlineIso(localValue){
-  if(!localValue)return null;
-  const d=new Date(localValue+':00-04:00');
-  return Number.isFinite(d.getTime())?d.toISOString():null;
-}
-function syncRegistrationDeadline(dateSelector,deadlineSelector){
-  const dateEl=$(dateSelector),deadlineEl=$(deadlineSelector);
-  if(!dateEl||!deadlineEl)return;
-  const apply=()=>{deadlineEl.value=defaultRegistrationDeadlineLocal(dateEl.value)};
-  dateEl.addEventListener('change',apply);
-  if(dateEl.value&&!deadlineEl.value)apply();
-}
-syncRegistrationDeadline('#tourDate','#tourRegistrationDeadline');
-syncRegistrationDeadline('#leagueSessionDate','#leagueSessionRegistrationDeadline');
-
-const DEFAULT_VENUE_META={
-  'mada football club':{city:'Ducos',type:'Outdoor',hours:'Lun 16h-23h ; Mar 15h-23h ; Mer 14h-23h ; Jeu-Ven 15h-23h ; Sam 14h-23h ; Dim 15h-20h'},
-  'arena martinique / arena play on':{city:'Sch≈ìlcher',type:'Indoor',hours:'Environ 9h-22h30, 7j/7'}
-};
-function venueMeta(c){return DEFAULT_VENUE_META[String(c?.name||'').trim().toLowerCase()]||null}
-async function ensureDefaultSportsVenues(){
-  if(!S.isSuperAdmin)return;
-  // Les complexes sont d√©sormais administr√©s par le Super Admin.
-  // On ne cr√©e les lieux de d√©monstration que sur une installation totalement vide,
-  // afin qu'un complexe supprim√© volontairement ne soit jamais recr√©√© au prochain chargement.
-  if((S.sportsComplexes||[]).length)return;
-  const wanted=[{name:'Mada football club',city:'Ducos',pitches:['Terrain 1','Terrain 2','Terrain 3']},{name:'Arena Martinique / Arena Play On',city:'Sch≈ìlcher',pitches:['Terrain 1','Terrain 2','Terrain 3','Terrain 4']}];
-  let changed=false;
-  for(const v of wanted){let c=(S.sportsComplexes||[]).find(x=>String(x.name||'').trim().toLowerCase()===v.name.toLowerCase());if(!c){const created=await sb.rpc('super_admin_manage_sports_complex',{p_action:'create',p_name:v.name,p_city:v.city,p_active:true});if(created.error){console.warn('seed complex',v.name,created.error);continue}changed=true;const rr=await sb.rpc('get_sports_venues');if(!rr.error){S.sportsComplexes=Array.isArray(rr.data?.complexes)?rr.data.complexes:[];S.sportsPitches=Array.isArray(rr.data?.pitches)?rr.data.pitches:[];}c=(S.sportsComplexes||[]).find(x=>String(x.name||'').trim().toLowerCase()===v.name.toLowerCase());}if(!c)continue;const current=(S.sportsPitches||[]).filter(p=>String(p.complex_id)===String(c.id));for(const pitch of v.pitches){if(!current.some(p=>String(p.name||'').trim().toLowerCase()===pitch.toLowerCase())){const rr=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'create',p_complex_id:c.id,p_name:pitch,p_active:true});if(!rr.error)changed=true;}}}
-  if(changed){const rr=await sb.rpc('get_sports_venues');if(!rr.error){S.sportsComplexes=Array.isArray(rr.data?.complexes)?rr.data.complexes:[];S.sportsPitches=Array.isArray(rr.data?.pitches)?rr.data.pitches:[];renderVenueSelectors();renderSuperAdminVenues();}}
-}
-
-async function loadSportsVenues(autoSeed=true){
-  const {data,error}=await sb.rpc('get_sports_venues');
-  if(error){console.warn('sports venues',error);return}
-  S.sportsComplexes=Array.isArray(data?.complexes)?data.complexes:[];
-  S.sportsPitches=Array.isArray(data?.pitches)?data.pitches:[];
-  renderVenueSelectors();
-  if(S.isSuperAdmin)renderSuperAdminVenues();
-  if(autoSeed&&S.isSuperAdmin)await ensureDefaultSportsVenues();
-}
-function complexLabel(id){
-  const c=S.sportsComplexes.find(x=>x.id===id);return c?([c.name,c.city].filter(Boolean).join(' ‚Ä¢ ')):'Complexe';
-}
-function pitchName(id){return S.sportsPitches.find(x=>x.id===id)?.name||'Terrain'}
-function renderVenueSelectors(){
-  const activeComplexes=S.sportsComplexes.filter(x=>x.active!==false);
-  const options='<option value="">Choisir le complexe</option>'+activeComplexes.map(c=>'<option value="'+c.id+'">'+esc(complexLabel(c.id))+'</option>').join('');
-  if($('#tourComplex')){$('#tourComplex').innerHTML=options;renderTournamentPitchChoices();}
-  if($('#leagueSessionComplex')){$('#leagueSessionComplex').innerHTML=options;renderLeaguePitchSelect();}
-  renderMatchPitchSelect();
-}
-function renderTournamentPitchChoices(){
-  const box=$('#tourPitchChoices');if(!box)return;
-  const cid=$('#tourComplex')?.value||'';
-  const pitches=S.sportsPitches.filter(x=>x.active!==false&&x.complex_id===cid);
-  box.innerHTML=pitches.length
-    ? '<div class="muted" style="margin-bottom:6px">Terrains r√©serv√©s (maximum 3)</div>'+pitches.map(p=>'<label class="player row" style="justify-content:flex-start;margin:5px 0"><input class="tourPitchCheck" type="checkbox" value="'+p.id+'" style="width:auto"><span><b>'+esc(p.name)+'</b></span></label>').join('')
-    : '<div class="muted">Choisis d‚Äôabord un complexe disposant de terrains actifs.</div>';
-  box.querySelectorAll('.tourPitchCheck').forEach(ch=>ch.onchange=()=>{
-    const checked=[...box.querySelectorAll('.tourPitchCheck:checked')];
-    if(checked.length>3){ch.checked=false;toast('Maximum 3 terrains pour un tournoi.');}
-  });
-}
-function renderLeaguePitchSelect(){
-  const sel=$('#leagueSessionPitch');if(!sel)return;
-  const cid=$('#leagueSessionComplex')?.value||'';
-  const pitches=S.sportsPitches.filter(x=>x.active!==false&&x.complex_id===cid);
-  sel.innerHTML='<option value="">Choisir le terrain</option>'+pitches.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-}
-function renderMatchPitchSelect(){
-  const sel=$('#pitch');if(!sel)return;
-  const t=currentTour();
-  let pitches=[];
-  if(t?.reserved_pitch_ids?.length)pitches=S.sportsPitches.filter(p=>t.reserved_pitch_ids.includes(p.id));
-  if(!pitches.length)pitches=S.sportsPitches.filter(p=>p.active!==false);
-  sel.innerHTML='<option value="">Terrain</option>'+pitches.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+' ‚Ä¢ '+esc(complexLabel(p.complex_id))+'</option>').join('');
-}
-
-function hostFirstName(){
-  const u=S.session?.user;
-  if(isAdmin()&&S.adminProfile?.first_name){
-    return String(S.adminProfile.first_name).trim().split(/\s+/)[0];
-  }
-  const md=u?.user_metadata||{};
-  const raw=(md.first_name||md.given_name||md.name||md.full_name||'').trim();
-  if(raw)return raw.split(/\s+/)[0];
-  // Ne jamais fabriquer le pr√©nom depuis l'adresse e-mail (ex. la.louison -> La).
-  // Si aucun pr√©nom de profil n'est disponible, utiliser un accueil neutre.
-  return '√† toi';
-}
-function renderHostWelcome(){
-  const title=$('#hostWelcomeTitle'),email=$('#hostWelcomeEmail'),rights=$('#coorgMyRights');
-  if(title)title.textContent='üëã Bonjour '+hostFirstName()+' !';
-  if(email)email.textContent='Connect√© avec : '+(S.session?.user?.email||'email indisponible');
-  if(!rights)return;
-  if(!isCoorg()){
-    rights.classList.add('hidden');
-    rights.innerHTML='';
-    return;
-  }
-  rights.classList.remove('hidden');
-  const defs=[
-    ['can_enter_scores','‚öΩ Saisir les scores pendant les matchs'],
-    ['can_generate_teams','üë• G√©n√©rer les √©quipes'],
-    ['can_create_tournaments','üìÖ Cr√©er des tournois'],
-    ['can_view_players','üë§ Voir les joueurs'],
-    ['can_add_members','‚ûï Ajouter des membres'],
-    ['can_delete_members','üóëÔ∏è Supprimer des membres'],
-    ['can_invite_coorganizers','üîó Inviter des co-organisateurs']
-  ];
-  const granted=defs.filter(([key])=>!!S.myPermissions?.[key]);
-  const temp=hasTemporaryAdmin();
-  rights.innerHTML=
-    '<div class="player" style="background:#f8fbf9">'+
-      '<div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'+
-        '<div><b>üîê Mes autorisations</b><div class="muted" style="margin-top:3px">Droits accord√©s par l‚Äôadministrateur</div></div>'+
-        '<span class="guest-badge">'+(temp?'Admin temporaire':'Co-gestionnaire')+'</span>'+
-      '</div>'+
-      '<div style="margin-top:10px">'+
-        (granted.length?granted.map(([,label])=>'<span class="guest-badge" style="margin:3px 5px 3px 0;background:#e7f6ec;color:#126b34">'+label+'</span>').join(''):'<span class="muted">Aucune autorisation particuli√®re.</span>')+
-      '</div>'+
-      (S.myPermissions?.can_enter_scores?'<div class="muted" style="margin-top:9px">‚úÖ Tu peux saisir et modifier les scores pendant les matchs en cours.</div>':'')+
-    '</div>';
-}
-
-function setView(v){
-  const previousView=S.lastView;
-  if(v==='permissions'&&!isAdmin())v='home';
-  if(v==='players'&&isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_view_players)v='home';
-  if(v==='tournaments'&&!S.workspaceFeatures.tournaments_enabled)v='home';
-  if(v==='league'&&!S.workspaceFeatures.league_enabled)v='home';
-  if(v==='ranking'&&!S.workspaceFeatures.rankings_enabled)v='home';
-  if(v==='matches'&&isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_enter_scores)v='home';
-  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
-  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
-  const activeTab=document.querySelector('.tab.active');
-  if(activeTab&&window.matchMedia('(max-width:650px)').matches){
-    requestAnimationFrame(()=>activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}));
-  }
-  if(v==='teams'){
-    if(previousView!=='teams'&&!S.teamCompetitionId&&S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
-    renderTeams();
-    if(previousView!=='teams'&&S.teamCompetitionId&&(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams))){
-      const tournamentId=S.teamCompetitionId;
-      syncTournamentSubstitutes(tournamentId).then(async()=>{
-        if(String(S.activeTour)!==String(tournamentId))return;
-        await loadTournament();renderTeams();
-      }).catch(error=>console.warn('substitute synchronization',error));
-    }
-  }
-  if(v==='ranking')renderRanking();
-  S.lastView=v;
-  if(['home','myplayer','players','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
-}
-
-// Navigation attach√©e imm√©diatement : elle reste fonctionnelle m√™me si une
-// autre partie de l'initialisation rencontre une erreur.
-document.addEventListener('click',e=>{
-  const tab=e.target.closest('.tab');
-  if(tab && tab.dataset.view){
-    e.preventDefault();
-    if(tab.disabled || tab.classList.contains('disabled-tab'))return;
-    setView(tab.dataset.view); return;
-  }
-  const go=e.target.closest('[data-go]');
-  if(go && go.dataset.go){ e.preventDefault(); setView(go.dataset.go); }
-});
-let recoveryMode=/type=recovery/i.test(location.hash+location.search);
-const APP_URL=location.origin+location.pathname.substring(0,location.pathname.lastIndexOf('/')+1);
-const urlParams=new URLSearchParams(location.search);
-let publicTokenFromUrl=urlParams.get('public');
-const paymentDeskTokenFromUrl=(()=>{
-  const fromUrl=(urlParams.get('paydesk')||'').trim();
-  if(fromUrl){
-    try{sessionStorage.setItem('swe_paydesk_token',fromUrl);}catch(_){}
-    try{const u=new URL(location.href);u.searchParams.delete('paydesk');u.searchParams.set('paydesk_session','1');history.replaceState({},'',u.toString());}catch(_){}
-    return fromUrl;
-  }
-  if(urlParams.get('paydesk_session')==='1'){
-    try{return (sessionStorage.getItem('swe_paydesk_token')||'').trim();}catch(_){return '';}
-  }
-  return '';
-})();
-const shortCodeFromUrl=(urlParams.get('s')||'').trim().toUpperCase();
-const paymentShortCodeFromUrl=(urlParams.get('pay')||'').trim().toUpperCase();
-const inviteIdFromUrl=urlParams.get('invite');
-const inviteEmailFromUrl=(urlParams.get('email')||'').trim().toLowerCase();
-function isAdmin(){return S.workspace?.role==='admin'}
-function isCoorg(){return S.workspace?.role==='coorganizer'}
-function hasTemporaryAdmin(){
-  if(!isCoorg()||!S.myPermissions?.temporary_admin_until)return false;
-  return new Date(S.myPermissions.temporary_admin_until).getTime()>Date.now();
-}
-function hasAdminOps(){return isAdmin()||hasTemporaryAdmin()}
-function formatLabel(t){return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='league'?'Ligue':'Classique')}
-function registrationLink(t){
-  if(!t||!S.workspace?.public_token)return '';
-  if(t.short_code)return APP_URL+'?s='+encodeURIComponent(String(t.short_code).toUpperCase());
-  if(t.format==='league'){
-    return APP_URL+'?public='+encodeURIComponent(S.workspace.public_token)+'&view=league-session&league='+encodeURIComponent(t.league_id||'')+'&tournament='+encodeURIComponent(t.id);
-  }
-  return APP_URL+'?public='+encodeURIComponent(S.workspace.public_token)+'&view=tournament&tournament='+encodeURIComponent(t.id);
-}
-function leagueRegistrationLink(l){
-  if(!l||!S.workspace?.public_token)return '';
-  return APP_URL+'?public='+encodeURIComponent(S.workspace.public_token)+'&view=league&league='+encodeURIComponent(l.id);
-}
-function seasonPublicRankingLink(){
-  if(!S.workspace?.public_token)return '';
-  const season=S.seasons.find(x=>x.is_active)||S.seasons[0];
-  const linked=S.tournaments.find(x=>x.season_id===season?.id&&x.format!=='league'&&x.short_code);
-  if(linked?.short_code)return APP_URL+'saison/?s='+encodeURIComponent(String(linked.short_code).toUpperCase());
-  const q=new URLSearchParams({public:S.workspace.public_token});
-  if(season?.id)q.set('season',season.id);
-  return APP_URL+'season.html?'+q.toString();
-}
-function canEditCurrentMatches(){const t=currentTour();return !!t && t.status!=='finished' && (hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores))}
-function canManageMatchStructure(){const t=currentTour();return !!t && t.status!=='finished' && hasAdminOps()}
-function makeDisabledActionButton(label,title){
-  const b=document.createElement('button');b.textContent=label;b.disabled=true;b.setAttribute('aria-disabled','true');
-  b.className='danger disabled-action';b.style.opacity='.38';b.style.filter='grayscale(1)';b.style.cursor='not-allowed';
-  b.title=title||'Action non autoris√©e';return b;
-}
-function applyPermissions(){
-  const admin=isAdmin();
-  const coorg=isCoorg();
-  const adminOps=hasAdminOps();
-  const organizerLocked=!!S.organizerAccess?.requires_subscription;
-  if(organizerLocked){
-    document.querySelectorAll('.tabs .tab').forEach(el=>{const v=el.dataset.view;el.style.display=(v==='home'||v==='myplayer')?'':'none';});
-    document.querySelectorAll('[data-go]').forEach(el=>{const v=el.dataset.go;if(v&&v!=='home'&&v!=='myplayer')el.style.display='none';});
-    return;
-  }
-  const canCreateTournament=adminOps||(coorg&&S.myPermissions.can_create_tournaments);
-  const seasonCard=$('#seasonAdminCard');if(seasonCard)seasonCard.classList.toggle('hidden',!adminOps||!S.seasonAdminOpen);
-  const tournamentCard=$('#tournamentAdminCard');if(tournamentCard)tournamentCard.classList.toggle('hidden',!canCreateTournament||!S.tournamentCreateOpen);
-  const newTournamentToggle=$('#newTournamentToggle');if(newTournamentToggle)newTournamentToggle.classList.toggle('hidden',!canCreateTournament);
-  const seasonSettingsToggle=$('#seasonSettingsToggle');if(seasonSettingsToggle)seasonSettingsToggle.classList.toggle('hidden',!adminOps);
-  const attendanceCard=$('#attendanceAdminCard');if(attendanceCard)attendanceCard.classList.toggle('hidden',!(adminOps||coorg));
-  const teamsCard=$('#teamsAdminCard');if(teamsCard)teamsCard.classList.remove('hidden');
-  const teamControls=$('#teamManagementControls');
-  const canManageTeams=adminOps||(coorg&&S.myPermissions.can_generate_teams);
-  if(teamControls)teamControls.classList.toggle('hidden',!canManageTeams);
-  const matchCreateCard=$('#matchCreateAdminCard');if(matchCreateCard)matchCreateCard.classList.toggle('hidden',!adminOps);
-  const competitionEnabled=!!(S.workspaceFeatures.tournaments_enabled||S.workspaceFeatures.league_enabled);
-  const thirdHalf=competitionEnabled&&!!S.workspaceFeatures.third_half_enabled;
-  const topPlayerEnabled=competitionEnabled&&!!S.workspaceFeatures.player_ratings_enabled&&!!S.workspaceFeatures.top_player_enabled;
-  const topPlayerCard=$('#adminTopPlayerCard');if(topPlayerCard)topPlayerCard.classList.toggle('hidden',!topPlayerEnabled);
-  $('#thirdHalfTournamentCreate')?.classList.toggle('hidden',!thirdHalf||!adminOps);
-  $('#thirdHalfLeagueCreate')?.classList.toggle('hidden',!thirdHalf||!adminOps);
-  $('#thirdHalfAdminCard')?.classList.toggle('hidden',!thirdHalf||!adminOps);
-  const matchTabAllowed=adminOps||(coorg&&S.myPermissions.can_enter_scores);
-  document.querySelectorAll('.tab[data-view="matches"]').forEach(el=>{
-    el.style.display=matchTabAllowed?'':'none';
-    el.disabled=!matchTabAllowed;
-    el.title=matchTabAllowed?'Saisir les matchs':'Aucune autorisation de saisie des scores';
-  });
-  document.querySelectorAll('[data-go="matches"]').forEach(el=>el.style.display=matchTabAllowed?'':'none');
-  document.querySelectorAll('.admin-permissions-tab').forEach(el=>{
-    el.classList.remove('hidden');
-    el.classList.toggle('disabled-tab',!admin);
-    el.disabled=!admin;
-    el.setAttribute('aria-disabled',!admin?'true':'false');
-    el.title=admin?'G√©rer les autorisations':'R√©serv√© √† l‚Äôadministrateur';
-  });
-  const permView=$('#view-permissions');if(permView&&!admin)permView.classList.remove('active');
-  const access=$('#adminAccessCard');if(access)access.classList.toggle('hidden',!(admin||coorg));
-  const inviteControls=$('#adminInviteControls');if(inviteControls)inviteControls.classList.toggle('hidden',!(admin||(coorg&&S.myPermissions.can_invite_coorganizers)));
-  const accessLegend=$('#adminAccessLegend');if(accessLegend)accessLegend.classList.toggle('hidden',!admin);
-  const playerAddCard=$('#playersInput')?.closest('.card');
-  if(playerAddCard)playerAddCard.classList.toggle('hidden',coorg&&!S.myPermissions.can_add_members);
-  document.querySelectorAll('.tab[data-view="tournaments"]').forEach(el=>el.style.display=S.workspaceFeatures.tournaments_enabled?'':'none');
-  document.querySelectorAll('.tab[data-view="league"]').forEach(el=>el.style.display=S.workspaceFeatures.league_enabled?'':'none');
-  document.querySelectorAll('.tab[data-view="cooler"]').forEach(el=>{const visible=admin&&thirdHalf;el.classList.toggle('hidden',!visible);el.style.display=visible?'':'none';});
-  if(!admin||!thirdHalf)$('#view-cooler')?.classList.remove('active');
-  document.querySelectorAll('.tab[data-view="ranking"]').forEach(el=>el.style.display=S.workspaceFeatures.rankings_enabled?'':'none');
-  const ratingsEnabled=!!S.workspaceFeatures.player_ratings_enabled;
-  document.querySelectorAll('.tab[data-view="players"]').forEach(el=>{
-    const visible=admin||hasTemporaryAdmin()||(coorg&&S.myPermissions.can_view_players);
-    el.style.display=visible?'':'none';
-    el.textContent=ratingsEnabled?'Joueurs / Notes':'Joueurs';
-  });
-  const playersTitle=$('#playersViewTitle');if(playersTitle)playersTitle.textContent=ratingsEnabled?'Joueurs / Notes':'Joueurs';
-  const playersIntro=$('#playersViewIntro');if(playersIntro)playersIntro.innerHTML=ratingsEnabled
-    ?'Consulte les membres du groupe et leurs √©valuations. <b>Administrateur et co-gestionnaires</b> peuvent noter les joueurs ; la moyenne suit le joueur gr√¢ce √† son ID SW√â.'
-    :'Liste des membres du groupe. Les actions de modification ou suppression d√©pendent des droits accord√©s par l‚Äôadministrateur.';
-  $('#playersRatingIntro')?.classList.toggle('hidden',!ratingsEnabled);
-  document.querySelectorAll('[data-go="tournaments"]').forEach(b=>{b.textContent=(adminOps||(coorg&&S.myPermissions.can_create_tournaments))?'üìÖ Nouveau tournoi':'üìÖ Tournois / historique'});
-  document.querySelectorAll('[data-go="players"]').forEach(b=>{
-    const visible=admin||hasTemporaryAdmin()||(coorg&&S.myPermissions.can_view_players);
-    b.style.display=visible?'':'none';
-    b.textContent=ratingsEnabled?'üë• Joueurs / Notes':'üë• Joueurs';
-  });
-}
-
-function showRecoveryForm(){
-  recoveryMode=true;
-  $('#auth').classList.remove('hidden');
-  $('#main').classList.add('hidden');
-  $('#publicView').classList.add('hidden');
-  $('#loginCard').classList.add('hidden');
-  $('#resetPasswordCard').classList.remove('hidden');
-}
-function friendlyAuthError(error){
-  const m=(error?.message||String(error||'')).toLowerCase();
-  if(m.includes('rate limit')) return 'Trop de demandes d‚Äôe-mail. Attends environ 1 heure avant de r√©essayer.';
-  if(m.includes('invalid login credentials')) return 'Email ou mot de passe incorrect.';
-  if(m.includes('expired')) return 'Ce lien a expir√©. Demande un nouveau lien de r√©cup√©ration.';
-  return error?.message||'Une erreur est survenue.';
-}
-async function authState(){
-  try{const cfg=await sb.rpc('get_platform_public_settings');if(!cfg.error&&cfg.data)S.platformSettings={...S.platformSettings,...cfg.data};renderPlatformFooter();}catch(_e){}
-  const consentEnabled=!!S.platformSettings.consent_gate_enabled;
-  $('#signupConsentRow')?.classList.toggle('hidden',!consentEnabled);
-  if(paymentShortCodeFromUrl){
-    try{
-      const {data,error}=await sb.rpc('resolve_payment_desk_short_link',{p_code:paymentShortCodeFromUrl});
-      if(error)throw error;
-      if(!data?.token)throw new Error('Lien d‚Äôencaissement invalide ou expir√©.');
-      await bootPaymentDesk(data.token);
-    }catch(e){
-      $('#auth').classList.add('hidden');$('#main').classList.add('hidden');$('#publicView').classList.remove('hidden');
-      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SW√â">SW√â TOURNAMENT 5/5</h1></header><div class="card"><h2>Lien d‚Äôencaissement indisponible</h2><p class="muted">'+esc(e.message||e)+'</p></div>';
-    }
-    return;
-  }
-  if(paymentDeskTokenFromUrl){
-    await bootPaymentDesk(paymentDeskTokenFromUrl);
-    return;
-  }
-  if(shortCodeFromUrl&&!publicTokenFromUrl){
-    try{
-      const {data,error}=await sb.rpc('resolve_public_tournament_short_link',{p_code:shortCodeFromUrl});
-      if(error)throw error;
-      if(!data?.public_token||!data?.tournament_id)throw new Error('Lien court invalide ou expir√©.');
-      publicTokenFromUrl=data.public_token;
-      urlParams.set('public',data.public_token);
-      urlParams.set('tournament',data.tournament_id);
-      urlParams.set('view',data.view||'tournament');
-      if(data.league_id)urlParams.set('league',data.league_id);
-      // Keep the visible ?s= URL unchanged; bootPublic reads the resolved context below.
-      window.__sweResolvedShortLink={
-        tournament:String(data.tournament_id),
-        view:String(data.view||'tournament'),
-        league:data.league_id?String(data.league_id):''
-      };
-    }catch(e){
-      $('#auth').classList.add('hidden');
-      $('#main').classList.add('hidden');
-      $('#publicView').classList.remove('hidden');
-      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SW√â">SW√â TOURNAMENT 5/5</h1></header><div class="card"><h2>Lien indisponible</h2><p class="muted">'+esc(e.message||e)+'</p></div>';
-      return;
-    }
-  }
-  if(publicTokenFromUrl){
-    await bootPublic(publicTokenFromUrl);
-    return;
-  }
-  const {data}=await sb.auth.getSession();
-  S.session=data.session;
-  if(S.session?.user?.id)window.SWEJournalSession?.(sb,S.session.user.id);
-  const oauthProvider=new URLSearchParams(location.search).get('provider');
-  if(!S.session&&(oauthProvider==='google'||oauthProvider==='apple')){
-    const u=new URL(location.href);u.searchParams.delete('provider');history.replaceState({},'',u.toString());
-    await startSocialAuth(oauthProvider);return;
-  }
-  if(S.session&&new URLSearchParams(location.search).has('oauth')){const u=new URL(location.href);u.searchParams.delete('oauth');history.replaceState({},'',u.toString());}
-  if(recoveryMode){showRecoveryForm();return}
-  $('#loginCard').classList.remove('hidden');
-  $('#resetPasswordCard').classList.add('hidden');
-  const loginEmailFromUrl=new URLSearchParams(location.search).get('email');
-  if(loginEmailFromUrl&&!$('#email').value)$('#email').value=loginEmailFromUrl;
-  const landing=$('#inviteLandingCard');
-  if(landing){
-    landing.classList.toggle('hidden',!inviteIdFromUrl);
-    if(inviteIdFromUrl){
-      $('#inviteLandingText').innerHTML='Tu as √©t√© invit√© comme <b>co-organisateur</b>.'+(inviteEmailFromUrl?' Utilise l‚Äôadresse <b>'+esc(inviteEmailFromUrl)+'</b>.':'');
-      if(inviteEmailFromUrl&&!$('#email').value)$('#email').value=inviteEmailFromUrl;
-    }
-  }
-  $('#auth').classList.toggle('hidden',!!S.session);
-  $('#main').classList.toggle('hidden',!S.session);
-  if(S.session){
-    try{
-      const consent=consentEnabled?await sb.rpc('get_my_swe_consent_status'):{error:null,data:{accepted:true}};
-      if(consentEnabled&&!consent.error&&consent.data?.accepted!==true){
-        $('#main').classList.add('hidden');
-        $('#auth').classList.add('hidden');
-        $('#consentGate')?.classList.remove('hidden');
-        return;
-      }
-      await sb.rpc('ensure_my_global_player_profile',{p_display_name:null});
-      await boot();
-    }catch(error){toast('Connexion OK, mais chargement impossible : '+(error?.message||error))}
-  }
-}
-$('#login').onclick=async()=>{
-  const email=$('#email').value.trim().toLowerCase();
-  if(inviteEmailFromUrl&&email!==inviteEmailFromUrl)return toast('Cette invitation est pr√©vue pour '+inviteEmailFromUrl);
-  const {error}=await sb.auth.signInWithPassword({email,password:$('#password').value});
-  error?toast(friendlyAuthError(error)):authState();
-};
-$('#signup').onclick=async()=>{
-  const email=$('#email').value.trim().toLowerCase();
-  if(S.platformSettings.consent_gate_enabled&&!$('#signupConsent')?.checked)return toast('Tu dois accepter les conditions SW√â Tournament pour cr√©er ton compte.');
-  if(inviteEmailFromUrl&&email!==inviteEmailFromUrl)return toast('Utilise l‚Äôadresse e-mail indiqu√©e dans l‚Äôinvitation : '+inviteEmailFromUrl);
-  const redirect=inviteIdFromUrl?APP_URL+'?invite='+encodeURIComponent(inviteIdFromUrl)+'&email='+encodeURIComponent(email):APP_URL;
-  const {data,error}=await sb.auth.signUp({email,password:$('#password').value,options:{emailRedirectTo:redirect,data:S.platformSettings.consent_gate_enabled?{swe_consent_accepted:true,swe_terms_version:'2026-09-05-beta',swe_privacy_version:'2026-09-05-beta'}:{}}});
-  if(error)return toast(friendlyAuthError(error));
-  toast(data.session?'Compte cr√©√©. Ton ID SW√â est rattach√© √† ton email.':'Compte cr√©√© : v√©rifie ton email puis reconnecte-toi avec la m√™me adresse. Ton ID SW√â sera retrouv√© automatiquement.');
-};
-$('#authGoogle').onclick=()=>startSocialAuth('google');
-$('#authApple').onclick=()=>startSocialAuth('apple');
-async function startSocialAuth(provider){
-  const redirectTo=APP_URL+'?oauth=done';
-  const {error}=await sb.auth.signInWithOAuth({provider,options:{redirectTo}});
-  if(error)toast('Connexion '+(provider==='google'?'Google':'Apple')+' indisponible pour le moment : '+friendlyAuthError(error));
-}
-$('#forgotPassword').onclick=async()=>{
-  const email=$('#email').value.trim();
-  if(!email)return toast('Entre d‚Äôabord ton adresse email.');
-  $('#forgotPassword').disabled=true;
-  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL});
-  $('#forgotPassword').disabled=false;
-  if(error)return toast(friendlyAuthError(error));
-  toast('Email envoy√©. Ouvre le lien re√ßu pour choisir un nouveau mot de passe.');
-};
-$('#updatePassword').onclick=async()=>{
-  const p1=$('#newPassword').value,p2=$('#confirmNewPassword').value;
-  if(p1.length<8)return toast('Le mot de passe doit contenir au moins 8 caract√®res.');
-  if(p1!==p2)return toast('Les deux mots de passe ne correspondent pas.');
-  $('#updatePassword').disabled=true;
-  const {error}=await sb.auth.updateUser({password:p1});
-  $('#updatePassword').disabled=false;
-  if(error)return toast(friendlyAuthError(error));
-  recoveryMode=false;
-  $('#newPassword').value='';$('#confirmNewPassword').value='';
-  history.replaceState({},'',location.pathname);
-  toast('Mot de passe modifi√© avec succ√®s.');
-  await authState();
-};
-$('#logout').onclick=async()=>{await sb.auth.signOut();location.reload()};
-$('#consentLogout').onclick=async()=>{await sb.auth.signOut();location.reload()};
-$('#acceptLegacyConsent').onclick=async()=>{
-  if(!$('#legacyConsentCheck')?.checked)return toast('Coche la case pour confirmer ton accord.');
-  const b=$('#acceptLegacyConsent');b.disabled=true;
-  const {error}=await sb.rpc('accept_current_swe_terms');
-  b.disabled=false;if(error)return toast(error.message);
-  $('#consentGate')?.classList.add('hidden');$('#main').classList.remove('hidden');
-  await boot();toast('Conditions accept√©es ‚úÖ');
-};
-
-
-
-function renderSuperAdminVenues(){
-  const box=$('#saVenueList');if(!box)return;
-  box.innerHTML='';
-  const complexes=(S.sportsComplexes||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)||String(a.name).localeCompare(String(b.name)));
-  if(!complexes.length){box.innerHTML='<p class="muted">Aucun complexe enregistr√©.</p>';return}
-  complexes.forEach(c=>{
-    const d=document.createElement('div');d.className='player';d.style.marginBottom='12px';
-    const pitches=(S.sportsPitches||[]).filter(p=>p.complex_id===c.id);
-    d.innerHTML=
-      '<div class="grid g3">'+
-        '<input data-complex-name value="'+esc(c.name)+'" placeholder="Nom du complexe">'+
-        '<input data-complex-city value="'+esc(c.city||'')+'" placeholder="Ville / commune">'+'<div class="grid g2"><input data-complex-sunday type="number" min="0" step="0.5" value="'+(Number(c.onsite_sunday_price_cents||0)/100)+'" placeholder="Dimanche ‚Ç¨"><input data-complex-weekday type="number" min="0" step="0.5" value="'+(Number(c.onsite_weekday_price_cents||0)/100)+'" placeholder="Semaine ‚Ç¨"></div>'+
-        '<label class="player row" style="justify-content:flex-start"><input data-complex-active type="checkbox" style="width:auto" '+(c.active!==false?'checked':'')+'><span>Actif</span></label>'+
-      '</div>'+
-      (venueMeta(c)?'<div class="muted" style="margin-top:7px;padding:8px 10px;background:#f7fbf8;border-radius:10px"><b>'+esc(venueMeta(c).type)+'</b> ‚Ä¢ '+esc(venueMeta(c).hours)+'</div>':'')+
-      '<div class="row" style="margin-top:8px;flex-wrap:wrap"><button data-complex-save class="primary">üíæ Enregistrer le complexe</button><button data-complex-delete class="danger">Supprimer</button></div>'+
-      '<div style="height:1px;background:#e8ecef;margin:12px 0"></div>'+
-      '<b>Terrains</b><div data-pitch-list style="margin-top:8px"></div>'+
-      '<div class="row" style="margin-top:8px"><input data-new-pitch placeholder="Nom du nouveau terrain" style="flex:1"><button data-add-pitch>+ Terrain</button></div>';
-    const plist=d.querySelector('[data-pitch-list]');
-    plist.innerHTML=pitches.map(p=>'<div class="row player" data-pitch-id="'+p.id+'" style="margin:5px 0"><input data-pitch-name value="'+esc(p.name)+'" style="flex:1"><label class="row" style="gap:5px"><input data-pitch-active type="checkbox" style="width:auto" '+(p.active!==false?'checked':'')+'> Actif</label><button data-pitch-save>Enregistrer</button><button data-pitch-delete class="danger">Supprimer</button></div>').join('')||'<div class="muted">Aucun terrain.</div>';
-    d.querySelector('[data-complex-save]').onclick=async()=>{
-      const {error}=await sb.rpc('super_admin_manage_sports_complex',{p_action:'update',p_id:c.id,p_name:d.querySelector('[data-complex-name]').value.trim(),p_city:d.querySelector('[data-complex-city]').value.trim()||null,p_active:d.querySelector('[data-complex-active]').checked});
-      if(error)return toast(error.message);await loadSportsVenues();toast('Complexe mis √† jour ‚úÖ');
-    };
-    d.querySelector('[data-complex-delete]').onclick=async()=>{
-      if(!confirm('Supprimer d√©finitivement le complexe ¬´ '+c.name+' ¬ª ?'))return;
-      const {error}=await sb.rpc('super_admin_manage_sports_complex',{p_action:'delete',p_id:c.id});
-      if(error)return toast(error.message);await loadSportsVenues();toast('Complexe supprim√©.');
-    };
-    d.querySelector('[data-add-pitch]').onclick=async()=>{
-      const name=d.querySelector('[data-new-pitch]').value.trim();if(!name)return toast('Indique le nom du terrain.');
-      const {error}=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'create',p_complex_id:c.id,p_name:name,p_active:true});
-      if(error)return toast(error.message);await loadSportsVenues();toast('Terrain ajout√© ‚úÖ');
-    };
-    plist.querySelectorAll('[data-pitch-id]').forEach(row=>{
-      const pid=row.dataset.pitchId;
-      row.querySelector('[data-pitch-save]').onclick=async()=>{
-        const {error}=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'update',p_id:pid,p_complex_id:c.id,p_name:row.querySelector('[data-pitch-name]').value.trim(),p_active:row.querySelector('[data-pitch-active]').checked});
-        if(error)return toast(error.message);await loadSportsVenues();toast('Terrain mis √† jour ‚úÖ');
-      };
-      row.querySelector('[data-pitch-delete]').onclick=async()=>{
-        if(!confirm('Supprimer d√©finitivement ce terrain ?'))return;
-        const {error}=await sb.rpc('super_admin_manage_sports_pitch',{p_action:'delete',p_id:pid});
-        if(error)return toast(error.message);await loadSportsVenues();toast('Terrain supprim√©.');
-      };
-    });
-    box.appendChild(d);
-  });
-}
-async function loadSuperAdminWorkspaces(){
-  const {data,error}=await sb.rpc('super_admin_get_workspaces_v5');
-  if(error){toast(error.message);return}
-  S.superWorkspaces=Array.isArray(data)?data:[];
-  const accountAccesses=await sb.rpc('super_admin_get_account_workspace_accesses');
-  S.superAccountAccesses=accountAccesses.error?[]:(Array.isArray(accountAccesses.data)?accountAccesses.data:[]);
-  const requests=await sb.rpc('super_admin_get_coorganizer_quota_requests');
-  S.superCoorgQuotaRequests=requests.error?[]:(Array.isArray(requests.data)?requests.data:[]);
-  const players=await sb.rpc('super_admin_get_players_directory_v3');
-  S.superPlayers=players.error?[]:(Array.isArray(players.data)?players.data:[]);
-  const signupRequests=await sb.rpc('super_admin_get_player_signup_requests');
-  S.superSignupRequests=signupRequests.error?[]:(Array.isArray(signupRequests.data)?signupRequests.data:[]);
-  const disputes=await sb.rpc('super_admin_get_identity_disputes');
-  S.superIdentityDisputes=disputes.error?[]:(Array.isArray(disputes.data)?disputes.data:[]);
-  const platform=await sb.rpc('super_admin_get_platform_settings');
-  if(!platform.error&&platform.data)S.platformSettings={...S.platformSettings,...platform.data};[['saFooterCompany','footer_company_name'],['saFooterEmail','footer_contact_email'],['saFooterLegalText','footer_legal_text'],['saFooterLegalUrl','footer_legal_url'],['saFooterPrivacyUrl','footer_privacy_url'],['saFooterTermsUrl','footer_terms_url']].forEach(([i,k])=>{if($('#'+i))$('#'+i).value=S.platformSettings[k]||''});if($('#saFooterEnabled'))$('#saFooterEnabled').checked=S.platformSettings.footer_enabled!==false;renderPlatformFooter();
-  const consentToggle=$('#saConsentGateEnabled');if(consentToggle)consentToggle.checked=!!S.platformSettings.consent_gate_enabled;
-  const consentLabel=$('#saConsentGateLabel');if(consentLabel)consentLabel.textContent=S.platformSettings.consent_gate_enabled?'Visible / obligatoire':'Masqu√©';
-  renderSuperAdminWorkspaces();
-  renderSuperAdminPlayers();
-  renderSuperAdminSignupRequests();
-  renderSuperAdminIdentityDisputes();
-}
-function playerActivationLink(token){return 'https://swetournament.fr/?activate='+encodeURIComponent(token||'');}
-function signupInviteMessage(r){return 'Salut '+(r.display_name||'')+' üëã\n\nTon inscription SW√â Tournament est pr√™te. Active ton compte avec ce lien :\n'+playerActivationLink(r.activation_token)+'\n\nCe lien est personnel. Une fois le compte activ√©, tu pourras retrouver ton ID SW√â et tes performances.';}
-function renderSuperAdminSignupRequests(){
-  const box=$('#saSignupRequestsList');if(!box)return;
-  const rows=(S.superSignupRequests||[]).filter(r=>r.status==='pending');
-  const pill=$('#saSignupRequestsCount');if(pill)pill.textContent=rows.length+' en attente';
-  if(!rows.length){box.innerHTML='<div class="muted">Aucune demande d‚Äôinscription en attente.</div>';return;}
-  box.innerHTML=rows.map(r=>{
-    const link=playerActivationLink(r.activation_token),msg=signupInviteMessage(r);
-    const mailSubject=encodeURIComponent('Activation de ton compte SW√â Tournament');
-    const mailBody=encodeURIComponent(msg);
-    const waPhone=String(r.phone_number||'').replace(/[^0-9]/g,'');
-    const waHref=waPhone?'https://wa.me/'+waPhone+'?text='+encodeURIComponent(msg):'';
-    return '<div class="sa-signup-request">'+
-      '<div class="sa-signup-request-main"><b>'+esc(r.display_name)+'</b><div class="muted">üìß '+esc(r.email)+(r.phone_number?' ‚Ä¢ üì± '+esc(r.phone_number):'')+'</div><div class="small muted">Demand√© le '+new Date(r.created_at).toLocaleString('fr-FR')+'</div></div>'+
-      '<div class="sa-activation-link"><span>Lien d‚Äôactivation</span><code>'+esc(link)+'</code></div>'+
-      '<div class="sa-signup-actions">'+
-        '<button type="button" data-copy-signup-link="'+esc(r.id)+'">üìã Copier le lien</button>'+
-        '<a class="buttonlike" href="mailto:'+encodeURIComponent(r.email)+'?subject='+mailSubject+'&body='+mailBody+'">‚úâÔ∏è Pr√©parer l‚Äôe-mail</a>'+
-        (waHref?'<a class="buttonlike wa" target="_blank" rel="noopener" href="'+esc(waHref)+'">üí¨ WhatsApp</a>':'<button type="button" disabled title="Aucun t√©l√©phone renseign√©">üí¨ WhatsApp</button>')+
-        '<button type="button" data-copy-signup-message="'+esc(r.id)+'">üìù Copier le message</button>'+
-        '<button type="button" data-regenerate-signup="'+esc(r.id)+'">‚Üª Nouveau lien</button>'+
-      '</div></div>';
-  }).join('');
-}
-
-function renderSuperAdminIdentityDisputes(){
-  const box=$('#saIdentityDisputesList');if(!box)return;const rows=S.superIdentityDisputes||[];const pill=$('#saIdentityDisputeCount');if(pill)pill.textContent=rows.length+' litige'+(rows.length>1?'s':'');
-  if(!rows.length){box.innerHTML='<div class="muted">Aucun conflit d‚Äôidentit√© en attente.</div>';return;}
-  box.innerHTML=rows.map(r=>'<div class="identity-dispute-row"><div><b>'+esc(r.player_name)+'</b><div class="muted">'+esc(r.workspace_name)+' ‚Ä¢ signal√© le '+new Date(r.created_at).toLocaleString('fr-FR')+'</div><div class="small" style="margin-top:5px"><b>Compte d√©j√† li√© :</b> '+esc(r.conflict_player_id||'‚Äî')+' ‚Ä¢ '+esc(r.conflict_email||'‚Äî')+'<br><b>Nouveau demandeur :</b> '+esc(r.claimant_player_id||'‚Äî')+' ‚Ä¢ '+esc(r.claimant_email||'‚Äî')+'</div></div><div class="identity-dispute-actions"><button data-resolve-identity="existing_valid" data-claim-id="'+esc(r.claim_id)+'">Garder le compte existant</button><button data-resolve-identity="claimant_valid" data-claim-id="'+esc(r.claim_id)+'">Valider le demandeur</button><button data-resolve-identity="no_fraud" data-claim-id="'+esc(r.claim_id)+'">Lever le blocage sans liaison</button></div></div>').join('');
-}
-
-function renderSuperAdminPlayers(){
-  const box=$('#saPlayersList');if(!box)return;
-  const all=S.superPlayers||[];
-  const q=($('#saSearchPlayer')?.value||'').trim().toLowerCase();
-  const rows=all.filter(r=>!q||[r.display_name,r.public_player_id,r.email,r.phone_number,r.home_area].some(v=>String(v||'').toLowerCase().includes(q)));
-  const pill=$('#saPlayersCountPill');if(pill)pill.textContent=all.length+' profil'+(all.length>1?'s':'');
-  const stats=$('#saPlayerStats');if(stats)stats.innerHTML=
-    '<div><span>üë§</span><b>'+all.length+'</b><small>Identit√©s SW√â</small></div>'+ 
-    '<div><span>‚úÖ</span><b>'+all.filter(r=>r.consent_accepted).length+'</b><small>Consentements √† jour</small></div>'+ 
-    '<div><span>‚è≥</span><b>'+all.filter(r=>!r.consent_accepted).length+'</b><small>√Ä r√©gulariser</small></div>'+ 
-    '<div><span>üåç</span><b>'+all.filter(r=>r.discoverable).length+'</b><small>Disponibles annuaire</small></div>';
-  box.innerHTML='';
-  if(!rows.length){box.innerHTML='<div class="muted">Aucun joueur ne correspond √† la recherche.</div>';return;}
-  box.innerHTML=rows.map(r=>{const links=Array.isArray(r.staff_links)?r.staff_links:[];return '<div class="sa-player-row">'+
-    '<div class="sa-player-main"><div class="row" style="justify-content:flex-start;gap:7px;flex-wrap:wrap"><b>'+esc(r.display_name||'Joueur SW√â')+'</b><span class="player-id-mini">'+esc(r.public_player_id||'‚Äî')+'</span><span class="guest-badge '+(r.consent_accepted?'consent-ok':'consent-pending')+'">'+(r.consent_accepted?'CONSENTEMENT OK':'√Ä VALIDER')+'</span><span class="guest-badge identity-'+esc(r.identity_status||'active')+'">'+((r.identity_status||'active')==='active'?'IDENTIT√â OK':(r.identity_status==='review'?'V√âRIFICATION':'SUSPENDU'))+'</span></div>'+ 
-    '<div class="muted">üìß '+esc(r.email||'‚Äî')+(r.phone_number?' ‚Ä¢ üì± '+esc(r.phone_number):'')+(r.home_area?' ‚Ä¢ üìç '+esc(r.home_area):'')+'</div></div>'+ 
-    '<div class="sa-player-meta"><span><b>'+Number(r.groups_count||0)+'</b> groupe(s)</span><span><b>'+Number(r.local_profiles_count||0)+'</b> profil(s) li√©(s)</span><span>'+(r.is_public?'üåê Public':'üîí Priv√©')+'</span><span>'+(r.discoverable?'üîé Annuaire':'Annuaire d√©sactiv√©')+'</span></div>'+ 
-    (links.length?'<div class="sa-staff-links"><b>üîó Liaison organisateur / membre</b>'+links.map(l=>'<div class="sa-staff-link"><span><b>'+esc(l.player_name)+'</b> ‚Ä¢ '+esc(l.workspace_name)+' <small>('+esc(l.role)+')</small></span><button class="danger" data-sa-unlink-staff data-workspace-id="'+esc(l.workspace_id)+'" data-user-id="'+esc(l.user_id)+'" data-player-id="'+esc(l.player_id)+'" data-player-name="'+esc(l.player_name)+'">D√©lier</button></div>').join('')+'</div>':'')+
-    (r.consent_accepted_at?'<div class="small muted">Consentement : '+new Date(r.consent_accepted_at).toLocaleString('fr-FR')+'</div>':'')+
-  '</div>'}).join('');
-}
-
-function renderSuperAdminWorkspaces(){
-  const box=$('#saWorkspaceList');if(!box)return;
-  const q=($('#saSearchWorkspace')?.value||'').trim().toLowerCase();
-  const mode=$('#saWorkspaceFilter')?.value||'all';
-  const all=S.superWorkspaces||[];
-  const matchesMode=w=>{
-    const paid=['standard','pro'].includes(String(w.subscription_plan||'free'))||!!w.special_access_enabled;
-    const trial=!!w.trial_ends_at&&new Date(w.trial_ends_at)>new Date();
-    if(mode==='paid')return paid;
-    if(mode==='trial')return trial&&!paid;
-    if(mode==='free')return !paid;
-    if(mode==='multi'){
-      const a=(S.superAccountAccesses||[]).filter(x=>String(x.user_id)===String(w.owner_user_id));
-      return a.filter(x=>x.role==='admin').length>1||a.filter(x=>x.role==='coorganizer').length>0;
-    }
-    if(mode==='suspended')return !w.public_enabled;
-    return true;
-  };
-  const rows=all.filter(w=>matchesMode(w)&&(!q||
-    String(w.workspace_name||'').toLowerCase().includes(q)||
-    String(w.owner_email||'').toLowerCase().includes(q)||
-    String(w.admin_first_name||'').toLowerCase().includes(q)||
-    String(w.admin_last_name||'').toLowerCase().includes(q)||
-    String(w.admin_phone||'').toLowerCase().includes(q)));
-
-  const owners=new Map();all.forEach(w=>owners.set(String(w.owner_user_id),w));
-  const accessRows=S.superAccountAccesses||[];
-  const accessByUser=new Map();
-  accessRows.forEach(a=>{const k=String(a.user_id||'');if(!accessByUser.has(k))accessByUser.set(k,[]);accessByUser.get(k).push(a);});
-  if($('#saTotalSpaces'))$('#saTotalSpaces').textContent=all.length;
-  if($('#saActiveSpaces'))$('#saActiveSpaces').textContent=all.filter(w=>w.public_enabled).length;
-  if($('#saSuspendedSpaces'))$('#saSuspendedSpaces').textContent=all.filter(w=>!w.public_enabled).length;
-  if($('#saTotalPlayers'))$('#saTotalPlayers').textContent=all.reduce((n,w)=>n+Number(w.active_players||0),0);
-  if($('#saTotalCompetitions'))$('#saTotalCompetitions').textContent=all.reduce((n,w)=>n+Number(w.tournament_count||0)+Number(w.league_count||0),0);
-  if($('#saPaidSpaces'))$('#saPaidSpaces').textContent=all.filter(w=>['standard','pro'].includes(String(w.subscription_plan||'free'))||w.special_access_enabled).length;
-  if($('#saTotalOrganizers'))$('#saTotalOrganizers').textContent=owners.size;
-  if($('#saMultiOrganizers'))$('#saMultiOrganizers').textContent=[...owners.keys()].filter(uid=>{
-    const a=accessByUser.get(uid)||[];
-    return a.filter(x=>x.role==='admin').length>1||a.filter(x=>x.role==='coorganizer').length>0;
-  }).length;
-
-  box.innerHTML='';
-  if(!rows.length){box.innerHTML='<p class="muted">'+(q?'Aucun espace ne correspond √† la recherche.':'Aucun espace dans ce filtre.')+'</p>';return}
-
-  const ownerBodies=new Map();
-  const ensureOwnerGroup=w=>{
-    const key=String(w.owner_user_id||w.owner_email||'unknown');
-    if(ownerBodies.has(key))return ownerBodies.get(key);
-    const accesses=accessByUser.get(String(w.owner_user_id))||[];
-    const administered=accesses.filter(a=>a.role==='admin');
-    const coManaged=accesses.filter(a=>a.role==='coorganizer');
-    const owned=Number(w.owner_owned_spaces||0),limit=Number(w.owner_free_workspace_limit||1);
-    const g=document.createElement('details');g.className='sa-owner-group';g.open=!!q||mode==='multi';
-    const display=([w.admin_first_name,w.admin_last_name].filter(Boolean).join(' ')||w.owner_email||'Organisateur');
-    const accessHtml='<div class="sa-account-access-map"><div class="sa-access-column"><b>üëë Groupes administr√©s</b>'+(administered.length?administered.map(a=>'<span><strong>'+esc(a.workspace_name)+'</strong><small>'+(a.is_owner?'Propri√©taire':'Administrateur')+'</small></span>').join(''):'<span class="muted">Aucun</span>')+'</div><div class="sa-access-column"><b>üõ†Ô∏è Groupes co-g√©r√©s</b>'+(coManaged.length?coManaged.map(a=>'<span><strong>'+esc(a.workspace_name)+'</strong><small>Co-gestionnaire uniquement</small></span>').join(''):'<span class="muted">Aucun</span>')+'</div></div>';
-    g.innerHTML='<summary><span><b>üë§ '+esc(display)+'</b><small>'+esc(w.owner_email||'')+'</small></span><span class="sa-owner-badges"><em>üëë '+administered.length+' administr√©'+(administered.length>1?'s':'')+'</em><em>üõ†Ô∏è '+coManaged.length+' co-g√©r√©'+(coManaged.length>1?'s':'')+'</em><em class="'+(limit>1?'special':'')+'">Cr√©ations gratuites : '+owned+' / '+limit+'</em></span></summary>'+accessHtml+'<div class="sa-owner-tools"><div><b>Limite de groupes cr√©√©s gratuitement</b><div class="muted small">Les groupes o√π ce compte est seulement co-gestionnaire ne comptent jamais dans cette limite.</div></div><input data-owner-limit type="number" min="1" max="100" value="'+limit+'"><input data-owner-note value="'+esc(w.owner_limit_note||'')+'" placeholder="Motif / note interne"><button data-owner-save>üíæ Autoriser</button></div><div class="sa-owner-workspaces"></div>';
-    const body=g.querySelector('.sa-owner-workspaces');
-    g.querySelector('[data-owner-save]').onclick=async()=>{
-      const btn=g.querySelector('[data-owner-save]'),val=Math.max(1,Number(g.querySelector('[data-owner-limit]').value)||1),note=g.querySelector('[data-owner-note]').value.trim();
-      btn.disabled=true;const {error}=await sb.rpc('super_admin_set_organizer_free_workspace_limit',{p_user_id:w.owner_user_id,p_limit:val,p_note:note||null});btn.disabled=false;
-      if(error)return toast(error.message);toast('Limite organisateur mise √† jour ‚úÖ');await loadSuperAdminWorkspaces();
-    };
-    box.appendChild(g);ownerBodies.set(key,body);return body;
-  };
-
-  rows.forEach(w=>{
-    const d=document.createElement('div');d.className='sa-workspace-card';
-    const created=w.created_at?new Date(w.created_at).toLocaleDateString('fr-FR'):'‚Äî';
-    d.innerHTML=
-      '<div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap">'+
-        '<span style="flex:1;min-width:220px">'+
-          '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><b style="font-size:1.08rem">'+esc(w.workspace_name)+'</b><span class="guest-badge">'+(w.public_enabled?'ACTIF':'SUSPENDU')+'</span></div>'+
-          '<div class="muted" style="margin-top:4px">üë§ Administrateur : <b>'+esc(([w.admin_first_name,w.admin_last_name].filter(Boolean).join(' ')||w.owner_email||'Non renseign√©'))+'</b></div>'+
-          '<div class="muted">üìß '+esc(w.owner_email||'Email indisponible')+(w.admin_phone?' ‚Ä¢ üì± '+esc(w.admin_phone):'')+'</div>'+
-          '<div class="muted">Cr√©√© le '+esc(created)+'</div>'+
-        '</span>'+
-      '</div>'+
-      '<div class="grid g3" style="margin-top:12px">'+
-        '<div class="player"><div class="muted">Membres actifs</div><b>'+Number(w.active_players||0)+'</b></div>'+
-        '<div class="player"><div class="muted">Co-gestionnaires</div><b>'+Number(w.active_coorganizers||0)+' / '+Number(w.max_coorganizers||0)+'</b><div class="muted small">'+Number(w.base_max_coorganizers||0)+' offert(s) + '+Number(w.paid_coorganizers||0)+' achet√©(s)</div></div>'+
-        '<div class="player"><div class="muted">Comp√©titions</div><b>'+Number(w.tournament_count||0)+' tournoi(x) ‚Ä¢ '+Number(w.league_count||0)+' ligue(s)</b></div>'+
-      '</div>'+
-      '<div style="height:1px;background:#e8ecef;margin:14px 0"></div>'+
-      '<div class="grid g2">'+
-        '<label><span class="muted">Nom de l‚Äôespace</span><input data-sa-name value="'+esc(w.workspace_name)+'"></label>'+
-        '<label><span class="muted">Email administrateur</span><input readonly value="'+esc(w.owner_email||'')+'" style="opacity:.75"></label>'+
-      '</div>'+
-      '<div class="grid g3" style="margin-top:10px">'+
-        '<label><span class="muted">Pr√©nom administrateur</span><input data-sa-first-name value="'+esc(w.admin_first_name||'')+'" placeholder="Pr√©nom"></label>'+
-        '<label><span class="muted">Nom administrateur</span><input data-sa-last-name value="'+esc(w.admin_last_name||'')+'" placeholder="Nom"></label>'+
-        '<label><span class="muted">T√©l√©phone administrateur</span><input data-sa-phone type="tel" inputmode="tel" value="'+esc(w.admin_phone||'')+'" placeholder="T√©l√©phone"></label>'+
-      '</div>'+
-      '<div class="row" style="margin-top:8px"><button data-sa-save-profile>üíæ Enregistrer nom / pr√©nom</button><span class="muted">Modifie uniquement l‚Äôidentit√© affich√©e de l‚Äôadministrateur, sans changer son compte de connexion.</span></div>'+
-      '<div class="grid g3" style="margin-top:10px">'+
-        '<label><span class="muted">Co-gestionnaires offerts par le Super Admin</span><input data-sa-max type="number" min="0" max="1000" value="'+Number((w.base_max_coorganizers ?? 0) || 0)+'"><small class="muted">S‚Äôajoutent aux acc√®s achet√©s par le client.</small></label>'+
-        '<div class="player" style="background:#f0fdf4;border-color:#bbf7d0"><b>üéÅ '+Number(w.base_max_coorganizers||0)+' offert(s) ‚Ä¢ üí≥ '+Number(w.paid_coorganizers||0)+' achet√©(s)</b><div class="muted" style="margin-top:4px">Capacit√© totale calcul√©e automatiquement : '+Number(w.max_coorganizers||0)+' co-gestionnaire(s).</div></div>'+
-        '<label class="player row" style="justify-content:flex-start"><input data-sa-public type="checkbox" style="width:auto" '+(w.public_enabled?'checked':'')+'><span><b>Espace actif</b></span></label>'+
-      '</div>'+
-      '<div class="sa-settings-block">'+
-        '<div class="sa-block-title"><div><b>üß© Modules & d√©pendances</b><span>Les options sont automatiquement coup√©es lorsqu‚Äôaucun module comp√©tition n‚Äôest actif.</span></div></div>'+
-        '<div class="sa-module-grid">'+
-          '<label class="sa-module-toggle"><input data-sa-tournament type="checkbox" '+(w.tournaments_enabled?'checked':'')+'><span><b>üèÜ Tournoi</b><small>Module comp√©tition principal</small></span></label>'+
-          '<label class="sa-module-toggle"><input data-sa-league type="checkbox" '+(w.league_enabled?'checked':'')+'><span><b>üèÅ Ligue</b><small>Module comp√©tition r√©current</small></span></label>'+
-          '<label class="sa-module-toggle dependent"><input data-sa-rankings type="checkbox" '+(w.rankings_enabled?'checked':'')+'><span><b>‚öΩ Buteurs / passeurs</b><small>Requiert Tournoi ou Ligue</small></span></label>'+
-        '</div>'+
-        '<div class="sa-linked-options">'+
-          '<div class="sa-linked-option top"><span>‚≠ê</span><div><b>Top Player & notes de match</b><small>Inclus avec STANDARD et PRO. Requiert un module comp√©tition actif.</small></div><strong data-sa-top-status>'+(w.top_player_enabled?'ACTIF':'INACTIF')+'</strong></div>'+
-          '<div class="sa-linked-option third"><span>üçª</span><div><b>3e mi-temps</b><small>Incluse avec PRO. Requiert un module comp√©tition actif.</small></div><strong data-sa-third-status>'+(w.third_half_enabled?'ACTIF':'INACTIF')+'</strong></div>'+
-          '<div class="sa-linked-option review"><span>üó≥Ô∏è</span><div><b>Validation collaborative des √©quipes</b><small>Incluse avec STANDARD/PRO. Les co-gestionnaires pr√©sents peuvent valider ou demander un nouveau tirage pendant 2 h.</small></div><strong>'+(w.team_review_enabled?'ACTIF':'INACTIF')+'</strong></div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="sa-commercial-block">'+
-        '<div class="sa-block-title"><div><b>üíé Offre commerciale</b><span>Le choix de l‚Äôoffre pilote automatiquement les modules premium.</span></div><span class="sa-plan-chip '+esc(String(w.subscription_plan||'free'))+'">'+esc(String(w.subscription_plan||'free').toUpperCase())+'</span></div>'+
-        '<div class="grid g2" style="margin-top:12px"><label><span class="muted">Offre</span><select data-sa-plan><option value="free" '+((w.subscription_plan||'free')==='free'?'selected':'')+'>FREE ‚Äî Gestion essentielle</option><option value="standard" '+(w.subscription_plan==='standard'?'selected':'')+'>STANDARD ‚Äî Top Player inclus</option><option value="pro" '+(w.subscription_plan==='pro'?'selected':'')+'>PRO ‚Äî Top Player + 3e mi-temps</option></select></label><label class="sa-special-toggle"><input data-sa-special-access type="checkbox" '+(w.special_access_enabled?'checked':'')+'><span><b>üéÅ Acc√®s sp√©cial</b><small>D√©bloque les options premium pour d√©mo / ambassadeur.</small></span></label></div><label class="sa-special-toggle team-review-gift"><input data-sa-team-review-gift type="checkbox" '+(w.team_review_gifted?'checked':'')+'><span><b>üó≥Ô∏è Offrir validation du tirage</b><small>Active uniquement cette option m√™me sans abonnement payant.</small></span></label>'+
-        '<div class="sa-offer-map"><span>FREE <b>Base</b></span><span>STANDARD <b>+ Top Player</b></span><span>PRO <b>+ Top Player + 3e mi-temps</b></span></div>'+
-        (w.upgrade_requested_at?'<div class="sa-upgrade-alert"><b>üîî Demande d‚Äôupgrade re√ßue</b><span>'+new Date(w.upgrade_requested_at).toLocaleString('fr-FR')+'</span></div>':'')+
-      '</div>'+ 
-
-      '<div class="player" style="margin-top:14px;background:#fffaf0;border:1px solid #f2d79a">'+
-        '<b>üîÑ Transf√©rer la gestion √† un autre administrateur</b>'+
-        '<div class="muted" style="margin:5px 0 10px">Le nouveau compte doit d√©j√† exister. Apr√®s validation, il devient imm√©diatement administrateur principal de cet espace.</div>'+
-        '<div class="grid g2"><input data-sa-transfer-email type="email" placeholder="Email du nouvel administrateur"><input data-sa-transfer-phone type="tel" inputmode="tel" placeholder="T√©l√©phone du nouvel administrateur"></div>'+
-        '<div class="grid g2" style="margin-top:8px"><input data-sa-transfer-first placeholder="Pr√©nom du nouvel administrateur"><input data-sa-transfer-last placeholder="Nom du nouvel administrateur"></div>'+
-        '<label class="row" style="justify-content:flex-start;margin-top:10px"><input data-sa-keep-old type="checkbox" style="width:auto"><span>Conserver l‚Äôancien administrateur comme co-organisateur</span></label>'+
-        '<div class="muted" style="margin-top:5px">Sinon, son acc√®s √† cet espace sera d√©sactiv√©. Son compte utilisateur n‚Äôest jamais supprim√©.</div>'+
-        '<button data-sa-transfer class="danger" style="margin-top:10px">Transf√©rer l‚Äôadministration</button>'+
-      '</div>';
-
-    refreshWorkspaceDependencyUI(d);
-    const profileSave=d.querySelector('[data-sa-save-profile]');
-    profileSave.onclick=async()=>{
-      profileSave.disabled=true;
-      const {error}=await sb.rpc('super_admin_update_admin_profile',{
-        p_workspace_id:w.workspace_id,
-        p_first_name:d.querySelector('[data-sa-first-name]').value.trim()||null,
-        p_last_name:d.querySelector('[data-sa-last-name]').value.trim()||null,
-        p_phone:d.querySelector('[data-sa-phone]').value.trim()||null
-      });
-      profileSave.disabled=false;
-      if(error)return toast(error.message);
-      toast('Nom et pr√©nom de l‚Äôadministrateur mis √† jour ‚úÖ');
-      await loadSuperAdminWorkspaces();
-    };
-
-    const actions=document.createElement('div');actions.className='row';actions.style.marginTop='12px';actions.style.flexWrap='wrap';
-
-    const save=document.createElement('button');save.className='primary';save.textContent='üíæ Enregistrer';
-    save.onclick=async()=>{
-      const max=Number(d.querySelector('[data-sa-max]').value)||0;
-      const name=d.querySelector('[data-sa-name]').value.trim();
-      if(!name)return toast('Le nom de l‚Äôespace est obligatoire.');
-      save.disabled=true;
-      let r=await sb.rpc('super_admin_rename_workspace',{p_workspace_id:w.workspace_id,p_name:name});
-      if(!r.error)r=await sb.rpc('super_admin_update_admin_profile',{
-        p_workspace_id:w.workspace_id,
-        p_first_name:d.querySelector('[data-sa-first-name]').value.trim()||null,
-        p_last_name:d.querySelector('[data-sa-last-name]').value.trim()||null,
-        p_phone:d.querySelector('[data-sa-phone]').value.trim()||null
-      });
-      if(!r.error)r=await sb.rpc('super_admin_set_commercial_access_v2',{p_workspace_id:w.workspace_id,p_subscription_plan:d.querySelector('[data-sa-plan]').value,p_special_access_enabled:d.querySelector('[data-sa-special-access]').checked});
-      if(!r.error)r=await sb.rpc('super_admin_set_workspace_options_v2',{
-        p_workspace_id:w.workspace_id,
-        p_max_coorganizers:Number(w.max_coorganizers||0),
-        p_max_coorganizers_cap:Number(w.max_coorganizers_cap||1000),
-        p_tournaments_enabled:d.querySelector('[data-sa-tournament]').checked,
-        p_league_enabled:d.querySelector('[data-sa-league]').checked,
-        p_rankings_enabled:d.querySelector('[data-sa-rankings]').checked,
-        p_public_enabled:d.querySelector('[data-sa-public]').checked
-      });
-      if(!r.error)r=await sb.rpc('super_admin_set_team_review_gift',{p_workspace_id:w.workspace_id,p_enabled:!!d.querySelector('[data-sa-team-review-gift]')?.checked});
-      if(!r.error)r=await sb.rpc('super_admin_grant_coorganizer_slots',{p_workspace_id:w.workspace_id,p_base_max_coorganizers:max});
-      save.disabled=false;if(r.error)return toast(r.error.message);
-      toast('Espace mis √† jour ‚úÖ');await loadSuperAdminWorkspaces();
-    };
-
-    const copy=document.createElement('button');copy.textContent='üìß Copier email admin';
-    copy.onclick=async()=>{try{await navigator.clipboard.writeText(w.owner_email||'');toast('Email administrateur copi√© ‚úÖ')}catch(e){toast('Copie impossible')}};
-
-    const toggle=document.createElement('button');toggle.textContent=w.public_enabled?'‚è∏ Suspendre':'‚ñ∂ R√©activer';
-    if(w.public_enabled)toggle.className='danger';
-    toggle.onclick=async()=>{
-      const verb=w.public_enabled?'suspendre':'r√©activer';
-      if(!confirm('Confirmer : '+verb+' l‚Äôespace ¬´ '+w.workspace_name+' ¬ª ?'))return;
-      toggle.disabled=true;
-      const {error}=await sb.rpc('super_admin_set_workspace_options_v2',{
-        p_workspace_id:w.workspace_id,
-        p_max_coorganizers:Number(w.max_coorganizers||0),
-        p_max_coorganizers_cap:Number(w.max_coorganizers_cap||100),
-        p_tournaments_enabled:!!w.tournaments_enabled,
-        p_league_enabled:!!w.league_enabled,
-        p_rankings_enabled:!!w.rankings_enabled,
-        p_public_enabled:!w.public_enabled
-      });
-      toggle.disabled=false;if(error)return toast(error.message);
-      toast(w.public_enabled?'Espace suspendu.':'Espace r√©activ√© ‚úÖ');await loadSuperAdminWorkspaces();
-    };
-
-    const transferBtn=d.querySelector('[data-sa-transfer]');
-    transferBtn.onclick=async()=>{
-      const email=d.querySelector('[data-sa-transfer-email]').value.trim().toLowerCase();
-      const first=d.querySelector('[data-sa-transfer-first]').value.trim();
-      const last=d.querySelector('[data-sa-transfer-last]').value.trim();
-      const phone=d.querySelector('[data-sa-transfer-phone]').value.trim();
-      const keep=d.querySelector('[data-sa-keep-old]').checked;
-      if(!email)return toast('Indique l‚Äôemail du nouvel administrateur.');
-      const display=[first,last].filter(Boolean).join(' ')||email;
-      const msg='TRANSFERT D‚ÄôADMINISTRATION\n\nEspace : '+w.workspace_name+'\nAdministrateur actuel : '+(w.owner_email||'‚Äî')+'\nNouvel administrateur : '+display+' ('+email+')\n\n'+(keep?'L‚Äôancien administrateur restera co-organisateur.':'L‚Äôacc√®s de l‚Äôancien administrateur √† cet espace sera d√©sactiv√©.')+'\n\nConfirmer le transfert ?';
-      if(!confirm(msg))return;
-      const typed=prompt('Pour s√©curiser le transfert, saisis exactement TRANSFERER');
-      if(typed!=='TRANSFERER')return toast('Transfert annul√©.');
-      transferBtn.disabled=true;
-      const {error}=await sb.rpc('super_admin_transfer_workspace_admin',{
-        p_workspace_id:w.workspace_id,
-        p_new_owner_email:email,
-        p_first_name:first||null,
-        p_last_name:last||null,
-        p_phone:phone||null,
-        p_keep_previous_as_coorganizer:keep
-      });
-      transferBtn.disabled=false;
-      if(error)return toast(error.message);
-      toast('Administration transf√©r√©e avec succ√®s ‚úÖ');
-      await loadSuperAdminWorkspaces();
-    };
-
-    const del=document.createElement('button');del.className='danger';del.textContent='üóë Supprimer l‚Äôespace';
-    del.onclick=async()=>{
-      const ok=confirm('SUPPRESSION D√âFINITIVE\\n\\nSupprimer l‚Äôespace ¬´ '+w.workspace_name+' ¬ª et toutes ses donn√©es sportives ?\\n\\nLe compte de connexion de l‚Äôadministrateur ne sera pas supprim√©.');
-      if(!ok)return;
-      const typed=prompt('Pour confirmer, saisis exactement le nom de l‚Äôespace :\\n'+w.workspace_name);
-      if(typed!==w.workspace_name)return toast('Suppression annul√©e : nom incorrect.');
-      del.disabled=true;
-      const {error}=await sb.rpc('super_admin_delete_workspace',{p_workspace_id:w.workspace_id});
-      del.disabled=false;if(error)return toast(error.message);
-      toast('Espace supprim√© d√©finitivement.');await loadSuperAdminWorkspaces();
-    };
-
-    actions.append(save,copy,toggle,del);d.appendChild(actions);ensureOwnerGroup(w).appendChild(d);
-  });
-}
-async function initSuperAdmin(){
-  const testId=new URLSearchParams(location.search).get('test_tournament');
-  if(testId){
-    const {data,error}=await sb.rpc('super_admin_manage_test_tournament',{p_tournament_id:testId,p_action:'open'});
-    if(error||!data?.workspace_id){toast(error?.message||'Tournoi test indisponible.');return true;}
-    S.testAdminContext=data;S.isSuperAdmin=false;return false;
-  }
-  const claim=await sb.rpc('claim_platform_super_admin');
-  if(claim.error)console.warn('claim super admin',claim.error);
-  const check=await sb.rpc('is_platform_super_admin');
-  S.isSuperAdmin=!check.error&&check.data===true;
-  if(!S.isSuperAdmin)return false;
-  $('#superAdminPanel').classList.remove('hidden');
-  $('#workspaceSetup').classList.add('hidden');
-  document.querySelectorAll('.view,.tabs').forEach(el=>el.classList.add('hidden'));
-  $('#workspaceName').textContent='Super administrateur de la plateforme';
-  await loadSuperAdminWorkspaces();
-  await loadSportsVenues();
-  refreshSuperAdminCreateDependencies();
-  return true;
-}
-document.addEventListener('input',e=>{
-  if(e.target?.id==='saSearchWorkspace')renderSuperAdminWorkspaces();
-  if(e.target?.id==='saSearchPlayer')renderSuperAdminPlayers();
-});
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  const rb=e.target?.closest?.('[data-resolve-identity]');if(rb){const label=rb.dataset.resolveIdentity==='existing_valid'?'garder le compte d√©j√† li√©':rb.dataset.resolveIdentity==='claimant_valid'?'attribuer le joueur au nouveau demandeur':'lever le blocage sans modifier la liaison';if(!confirm('Confirmer : '+label+' ?'))return;rb.disabled=true;const {error}=await sb.rpc('super_admin_resolve_identity_dispute',{p_claim_id:rb.dataset.claimId,p_resolution:rb.dataset.resolveIdentity});rb.disabled=false;if(error)return toast(error.message);toast('Conflit d‚Äôidentit√© trait√© ‚úÖ');await loadSuperAdminWorkspaces();return;}
-  if(!e.target?.matches?.('[data-sa-unlink-staff]'))return;
-  const b=e.target;const playerName=b.dataset.playerName||'ce joueur';
-  if(!confirm('D√©lier d√©finitivement ¬´ '+playerName+' ¬ª de ce compte organisateur ? Ses statistiques resteront dans le groupe mais ne seront plus rattach√©es √† cet ID SW√â.'))return;
-  b.disabled=true;
-  const {error}=await sb.rpc('super_admin_unlink_staff_player',{p_workspace_id:b.dataset.workspaceId,p_user_id:b.dataset.userId,p_player_id:b.dataset.playerId});
-  b.disabled=false;if(error)return toast(error.message);
-  toast('Liaison supprim√©e par le Super Admin.');await loadSuperAdminWorkspaces();
-});
-function refreshSuperAdminCreateDependencies(){
-  const competition=!!($('#saTournamentEnabled')?.checked||$('#saLeagueEnabled')?.checked);
-  const rankings=$('#saRankingsEnabled');if(rankings){rankings.disabled=!competition;if(!competition)rankings.checked=false;}
-  const plan=$('#saNewPlan')?.value||'free',preview=$('#saNewPlanPreview');
-  if(preview){const map={free:['FREE','Top Player et 3e mi-temps non inclus.'],standard:['STANDARD','Top Player & notes de match inclus.'],pro:['PRO','Top Player, notes de match et 3e mi-temps inclus.']};const m=map[plan];preview.innerHTML='<b>'+m[0]+'</b><span>'+m[1]+(competition?'':' Active Tournoi ou Ligue pour utiliser les options li√©es.')+'</span>';}
-}
-function refreshWorkspaceDependencyUI(card){
-  if(!card)return;
-  const competition=!!(card.querySelector('[data-sa-tournament]')?.checked||card.querySelector('[data-sa-league]')?.checked);
-  const rank=card.querySelector('[data-sa-rankings]');if(rank){rank.disabled=!competition;if(!competition)rank.checked=false;}
-  const plan=card.querySelector('[data-sa-plan]')?.value||'free',special=!!card.querySelector('[data-sa-special-access]')?.checked;
-  const topAllowed=competition&&(special||plan==='standard'||plan==='pro');
-  const thirdAllowed=competition&&(special||plan==='pro');
-  const top=card.querySelector('[data-sa-top-status]');if(top){top.textContent=topAllowed?'ACTIF':'INACTIF';top.classList.toggle('on',topAllowed);}
-  const third=card.querySelector('[data-sa-third-status]');if(third){third.textContent=thirdAllowed?'ACTIF':'INACTIF';third.classList.toggle('on',thirdAllowed);}
-}
-document.addEventListener('change',async e=>{
-  if(e.target?.id==='tourComplex')renderTournamentPitchChoices();
-  if(e.target?.id==='leagueSessionComplex')renderLeaguePitchSelect();
-  if(e.target?.id==='saSaveFooter'){const b=e.target;b.disabled=true;const q={p_enabled:$('#saFooterEnabled')?.checked!==false,p_company_name:$('#saFooterCompany')?.value.trim()||null,p_legal_text:$('#saFooterLegalText')?.value.trim()||null,p_contact_email:$('#saFooterEmail')?.value.trim()||null,p_legal_url:$('#saFooterLegalUrl')?.value.trim()||null,p_privacy_url:$('#saFooterPrivacyUrl')?.value.trim()||null,p_terms_url:$('#saFooterTermsUrl')?.value.trim()||null};const {error}=await sb.rpc('super_admin_save_footer',q);b.disabled=false;if(error)return toast(error.message);S.platformSettings={...S.platformSettings,footer_enabled:q.p_enabled,footer_company_name:q.p_company_name,footer_legal_text:q.p_legal_text,footer_contact_email:q.p_contact_email,footer_legal_url:q.p_legal_url,footer_privacy_url:q.p_privacy_url,footer_terms_url:q.p_terms_url};renderPlatformFooter();toast('Pied de page mis √† jour ‚úÖ');return;}if(e.target?.id==='saPreviewFooter'){const b=$('#saFooterPreview');b.classList.toggle('hidden');b.innerHTML='<div class="readonly-note"><b>Structure conseill√©e :</b> raison sociale + contact + liens Mentions l√©gales / Confidentialit√© / CGU-CGV. Garde le texte court et renvoie vers des pages d√©di√©es.</div>';return;}if(e.target?.id==='saConsentGateEnabled'){const enabled=e.target.checked;const {error}=await sb.rpc('super_admin_set_consent_gate',{p_enabled:enabled});if(error){e.target.checked=!enabled;return toast(error.message)}S.platformSettings.consent_gate_enabled=enabled;const l=$('#saConsentGateLabel');if(l)l.textContent=enabled?'Visible / obligatoire':'Masqu√©';toast(enabled?'Consentement affich√© aux joueurs ‚úÖ':'Consentement masqu√© pour les joueurs.');}
-  if(['saTournamentEnabled','saLeagueEnabled','saNewPlan'].includes(e.target?.id))refreshSuperAdminCreateDependencies();
-  if(e.target?.matches?.('[data-sa-tournament],[data-sa-league],[data-sa-plan],[data-sa-special-access]'))refreshWorkspaceDependencyUI(e.target.closest('.sa-workspace-card'));
-});
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  const saTab=e.target?.closest?.('[data-sa-tab]');
-  if(saTab){
-    const section=saTab.dataset.saTab;document.querySelectorAll('[data-sa-tab]').forEach(b=>b.classList.toggle('active',b===saTab));
-    $('#saSpacesSection')?.classList.toggle('hidden',section!=='spaces');$('#saPlayersSection')?.classList.toggle('hidden',section!=='players');
-    if(section==='players')renderSuperAdminPlayers();return;
-  }
-  const copyLinkBtn=e.target?.closest?.('[data-copy-signup-link]');
-  if(copyLinkBtn){const r=(S.superSignupRequests||[]).find(x=>String(x.id)===String(copyLinkBtn.dataset.copySignupLink));if(r){await navigator.clipboard.writeText(playerActivationLink(r.activation_token));toast('Lien d‚Äôactivation copi√© ‚úÖ');}return;}
-  const copyMsgBtn=e.target?.closest?.('[data-copy-signup-message]');
-  if(copyMsgBtn){const r=(S.superSignupRequests||[]).find(x=>String(x.id)===String(copyMsgBtn.dataset.copySignupMessage));if(r){await navigator.clipboard.writeText(signupInviteMessage(r));toast('Message copi√© ‚úÖ');}return;}
-  const regenBtn=e.target?.closest?.('[data-regenerate-signup]');
-  if(regenBtn){if(!confirm('Cr√©er un nouveau lien ? L‚Äôancien ne fonctionnera plus.'))return;regenBtn.disabled=true;const {error}=await sb.rpc('super_admin_regenerate_player_signup_link',{p_request_id:regenBtn.dataset.regenerateSignup});regenBtn.disabled=false;if(error)return toast(error.message);await loadSuperAdminWorkspaces();toast('Nouveau lien g√©n√©r√© ‚úÖ');return;}
-  if(e.target?.dataset?.saApproveCoorgRequest){
-    const b=e.target;b.disabled=true;
-    const {error}=await sb.rpc('super_admin_resolve_coorganizer_quota_request',{p_request_id:b.dataset.saApproveCoorgRequest,p_approve:true});
-    b.disabled=false;if(error)return toast(error.message);
-    toast('Demande accept√©e ‚úÖ');await loadSuperAdminWorkspaces();return;
-  }
-  if(e.target?.dataset?.saRejectCoorgRequest){
-    const b=e.target;b.disabled=true;
-    const {error}=await sb.rpc('super_admin_resolve_coorganizer_quota_request',{p_request_id:b.dataset.saRejectCoorgRequest,p_approve:false});
-    b.disabled=false;if(error)return toast(error.message);
-    toast('Demande refus√©e.');await loadSuperAdminWorkspaces();return;
-  }
-  if(e.target?.id==='saRefresh')await loadSuperAdminWorkspaces();
-  if(e.target?.id==='saRefreshVenues')await loadSportsVenues();
-  if(e.target?.id==='saAddComplex'){
-    const name=$('#saNewComplexName').value.trim(),city=$('#saNewComplexCity').value.trim();
-    if(!name)return toast('Indique le nom du complexe.');
-    const {error}=await sb.rpc('super_admin_manage_sports_complex',{p_action:'create',p_name:name,p_city:city||null,p_active:true});
-    if(error)return toast(error.message);
-    $('#saNewComplexName').value='';$('#saNewComplexCity').value='';
-    await loadSportsVenues();toast('Complexe ajout√© ‚úÖ');
-  }
-  if(e.target?.id==='saCreateWorkspace'){
-    const name=$('#saWorkspaceName').value.trim(),email=$('#saOwnerEmail').value.trim().toLowerCase();
-    if(!name||!email)return toast('Indique le nom de l‚Äôespace et l‚Äôe-mail de son administrateur.');
-    const first=$('#saOwnerFirstName').value.trim(),last=$('#saOwnerLastName').value.trim(),phone=$('#saOwnerPhone').value.trim();
-    const b=e.target;b.disabled=true;
-    const created=await sb.rpc('super_admin_create_workspace_for_admin',{
-      p_name:name,p_owner_email:email,
-      p_max_coorganizers:Math.max(0,Math.min(100,Number($('#saMaxCoorg').value)||0)),
-      p_tournaments_enabled:$('#saTournamentEnabled').checked,
-      p_league_enabled:$('#saLeagueEnabled').checked,
-      p_rankings_enabled:$('#saRankingsEnabled').checked
-    });
-    if(created.error){b.disabled=false;return toast(created.error.message)}
-    const profile=await sb.rpc('super_admin_update_admin_profile',{
-      p_workspace_id:created.data,p_first_name:first||null,p_last_name:last||null,p_phone:phone||null
-    });
-    if(profile.error){b.disabled=false;return toast('Espace cr√©√©, mais fiche administrateur √† compl√©ter : '+profile.error.message)}
-    const plan=$('#saNewPlan')?.value||'free';
-    let commercial=await sb.rpc('super_admin_set_commercial_access_v2',{p_workspace_id:created.data,p_subscription_plan:plan,p_special_access_enabled:false});
-    const gifted=Math.max(0,Math.min(1000,Number($('#saMaxCoorg').value)||0));
-    if(!commercial.error)commercial=await sb.rpc('super_admin_set_workspace_options_v2',{p_workspace_id:created.data,p_max_coorganizers:gifted,p_max_coorganizers_cap:1000,p_tournaments_enabled:$('#saTournamentEnabled').checked,p_league_enabled:$('#saLeagueEnabled').checked,p_rankings_enabled:$('#saRankingsEnabled').checked,p_public_enabled:true});
-    if(!commercial.error)commercial=await sb.rpc('super_admin_grant_coorganizer_slots',{p_workspace_id:created.data,p_base_max_coorganizers:gifted});
-    b.disabled=false;if(commercial.error)return toast('Espace cr√©√©, mais configuration commerciale √† v√©rifier : '+commercial.error.message);
-    $('#saWorkspaceName').value='';$('#saOwnerEmail').value='';$('#saOwnerFirstName').value='';$('#saOwnerLastName').value='';$('#saOwnerPhone').value='';
-    toast('Espace administrateur cr√©√© ‚úÖ');await loadSuperAdminWorkspaces();
-  }
-});
-
-
-async function loadThirdHalfFunds(){
-  if(!S.workspace||!isAdmin()||!S.workspaceFeatures.third_half_enabled){S.thirdHalfFunds=[];renderThirdHalfFunds();return;}
-  const {data,error}=await sb.rpc('get_admin_third_half_funds',{p_workspace_id:S.workspace.id});
-  if(error){toast(error.message);S.thirdHalfFunds=[];}else S.thirdHalfFunds=Array.isArray(data)?data:[];
-  renderThirdHalfFunds();
-}
-function renderThirdHalfFunds(){
-  const box=$('#coolerFundsList');if(!box)return;
-  const rows=S.thirdHalfFunds||[];
-  if(!rows.length){box.innerHTML='<div class="muted">Aucun Sw√© actif √† administrer pour la glaci√®re.</div>';return;}
-  box.innerHTML=rows.map((r,i)=>{const target=Number(r.target_amount_cents||0),collected=Number(r.collected_amount_cents||0),pct=target?Math.min(100,Math.round(collected/target*100)):0;return '<div class="cooler-fund" data-cooler-row="'+esc(r.tournament_id)+'"><div class="cooler-fund-head"><div><b>'+esc(r.tournament_name||'Sw√©')+'</b><div class="muted">üìÖ '+esc(r.tournament_date||'')+' ‚Ä¢ '+(r.format==='league'?'Sw√© de Ligue':'Tournoi')+'</div></div><span class="cooler-status '+esc(r.status||'draft')+'">'+esc(String(r.status||'draft').toUpperCase())+'</span></div><div class="cooler-progress"><span style="width:'+pct+'%"></span></div><div class="muted small" style="margin-top:5px">Collect√© : <b>'+euroCents(collected)+'</b>'+(target?' / objectif '+euroCents(target):' ‚Ä¢ aucun objectif d√©fini')+'</div><div class="grid g2"><label><span class="muted">Statut</span><select data-cooler-status><option value="draft" '+(r.status==='draft'?'selected':'')+'>Brouillon</option><option value="open" '+(r.status==='open'?'selected':'')+'>Ouverte</option><option value="paused" '+(r.status==='paused'?'selected':'')+'>En pause</option><option value="closed" '+(r.status==='closed'?'selected':'')+'>Cl√¥tur√©e</option></select></label><label><span class="muted">Solution de cagnotte</span><select data-cooler-provider><option value="">Choisir</option>'+['Revolut','Leetchi','PayPal','Sumeria','Autre'].map(x=>'<option '+(r.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Lien de cagnotte</span><input data-cooler-link type="url" placeholder="https://..." value="'+esc(r.payment_link||'')+'"></label><label><span class="muted">Participation conseill√©e (‚Ç¨)</span><input data-cooler-suggested type="number" min="0" step="0.50" value="'+(Number(r.suggested_amount_cents||0)/100)+'"></label><label><span class="muted">Objectif (‚Ç¨)</span><input data-cooler-target type="number" min="0" step="0.50" value="'+(target/100)+'"></label><label><span class="muted">Montant collect√© (‚Ç¨)</span><input data-cooler-collected type="number" min="0" step="0.50" value="'+(collected/100)+'"></label></div><label style="margin-top:10px"><span class="muted">Note admin</span><textarea data-cooler-notes rows="2" placeholder="Ex. boissons, glace, repas...">'+esc(r.notes||'')+'</textarea></label><label class="player row" style="justify-content:flex-start;margin-top:10px"><input data-cooler-share type="checkbox" style="width:auto" '+(r.share_enabled?'checked':'')+'><span><b>Partager le lien aux joueurs</b><div class="muted">Le partage n‚Äôest possible que si un lien HTTPS est renseign√©.</div></span></label>'+(r.payment_link?'<div class="cooler-link-preview" style="margin-top:7px">üîó '+esc(r.payment_link)+'</div>':'')+'<div class="row" style="margin-top:10px"><button class="primary" data-save-cooler>üíæ Enregistrer</button>'+(r.payment_link?'<button data-copy-cooler-link>Copier le lien</button>':'')+'</div></div>'}).join('');
-}
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  if(e.target?.id==='refreshCoolerFunds'){await loadThirdHalfFunds();return;}
-  const row=e.target?.closest?.('[data-cooler-row]');if(!row)return;
-  if(e.target?.matches?.('[data-copy-cooler-link]')){const link=row.querySelector('[data-cooler-link]')?.value.trim();if(!link)return;try{await navigator.clipboard.writeText(link);toast('Lien de cagnotte copi√© ‚úÖ')}catch(_e){toast('Copie impossible')}return;}
-  if(e.target?.matches?.('[data-save-cooler]')){const b=e.target;b.disabled=true;const cents=x=>Math.round(Math.max(0,Number(x?.value||0))*100);const {error}=await sb.rpc('admin_save_third_half_fund',{p_tournament_id:row.dataset.coolerRow,p_status:row.querySelector('[data-cooler-status]').value,p_provider:row.querySelector('[data-cooler-provider]').value||null,p_payment_link:row.querySelector('[data-cooler-link]').value.trim()||null,p_target_amount_cents:cents(row.querySelector('[data-cooler-target]')),p_collected_amount_cents:cents(row.querySelector('[data-cooler-collected]')),p_suggested_amount_cents:cents(row.querySelector('[data-cooler-suggested]')),p_notes:row.querySelector('[data-cooler-notes]').value.trim()||null,p_share_enabled:row.querySelector('[data-cooler-share]').checked});b.disabled=false;if(error)return toast(error.message);toast('Cagnotte mise √† jour ‚úÖ');await loadThirdHalfFunds();return;}
-});
-async function loadMyPlayerDashboard(){
-  if(!S.session){S.playerDashboard=null;return null;}
-  const {data,error}=await sb.rpc('get_my_global_player_dashboard_v2');
-  if(error){console.warn('global player dashboard',error);S.playerDashboard=null;return null;}
-  S.playerDashboard=data||null;
-  renderMyPlayerHub();
-  return S.playerDashboard;
-}
-function renderSweIdentitySource(){
-  const box=$('#mySweHistoryResult');if(!box)return;const s=S.sweIdentitySource;if(!s){box.innerHTML='';return;}const rows=Array.isArray(s.players)?s.players:[];
-  box.innerHTML='<div class="swe-history-result"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>'+esc(s.name||'Sw√©')+'</b><div class="muted">'+esc(s.workspace_name||'')+(s.date?' ‚Ä¢ '+esc(s.date):'')+' ‚Ä¢ ID '+esc(s.code||'')+'</div></div><span class="guest-badge">'+(s.source_type==='league'?'LIGUE':'TOURNOI')+'</span></div><div class="muted small" style="margin-top:8px">S√©lectionne uniquement ton propre nom. Les informations priv√©es des autres joueurs ne sont pas affich√©es.</div><div class="swe-history-players">'+rows.map(p=>'<div class="player"><div><b>'+esc(p.name)+'</b><div class="muted small">'+(p.linked_to_me?'D√©j√† li√© √† ton compte':(p.already_linked?'Identit√© d√©j√† revendiqu√©e':'Disponible pour liaison'))+'</div></div>'+(p.linked_to_me?'<span class="linked-ok">‚úì LI√â</span>':'<button '+(p.already_linked?'title="Une demande d√©clenchera une v√©rification d‚Äôidentit√©"':'')+' data-claim-history-player="'+esc(p.player_id)+'">C‚Äôest moi</button>')+'</div>').join('')+'</div></div>';
-}
-
-function playerPaymentButton(o){
-  if(!o?.player_id||!o?.public_token)return '';
-  return '<button class="primary" data-player-pay="1" data-player-id="'+esc(o.player_id)+'" data-public-token="'+esc(o.public_token)+'" data-tournament-id="'+esc(o.tournament_id)+'">üí≥ Payer et confirmer</button>';
-}
-function renderMyPlayerHub(){
-  const create=$('#myPlayerCreateCard'),dash=$('#myPlayerDashboard'),identity=$('#myPlayerIdentity');
-  if(!create||!dash)return;const d=S.playerDashboard;
-  create.classList.toggle('hidden',!!d?.profile);dash.classList.toggle('hidden',!d?.profile);
-  if(!d?.profile){if(identity){identity.classList.add('hidden');identity.innerHTML='';}return;}
-  const p=d.profile,st=d.stats||{};
-  if(identity){identity.classList.remove('hidden');identity.innerHTML='<span class="player-id-badge">'+esc(p.public_player_id)+'</span><span class="muted">ID joueur permanent</span>';}
-  if($('#myPlayerPublicId'))$('#myPlayerPublicId').textContent=p.public_player_id;
-  if($('#myPlayerName')&&document.activeElement!==$('#myPlayerName'))$('#myPlayerName').value=p.display_name||'';
-  if($('#myPlayerArea')&&document.activeElement!==$('#myPlayerArea'))$('#myPlayerArea').value=p.home_area||'';
-  if($('#myPlayerPublic'))$('#myPlayerPublic').checked=!!p.is_public;
-  if($('#myPlayerDiscoverable')){$('#myPlayerDiscoverable').checked=!!p.discoverable;$('#myPlayerDiscoverable').disabled=!p.is_public;}
-  if($('#myPlayerNotify')){$('#myPlayerNotify').checked=!!p.notify_upcoming_swes;$('#myPlayerNotify').disabled=false;}
-  const rating=st.rating==null?'‚Äî':Number(st.rating).toFixed(1)+'/5';
-  if($('#myPlayerStats'))$('#myPlayerStats').innerHTML=[['üèüÔ∏è','Groupes',st.groups||0],['üéÆ','Sw√©s jou√©s',st.tournaments||0],['‚öΩ','Matchs',st.matches||0],['‚úÖ','Victoires',st.wins||0],['üèÜ','Troph√©es',st.trophies||0],['ü•Ö','Buts',st.goals||0],['üéØ','Passes',st.assists||0],['‚≠ê','Note',rating]].map(x=>'<div><span>'+x[0]+'</span><small>'+x[1]+'</small><b>'+x[2]+'</b></div>').join('');
-  const groups=Array.isArray(d.groups)?d.groups:[];
-  if($('#myPlayerGroups')){
-    let groupHtml=groups.length?groups.map(g=>'<div class="player"><b>'+esc(g.workspace_name)+'</b><div class="muted">Profil local : '+esc(g.player_name)+(g.is_group_member?' ‚Ä¢ membre':' ‚Ä¢ invit√©')+'</div></div>').join(''):'<div class="muted">Aucun profil de groupe reli√© pour le moment.</div>';
-    if(S.workspace&&(isAdmin()||isCoorg())){
-      const linkedPlayer=(S.players||[]).find(x=>String(x.id)===String(S.myLinkedPlayerId||''));
-      if(linkedPlayer){
-        groupHtml='<div class="player swe-self-link-ok"><div><b>ü™™ '+esc(S.workspace.name||'Groupe actuel')+'</b><div class="muted">Ton compte organisateur est li√© au membre <b>'+esc(linkedPlayer.name)+'</b>. Ses tournois, stats et notes utilisent maintenant le m√™me ID SW√â <b>'+esc(p.public_player_id)+'</b>. <b>Cette liaison est verrouill√©e</b> ; seul le Super Admin peut la supprimer.</div></div><span class="guest-badge">LI√â</span></div>'+groupHtml;
-      }else{
-        const candidates=(S.players||[]).filter(x=>x.active!==false&&x.is_group_member!==false);
-        groupHtml='<div class="player swe-self-link-card"><div style="flex:1"><b>üîó Relier mon compte organisateur √† mon membre joueur</b><div class="muted">Choisis ton nom dans ce groupe. Ton ID SW√â '+esc(p.public_player_id)+' suivra alors automatiquement tes inscriptions aux tournois en cours et futurs.</div><div class="row" style="margin-top:8px;gap:8px"><select id="myPlayerSelfMember" style="flex:1"><option value="">Choisir mon profil membre‚Ä¶</option>'+candidates.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('')+'</select><button id="myPlayerSelfLink" class="primary">C‚Äôest moi</button></div></div></div>'+groupHtml;
-      }
-    }
-    $('#myPlayerGroups').innerHTML=groupHtml;
-  }
-  const invites=Array.isArray(d.invites)?d.invites:[];
-  if($('#myPlayerInvites'))$('#myPlayerInvites').innerHTML=invites.length?invites.map(i=>'<div class="player"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>'+esc(i.workspace_name)+' ‚Ä¢ '+esc(i.tournament_name||'Sw√©')+'</b><div class="muted">'+esc(i.tournament_date||'')+(i.start_time?' ‚Ä¢ '+esc(String(i.start_time).slice(0,5)):'')+(i.venue?' ‚Ä¢ '+esc(i.venue):'')+'</div>'+(i.message?'<div class="small" style="margin-top:5px">'+esc(i.message)+'</div>':'')+'</div><span class="guest-badge">'+esc(String(i.status||'pending').toUpperCase())+'</span></div>'+(i.status==='pending'?'<div class="row" style="margin-top:8px"><button class="primary" data-player-invite-accept="'+i.id+'">‚úÖ Accepter</button><button data-player-invite-decline="'+i.id+'">Refuser</button></div>':'')+'</div>').join(''):'<div class="muted">Aucune invitation.</div>';
-  const mySwes=Array.isArray(d.my_swes)?d.my_swes:[];
-  if($('#myPlayerMySwes'))$('#myPlayerMySwes').innerHTML=mySwes.length?mySwes.map(o=>'<div class="player"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>'+esc(o.workspace_name)+' ‚Ä¢ '+esc(o.tournament_name||'Sw√©')+'</b><div class="muted">üìÖ '+esc(o.tournament_date||'')+(o.start_time?' ‚Ä¢ '+esc(String(o.start_time).slice(0,5)):'')+' ‚Ä¢ üìç '+esc(o.venue||'Lieu √† confirmer')+'</div></div><span class="guest-badge">'+esc(String(o.registration_status||'confirm√©').replace('_',' ').toUpperCase())+'</span></div>'+(o.registration_status==='payment_pending'?'<div class="row" style="margin-top:9px">'+playerPaymentButton(o)+'</div>':'')+(Number(o.third_half_pledge_cents||0)>0?'<div class="muted" style="margin-top:6px">üßä Contribution 3e mi-temps annonc√©e : '+euroCents(o.third_half_pledge_cents)+'</div>':'')+'</div>').join(''):'<div class="muted">Aucun Sw√© √† venir.</div>';
-  const reqs=Array.isArray(d.requests)?d.requests:[];
-  if($('#myPlayerRequests'))$('#myPlayerRequests').innerHTML=reqs.length?reqs.map(r=>'<div class="player"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>'+esc(r.workspace_name)+' ‚Ä¢ '+esc(r.tournament_name||'Sw√©')+'</b><div class="muted">'+esc(r.tournament_date||'')+(r.start_time?' ‚Ä¢ '+esc(String(r.start_time).slice(0,5)):'')+'</div></div><span class="guest-badge">'+(r.status==='pending'?'EN ATTENTE':r.status==='accepted'?'ACCEPT√âE':'REFUS√âE')+'</span></div>'+(r.message?'<div class="small" style="margin-top:6px">'+esc(r.message)+'</div>':'')+(r.registration_status==='payment_pending'?'<div class="row" style="margin-top:9px">'+playerPaymentButton(r)+'</div>':'')+'</div>').join(''):'<div class="muted">Aucune demande envoy√©e.</div>';
-  const focusSwe=new URLSearchParams(location.search).get('joinSwe');const opp=(Array.isArray(d.upcoming_swes)?[...d.upcoming_swes]:[]).sort((a,b)=>String(a.tournament_id)===String(focusSwe)?-1:String(b.tournament_id)===String(focusSwe)?1:0);
-  if($('#myPlayerOpportunities'))$('#myPlayerOpportunities').innerHTML=opp.length?opp.map(o=>{const mode=o.discovery_mode==='public'?'PUBLIC ‚Ä¢ INSCRIPTION DIRECTE':'SUR DEMANDE';const fee=Number(o.entry_fee_cents||0);const payment=o.external_payment_required?'<div class="player-opportunity-price">üí≥ Paiement en ligne requis ‚Ä¢ confirmation automatique</div>':'<div class="player-opportunity-price free">‚úì Aucun paiement en ligne impos√© au joueur externe</div>';const third=o.third_half_enabled?'<label class="player-pledge"><span>üßä 3e mi-temps</span><input type="number" min="0" step="0.50" data-pledge-for="'+o.tournament_id+'" placeholder="Contribution ‚Ç¨" value="'+(Number(o.cooler_suggested_cents||0)/100||'')+'"></label>':'';return '<div class="player player-opportunity"><span class="guest-badge">'+esc(mode)+'</span><h3>'+esc(o.workspace_name)+' ‚Ä¢ '+esc(o.tournament_name||'Sw√©')+'</h3><div class="muted">üìÖ '+esc(o.tournament_date||'')+(o.start_time?' ‚Ä¢ '+esc(String(o.start_time).slice(0,5)):'')+'</div><div class="muted">üìç '+esc(o.venue||'Lieu √† confirmer')+' ‚Ä¢ '+Number(o.remaining_places||0)+' place(s) restante(s)</div>'+payment+third+(o.discovery_mode==='public'?'<button class="primary" data-player-direct-join="'+o.tournament_id+'" style="margin-top:10px">‚ö° Je participe</button>':'<textarea data-request-message-for="'+o.tournament_id+'" rows="2" placeholder="Message √† l‚Äôorganisateur (facultatif)" style="margin-top:10px"></textarea><button class="primary" data-player-request-join="'+o.tournament_id+'" style="margin-top:8px">üôã Demander √† participer</button>')+'</div>'}).join(''):'<div class="muted">Aucun nouveau Sw√© √† afficher pour le moment.</div>';
-}
-function renderPlayerDirectoryCard(){
-  const card=$('#playerDirectoryCard');if(!card)return;
-  card.classList.toggle('hidden',!isAdmin());
-  if(!isAdmin())return;
-  const sel=$('#playerDirectoryTournament');if(sel){const keep=sel.value;const tours=(S.tournaments||[]).filter(t=>t.status!=='finished');sel.innerHTML='<option value="">Choisir le Sw√© √† compl√©ter‚Ä¶</option>'+tours.map(t=>'<option value="'+t.id+'">'+esc(t.name||t.tournament_date)+' ‚Ä¢ '+esc(t.tournament_date)+'</option>').join('');if([...sel.options].some(o=>o.value===keep))sel.value=keep;}
-  const box=$('#playerDirectoryResults');if(!box)return;
-  const rows=S.playerDirectory||[];
-  if(!rows.length){box.innerHTML='<div class="muted">Lance une recherche pour consulter les joueurs publics disponibles.</div>';return;}
-  box.innerHTML=rows.map(r=>'<div class="player directory-player"><div style="flex:1"><div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><b>'+esc(r.display_name)+'</b><span class="player-id-mini">'+esc(r.public_player_id)+'</span></div><div class="muted">'+esc(r.home_area||'Zone non renseign√©e')+' ‚Ä¢ '+Number(r.groups_count||0)+' groupe(s) ‚Ä¢ '+Number(r.tournaments_count||0)+' Sw√©(s)</div><div class="small" style="margin-top:4px">‚öΩ '+Number(r.matches_count||0)+' matchs ‚Ä¢ ü•Ö '+Number(r.goals_count||0)+' buts ‚Ä¢ üéØ '+Number(r.assists_count||0)+' passes'+(r.rating!=null?' ‚Ä¢ ‚≠ê '+Number(r.rating).toFixed(1)+'/5':'')+'</div></div><button class="primary" data-directory-invite="'+r.global_player_id+'">Inviter au Sw√©</button></div>').join('');
-}
-
-function renderAdminPlayerRequests(){
-  const card=$('#playerParticipationRequestsCard'),box=$('#playerParticipationRequests');if(!card||!box)return;card.classList.toggle('hidden',!isAdmin());if(!isAdmin())return;
-  const rows=S.playerRequests||[];if(!rows.length){box.innerHTML='<div class="muted">Aucune demande de participation pour le moment.</div>';return;}
-  box.innerHTML=rows.map(r=>'<div class="player request-row"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div class="row" style="justify-content:flex-start;gap:7px;flex-wrap:wrap"><b>'+esc(r.display_name)+'</b><span class="player-id-mini">'+esc(r.public_player_id)+'</span></div><div class="muted">'+esc(r.home_area||'Zone non renseign√©e')+' ‚Ä¢ '+esc(r.tournament_name||'Sw√©')+' ‚Ä¢ '+esc(r.tournament_date||'')+'</div></div><span class="guest-badge">'+(r.status==='pending'?'EN ATTENTE':r.status==='accepted'?'ACCEPT√âE':'REFUS√âE')+'</span></div>'+(r.message?'<div class="small" style="margin-top:7px">üí¨ '+esc(r.message)+'</div>':'')+(Number(r.third_half_pledge_cents||0)>0?'<div class="small" style="margin-top:5px">üßä Contribution annonc√©e : '+euroCents(r.third_half_pledge_cents)+'</div>':'')+(r.external_payment_required?'<div class="small" style="margin-top:5px">üí≥ Paiement exig√© : '+euroCents(r.entry_fee_cents)+(r.payment_ready?' ‚Ä¢ pr√™t':' ‚Ä¢ configuration requise')+'</div>':'')+(r.status==='pending'?'<div class="row" style="margin-top:9px"><button class="primary" data-request-accept="'+r.request_id+'">‚úÖ Accepter</button><button data-request-decline="'+r.request_id+'">Refuser</button></div>':'')+'</div>').join('');
-}
-function renderWorkspaceSwitcher(){
-  const sel=$('#workspaceSwitcher');if(!sel)return;
-  const rows=S.memberships||[];
-  sel.classList.toggle('hidden',rows.length<2);
-  if(rows.length<2){sel.innerHTML='';return;}
-  const admins=rows.filter(r=>r.role==='admin');
-  const coorgs=rows.filter(r=>r.role!=='admin');
-  let html='';
-  if(admins.length)html+='<optgroup label="üëë Mes groupes ‚Äî administrateur">'+admins.map(r=>'<option value="'+esc(r.workspace_id)+'"'+(String(r.workspace_id)===String(S.workspace?.id)?' selected':'')+'>üëë '+esc(r.workspaces?.name||'Espace SW√â')+' ‚Äî Administrateur</option>').join('')+'</optgroup>';
-  if(coorgs.length)html+='<optgroup label="üõ†Ô∏è Groupes que je co-g√®re">'+coorgs.map(r=>'<option value="'+esc(r.workspace_id)+'"'+(String(r.workspace_id)===String(S.workspace?.id)?' selected':'')+'>üõ†Ô∏è '+esc(r.workspaces?.name||'Espace SW√â')+' ‚Äî Co-gestionnaire</option>').join('')+'</optgroup>';
-  sel.innerHTML=html;
-  sel.title='Chaque groupe conserve ses propres joueurs, comp√©titions, droits et r√©glages.';
-}
-function renderOrganizerAccessBanner(){
-  const box=$('#organizerAccessBanner');if(!box)return;
-  const a=S.organizerAccess;
-  if(!S.workspace||!a){box.classList.add('hidden');box.innerHTML='';return;}
-  if(a.trial_active){
-    box.classList.remove('hidden','expired');
-    box.innerHTML='<div><b>üéÅ Essai organisateur ‚Ä¢ '+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+' restant'+(Number(a.days_remaining||0)>1?'s':'')+'</b><span>Toutes les options sont d√©bloqu√©es pendant 60 jours. Ensuite, choisis un abonnement pour continuer √† organiser.</span></div><button type="button" data-go="home">D√©bloquer toute la puissance SW√â ‚Üí</button>';
-    return;
-  }
-  if(a.requires_subscription){
-    box.classList.remove('hidden');box.classList.add('expired');
-    box.innerHTML='<div><b>‚è≥ Ton essai organisateur est termin√©</b><span>Tes donn√©es sont conserv√©es en lecture seule. Choisis une formule SW√â pour reprendre l‚Äôorganisation.</span></div><button type="button" id="trialChoosePlan" class="primary">Voir les formules SW√â</button>';
-    return;
-  }
-  box.classList.add('hidden');box.innerHTML='';
-}
-async function loadOnboardingStatus(){
-  const r=await sb.rpc('get_my_onboarding_status');
-  S.onboardingStatus=r.error?null:(r.data||null);
-  return S.onboardingStatus;
-}
-function openOrganizerSetup(type='group'){
-  $('#accountOnboarding')?.classList.add('hidden');
-  $('#workspaceSetup')?.classList.remove('hidden');
-  const radio=document.querySelector('input[name="organizerType"][value="'+(type==='pro'?'pro':'group')+'"]');if(radio)radio.checked=true;
-  const inp=$('#newWorkspace');if(inp&&!inp.value)inp.value=type==='pro'?'Mon organisation SW√â':'Mon groupe SW√â';
-  setTimeout(()=>inp?.focus(),50);
-}
-function showAccountOnboarding(){
-  $('#accountOnboarding')?.classList.remove('hidden');
-  $('#workspaceSetup')?.classList.add('hidden');
-}
-function renderCoorgOrganizerCta(){
-  const card=$('#coorgOrganizerCta');if(!card)return;
-  card.classList.toggle('hidden',!isCoorg());
-}
-
-async function boot(){
-  await loadInvites();
-  if(await initSuperAdmin())return;
-  const currentUserId=S.session?.user?.id;
-  if(!currentUserId)return toast('Session utilisateur introuvable.');
-  await loadOnboardingStatus();
-  let membershipQuery=sb.from('workspace_members')
-    .select('workspace_id,role,workspaces(name,public_token,public_enabled,rating_group_name)')
-    .eq('user_id',currentUserId)
-    .eq('active',true)
-    .limit(50);
-  if(S.testAdminContext)membershipQuery=membershipQuery.eq('workspace_id',S.testAdminContext.workspace_id);
-  const {data,error}=await membershipQuery;
-  if(error)return toast(error.message);
-  S.memberships=Array.isArray(data)?data:[];
-  if(!S.memberships.length){
-    S.workspace=null;S.organizerAccess=null;
-    renderWorkspaceSwitcher();renderOrganizerAccessBanner();
-    await loadMyPlayerDashboard();
-    document.querySelectorAll('.tabs .tab').forEach(t=>t.style.display=t.dataset.view==='myplayer'?'':'none');
-    setView('myplayer');
-    $('#workspaceName').textContent='Mon profil joueur SW√â';
-    if(S.onboardingStatus?.completed){
-      $('#accountOnboarding')?.classList.add('hidden');
-      $('#workspaceSetup')?.classList.add('hidden');
-    }else showAccountOnboarding();
-    return;
-  }
-  const requestedWorkspace=new URLSearchParams(location.search).get('workspace');
-  const stored=S.testAdminContext?.workspace_id||requestedWorkspace||localStorage.getItem('swe_workspace_id');
-  const chosen=S.memberships.find(x=>String(x.workspace_id)===String(stored))||S.memberships[0];
-  S.workspace={id:chosen.workspace_id,name:chosen.workspaces?.name||'SW√â Tournament 5/5',rating_group_name:chosen.workspaces?.rating_group_name||'',role:chosen.role,public_token:chosen.workspaces?.public_token||null,public_enabled:chosen.workspaces?.public_enabled!==false};
-  if(!S.testAdminContext)localStorage.setItem('swe_workspace_id',S.workspace.id);
-  $('#workspaceSetup').classList.add('hidden');$('#accountOnboarding')?.classList.add('hidden');
-  const access=await sb.rpc('get_workspace_organizer_access',{p_workspace_id:S.workspace.id});
-  S.organizerAccess=access.error?null:(access.data||null);
-  renderWorkspaceSwitcher();renderOrganizerAccessBanner();
-  await loadSportsVenues();
-  await loadAll();
-  await loadMyPlayerDashboard();
-  $('#workspaceName').textContent=S.workspace.name+' ‚Ä¢ '+(S.workspace.role==='admin'?'Administrateur':(hasTemporaryAdmin()?'Co-organisateur ‚Ä¢ Admin temporaire':'Co-organisateur'));
-  applyPermissions();renderCoorgOrganizerCta();subscribeRealtime();startSafeAppSync();
-  if(S.testAdminContext){
-    const target=S.tournaments.find(t=>t.id===S.testAdminContext.tournament_id);
-    if(!target)return toast('Tournoi test introuvable dans cet espace.');
-    S.activeTour=target.id;await loadTournament();renderAll();setView('tournaments');
-    if(!document.getElementById('testAdminReturn')){const a=document.createElement('a');a.id='testAdminReturn';a.href='/forssadmin/';a.textContent='‚Üê Retour au Super Admin';a.className='btn';document.getElementById('workspaceName').after(a);}
-  }else{const startMode=new URLSearchParams(location.search).get('start');if(startMode==='player')setView('myplayer');else if(startMode==='home')setView('home');}
-}
-$('#createWorkspace').onclick=async()=>{
-  const btn=$('#createWorkspace');const name=$('#newWorkspace')?.value.trim();
-  if(!name)return toast('Indique le nom de ton groupe ou de ton organisation.');
-  const type=document.querySelector('input[name="organizerType"]:checked')?.value||'group';
-  btn.disabled=true;btn.textContent='Cr√©ation‚Ä¶';
-  try{
-    const {data:workspaceId,error}=await sb.rpc('create_organizer_workspace_trial',{p_name:name,p_organizer_type:type});
-    if(error)throw error;if(!workspaceId)throw new Error('Impossible de cr√©er l‚Äôespace.');
-    localStorage.setItem('swe_workspace_id',workspaceId);
-    toast('Espace cr√©√© ‚Ä¢ tes 2 mois d‚Äôessai commencent maintenant üéÅ');
-    await boot();setView('home');
-  }catch(error){toast(friendlyAuthError(error))}
-  finally{btn.disabled=false;btn.textContent="Cr√©er mon espace et d√©marrer l‚Äôessai"}
-};
-$('#cancelWorkspaceSetup')?.addEventListener('click',()=>{
-  $('#workspaceSetup')?.classList.add('hidden');
-  if(!S.workspace&&!S.onboardingStatus?.completed)showAccountOnboarding();
-});
-$('#workspaceSwitcher')?.addEventListener('change',e=>{localStorage.setItem('swe_workspace_id',e.target.value);location.reload();});
-
-
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  const intent=e.target?.closest?.('[data-onboarding-intent]')?.dataset.onboardingIntent;
-  if(intent==='player'){
-    const b=e.target.closest('[data-onboarding-intent]');b.disabled=true;
-    const {error}=await sb.rpc('complete_my_onboarding',{p_intent:'player'});b.disabled=false;
-    if(error)return toast(error.message);S.onboardingStatus={...(S.onboardingStatus||{}),completed:true,primary_intent:'player'};
-    $('#accountOnboarding')?.classList.add('hidden');$('#workspaceSetup')?.classList.add('hidden');setView('myplayer');toast('Profil joueur activ√© ‚öΩ');return;
-  }
-  if(intent==='organizer'){openOrganizerSetup('group');return;}
-  if(e.target?.id==='becomeOrganizer'||e.target?.id==='coorgCreateOwnWorkspace'){openOrganizerSetup('group');$('#workspaceSetup')?.scrollIntoView({behavior:'smooth',block:'start'});return;}
-  if(e.target?.id==='trialChoosePlan'){setView('home');setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:'smooth',block:'start'}),100);return;}
-});
-
-async function loadInvites(){
-  const box=$('#inviteList');box.innerHTML='';
-  const userEmail=(S.session?.user?.email||'').trim().toLowerCase();
-  if(!userEmail){$('#inviteBox').classList.add('hidden');return}
-  const {data,error}=await sb.from('workspace_invites')
-    .select('id,email,role,workspace_id,payment_responsibility,payment_status,workspaces(name)')
-    .is('accepted_at',null)
-    .ilike('email',userEmail);
-  if(error){$('#inviteBox').classList.add('hidden');return}
-  let mine=(data||[]).filter(i=>(i.email||'').trim().toLowerCase()===userEmail);
-  if(inviteIdFromUrl)mine=mine.sort((a,b)=>(a.id===inviteIdFromUrl?-1:0)-(b.id===inviteIdFromUrl?-1:0));
-  $('#inviteBox').classList.toggle('hidden',!mine.length);
-  mine.forEach(i=>{
-    // A paid invitation has its own checkout; never show the free acceptance action.
-    if(i.role==='coorganizer'&&i.payment_responsibility==='invitee'){
-      const d=document.createElement('div');d.className='swe-selfpay-invite';d.dataset.selfpayInvite=i.id;
-      d.textContent='Chargement de ton invitation co-gestionnaire‚Ä¶';box.appendChild(d);return;
-    }
-    const d=document.createElement('div');d.className='player';
-    d.innerHTML='<b>Invitation √† rejoindre '+esc(i.workspaces?.name||'SW√â TOURNAMENT 5/5')+'</b><div class="muted" style="margin-top:4px">Connect√© avec '+esc(userEmail)+'. Clique ci-dessous pour devenir co-organisateur.</div>';
-    const b=document.createElement('button');b.textContent='‚úÖ Accepter l‚Äôinvitation';b.className='primary';b.style.marginTop='8px';
-    b.onclick=async()=>{
-      const {error}=await sb.rpc('accept_workspace_invite',{p_invite_id:i.id});
-      if(error)return toast(error.message);
-      if(i.workspace_id)localStorage.setItem('swe_workspace_id',i.workspace_id);
-      history.replaceState({},'',APP_URL);
-      toast('Invitation accept√©e ‚úÖ');
-      await boot();setView('home');
-    };
-    d.appendChild(b);box.appendChild(d)
-  });
-  window.SWECoorganizerInvites?.refresh();
-}
-async function loadAll(){
-  if(!S.workspace)return;const w=S.workspace.id;let r;
-  S.adminProfile=null;
-  if(isAdmin()){
-    const ap=await sb.from('workspace_admin_profiles').select('first_name,last_name').eq('workspace_id',w).eq('user_id',S.session?.user?.id).maybeSingle();
-    if(!ap.error&&ap.data)S.adminProfile=ap.data;
-  }
-  r=await sb.from('workspace_members').select('user_id,role,active').eq('workspace_id',w);S.members=r.data||[];
-  r=await sb.rpc('get_workspace_coorganizer_count',{p_workspace_id:w});S.coorgCount=Number(r.data||0);
-  const oa=await sb.rpc('get_workspace_organizer_access',{p_workspace_id:w});if(!oa.error)S.organizerAccess=oa.data||null;renderOrganizerAccessBanner();
-  r=await sb.rpc('get_workspace_features_v2',{p_workspace_id:w});
-  if(r.error){
-    console.error('get_workspace_features_v2',r.error);
-    toast('Impossible de v√©rifier les modules de cet espace. Recharge la page.');
-  }else{
-    const f=Array.isArray(r.data)?r.data[0]:r.data;
-    if(f)S.workspaceFeatures={...S.workspaceFeatures,...f};
-  }
-  const commercial=await sb.rpc('get_workspace_commercial_access',{p_workspace_id:w});
-  if(!commercial.error){const c=Array.isArray(commercial.data)?commercial.data[0]:commercial.data;if(c)S.commercialAccess={...S.commercialAccess,...c};}
-  if(S.commercialAccess.special_access_enabled){S.workspaceFeatures={...S.workspaceFeatures,tournaments_enabled:true,league_enabled:true,rankings_enabled:true,third_half_enabled:true,player_ratings_enabled:true,top_player_enabled:true,match_ratings_enabled:true,team_review_enabled:true};}
-  S.billingStatus=null;S.organizerSettings=null;S.playerRequests=[];
-  if(isAdmin()){
-    r=await sb.rpc('get_workspace_billing_status',{p_workspace_id:w});
-    if(!r.error){const b=Array.isArray(r.data)?r.data[0]:r.data;S.billingStatus=b||null;}
-    r=await sb.rpc('get_my_organizer_settings',{p_workspace_id:w});if(!r.error)S.organizerSettings=r.data||null;
-    r=await sb.rpc('list_workspace_player_requests',{p_workspace_id:w});if(!r.error)S.playerRequests=Array.isArray(r.data)?r.data:[];
-  }
-  S.myRatings=[];
-  if(isAdmin()){
-    S.myPermissions={can_invite_coorganizers:true,can_enter_scores:true,can_add_members:true,can_delete_members:true,can_create_tournaments:true,can_view_players:true,can_generate_teams:true,temporary_admin_until:null};
-    r=await sb.from('workspace_invites').select('id,email,role,accepted_at,created_at').eq('workspace_id',w).order('created_at',{ascending:false});S.invites=r.data||[];
-    r=await sb.rpc('admin_get_coorganizer_permissions',{p_workspace_id:w});S.coorgs=r.data||[];
-  }else if(isCoorg()){
-    S.invites=[];S.coorgs=[];
-    r=await sb.rpc('get_my_coorganizer_permissions',{p_workspace_id:w});
-    if(r.error)console.error('permissions coorganisateur',r.error);
-    const mp=Array.isArray(r.data)?(r.data[0]||null):r.data;
-    S.myPermissions={can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,can_generate_team_codes:false,can_edit_player_personal_info:false,temporary_admin_until:null,...(mp||{})};
-    if(S.workspaceFeatures.player_ratings_enabled){
-      r=await sb.rpc('get_my_player_skill_ratings',{p_workspace_id:w});
-      if(!r.error)S.myRatings=Array.isArray(r.data)?r.data:[];
-    }
-  }else{S.invites=[];S.coorgs=[];}
-  if(isAdmin()){
-    r=await sb.rpc('get_admin_workspace_players',{p_workspace_id:w});S.players=r.data||[];
-    r=await sb.rpc('get_manager_player_contacts',{p_workspace_id:w});S.contacts=r.error?[]:(r.data||[]);
-    if(S.workspaceFeatures.player_ratings_enabled){
-      r=await sb.rpc('get_admin_player_skill_reviews',{p_workspace_id:w});S.skillReviews=r.error?[]:(r.data||[]);
-      r=await sb.rpc('get_my_player_skill_ratings',{p_workspace_id:w});if(!r.error)S.myRatings=Array.isArray(r.data)?r.data:[];
-    }else{S.skillReviews=[];S.myRatings=[];}
-    r=await sb.rpc('get_manager_player_team_codes',{p_workspace_id:w});S.teamCodes=r.error?[]:(r.data||[]);
-  }else{
-    if(isCoorg()){
-      r=await sb.rpc('get_workspace_players_safe',{p_workspace_id:w});
-      if(r.error){console.error('players safe',r.error);S.players=[];toast('Impossible de charger la liste des joueurs.')}
-      else S.players=Array.isArray(r.data)?r.data:[];
-      if(S.myPermissions.can_edit_player_personal_info){
-        r=await sb.rpc('get_manager_player_contacts',{p_workspace_id:w});S.contacts=r.error?[]:(r.data||[]);
-      }else S.contacts=[];
-      if(S.myPermissions.can_generate_team_codes){
-        r=await sb.rpc('get_manager_player_team_codes',{p_workspace_id:w});S.teamCodes=r.error?[]:(r.data||[]);
-      }else S.teamCodes=[];
-    }else {S.players=[];S.contacts=[];S.teamCodes=[];}
-    S.skillReviews=[];
-  }
-  if(isAdmin()||isCoorg()){
-    if(S.workspaceFeatures.player_ratings_enabled){
-      r=await sb.rpc('get_player_skill_aggregates',{p_workspace_id:w});
-      S.skillAggregates=r.error?[]:(Array.isArray(r.data)?r.data:[]);
-    }else S.skillAggregates=[];
-    r=await sb.rpc('get_my_linked_player_id',{p_workspace_id:w});
-    S.myLinkedPlayerId=r.error?null:(r.data||null);
-  }else {S.skillAggregates=[];S.myLinkedPlayerId=null;}
-  if(isAdmin()){
-    const qr=await sb.rpc('get_my_coorganizer_quota_request',{p_workspace_id:w});
-    S.coorgQuotaRequest=qr.error?null:(qr.data||null);
-  }else S.coorgQuotaRequest=null;
-  r=await sb.from('seasons').select('*').eq('workspace_id',w).order('starts_on',{ascending:false});S.seasons=r.data||[];
-  r=await sb.from('leagues').select('*').eq('workspace_id',w).order('created_at',{ascending:false});S.leagues=r.data||[];
-  if(S.leagues.length){
-    const lids=S.leagues.map(x=>x.id);
-    r=await sb.from('league_players').select('*').in('league_id',lids);S.leaguePlayers=r.data||[];
-  }else S.leaguePlayers=[];
-  if(!S.activeLeague){const al=S.leagues.find(l=>l.status==='active')||S.leagues[0];S.activeLeague=al?.id||null;}
-  r=await sb.from('tournaments').select('*').eq('workspace_id',w).order('tournament_date',{ascending:false});S.tournaments=r.data||[];
-  if(!S.activeTour){const next=S.tournaments.find(t=>t.status!=='finished');S.activeTour=next?next.id:null;}
-  await loadTournament();
-  const editingReview=document.activeElement?.closest?.('.player-skill-review');
-  if(!editingReview)renderAll();
-}
-async function loadTournament(){
-  const t=currentTour();if(!t){S.tPlayers=[];S.teams=[];S.teamPlayers=[];S.matchAssignments=[];S.matches=[];S.goals=[];S.teamBalanceScores=[];S.teamReviewState=null;return}let r;
-  r=await sb.from('tournament_players').select('*').eq('tournament_id',t.id);S.tPlayers=r.data||[];
-  r=await sb.from('teams').select('*').eq('tournament_id',t.id).order('created_at');S.teams=r.data||[];
-  const tids=S.teams.map(x=>x.id);if(tids.length){r=await sb.from('team_players').select('*').in('team_id',tids);S.teamPlayers=r.data||[]}else S.teamPlayers=[];
-  r=await sb.from('matches').select('*').eq('tournament_id',t.id).order('match_order');S.matches=r.data||[];
-  const mids=S.matches.map(x=>x.id);
-  if(mids.length){
-    r=await sb.from('goals').select('*').in('match_id',mids).order('created_at');S.goals=r.data||[];
-    r=await sb.from('match_player_assignments').select('*').in('match_id',mids);S.matchAssignments=r.data||[];
-  }else{S.goals=[];S.matchAssignments=[];}
-  const scoreRes=await sb.rpc('get_tournament_team_balance_scores',{p_tournament_id:t.id});
-  S.teamBalanceScores=scoreRes.error?[]:(scoreRes.data||[]);
-  S.teamReviewState=null;
-  if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled){
-    const reviewRes=await sb.rpc('get_tournament_team_review_state',{p_tournament_id:t.id});
-    if(!reviewRes.error)S.teamReviewState=reviewRes.data||null;
-  }
-  renderMatchPitchSelect();
-}
-const THIRD_HALF_PAYMENT_MODES={
-  event_online:'Paiement en ligne',
-  event_arena:'Paiement direct √† l‚ÄôArena',
-  cooler_online:'Participation en ligne √† la glaci√®re',
-  cooler_cash:'Participation main √† main'
-};
-function currentTour(){return S.tournaments.find(x=>x.id===S.activeTour)} function p(id){return S.players.find(x=>x.id===id)} function tm(id){return S.teams.find(x=>x.id===id)}
-
-function matchTeamPlayerIds(matchId,teamId){
-  const rows=S.matchAssignments.filter(a=>String(a.match_id)===String(matchId));
-  if(rows.length)return rows.filter(a=>String(a.team_id||'')===String(teamId||'')).map(a=>a.player_id);
-  return teamPlayerIds(teamId);
-}
-function ratingForMatchPlayer(match,playerId,teamId,goalRows=S.goals){
-  if(!match||!teamId)return null;
-  const hs=Number(match.home_score||0),as=Number(match.away_score||0);
-  const isHome=String(teamId)===String(match.home_team_id),isAway=String(teamId)===String(match.away_team_id);
-  if(!isHome&&!isAway)return null;
-  const own=isHome?hs:as,opp=isHome?as:hs;
-  const difference=own-opp;
-  const base=difference>2?7:difference>0?6:difference===0?5:difference>=-2?4:difference>=-5?3:2;
-  const mg=(goalRows||[]).filter(g=>String(g.match_id)===String(match.id));
-  const goals=mg.filter(g=>String(g.scorer_player_id)===String(playerId)&&!g.is_own_goal).length;
-  const assists=mg.filter(g=>String(g.assister_player_id||'')===String(playerId)).length;
-  return {rating:Math.min(10,base+goals+(assists*.5)),base,goals,assists,result:own>opp?'V':(own===opp?'N':'D')};
-}
-function topPlayersFromData(matchRows,goalRows,assignmentRows,playerRows,tournamentIds=null){
-  const matchMap=new Map((matchRows||[]).filter(m=>!tournamentIds||tournamentIds.has(m.tournament_id)).map(m=>[m.id,m]));
-  const stats=new Map((playerRows||[]).map(pl=>[pl.id,{id:pl.id,name:pl.name,guest:pl.is_group_member===false,total:0,matches:0,g:0,a:0,avg:0}]));
-  (assignmentRows||[]).forEach(a=>{
-    const m=matchMap.get(a.match_id);if(!m||!a.team_id||!stats.has(a.player_id))return;
-    const r=ratingForMatchPlayer(m,a.player_id,a.team_id,goalRows);if(!r)return;
-    const s=stats.get(a.player_id);s.total+=r.rating;s.matches++;s.g+=r.goals;s.a+=r.assists;
-  });
-  return [...stats.values()].filter(x=>x.matches).map(x=>({...x,avg:x.total/x.matches}))
-    .sort((a,b)=>b.avg-a.avg||b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
-}
-
-async function renderSeasonScorerSummary(){
-  const box=$('#seasonScorerSummary');if(!box)return;
-  const activeSeason=S.seasons.find(s=>s.is_active)||S.seasons[0];
-  if(!activeSeason){box.innerHTML='<p class="muted">Aucune saison active.</p>';return}
-  const tournaments=S.tournaments.filter(t=>t.season_id===activeSeason.id&&t.format!=='league');
-  const tids=tournaments.map(t=>t.id);
-  if(!tids.length){
-    box.innerHTML='<div class="readonly-note"><b>'+esc(activeSeason.name)+'</b><div style="margin-top:5px">Aucun tournoi n‚Äôest rattach√© √† cette saison. Les statistiques des tournois hors saison restent visibles uniquement dans chaque tournoi.</div></div>';
-    return;
-  }
-  const {data:matches,error:me}=await sb.from('matches').select('*').in('tournament_id',tids);
-  if(me)throw me;
-  const mids=(matches||[]).map(m=>m.id);
-  if(!mids.length){
-    box.innerHTML='<div class="readonly-note"><b>'+esc(activeSeason.name)+'</b><div style="margin-top:5px">'+tournaments.length+' tournoi'+(tournaments.length>1?'s':'')+' rattach√©'+(tournaments.length>1?'s':'')+', mais aucun match enregistr√©.</div></div>';
-    return;
-  }
-  const {data:goals,error:ge}=await sb.from('goals').select('*').in('match_id',mids);
-  if(ge)throw ge;
-  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
-  (goals||[]).forEach(g=>{
-    if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;
-    if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++;
-  });
-  let scor=[...stats.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
-  let ass=[...stats.values()].filter(x=>x.a).sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
-  scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
-
-  const scorHtml=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but enregistr√©.</p>';
-  const assHtml=ass.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe enregistr√©e.</p>';
-
-  box.innerHTML=
-    '<div class="readonly-note"><b>üìÖ '+esc(activeSeason.name)+'</b><div style="margin-top:5px">'+tournaments.length+' tournoi'+(tournaments.length>1?'s':'')+' rattach√©'+(tournaments.length>1?'s':'')+'. Seuls ces tournois sont cumul√©s dans les classements de saison.</div></div>'+
-    '<div class="grid g2" style="margin-top:10px"><div class="player"><b>‚öΩ Buteurs cumul√©s</b><div style="margin-top:8px">'+scorHtml+'</div></div><div class="player"><b>üéØ Passeurs cumul√©s</b><div style="margin-top:8px">'+assHtml+'</div></div></div>';
-}
-
-function coorgInviteLink(inv){
-  return APP_URL+'?invite='+encodeURIComponent(inv.id)+'&email='+encodeURIComponent(inv.email||'');
-}
-function coorgInviteMessage(inv){
-  const link=coorgInviteLink(inv);
-  return '‚öΩ SW√â TOURNAMENT 5/5\n\n'+
-    'Tu es invit√© √† rejoindre SW√â Tournament en tant que co-gestionnaire.\n\n'+
-    'Pour activer ton acc√®s :\n'+
-    '1. Ouvre le lien ci-dessous.\n'+
-    '2. Ajoute un mot de passe puis clique sur ¬´ Cr√©e ton compte ¬ª avec l‚Äôadresse e-mail indiqu√©e.\n'+
-    '3. Une fois connect√©, accepte l‚Äôinvitation.\n\n'+
-    '‚ö†Ô∏è IMPORTANT : ne modifie pas l‚Äôadresse e-mail indiqu√©e. L‚Äôinvitation est li√©e √† cette adresse : '+inv.email+'\n\n'+
-    'üéØ TON R√îLE\n'+
-    'Dans ton espace, tu peux notamment √©valuer les joueurs que tu connais suffisamment. Tu n‚Äôes pas oblig√© de noter tout le monde : si tu ne connais pas assez un joueur, ne le note pas.\n\n'+
-    'Les √©valuations doivent √™tre objectives, impartiales et faites sans concertation. Elles seront crois√©es avec celles d‚Äôautres co-gestionnaires afin d‚Äôobtenir une vision plus homog√®ne des joueurs et d‚Äôaider SW√â Tournament √† g√©n√©rer des √©quipes al√©atoires mais mieux √©quilibr√©es. ‚öñÔ∏è\n\n'+
-    'üîí CONFIDENTIALIT√â\n'+
-    'Ton r√¥le de co-gestionnaire/notateur ainsi que tes notes individuelles doivent rester confidentiels. Les autres √©valuateurs travaillent √©galement de mani√®re ind√©pendante afin d‚Äô√©viter toute pression ou influence.\n\n'+
-    'üí¨ GROUPE PRIV√â TELEGRAM\nRejoins le groupe priv√© des co-gestionnaires. Il sert uniquement √† signaler un probl√®me, proposer une modification ou partager une id√©e d‚Äôam√©lioration de SW√â Tournament. Les √©changes et informations concernant les √©valuations restent confidentiels.\nüëâ https://t.me/+y3iSlJ7qLzVmMzYx\n\n'+
-    'Si tu souhaites t‚Äôimpliquer davantage dans l‚Äôorganisation ou l‚Äô√©volution de SW√â Tournament, rapproche-toi directement de moi en priv√©. üëäüèΩ\n\n'+
-    'Adresse du compte : '+inv.email+'\n\n'+
-    'Lien d‚Äôinvitation :\n'+link+'\n\n'+
-    'Merci pour ton aide üëäüèΩ‚öΩÔ∏è';
-}
-function renderAccess(){
-  const box=$('#memberList');if(!box)return;
-  if(isCoorg()){
-    box.innerHTML='<div class="player"><b>üë• Co-organisateurs</b><div class="muted" style="margin-top:5px">Il y a actuellement <b>'+S.coorgCount+'</b> co-organisateur'+(S.coorgCount>1?'s':'')+' dans l‚Äôespace.'+(S.myPermissions.can_invite_coorganizers?' Tu es autoris√© √† envoyer des invitations.':' Seul un utilisateur autoris√© par l‚Äôadministrateur peut envoyer une invitation.')+'</div></div>';
-    if(S.lastCreatedInvite&&S.myPermissions.can_invite_coorganizers){
-      const i=S.lastCreatedInvite;
-      const d=document.createElement('div');d.className='player';
-      d.innerHTML='<b>Derni√®re invitation cr√©√©e : '+esc(i.email||'')+'</b><div class="muted" style="margin-top:4px">Envoie ce lien √† la personne concern√©e.</div>';
-      const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
-      const copy=document.createElement('button');copy.textContent='üîó Copier le lien';
-      const wa=document.createElement('button');wa.textContent='üì≤ WhatsApp';wa.className='primary';
-      const inv={id:i.id,email:i.email};
-      copy.onclick=async()=>{try{await navigator.clipboard.writeText(coorgInviteLink(inv));toast('Lien copi√© ‚úÖ')}catch(e){toast('Copie impossible.')}};
-      wa.onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(coorgInviteMessage(inv)),'_blank','noopener');
-      row.append(copy,wa);d.appendChild(row);box.appendChild(d);
-    }
-    return;
-  }
-  if(!isAdmin())return;
-  const activeCo=S.coorgs.filter(x=>x.active);
-  const suspendedCo=S.coorgs.filter(x=>!x.active);
-  const pending=S.invites.filter(x=>!x.accepted_at);
-  const fmt=d=>d?new Date(d).toLocaleDateString('fr-FR'):'';
-
-  const lim=Number(S.workspaceFeatures.max_coorganizers||0),cap=Number(S.workspaceFeatures.max_coorganizers_cap||100);
-  box.innerHTML='<div class="player" style="background:#f7fbf8"><b>Limite de co-gestionnaires</b><div class="muted" style="margin-top:5px">Autorisation actuelle : <b>'+activeCo.length+' / '+lim+'</b>. Les acc√®s inclus et les acc√®s achet√©s sont cumul√©s automatiquement.</div>'+(S.coorgQuotaRequest?.status==='pending'?'<div class="muted" style="margin-top:6px;color:#b45309">‚è≥ Demande en attente pour passer √† <b>'+Number(S.coorgQuotaRequest.requested_limit||lim)+'</b>.</div>':'<div class="muted" style="margin-top:6px">Besoin de plus d‚Äôacc√®s ? Ajoute-les directement depuis l‚Äôaccueil : activation automatique apr√®s paiement.</div>')+'</div>'+
-    '<div class="muted" style="margin-bottom:8px"><b>'+activeCo.length+' / '+lim+' co-organisateur'+(activeCo.length>1?'s':'')+' actif'+(activeCo.length>1?'s':'')+'</b> ‚Ä¢ '+suspendedCo.length+' suspendu'+(suspendedCo.length>1?'s':'')+' ‚Ä¢ '+pending.length+' invitation'+(pending.length>1?'s':'')+' en attente</div>';
-
-  S.coorgs.forEach(c=>{
-    const d=document.createElement('div');d.className='player';
-    const linked=(S.players||[]).find(p=>String(p.id)===String(c.linked_player_id||''));
-    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(c.email||'Co-organisateur')+'</b><div class="muted">Co-organisateur depuis le '+fmt(c.created_at)+'</div></span><span style="font-weight:700;color:'+(c.active?'#15803d':'#b45309')+'">'+(c.active?'üü¢ Actif':'‚è∏Ô∏è Suspendu')+'</span></div>'+
-      '<div style="margin-top:9px;padding:10px;border:1px solid '+(linked?'#b7ddc9':'#dbe7f5')+';border-radius:12px;background:'+(linked?'#f2faf6':'#f7faff')+'"><b>üë§ Membre du groupe associ√©</b><div class="muted" style="margin-top:4px">'+(linked?'‚úÖ '+esc(linked.name)+' ‚Ä¢ liaison active avec son ID SW√â':'Aucun membre rattach√©. Associe son compte au joueur correspondant dans ton groupe.')+'</div></div>';
-    if(!linked){
-      const used=new Set(S.coorgs.map(x=>x.linked_player_id).filter(Boolean).map(String));
-      const eligible=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&!used.has(String(p.id)));
-      const linkRow=document.createElement('div');linkRow.className='row';linkRow.style.cssText='margin-top:8px;align-items:stretch;flex-wrap:wrap';
-      const playerSelect=document.createElement('select');playerSelect.style.cssText='flex:1;min-width:210px';
-      playerSelect.innerHTML='<option value="">Choisir le membre correspondant‚Ä¶</option>'+eligible.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-      const linkButton=document.createElement('button');linkButton.className='primary';linkButton.textContent='üîó Rattacher ce membre';linkButton.disabled=!eligible.length;
-      linkButton.onclick=async()=>{
-        const playerId=playerSelect.value;if(!playerId)return toast('Choisis d‚Äôabord le membre correspondant.');
-        const player=eligible.find(p=>String(p.id)===String(playerId));
-        if(!confirm('Rattacher d√©finitivement '+(c.email||'ce co-organisateur')+' √† '+(player?.name||'ce membre')+' ?\n\nLes statistiques seront r√©unies sous le m√™me ID SW√â.'))return;
-        linkButton.disabled=true;playerSelect.disabled=true;
-        const {error}=await sb.rpc('admin_link_coorganizer_player_v1',{p_workspace_id:S.workspace.id,p_user_id:c.user_id,p_player_id:playerId});
-        if(error){linkButton.disabled=false;playerSelect.disabled=false;return toast(error.message);}
-        c.linked_player_id=playerId;toast('Co-organisateur rattach√© au membre ‚úÖ');renderPermissions();renderAccess();
-      };
-      linkRow.append(playerSelect,linkButton);d.appendChild(linkRow);
-    }
-    const actions=document.createElement('div');actions.className='row';actions.style.marginTop='8px';actions.style.flexWrap='wrap';
-    const suspend=document.createElement('button');suspend.textContent=c.active?'‚è∏Ô∏è Suspendre':'‚ñ∂Ô∏è R√©activer';
-    suspend.onclick=async()=>{
-      if(!confirm(c.active?'Suspendre ce co-organisateur ? Il perdra imm√©diatement l‚Äôacc√®s √† l‚Äôespace.':'R√©activer ce co-organisateur ?'))return;
-      suspend.disabled=true;
-      const {error}=await sb.rpc('admin_set_coorganizer_active',{p_workspace_id:S.workspace.id,p_user_id:c.user_id,p_active:!c.active});
-      suspend.disabled=false;if(error)return toast(error.message);
-      toast(c.active?'Co-organisateur suspendu.':'Co-organisateur r√©activ√©.');
-      await loadAll();
-    };
-    const del=document.createElement('button');del.className='danger smallbtn';del.textContent='üóë Supprimer';
-    del.onclick=async()=>{
-      if(!confirm('Supprimer d√©finitivement '+(c.email||'ce co-organisateur')+' de l‚Äôorganisation ?\n\nIl n‚Äôaura plus acc√®s √† cet espace.'))return;
-      del.disabled=true;
-      const {error}=await sb.rpc('admin_remove_coorganizer',{p_workspace_id:S.workspace.id,p_user_id:c.user_id});
-      del.disabled=false;if(error)return toast(error.message);
-      toast('Co-organisateur supprim√©.');
-      await loadAll();
-    };
-    actions.append(suspend,del);d.appendChild(actions);box.appendChild(d);
-  });
-
-  pending.forEach(i=>{
-    const d=document.createElement('div');d.className='player';
-    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(i.email)+'</b><div class="muted">Invitation cr√©√©e le '+fmt(i.created_at)+' ‚Ä¢ Aucun e-mail automatique n‚Äôest envoy√©.</div></span><span style="font-weight:700;color:#b45309">üü† En attente</span></div>';
-    const actions=document.createElement('div');actions.className='row';actions.style.marginTop='8px';actions.style.flexWrap='wrap';
-    const copy=document.createElement('button');copy.textContent='üîó Copier le lien';
-    const wa=document.createElement('button');wa.textContent='üì≤ WhatsApp';wa.className='primary';
-    const cancel=document.createElement('button');cancel.textContent='Annuler';cancel.className='danger smallbtn';
-    copy.onclick=async()=>{
-      const link=coorgInviteLink(i);
-      try{await navigator.clipboard.writeText(link);toast('Lien d‚Äôinvitation copi√© ‚úÖ')}catch(e){toast('Impossible de copier automatiquement.')}
-    };
-    wa.onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(coorgInviteMessage(i)),'_blank','noopener');
-    cancel.onclick=async()=>{
-      if(!confirm("Annuler cette invitation ?"))return;
-      const {error}=await sb.from('workspace_invites').delete().eq('id',i.id).eq('workspace_id',S.workspace.id).is('accepted_at',null);
-      if(error)return toast(error.message);
-      toast('Invitation annul√©e.');await loadAll();
-    };
-    actions.append(copy,wa,cancel);d.appendChild(actions);box.appendChild(d);
-  });
-
-  if(!S.coorgs.length&&!pending.length)box.innerHTML+='<div class="muted">Aucun co-organisateur pour le moment.</div>';
-}
-
-function renderStripeBilling(){
-  const card=$('#stripeBillingCard');if(!card)return;
-  card.classList.toggle('hidden',!isAdmin());
-  if(!isAdmin())return;
-  const b=S.billingStatus||{},os=S.organizerSettings||{};
-  const connected=!!b.stripe_connect_account_id,ready=!!b.connect_charges_enabled;
-  if($('#organizerLegalStatus'))$('#organizerLegalStatus').value=os.legal_status||'individual';
-  if($('#organizerWhatsappPhone')&&document.activeElement!==$('#organizerWhatsappPhone'))$('#organizerWhatsappPhone').value=os.whatsapp_contact_phone||'';
-  if($('#organizerWhatsappGroup')&&document.activeElement!==$('#organizerWhatsappGroup'))$('#organizerWhatsappGroup').value=os.whatsapp_group_url||'';
-  if($('#organizerPaymentEligibility')){$('#organizerPaymentEligibility').textContent=os.external_payment_ready?'‚úÖ Organisateur PRO ‚Ä¢ paiement en ligne autoris√©':'üë§ Particulier ‚Ä¢ paiement sur place uniquement';$('#organizerPaymentEligibility').style.background=os.external_payment_ready?'#dcfce7':'#eef2f7';const host=$('#organizerPaymentEligibility').parentElement?.parentElement;if(host&&os.external_payment_ready&&!host.querySelector('.pro-payment-warning')){const n=document.createElement('div');n.className='pro-payment-warning';n.innerHTML='<b>‚ö†Ô∏è Engagement organisateur PRO</b><div>Les inscriptions r√©alis√©es via SW√â doivent √™tre r√©gularis√©es conform√©ment aux conditions du complexe. Un impay√© ou litige confirm√© peut entra√Æner la suspension temporaire des fonctions de paiement jusqu‚Äô√† r√©gularisation. Les incidents Stripe sont trait√©s selon les proc√©dures Stripe applicables.</div>';host.appendChild(n);}}
-  const extPay=$('#tourExternalPaymentRequired');if(extPay){extPay.disabled=!os.external_payment_ready;if(!os.external_payment_ready)extPay.checked=false;}
-  const extNote=$('#tourExternalPaymentNote');if(extNote)extNote.textContent=os.external_payment_ready?'Stripe Connect est op√©rationnel : tu peux exiger le paiement en ligne des joueurs externes.':'Pour exiger un paiement externe : module Paiements actif + compte Stripe Connect compl√®tement valid√©.';
-  const toggle=$('#stripePaymentsToggle'),details=$('#stripeBillingDetails');
-  if(toggle){ if(connected) toggle.checked=true; details?.classList.toggle('hidden',!toggle.checked); }
-  const badge=$('#stripeStatusBadge');
-  if(badge)badge.textContent=ready?'üü¢ Paiements actifs':(connected?'‚ö†Ô∏è Configuration √† terminer':'‚ö™ Non configur√©');
-  const incomplete=$('#stripeIncompleteWarning');if(incomplete)incomplete.classList.toggle('hidden',!(connected&&!ready));
-  const homeWarn=$('#homeStripeWarning');if(homeWarn)homeWarn.classList.toggle('hidden',!(connected&&!ready));
-  const plan=b.plan_code==='pro_dev'?'PRO ‚Ä¢ test':String(b.plan_code||'free').toUpperCase();
-  $('#stripeBillingStatus').innerHTML='<div class="grid g2">'+
-    '<div><span class="muted">Formule</span><div><b>'+esc(plan)+'</b></div></div>'+
-    '<div><span class="muted">Compte organisateur</span><div><b>'+(connected?'Connect√©':'√Ä connecter')+'</b></div></div>'+
-    '<div><span class="muted">Encaissements</span><div><b>'+(ready?'‚úÖ Autoris√©s':(connected?'‚ö†Ô∏è √Ä finaliser':'‚è≥ En attente'))+'</b></div></div>'+
-    '<div><span class="muted">Virements</span><div><b>'+(b.connect_payouts_enabled?'‚úÖ Autoris√©s':(connected?'‚ö†Ô∏è √Ä finaliser':'‚è≥ En attente'))+'</b></div></div>'+
-  '</div>';
-  const btn=$('#stripeConnectBtn');if(btn){btn.textContent=connected&&!ready?'‚ö†Ô∏è Terminer la configuration Stripe':(connected?'üîó Mettre √† jour Stripe':'üîó Activer les paiements Stripe'); if(connected&&!ready)btn.style.fontWeight='900';}
-}
-async function refreshStripeConnectStatus(showToast=true){
-  if(!isAdmin()||!S.workspace)return;
-  const btn=$('#stripeRefreshBtn');if(btn)btn.disabled=true;
-  const {data,error}=await sb.functions.invoke('stripe-connect-status',{body:{workspace_id:S.workspace.id}});
-  if(btn)btn.disabled=false;
-  if(error||data?.error){if(showToast)toast(data?.error||error?.message||'Impossible de v√©rifier Stripe.');return}
-  const r=await sb.rpc('get_workspace_billing_status',{p_workspace_id:S.workspace.id});
-  if(!r.error){const b=Array.isArray(r.data)?r.data[0]:r.data;S.billingStatus=b||null;renderStripeBilling();}
-  if(showToast)toast(data?.charges_enabled?'Stripe est pr√™t √† encaisser ‚úÖ':'‚ö†Ô∏è Stripe n‚Äôest pas encore pr√™t : termine la configuration pour activer les paiements.');
-}
-
-document.addEventListener('click',(e)=>{
-  if(e.target?.id==='homeStripeFinishBtn'){
-    setTimeout(()=>$('#stripeBillingCard')?.scrollIntoView({behavior:'smooth',block:'start'}),120);
-  }
-});
-document.addEventListener('change',(e)=>{
-  if(e.target?.id==='stripePaymentsToggle'){
-    const details=$('#stripeBillingDetails');
-    details?.classList.toggle('hidden',!e.target.checked);
-    if(!e.target.checked && S.billingStatus?.stripe_connect_account_id){
-      e.target.checked=true; details?.classList.remove('hidden');
-      toast('Stripe est d√©j√† reli√© √† ce compte. Tu peux continuer ou mettre √† jour la configuration.');
-    }
-  }
-});
-document.addEventListener('click',async(e)=>{
-  if(e.target?.id==='stripeConnectBtn'){
-    if(!isAdmin()||!S.workspace)return;
-    const b=e.target;b.disabled=true;b.textContent='Ouverture de Stripe‚Ä¶';
-    const {data,error}=await sb.functions.invoke('stripe-connect-onboarding',{body:{
-      workspace_id:S.workspace.id,
-      return_url:APP_URL+'?stripe=return',
-      refresh_url:APP_URL+'?stripe=refresh'
-    }});
-    b.disabled=false;renderStripeBilling();
-    if(error||data?.error)return toast(data?.error||error?.message||'Impossible d‚Äôouvrir Stripe.');
-    if(data?.url)location.href=data.url;
-  }
-  if(e.target?.id==='stripeRefreshBtn')await refreshStripeConnectStatus(true);
-});
-
-function renderPermissions(){
-  const box=$('#permissionsList');if(!box)return;
-  if(!isAdmin()){box.innerHTML='';return}
-  if(!S.coorgs.length){box.innerHTML='<p class="muted">Aucun co-organisateur √† param√©trer.</p>';return}
-  box.innerHTML='<div class="player" style="margin-bottom:12px;background:#f7faff;border-color:#bfdbfe"><b>üîê Autorisations des co-gestionnaires</b><div class="muted" style="margin-top:5px">Par d√©faut, un nouveau co-gestionnaire peut uniquement <b>voir la liste des joueurs et les √©valuer</b>. Tu peux ensuite lui ajouter d‚Äôautres droits ici. Cet √©cran ne se rafra√Æchit plus automatiquement pendant tes modifications.</div></div>';
-  const defs=[
-    ['can_invite_coorganizers','Inviter des co-organisateurs','Peut cr√©er et partager une invitation.'],
-    ['can_enter_scores','Saisir les scores pendant les matchs','Peut modifier les scores et ajouter/annuler des buts pendant un tournoi en cours.'],
-    ['can_add_members','Ajouter des membres','Peut ajouter de nouveaux joueurs √† la liste.'],
-
-    ['can_create_tournaments','Cr√©er un nouveau tournoi','Peut cr√©er un nouveau tournoi depuis l‚Äôonglet Tournois.'],
-    ['can_view_players','Voir la liste des joueurs','Affiche l‚Äôonglet Joueurs et permet de consulter la liste et donner un avis de niveau.'],
-    ['can_generate_teams','G√©n√©rer des √©quipes','Peut lancer la g√©n√©ration automatique des √©quipes √©quilibr√©es sans voir les niveaux priv√©s de l‚Äôadministrateur.'],
-    ['can_generate_team_codes','G√©n√©rer les codes √©quipe','Peut g√©n√©rer, r√©g√©n√©rer, activer ou d√©sactiver le code √©quipe personnel d‚Äôun joueur.'],
-    ['can_edit_player_personal_info','Modifier les informations personnelles des joueurs','Peut modifier le nom, le statut membre/guest, le rattachement Guest de‚Ä¶ et le num√©ro de t√©l√©phone.']
-  ];
-  S.coorgs.forEach(c=>{
-    const card=document.createElement('div');card.className='player';card.style.marginBottom='12px';
-    card.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(c.email||'Co-organisateur')+'</b><div class="muted">'+(c.active?'üü¢ Actif':'‚è∏Ô∏è Suspendu')+'</div></span></div>';
-    const linkBox=document.createElement('div');linkBox.style.cssText='margin-top:10px;padding:10px;border:1px solid #dbe7f5;border-radius:12px;background:#f7faff';
-    const linkedSel=document.createElement('select');linkedSel.dataset.linkedPlayer='1';linkedSel.style.width='100%';
-    linkedSel.innerHTML='<option value="">Aucun joueur rattach√©</option>'+S.players.filter(p=>p.active&&p.is_group_member!==false).map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-    linkedSel.value=c.linked_player_id||'';
-    if(c.linked_player_id) linkedSel.disabled=true;
-    linkBox.innerHTML='<b>üë§ Compte associ√© √† un joueur</b><div class="muted small" style="margin:4px 0 7px">'+(c.linked_player_id?'üîí Liaison d√©finitive : ce membre utilise d√©sormais le m√™me ID SW√â que le co-gestionnaire. Seul le Super Admin peut d√©lier ce profil.':'Identifie le membre correspondant au co-gestionnaire. S‚Äôil poss√®de d√©j√† un ID SW√â, ses statistiques seront automatiquement rattach√©es √† cet ID.')+'</div>';
-    linkBox.appendChild(linkedSel);card.appendChild(linkBox);
-    const instructionBox=document.createElement('label');instructionBox.style.cssText='display:block;margin-top:10px;padding:10px;border:1px solid #d7e7df;border-radius:12px;background:#f7fbf8';
-    instructionBox.innerHTML='<b>üì£ Consigne personnalis√©e</b><div class="muted small" style="margin:4px 0 7px">Visible uniquement par ce co-gestionnaire lorsqu‚Äôil est connect√©.</div><textarea data-personal-instructions maxlength="2000" rows="3" placeholder="Ex. Observe en priorit√© les nouveaux joueurs et v√©rifie les pr√©sences.">'+esc(c.personal_instructions||'')+'</textarea>';
-    card.appendChild(instructionBox);
-    defs.forEach(([key,label,help])=>{
-      const row=document.createElement('label');row.className='row';row.style.justifyContent='flex-start';row.style.alignItems='flex-start';row.style.marginTop='10px';
-      const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.checked=!!c[key];cb.dataset.perm=key;
-      const txt=document.createElement('span');txt.style.flex='1';txt.innerHTML='<b>'+label+'</b><div class="muted">'+help+'</div>';
-      row.append(cb,txt);card.appendChild(row);
-    });
-    const temp=document.createElement('div');temp.className='player';temp.style.marginTop='12px';temp.style.background='#fff8e8';
-    const tempActive=c.temporary_admin_until&&new Date(c.temporary_admin_until).getTime()>Date.now();
-    const localValue=c.temporary_admin_until?new Date(new Date(c.temporary_admin_until).getTime()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16):'';
-    temp.innerHTML='<b>üëë Droits admin temporaires</b><div class="muted" style="margin:5px 0 8px">Donne temporairement les droits de gestion du tournoi : cr√©er/terminer/supprimer un tournoi, g√©rer les pr√©sences, √©quipes et matchs. Les autorisations de s√©curit√© restent r√©serv√©es √† l‚Äôadministrateur principal.</div>'+
-      '<div class="row"><input type="datetime-local" data-temp-admin-until value="'+esc(localValue)+'" style="flex:1"><button type="button" data-clear-temp>Retirer</button></div>'+
-      '<div class="muted" style="margin-top:6px">'+(tempActive?'üü¢ Actif jusqu‚Äôau '+new Date(c.temporary_admin_until).toLocaleString('fr-FR'):'Aucun droit admin temporaire actif')+'</div>';
-    temp.querySelector('[data-clear-temp]').onclick=()=>{temp.querySelector('[data-temp-admin-until]').value='';};
-    card.appendChild(temp);
-
-    const save=document.createElement('button');save.className='primary';save.style.marginTop='12px';save.textContent='Enregistrer les autorisations';
-    save.onclick=async()=>{
-      const vals={};card.querySelectorAll('[data-perm]').forEach(cb=>vals[cb.dataset.perm]=cb.checked);
-      const tempInput=card.querySelector('[data-temp-admin-until]');
-      const tempUntil=tempInput&&tempInput.value?new Date(tempInput.value).toISOString():null;
-      if(tempUntil&&new Date(tempUntil).getTime()<=Date.now())return toast('Choisis une date de fin future pour les droits admin temporaires.');
-      save.disabled=true;
-      const linkedPlayerId=card.querySelector('[data-linked-player]')?.value||null;
-      const {error}=await sb.rpc('admin_save_coorganizer_settings',{
-        p_workspace_id:S.workspace.id,p_user_id:c.user_id,
-        p_can_invite:!!vals.can_invite_coorganizers,p_can_scores:!!vals.can_enter_scores,
-        p_can_add:!!vals.can_add_members,p_can_delete:!!vals.can_delete_members,
-        p_can_create_tournaments:!!vals.can_create_tournaments,
-        p_can_view_players:!!vals.can_view_players,
-        p_can_generate_teams:!!vals.can_generate_teams,
-        p_can_generate_team_codes:!!vals.can_generate_team_codes,
-        p_can_edit_player_personal_info:!!vals.can_edit_player_personal_info,
-        p_linked_player_id:linkedPlayerId,
-        p_temporary_admin_until:tempUntil,
-        p_personal_instructions:card.querySelector('[data-personal-instructions]')?.value.trim()||null
-      });
-      if(error){save.disabled=false;return toast(error.message);}
-      Object.assign(c,vals,{linked_player_id:linkedPlayerId,temporary_admin_until:tempUntil,personal_instructions:card.querySelector('[data-personal-instructions]')?.value.trim()||null});
-      // Relit la configuration via la m√™me source RPC que celle utilis√©e au chargement.
-      // Cela √©vite les √©tats incoh√©rents li√©s √† une lecture RLS diff√©rente de l'√©criture RPC.
-      try{
-        const {data:freshList,error:freshError}=await sb.rpc('admin_get_coorganizer_permissions',{p_workspace_id:S.workspace.id});
-        if(!freshError){
-          const fresh=(Array.isArray(freshList)?freshList:[]).find(x=>x.user_id===c.user_id);
-          if(fresh)Object.assign(c,fresh);
-        }
-      }catch(e){console.warn('permission verification',e)}
-      save.disabled=false;
-      save.textContent='‚úì Enregistr√©';
-      toast('Autorisations enregistr√©es ‚úÖ');
-      setTimeout(()=>{if(save.isConnected)save.textContent='Enregistrer les autorisations';},1200);
-    };
-    card.appendChild(save);box.appendChild(card);
-  });
-}
-function renderAll(){
-  renderHostWelcome();
-  renderHome();
-  renderRegisteredPlayersAdmin().catch(e=>console.error('registered players',e));
-  renderPlayers();
-  renderPlayerDirectoryCard();renderAdminPlayerRequests();
-  renderMyPlayerHub();
-  renderPermissions();
-  renderStripeBilling();
-  renderTournaments();
-  renderTeams();
-  renderMatches();
-  renderLeague().catch(e=>console.error('league',e));
-  applyPermissions();
-  renderAccess();
-  if($('#publicLink')&&S.workspace?.public_token)$('#publicLink').value=APP_URL+'?public='+S.workspace.public_token; // lien public g√©n√©ral de consultation ; les inscriptions utilisent registrationLink(t)
-  renderRanking().catch(e=>console.error('ranking',e));
-  renderSeasonScorerSummary().catch(e=>console.error('season ranking',e));
-}
-
-async function renderRegisteredPlayersAdmin(){
-  const card=$('#registeredPlayersAdminCard');if(!card)return;
-  const t=currentTour();
-  card.classList.toggle('hidden',!t);
-  if(!t)return;
-  const label=$('#registeredPlayersCompetitionLabel');
-  if(label)label.textContent=(t.format==='league'?'Sw√© de Ligue : ':'Tournoi : ')+(t.name||t.tournament_date)+' ‚Ä¢ '+t.tournament_date;
-  const {data,error}=await sb.rpc('get_registered_players_for_tournament',{p_tournament_id:t.id});
-  const box=$('#registeredPlayersAdminList'),sel=$('#manualRegisteredPlayerSelect');
-  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
-  const rows=Array.isArray(data)?data:[];
-  const registeredIds=new Set(rows.filter(r=>r.present).map(r=>r.player_id));
-  const available=(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&!registeredIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name));
-  if(sel)sel.innerHTML='<option value="">Ajouter un membre inscrit manuellement</option>'+available.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-  if(!rows.length){box.innerHTML='<p class="muted">Aucun joueur inscrit pour le moment.</p>';return}
-  box.innerHTML='';
-  rows.filter(r=>r.present).forEach((r,i)=>{
-    const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';
-    d.innerHTML='<b style="min-width:28px">'+(i+1)+'.</b><span style="flex:1">'+esc(r.player_name)+(r.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span><span class="guest-badge">'+(r.registration_status==='waitlist'||r.is_substitute?'Rempla√ßant':'Confirm√©')+'</span>';
-    const remove=document.createElement('button');remove.className='danger';remove.textContent='Retirer';remove.onclick=async()=>{
-      if(!confirm('Retirer '+r.player_name+' de cette inscription ?'))return;
-      const {error}=await sb.rpc('remove_registered_member_from_tournament',{p_tournament_id:t.id,p_player_id:r.player_id});
-      if(error)return toast(error.message);
-      if(t.format!=='league'&&S.teams.length){
-        try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
-      }
-      await loadTournament();renderRegisteredPlayersAdmin();renderHome();toast('Inscription retir√©e.');
-    };
-    d.appendChild(remove);box.appendChild(d);
-  });
-}
-
-function renderHomeCoorgVotes(){
-  const card=$('#homeCoorgVotesCard');
-  const box=$('#homeCoorgVotes');
-  if(!card||!box)return;
-  const show=isAdmin();
-  card.classList.toggle('hidden',!show);
-  if(!show)return;
-  const active=(S.coorgs||[]).filter(c=>c.active!==false);
-  if(!active.length){
-    box.innerHTML='<div class="muted">Aucun co-gestionnaire actif pour le moment.</div>';
-    return;
-  }
-  const reviews=Array.isArray(S.skillReviews)?S.skillReviews:[];
-  const rows=active.map(c=>{
-    const linked=(S.players||[]).find(p=>String(p.id)===String(c.linked_player_id));
-    const label=linked?.name||((c.email||'Co-gestionnaire').split('@')[0]);
-    const mine=reviews.filter(r=>String(r.evaluator_user_id)===String(c.user_id)&&r.player_id);
-    const votedIds=[...new Set(mine.map(r=>String(r.player_id)))];
-    const votedPlayers=votedIds.map(id=>(S.players||[]).find(p=>String(p.id)===id)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
-    const max=Math.max(0,(S.players||[]).filter(p=>p.active&&p.is_group_member!==false&&String(p.id)!==String(c.linked_player_id||'')).length);
-    return {userId:c.user_id,label,email:c.email||'',voted:votedIds.length,max,votedPlayers};
-  }).sort((a,b)=>b.voted-a.voted||a.label.localeCompare(b.label,'fr'));
-  box.innerHTML='<div style="display:grid;gap:8px">'+rows.map((r,i)=>{
-    const pct=r.max?Math.min(100,Math.round(r.voted/r.max*100)):0;
-    const detailsId='coorgVotesDetails'+i;
-    const detailHtml=r.votedPlayers.length?r.votedPlayers.map(p=>'<span class="guest-badge" style="margin:3px 5px 3px 0;display:inline-block">'+esc(p.name)+'</span>').join(''):'<span class="muted">Aucun joueur √©valu√©.</span>';
-    return '<div class="player" style="padding:10px 12px">'+
-      '<div class="row" style="justify-content:space-between;align-items:center;gap:10px">'+
-        '<div style="min-width:0"><b>'+esc(r.label)+'</b>'+(r.email&&r.email.split('@')[0]!==r.label?'<div class="muted" style="font-size:12px">'+esc(r.email)+'</div>':'')+'</div>'+
-        '<div style="text-align:right;white-space:nowrap"><b style="font-size:18px">'+r.voted+'</b><span class="muted"> vote'+(r.voted>1?'s':'')+'</span><div class="muted" style="font-size:12px">sur '+r.max+' joueur'+(r.max>1?'s':'')+'</div></div>'+
-      '</div>'+
-      '<div style="height:6px;background:#e8ecea;border-radius:999px;overflow:hidden;margin-top:8px"><div style="height:100%;width:'+pct+'%;background:#b38b2e;border-radius:999px"></div></div>'+
-      '<button class="secondary" type="button" style="margin-top:8px;padding:7px 10px" data-toggle-coorg-votes="'+detailsId+'">üëÅÔ∏è Voir les joueurs not√©s ('+r.voted+')</button>'+
-      '<div id="'+detailsId+'" class="hidden" style="margin-top:8px;padding-top:8px;border-top:1px solid #e8ecea"><div class="muted" style="font-size:12px;margin-bottom:5px">Joueurs √©valu√©s par '+esc(r.label)+' :</div>'+detailHtml+'</div>'+
-    '</div>';
-  }).join('')+'</div>';
-  box.querySelectorAll('[data-toggle-coorg-votes]').forEach(btn=>btn.addEventListener('click',()=>{
-    const target=document.getElementById(btn.dataset.toggleCoorgVotes);
-    if(!target)return;
-    const opening=target.classList.contains('hidden');
-    target.classList.toggle('hidden',!opening);
-    const count=(target.querySelectorAll('.guest-badge')||[]).length;
-    btn.textContent=opening?'üôà Masquer la liste':'üëÅÔ∏è Voir les joueurs not√©s ('+count+')';
-  }));
-}
-
-
-function coorgUnitCents(period){
-  return period==='year'?1990:199;
-}
-function coorgBillingPeriod(){
-  return $('#homeCoorgBillingPeriod')?.value==='year'?'year':'month';
-}
-function euroCents(c){return (Number(c||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ‚Ç¨'}
-function refreshCoorgPurchasePrice(){
-  const input=$('#homeCoorgQty');
-  let q=Math.max(1,Math.min(100,Math.floor(Number(input?.value||1))||1));if(input)input.value=q;
-  const period=coorgBillingPeriod(),unit=coorgUnitCents(period),total=unit*q;
-  const suffix=period==='year'?'/an':'/mois';
-  const periodLabel=period==='year'?'par an':'par mois';
-  const frequencyLabel=period==='year'?'facturation annuelle':'facturation mensuelle';
-  const u=$('#homeCoorgUnitPrice');if(u)u.textContent='Tarif unitaire : 1 acc√®s √©quipe √† '+euroCents(unit)+' '+periodLabel;
-  const label=$('#homeCoorgTotalLabel');if(label)label.textContent=period==='year'?'Total annuel':'Total mensuel';
-  const t=$('#homeCoorgTotal');if(t)t.innerHTML='<b>'+euroCents(total)+suffix+'</b><div class="muted">'+q+' acc√®s √ó '+euroCents(unit)+' ‚Ä¢ '+frequencyLabel+'</div>';
-  const b=$('#homeBuyCoorg');if(b&&!S.coorgCheckoutPending)b.innerHTML='üí≥ Ajouter '+q+' acc√®s √©quipe ‚Äî '+euroCents(total)+suffix+' <span>‚Üí</span>';
-}
-async function confirmCoorgCheckoutFromUrl(){
-  const p=new URLSearchParams(location.search);
-  if(p.get('coorg')!=='success'||!S.session||!S.workspace||!isAdmin()||S.coorgPurchaseConfirming)return;
-  S.coorgPurchaseConfirming=true;
-  try{
-    // V41: the browser never activates paid rights. Stripe webhook is the only authority.
-    toast('Paiement re√ßu ‚úÖ Activation s√©curis√©e en cours‚Ä¶');
-    for(let i=0;i<3;i++){
-      if(i) await new Promise(r=>setTimeout(r,1500));
-      await loadAll();
-    }
-    const u=new URL(location.href);u.searchParams.delete('coorg');u.searchParams.delete('coorg_session_id');history.replaceState({},'',u.toString());
-    toast('Option √©quipe synchronis√©e avec Stripe ‚úÖ');
-  }catch(err){
-    console.warn(err);
-    toast('Paiement re√ßu. Stripe finalise l‚Äôactivation automatiquement.');
-  }finally{S.coorgPurchaseConfirming=false;}
-}
-function renderEcosystemCommercial(){
-  const ecosystemCard=$('#homeEcosystemCard');
-  if(ecosystemCard) ecosystemCard.classList.toggle('hidden',!isAdmin());
-  const purchaseCard=$('#homeCoorgOfferCard');
-  if(purchaseCard&&!isAdmin())purchaseCard.classList.add('hidden');
-  if(!isAdmin()) return;
-  const c=S.commercialAccess||{};
-  const a=S.organizerAccess||{};
-  const trialActive=!!a.trial_active&&!c.special_access_enabled;
-  const hasLockedModules=['player_ratings_enabled','third_half_enabled','tournaments_enabled'].some(key=>!S.workspaceFeatures[key]);
-  for(const id of ['#homeCoorgOfferCard','#homeModulesDisclosure']){const section=$(id);if(section&&section.dataset.workspace!==String(S.workspace?.id||'')){section.open=false;section.dataset.workspace=String(S.workspace?.id||'');}}
-  const badge=$('#homePlanBadge');if(badge)badge.textContent=trialActive?('ESSAI ‚Ä¢ '+Number(a.days_remaining||0)+' J'):(c.special_access_enabled?'ACC√àS SP√âCIAL ‚Ä¢ ':'')+String(c.subscription_plan||'free').toUpperCase();
-  const special=$('#homeSpecialAccessNotice');if(special){special.classList.toggle('hidden',!c.special_access_enabled);special.innerHTML=c.special_access_enabled?'<div class="player" style="background:#ecfdf3;border-color:#86d6a3"><b>üéÅ Autorisation sp√©ciale SW√â active</b><div class="muted" style="margin-top:4px">Tous les modules sont d√©bloqu√©s pour faire d√©couvrir la solution, sans modifier ton abonnement commercial.</div></div>':'';}
-  const trialNotice=$('#homeTrialPricingNotice');
-  const coorgOffer=$('#homeCoorgOfferCard');
-  const upgradeCard=$('#homeUpgradeCard');
-  if(trialNotice){
-    trialNotice.classList.toggle('hidden',!trialActive);
-    trialNotice.innerHTML=trialActive?'<div class="home-trial-strip"><b>üéÅ Offre d√©couverte ¬∑ '+Number(a.days_remaining||0)+' jour'+(Number(a.days_remaining||0)>1?'s':'')+' restant'+(Number(a.days_remaining||0)>1?'s':'')+'</b><span>Retrouve le statut de chaque option dans ¬´ Voir nos modules ¬ª.</span><details><summary>G√©rer mon essai</summary><button type="button" id="endTrialToPay" class="secondary">Arr√™ter mon essai et voir les offres payantes</button></details></div>':'';
-  }
-  if(coorgOffer)coorgOffer.classList.toggle('hidden',trialActive);
-  if(upgradeCard)upgradeCard.classList.toggle('hidden',!hasLockedModules);
-  const paint=(id,on)=>{const el=$(id);if(!el)return;el.dataset.moduleState=on?(trialActive?'trial':'active'):'locked';let st=el.querySelector('[data-module-status]');if(!st){st=document.createElement('div');st.dataset.moduleStatus='1';el.appendChild(st);}st.className='home-module-status';st.textContent=on?(trialActive?'üéÅ Offert pendant l‚Äôessai':'‚úì Module actif'):'Ôºã √Ä d√©bloquer';};
-  paint('#ecoRatingsModule',!!S.workspaceFeatures.player_ratings_enabled);paint('#ecoThirdHalfModule',!!S.workspaceFeatures.third_half_enabled);paint('#ecoTournamentModule',!!S.workspaceFeatures.tournaments_enabled);
-  const up=$('#homeRequestUpgrade');if(up){up.textContent=c.upgrade_requested_at?'‚è≥ Demande envoy√©e':'Demander une activation';up.disabled=!!c.upgrade_requested_at;}
-  refreshCoorgPurchasePrice();
-}
-
-
-function renderHome(){
-  renderEcosystemCommercial();
-  renderCoorgOrganizerCta();
-  setTimeout(confirmCoorgCheckoutFromUrl,0);
-  const ongoingTournaments=S.tournaments.filter(x=>x.format!=='league'&&x.status!=='finished').length;
-  const ongoingLeagues=S.leagues.filter(x=>x.status!=='finished').length;
-  const groupMembers=S.players.filter(x=>x.active&&x.is_group_member!==false).length;
-  const allowedCoorg=Number(S.workspaceFeatures.max_coorganizers||0);
-  const activeCoorg=Number(S.coorgCount||0);
-  const wsStats=$('#homeWorkspaceStats');
-  if(wsStats){
-    wsStats.innerHTML=
-      '<div class="home-kpi blue"><b>'+ongoingTournaments+'</b><div class="muted">‚öΩ tournoi'+(ongoingTournaments>1?'s':'')+' en cours</div></div>'+
-      '<div class="home-kpi green"><b>'+ongoingLeagues+'</b><div class="muted">üèÅ ligue'+(ongoingLeagues>1?'s':'')+' en cours</div></div>'+
-      '<div class="home-kpi orange"><b>'+groupMembers+'</b><div class="muted">üë• membre'+(groupMembers>1?'s':'')+' dans le groupe</div></div>'+
-      (isAdmin()?'<div class="home-kpi violet"><b>'+activeCoorg+' / '+allowedCoorg+'</b><div class="muted">ü§ù co-gestionnaire'+(allowedCoorg>1?'s':'')+' autoris√©'+(allowedCoorg>1?'s':'')+'</div></div>':'');
-  }
-  const quotaBox=$('#homeCoorgQuotaRequest');
-  if(quotaBox){
-    quotaBox.innerHTML='';
-    if(isAdmin()) quotaBox.innerHTML='<div class="muted" style="font-size:12px">ü§ù Capacit√© actuelle : <b>'+activeCoorg+' / '+allowedCoorg+'</b>. Pour ajouter des acc√®s, utilise la section <b>Mon abonnement & options SW√â</b>.</div>';
-  }
-  renderHomeCoorgVotes();
-}
-
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  if(e.target?.id==='homeRequestMoreCoorg'){
-    const n=Number($('#homeRequestedCoorgLimit')?.value||0);
-    const current=Number(S.workspaceFeatures.max_coorganizers||0);
-    if(!Number.isFinite(n)||n<=current)return toast('Choisis une limite sup√©rieure √† '+current+'.');
-    const b=e.target;b.disabled=true;
-    const {data,error}=await sb.rpc('request_more_coorganizers',{p_workspace_id:S.workspace.id,p_requested_limit:n});
-    b.disabled=false;if(error)return toast(error.message);
-    S.coorgQuotaRequest=data||null;renderHome();toast('Demande envoy√©e au Super Admin ‚úÖ');
-    return;
-  }
-  if(e.target?.id==='refreshRegisteredPlayers')await renderRegisteredPlayersAdmin();
-  if(e.target?.id==='manualRegisterPlayer'){
-    const t=currentTour();const pid=$('#manualRegisteredPlayerSelect')?.value;
-    if(!t)return toast('Aucune comp√©tition s√©lectionn√©e.');
-    if(!pid)return toast('Choisis un membre du groupe.');
-    const b=e.target;b.disabled=true;
-    const {data,error}=await sb.rpc('add_registered_member_to_tournament',{p_tournament_id:t.id,p_player_id:pid});
-    b.disabled=false;if(error)return toast(error.message);
-    if(t.format!=='league'&&S.teams.length){
-      try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
-    }
-    await loadTournament();renderRegisteredPlayersAdmin();renderHome();
-    const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(pid));
-    toast(data==='waitlist'||fresh?.is_substitute?'Joueur ajout√© comme rempla√ßant üü†':'Joueur ajout√© aux inscrits ‚úÖ');
-  }
-  if(e.target?.id==='managerAddGuest'){
-    const t=currentTour(),name=$('#managerGuestName')?.value.trim();
-    if(!t)return toast('Aucune comp√©tition s√©lectionn√©e.');
-    if(!name)return toast('Indique le nom de l‚Äôinvit√©.');
-    const b=e.target;b.disabled=true;
-    const {data,error}=await sb.rpc('manager_register_tournament_guest',{p_tournament_id:t.id,p_guest_name:name});
-    b.disabled=false;if(error)return toast(error.message);
-    $('#managerGuestName').value='';
-    if(t.format!=='league'&&S.teams.length){
-      try{await syncTournamentSubstitutes(t.id)}catch(syncError){return toast(syncError.message)}
-    }
-    await loadTournament();renderRegisteredPlayersAdmin();renderHome();renderTeams();
-    const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(data?.player_id));
-    toast(data?.status==='waitlist'||fresh?.is_substitute?'Invit√© ajout√© comme rempla√ßant üü†':'Invit√© ajout√© ‚úÖ');
-  }
-});
-
-
-function closeCoorgOptionsManager(){document.querySelector('.swe-option-modal-backdrop')?.remove();}
-function coorgSubPeriodEnd(ts){
-  if(!ts)return '';
-  try{return new Date(Number(ts)*1000).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(_){return ''}
-}
-async function openCoorgOptionsManager(){
-  closeCoorgOptionsManager();
-  const trigger=$('#homeCancelCoorg');
-  if(trigger){trigger.disabled=true;trigger.textContent='Chargement des options‚Ä¶';}
-  const {data,error}=await sb.functions.invoke('stripe-cancel-coorganizer-subscription',{body:{workspace_id:S.workspace.id,action:'list'}});
-  if(trigger){trigger.disabled=false;trigger.textContent='G√©rer / r√©silier mes options √©quipe';}
-  if(error||data?.error)return toast(data?.error||error?.message||'Impossible de charger tes options.');
-  const subs=Array.isArray(data?.subscriptions)?data.subscriptions:[];
-  const overlay=document.createElement('div');overlay.className='swe-option-modal-backdrop';
-  overlay.innerHTML='<div class="swe-option-modal" role="dialog" aria-modal="true" aria-labelledby="coorgOptionsTitle">'+
-    '<div class="swe-option-modal-head"><div><h3 id="coorgOptionsTitle">‚öôÔ∏è G√©rer mes options √©quipe</h3><p>S√©lectionne uniquement les options que tu souhaites arr√™ter. Les autres restent actives.</p></div><button type="button" class="swe-option-modal-close" aria-label="Fermer">√ó</button></div>'+
-    '<div class="swe-option-modal-body">'+
-      (subs.length?'<div class="swe-option-list">'+subs.map((x,i)=>{
-        const annual=x.interval==='year',qty=Math.max(0,Number(x.quantity||0)),unit=Number(x.unit_amount_cents||0),total=qty*unit;
-        const end=coorgSubPeriodEnd(x.current_period_end);
-        const state=x.cancel_at_period_end?'Renouvellement d√©j√† arr√™t√©':(annual?'Annuel':'Mensuel');
-        return '<label class="swe-option-row"><input type="checkbox" data-cancel-sub="'+esc(x.subscription_id)+'" '+(x.cancel_at_period_end?'disabled':'')+'><div><div class="swe-option-row-title">'+qty+' acc√®s √©quipe'+(qty>1?'s':'')+' ¬∑ '+state+'</div><div class="swe-option-row-meta">'+(annual?'Facturation annuelle':'Facturation mensuelle')+(annual&&end?' ¬∑ actif jusqu‚Äôau '+esc(end):'')+(x.cancel_at_period_end?' ¬∑ aucune action n√©cessaire':'')+'</div></div><div class="swe-option-row-price">'+euroCents(total)+'<small>'+(annual?'/ an':'/ mois')+'</small></div></label>';
-      }).join('')+'</div>':'<div class="swe-option-modal-empty"><b>Aucune option √©quipe payante active.</b><div class="muted" style="margin-top:5px">Les acc√®s inclus ou offerts dans ton espace SW√â ne sont pas concern√©s.</div></div>')+
-      '<div class="swe-option-modal-note"><b>√Ä savoir :</b> une option mensuelle s√©lectionn√©e est arr√™t√©e imm√©diatement. Pour une option annuelle, seul le renouvellement est arr√™t√© : les acc√®s restent actifs jusqu‚Äô√† la fin de la p√©riode d√©j√† pay√©e.</div>'+
-    '</div><div class="swe-option-modal-actions"><button type="button" class="secondary" data-close-options>Fermer</button><button type="button" class="primary swe-option-cancel-confirm" data-confirm-options disabled>R√©silier la s√©lection</button></div></div>';
-  document.body.appendChild(overlay);
-  const update=()=>{const n=overlay.querySelectorAll('[data-cancel-sub]:checked').length;const b=overlay.querySelector('[data-confirm-options]');if(b){b.disabled=n===0;b.textContent=n?'R√©silier '+n+' option'+(n>1?'s':''):'R√©silier la s√©lection';}};
-  overlay.querySelectorAll('[data-cancel-sub]').forEach(x=>x.addEventListener('change',update));
-  overlay.querySelector('.swe-option-modal-close')?.addEventListener('click',closeCoorgOptionsManager);
-  overlay.querySelector('[data-close-options]')?.addEventListener('click',closeCoorgOptionsManager);
-  overlay.addEventListener('click',ev=>{if(ev.target===overlay)closeCoorgOptionsManager();});
-  overlay.querySelector('[data-confirm-options]')?.addEventListener('click',async ev=>{
-    const ids=[...overlay.querySelectorAll('[data-cancel-sub]:checked')].map(x=>x.dataset.cancelSub).filter(Boolean);
-    if(!ids.length)return;
-    const annualSelected=subs.some(x=>ids.includes(x.subscription_id)&&x.interval==='year');
-    const msg='Confirmer la r√©siliation de '+ids.length+' option'+(ids.length>1?'s':'')+' s√©lectionn√©e'+(ids.length>1?'s':'')+' ?'+(annualSelected?'\\n\\nLes options annuelles resteront actives jusqu‚Äô√† la fin de leur p√©riode d√©j√† pay√©e.':'');
-    if(!confirm(msg))return;
-    const b=ev.currentTarget;b.disabled=true;b.textContent='R√©siliation en cours‚Ä¶';
-    const {data:cancelData,error:cancelError}=await sb.functions.invoke('stripe-cancel-coorganizer-subscription',{body:{workspace_id:S.workspace.id,action:'cancel',subscription_ids:ids}});
-    if(cancelError||cancelData?.error){b.disabled=false;update();return toast(cancelData?.error||cancelError?.message||'Impossible de r√©silier la s√©lection.');}
-    closeCoorgOptionsManager();
-    await loadAll();renderHome();
-    toast(cancelData?.message||'R√©siliation enregistr√©e ‚úÖ');
-  });
-}
-
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  const stepBtn=e.target?.closest?.('[data-coorg-step]');
-  if(stepBtn){const input=$('#homeCoorgQty');if(input){input.value=Math.max(1,Math.min(100,Math.floor(Number(input.value||1))+Number(stepBtn.dataset.coorgStep||0)));refreshCoorgPurchasePrice();}return;}
-  const billingBtn=e.target?.closest?.('[data-coorg-billing]');
-  if(billingBtn){
-    const period=billingBtn.dataset.coorgBilling==='year'?'year':'month';
-    const hidden=$('#homeCoorgBillingPeriod');if(hidden)hidden.value=period;
-    document.querySelectorAll('[data-coorg-billing]').forEach(btn=>{const active=btn===billingBtn;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',active?'true':'false');});
-    refreshCoorgPurchasePrice();
-    return;
-  }
-  if(e.target?.id==='homeCancelCoorg'){
-    if(!isAdmin())return toast('R√©serv√© √† l‚Äôadministrateur.');
-    await openCoorgOptionsManager();
-    return;
-  }
-  const purchaseButton=e.target?.closest?.('#homeBuyCoorg');
-  if(purchaseButton){
-    if(!isAdmin())return toast('R√©serv√© √† l‚Äôadministrateur.');
-    if(S.coorgCheckoutPending)return;
-    const qty=Math.max(1,Math.min(100,Math.floor(Number($('#homeCoorgQty')?.value||1))||1));
-    const billingPeriod=coorgBillingPeriod(),workspaceId=S.workspace.id;
-    const key=[workspaceId,qty,billingPeriod].join(':');
-    if(S.coorgCheckoutRequest?.key!==key)S.coorgCheckoutRequest={key,id:crypto.randomUUID()};
-    S.coorgCheckoutPending=true;purchaseButton.disabled=true;purchaseButton.textContent='Ouverture du paiement‚Ä¶';
-    try{
-      const {data,error}=await sb.functions.invoke('stripe-create-coorganizer-checkout',{body:{workspace_id:workspaceId,quantity:qty,billing_period:billingPeriod,request_id:S.coorgCheckoutRequest.id}});
-      if(error){let detail;try{detail=await error.context?.json()}catch(_){}throw new Error(detail?.error||'Le paiement ne peut pas √™tre ouvert. R√©essaie dans un instant.');}
-      if(data?.error)throw new Error(data.error);
-      if(!data?.url)throw new Error('Lien de paiement indisponible.');
-      location.href=data.url;
-    }catch(error){toast(error.message||'Impossible d‚Äôouvrir le paiement.');}
-    finally{S.coorgCheckoutPending=false;purchaseButton.disabled=false;refreshCoorgPurchasePrice();}
-    return;
-  }
-  if(e.target?.id==='endTrialToPay'){
-    if(!isAdmin())return toast('R√©serv√© √† l‚Äôadministrateur.');
-    if(!confirm('Mettre fin maintenant √† ton essai gratuit ?\n\nLes fonctions organisateur premium ne seront plus accessibles tant qu‚Äôaucun abonnement n‚Äôest actif. Tu pourras alors consulter les offres et tarifs. Cette action est imm√©diate.'))return;
-    const b=e.target;b.disabled=true;b.textContent='Fin de l‚Äôessai‚Ä¶';
-    const {data,error}=await sb.rpc('end_my_organizer_trial',{p_workspace_id:S.workspace.id});
-    if(error){b.disabled=false;b.textContent='Je veux arr√™ter mon essai et voir les offres payantes';return toast(error.message);}
-    S.organizerAccess=data||{trial_active:false,requires_subscription:true,days_remaining:0};
-    await loadAll();
-    renderHome();
-    toast('Essai termin√©. Les offres payantes sont maintenant visibles.');
-    return;
-  }
-  if(e.target?.id==='homeRequestUpgrade'){
-    if(!isAdmin())return toast('R√©serv√© √† l‚Äôadministrateur.');if(!confirm('Demander √† faire √©voluer ton espace SW√â pour d√©bloquer des modules avanc√©s ?'))return;
-    const {error}=await sb.rpc('request_workspace_upgrade',{p_workspace_id:S.workspace.id});if(error)return toast(error.message);S.commercialAccess.upgrade_requested_at=new Date().toISOString();renderHome();toast('Demande d‚Äô√©volution envoy√©e ‚úÖ');return;
-  }
-});
-
-
-document.addEventListener('change',e=>{if(e.target?.id==='homeCoorgQty')refreshCoorgPurchasePrice();});
-document.addEventListener('input',e=>{if(e.target?.id==='homeCoorgQty')refreshCoorgPurchasePrice();});
-
-document.addEventListener('change',e=>{
-  if(e.target?.id==='myPlayerPublic'){
-    const on=e.target.checked;
-    if($('#myPlayerDiscoverable')){ $('#myPlayerDiscoverable').disabled=!on; if(!on)$('#myPlayerDiscoverable').checked=false; }
-    if($('#myPlayerNotify'))$('#myPlayerNotify').disabled=false;
-  }
-});
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  if(e.target?.id==='myPlayerCreate'){
-    const name=$('#myPlayerCreateName').value.trim();if(!name)return toast('Indique ton nom ou ton pseudo joueur.');
-    e.target.disabled=true;const {error}=await sb.rpc('ensure_my_global_player_profile',{p_display_name:name});e.target.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Ton ID joueur SW√â est cr√©√© ‚úÖ');return;
-  }
-  if(e.target?.id==='myPlayerSave'){
-    const name=$('#myPlayerName').value.trim();if(!name)return toast('Ton nom joueur est obligatoire.');
-    e.target.disabled=true;const {error}=await sb.rpc('update_my_global_player_profile',{p_display_name:name,p_is_public:$('#myPlayerPublic').checked,p_discoverable:$('#myPlayerDiscoverable').checked,p_notify_upcoming_swes:$('#myPlayerNotify').checked,p_home_area:$('#myPlayerArea').value.trim()||null});e.target.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Profil joueur mis √† jour ‚úÖ');return;
-  }
-  if(e.target?.id==='mySweHistorySearch'){
-    const code=$('#mySweHistoryCode')?.value.trim();if(!code)return toast('Indique l‚ÄôID du tournoi ou de la ligue.');
-    e.target.disabled=true;const {data,error}=await sb.rpc('find_swe_identity_source',{p_code:code});e.target.disabled=false;if(error)return toast(error.message);S.sweIdentitySource=data||null;renderSweIdentitySource();return;
-  }
-  const claimHistory=e.target?.closest?.('[data-claim-history-player]');if(claimHistory){
-    const src=S.sweIdentitySource;if(!src)return;const player=(src.players||[]).find(p=>String(p.player_id)===String(claimHistory.dataset.claimHistoryPlayer));
-    if(!confirm('Confirmer que tu es bien ¬´ '+(player?.name||'ce joueur')+' ¬ª ? Cette liaison associera ses statistiques √† ton compte SW√â.'))return;
-    claimHistory.disabled=true;const {data,error}=await sb.rpc('claim_swe_identity_player',{p_source_type:src.source_type,p_source_id:src.source_id,p_player_id:claimHistory.dataset.claimHistoryPlayer});claimHistory.disabled=false;if(error)return toast(error.message);
-    if(data?.status==='disputed'){S.sweIdentitySource=null;renderSweIdentitySource();await loadMyPlayerDashboard();return toast('Conflit d√©tect√© : les deux comptes sont plac√©s en v√©rification. L‚Äô√©quipe SW√â devra trancher.');}
-    S.sweIdentitySource=null;renderSweIdentitySource();await loadMyPlayerDashboard();if(S.workspace)await loadAll();toast('Profil ¬´ '+(data?.player_name||'joueur')+' ¬ª reli√© √† ton compte SW√â ‚úÖ');return;
-  }
-  if(e.target?.id==='myPlayerSelfLink'){
-    const playerId=$('#myPlayerSelfMember')?.value;if(!playerId)return toast('Choisis ton profil membre dans la liste.');
-    const player=(S.players||[]).find(x=>String(x.id)===String(playerId));
-    if(!confirm('Relier d√©finitivement ton compte SW√â au membre ¬´ '+(player?.name||'s√©lectionn√©')+' ¬ª dans ce groupe ?'))return;
-    e.target.disabled=true;const {data,error}=await sb.rpc('link_my_member_player_to_swe',{p_workspace_id:S.workspace.id,p_player_id:playerId});e.target.disabled=false;
-    if(error)return toast(error.message);await loadAll();await loadMyPlayerDashboard();toast('Compte li√© √† ¬´ '+(data?.player_name||player?.name||'membre')+' ¬ª ‚Ä¢ ID '+(data?.public_player_id||'SW√â')+' ‚úÖ');return;
-  }
-  if(e.target?.id==='myPlayerRefresh'){await loadMyPlayerDashboard();toast('Profil actualis√© ‚úÖ');return;}
-  const accept=e.target?.closest?.('[data-player-invite-accept]');if(accept){accept.disabled=true;const {data,error}=await sb.rpc('respond_global_player_tournament_invite',{p_invite_id:accept.dataset.playerInviteAccept,p_accept:true});accept.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast(data?.status==='waitlist'?'Invitation accept√©e ‚Ä¢ tu es actuellement rempla√ßant.':'Invitation accept√©e ‚úÖ');return;}
-  const decline=e.target?.closest?.('[data-player-invite-decline]');if(decline){decline.disabled=true;const {error}=await sb.rpc('respond_global_player_tournament_invite',{p_invite_id:decline.dataset.playerInviteDecline,p_accept:false});decline.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Invitation refus√©e.');return;}
-  const direct=e.target?.closest?.('[data-player-direct-join]');if(direct){const tid=direct.dataset.playerDirectJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const pledge=Math.round(Math.max(0,Number(pledgeEl?.value||0))*100);direct.disabled=true;const {data,error}=await sb.rpc('join_discoverable_tournament',{p_tournament_id:tid,p_third_half_pledge_cents:pledge});direct.disabled=false;if(error)return toast(error.message);if(data?.payment_required){const {data:pay,error:pe}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:data.public_token,tournament_id:tid,player_id:data.player_id,payer_email:S.session?.user?.email||null,success_url:APP_URL+'?playerPayment=success',cancel_url:APP_URL+'?playerPayment=cancel'}});if(pe||pay?.error)return toast(pay?.error||pe?.message||'Impossible d‚Äôouvrir le paiement.');if(pay?.url){location.href=pay.url;return;}}await loadMyPlayerDashboard();toast(data?.status==='waitlist'?'Inscription enregistr√©e ‚Ä¢ tu es rempla√ßant.':'Inscription confirm√©e ‚úÖ');return;}
-  const requestJoin=e.target?.closest?.('[data-player-request-join]');if(requestJoin){const tid=requestJoin.dataset.playerRequestJoin;const pledgeEl=document.querySelector('[data-pledge-for="'+tid+'"]');const msgEl=document.querySelector('[data-request-message-for="'+tid+'"]');const pledge=Math.round(Math.max(0,Number(pledgeEl?.value||0))*100);requestJoin.disabled=true;const {error}=await sb.rpc('request_discoverable_tournament',{p_tournament_id:tid,p_message:msgEl?.value.trim()||null,p_third_half_pledge_cents:pledge});requestJoin.disabled=false;if(error)return toast(error.message);await loadMyPlayerDashboard();toast('Demande envoy√©e √† l‚Äôorganisateur ‚úÖ');return;}
-  const payBtn=e.target?.closest?.('[data-player-pay]');if(payBtn){payBtn.disabled=true;const {data,error}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:payBtn.dataset.publicToken,tournament_id:payBtn.dataset.tournamentId,player_id:payBtn.dataset.playerId,payer_email:S.session?.user?.email||null,success_url:APP_URL+'?playerPayment=success',cancel_url:APP_URL+'?playerPayment=cancel'}});payBtn.disabled=false;if(error||data?.error)return toast(data?.error||error?.message||'Impossible d‚Äôouvrir le paiement.');if(data?.url)location.href=data.url;return;}
-  const open=e.target?.closest?.('[data-open-player-opportunity]');if(open){location.href=open.dataset.openPlayerOpportunity;return;}
-  if(e.target?.id==='playerDirectoryBtn'){
-    if(!isAdmin())return toast('R√©serv√© √† l‚Äôadministrateur.');
-    e.target.disabled=true;const {data,error}=await sb.rpc('search_public_global_players',{p_workspace_id:S.workspace.id,p_query:$('#playerDirectorySearch').value.trim()||null,p_limit:50});e.target.disabled=false;if(error)return toast(error.message);S.playerDirectory=Array.isArray(data)?data:[];renderPlayerDirectoryCard();renderAdminPlayerRequests();return;
-  }
-  const invite=e.target?.closest?.('[data-directory-invite]');if(invite){
-    const tid=$('#playerDirectoryTournament').value;if(!tid)return toast('Choisis d‚Äôabord le Sw√© √† compl√©ter.');
-    const row=(S.playerDirectory||[]).find(r=>String(r.global_player_id)===String(invite.dataset.directoryInvite));
-    if(!confirm('Inviter '+(row?.display_name||'ce joueur')+' √† rejoindre ce Sw√© ?'))return;
-    invite.disabled=true;const {error}=await sb.rpc('invite_public_player_to_tournament',{p_workspace_id:S.workspace.id,p_tournament_id:tid,p_global_player_id:invite.dataset.directoryInvite,p_message:'Ton profil public correspond √† un besoin pour compl√©ter ce Sw√©.'});invite.disabled=false;if(error)return toast(error.message);toast('Invitation envoy√©e dans son espace joueur SW√â ‚úÖ');return;
-  }
-});
-
-document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
-document.addEventListener('click',async e=>{
-  if(e.target?.id==='saveOrganizerSettings'){if(!isAdmin())return;const b=e.target;b.disabled=true;const {data,error}=await sb.rpc('update_my_organizer_settings',{p_workspace_id:S.workspace.id,p_legal_status:$('#organizerLegalStatus').value,p_whatsapp_group_url:$('#organizerWhatsappGroup').value.trim()||null,p_whatsapp_contact_phone:$('#organizerWhatsappPhone').value.trim()||null});b.disabled=false;if(error)return toast(error.message);S.organizerSettings=data||null;renderStripeBilling();toast('Profil organisateur mis √† jour ‚úÖ');return;}
-  if(e.target?.id==='refreshPlayerRequests'){const {data,error}=await sb.rpc('list_workspace_player_requests',{p_workspace_id:S.workspace.id});if(error)return toast(error.message);S.playerRequests=Array.isArray(data)?data:[];renderAdminPlayerRequests();toast('Demandes actualis√©es ‚úÖ');return;}
-  const a=e.target?.closest?.('[data-request-accept]');if(a){if(!confirm('Accepter cette demande de participation ?'))return;a.disabled=true;const {data,error}=await sb.rpc('respond_global_player_participation_request',{p_request_id:a.dataset.requestAccept,p_accept:true});a.disabled=false;if(error)return toast(error.message);await loadAll();renderAdminPlayerRequests();toast(data?.status==='payment_pending'?'Demande accept√©e ‚Ä¢ le joueur doit maintenant payer sa place.':'Demande accept√©e ‚úÖ');return;}
-  const d=e.target?.closest?.('[data-request-decline]');if(d){if(!confirm('Refuser cette demande ?'))return;d.disabled=true;const {error}=await sb.rpc('respond_global_player_participation_request',{p_request_id:d.dataset.requestDecline,p_accept:false});d.disabled=false;if(error)return toast(error.message);await loadAll();renderAdminPlayerRequests();toast('Demande refus√©e.');return;}
-});
-
-$('#sendInvite').onclick=async()=>{
-  if(!S.workspace)return;
-  if(!(isAdmin()||(isCoorg()&&S.myPermissions.can_invite_coorganizers)))return toast('Tu n‚Äôes pas autoris√© √† inviter un co-organisateur.');
-  if(S.coorgCount>=Number(S.workspaceFeatures.max_coorganizers||0))return toast('Limite de co-organisateurs atteinte.');
-  const email=$('#inviteEmail').value.trim().toLowerCase();if(!email)return;
-  const {data,error}=await sb.rpc('create_coorganizer_invite',{p_workspace_id:S.workspace.id,p_email:email});
-  if(error)return toast(error.message);
-  const inv=Array.isArray(data)?data[0]:data;
-  S.lastCreatedInvite=inv||null;
-  if(isAdmin()){const codeRes=await sb.rpc('admin_get_coorganizer_swe_code',{p_workspace_id:S.workspace.id,p_email:email});if(!codeRes.error&&codeRes.data){S.lastCreatedInvite.swe_code=codeRes.data.code;S.lastCreatedInvite.public_player_id=codeRes.data.public_player_id||null;try{await navigator.clipboard.writeText(codeRes.data.code)}catch(_e){}}}
-  $('#inviteEmail').value='';
-  if(isAdmin())await loadAll();else renderAccess();
-  toast(S.lastCreatedInvite?.swe_code?'Co-gestionnaire ajout√© ‚úÖ Code SW√â '+S.lastCreatedInvite.swe_code+' copi√©.':'Invitation cr√©√©e ‚úÖ Utilise Copier le lien ou WhatsApp.');
-};
-$('#copyPublicLink').onclick=async()=>{
-  const link=$('#publicLink').value;if(!link)return;
-  try{await navigator.clipboard.writeText(link);toast('Lien public copi√© ‚úÖ')}
-  catch(e){$('#publicLink').focus();$('#publicLink').select();toast('Lien s√©lectionn√© : copie-le.')}
-};
-
-
-
-function guestLabel(pl){
-  if(!pl||pl.is_group_member!==false)return '';
-  const host=pl.guest_of_player_id?p(pl.guest_of_player_id):null;
-  return host?'Guest de '+host.name:'Guest';
-}
-function playerDisplayName(pl){
-  if(!pl)return '';
-  const g=guestLabel(pl);
-  return pl.name+(g?' ‚Äî '+g:'');
-}
-function refreshGuestOfSelect(){
-  const sel=$('#guestOfPlayer');if(!sel)return;
-  const keep=sel.value;
-  sel.innerHTML='<option value="">Guest de‚Ä¶ (facultatif)</option>'+S.players.filter(x=>x.active&&x.is_group_member!==false).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');
-  if([...sel.options].some(o=>o.value===keep))sel.value=keep;
-}
-function skillRoleLabel(role){
-  return ({defenseur:'üõ°Ô∏è D√©fenseur',metronome:'üéº M√©tronome',ratisseur:'üßπ Ratisseur',finisseur:'ü•Ö Finisseur',dribbleur:'ü™Ñ Dribbleur',frappeur:'üí• Frappeur',top_player:'‚≠ê Top player'})[role]||'‚Äî';
-}
-function playerSkillAggregate(playerId){
-  return S.skillAggregates.find(r=>r.player_id===playerId)||null;
-}
-function playerSkillReviewSummary(player){
-  const all=S.skillReviews.filter(r=>r.player_id===player.id);
-  const adminUid=S.session?.user?.id||null;
-  const valid=all.filter(r=>Number.isFinite(Number(r.rating)));
-  const coorgReviews=valid.filter(r=>String(r.evaluator_user_id)!==String(adminUid));
-  const adminReview=valid.find(r=>String(r.evaluator_user_id)===String(adminUid))||null;
-  const avgField=(field)=>{
-    const vals=valid.map(r=>Number(r[field])).filter(Number.isFinite);
-    return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
-  };
-  const roles={};
-  valid.forEach(r=>{if(r.preferred_role)roles[r.preferred_role]=(roles[r.preferred_role]||0)+1});
-  const topRole=Object.entries(roles).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
-  return {
-    reviews:valid,coorgReviews,adminReview,
-    count:valid.length,
-    avg:avgField('rating'),
-    cardio:avgField('cardio'),dribble:avgField('dribble'),collectif:avgField('collectif'),frappe:avgField('frappe'),
-    topRole
-  };
-}
-function renderPlayers(){
-  const box=$('#playersList');box.innerHTML='';
-  if(isCoorg()){
-    const info=document.createElement('div');info.className='readonly-note';
-    info.innerHTML=S.workspaceFeatures.player_ratings_enabled
-      ?'üë• <b>'+S.players.length+' joueur'+(S.players.length>1?'s':'')+'</b> accessible'+(S.players.length>1?'s':'')+'. Tu peux consulter les crit√®res et donner ton √©valuation pour chaque joueur.<div style="margin-top:7px;padding:8px 10px;border-radius:10px;background:#fff3cd;color:#6b4f00"><b>üîí Confidentiel :</b> les √©valuations sont crois√©es de mani√®re ind√©pendante et suivent l‚ÄôID SW√â du joueur.</div>'
-      :'üë• <b>'+S.players.length+' joueur'+(S.players.length>1?'s':'')+'</b> dans le groupe. Le module Notation est d√©sactiv√© : seules les informations joueurs et les actions autoris√©es sont disponibles.';
-    box.appendChild(info);
-  }
-  refreshGuestOfSelect();
-  S.players.forEach(x=>{
-    const d=document.createElement('div');d.className='player'+(x.is_group_member===false?' guest-row':'');
-    const top=document.createElement('div');top.className='row';
-    const info=document.createElement('span');info.style.flex='1';
-    const g=guestLabel(x);
-    let meta=(x.active?'Actif':'Inactif')+(g?' ‚Ä¢ '+esc(g):' ‚Ä¢ Membre du groupe');
-    if(S.workspaceFeatures.player_ratings_enabled&&isAdmin()){
-      const aggregate=playerSkillAggregate(x.id);
-      meta+=aggregate&&Number(aggregate.voter_count)>0?' ‚Ä¢ Moyenne '+Number(aggregate.avg_rating).toFixed(1)+'/5 ‚Ä¢ '+aggregate.voter_count+' votant'+(Number(aggregate.voter_count)>1?'s':''):' ‚Ä¢ Aucun avis';
-    }else if(S.workspaceFeatures.player_ratings_enabled&&isCoorg()){
-      const aggregate=playerSkillAggregate(x.id);
-      if(aggregate&&Number(aggregate.voter_count)>0)meta+=' ‚Ä¢ Verdict des co-gestionnaires : '+Number(aggregate.avg_rating).toFixed(1)+'/5';
-    }
-    info.innerHTML='<b>'+esc(x.name)+'</b>'+(x.is_group_member===false?'<span class="guest-badge">Guest</span>':'')+
-      '<div class="muted">'+meta+'</div>';
-    if(isAdmin()){
-      const toggle=document.createElement('button');toggle.textContent=x.active?'D√©sactiver':'R√©activer';toggle.className=x.active?'player-action-disable':'player-action-enable';
-      toggle.onclick=async()=>{
-        const next=!x.active;
-        if(!confirm(next?'R√©activer '+x.name+' dans le groupe ?':'Suspendre '+x.name+' du groupe ? Son historique sera conserv√©.'))return;
-        toggle.disabled=true;
-        const {error}=await sb.rpc('admin_set_player_active',{p_player_id:x.id,p_active:next});
-        toggle.disabled=false;
-        if(error)return toast(error.message);
-        await loadAll();
-        toast(next?'Joueur r√©activ√© ‚úÖ':'Joueur suspendu.');
-      };
-      const del=document.createElement('button');
-      del.textContent='üóë Supprimer';
-      del.className='danger smallbtn';
-      del.onclick=async()=>{
-        if(!confirm('Supprimer '+x.name+' du groupe ?\n\nSi ce joueur poss√®de d√©j√† un historique sportif, il sera suspendu afin de pr√©server ses statistiques.'))return;
-        del.disabled=true;
-        const {data,error}=await sb.rpc('remove_player_member',{p_player_id:x.id});
-        del.disabled=false;
-        if(error)return toast(error.message);
-        await loadAll();
-        toast(data==='archived'?'Joueur suspendu : historique conserv√©.':'Joueur supprim√©.');
-      };
-      top.append(info,toggle,del);
-    }else if(isCoorg()){
-      top.append(info);
-    }else top.append(info);
-    d.appendChild(top);
-
-    if(isAdmin()&&S.workspaceFeatures.player_ratings_enabled){
-      const summary=playerSkillReviewSummary(x);
-      const aggregate=playerSkillAggregate(x.id);
-      const reviewBox=document.createElement('div');reviewBox.style.cssText='margin-top:8px;padding:10px 12px;border:1px solid #dbe8df;border-radius:13px;background:#f8fbf9';
-      if(!summary.count){
-        reviewBox.innerHTML='<b>üìä Synth√®se des √©valuations</b><div class="muted small" style="margin-top:4px">Aucune √©valuation pour le moment.</div>';
-      }else{
-        const n=v=>v==null?'‚Äî':Number(v).toFixed(1)+'/5';
-        const chips='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">'+
-          '<span class="guest-badge">‚ù§Ô∏è Cardio '+n(aggregate?.avg_cardio??summary.cardio)+'</span>'+
-          '<span class="guest-badge">ü™Ñ Dribble '+n(aggregate?.avg_dribble??summary.dribble)+'</span>'+
-          '<span class="guest-badge">ü§ù Collectif '+n(aggregate?.avg_collectif??summary.collectif)+'</span>'+
-          '<span class="guest-badge">üéØ Frappe '+n(aggregate?.avg_frappe??summary.frappe)+'</span>'+
-          '<span class="guest-badge">'+skillRoleLabel(aggregate?.top_role||summary.topRole)+'</span></div>';
-        const roleName=r=>skillRoleLabel(r.preferred_role).replace(/^[^ ]+\s/,'');
-        const voters=summary.reviews.map(r=>{
-          const who=String(r.evaluator_user_id)===String(S.session?.user?.id)?'Admin':((r.evaluator_email||'Co-organisateur').split('@')[0]);
-          const detail='Cardio '+(r.cardio??'‚Äî')+'/5 ‚Ä¢ Dribble '+(r.dribble??'‚Äî')+'/5 ‚Ä¢ Collectif '+(r.collectif??'‚Äî')+'/5 ‚Ä¢ Frappe '+(r.frappe??'‚Äî')+'/5 ‚Ä¢ R√¥le : '+roleName(r);
-          return '<span title="'+esc(detail)+'" style="display:inline-flex;gap:4px;align-items:center;margin:4px 6px 0 0;padding:5px 8px;border-radius:9px;background:#fff;border:1px solid #e3ebe6;cursor:help"><b>'+esc(who)+'</b> '+Number(r.rating).toFixed(1)+'/5 <small>‚ìò</small></span>';
-        }).join('');
-        const count=Number(aggregate?.voter_count??summary.count);
-        const avg=aggregate?.avg_rating!=null?Number(aggregate.avg_rating):summary.avg;
-        reviewBox.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><b>üìä Synth√®se des √©valuations</b><span><b>'+avg.toFixed(1)+'/5</b> ‚Ä¢ '+count+' votant'+(count>1?'s':'')+'</span></div>'+chips+'<div class="small muted" style="margin-top:5px">Survole une note ‚ìò pour voir son d√©tail.</div><div class="small" style="margin-top:2px">'+voters+'</div>';
-      }
-      d.appendChild(reviewBox);
-    }
-
-    if(isAdmin()){
-      const identityBox=document.createElement('div');identityBox.className='player-link-box';
-      if(x.global_player_id){
-        identityBox.innerHTML='<div><b>ü™™ Identit√© SW√â li√©e</b><div class="muted small">Ce membre est rattach√© √† un compte SW√â. La liaison ne peut √™tre modifi√©e que par le Super Admin.</div></div><span class="linked-ok">‚úì LI√â</span>';
-      }else{
-        identityBox.innerHTML='<div><b>ü™™ Aucun compte SW√â li√©</b><div class="muted small">Le joueur pourra r√©cup√©rer ses statistiques apr√®s cr√©ation de son compte, en recherchant l‚ÄôID du tournoi ou l‚ÄôID SW√â de la ligue puis en s√©lectionnant son nom.</div></div><span class="guest-badge">NON LI√â</span>';
-      }
-      d.appendChild(identityBox);
-
-      const edit=document.createElement('div');edit.className='row';edit.style.marginTop='8px';edit.style.flexWrap='wrap';
-      const nameInput=document.createElement('input');nameInput.style.flex='1';nameInput.value=x.name||'';nameInput.placeholder='Nom du joueur';
-      const status=document.createElement('select');status.style.flex='1';
-      status.innerHTML='<option value="member">Membre</option><option value="guest">Guest</option>';
-      status.value=x.is_group_member===false?'guest':'member';
-
-      const host=document.createElement('select');host.style.flex='1';
-      host.innerHTML='<option value="">Guest de‚Ä¶</option>'+S.players.filter(y=>y.id!==x.id&&y.active&&y.is_group_member!==false).map(y=>'<option value="'+y.id+'">'+esc(y.name)+'</option>').join('');
-      host.value=x.guest_of_player_id||'';
-      host.classList.toggle('hidden',status.value!=='guest');
-      status.onchange=()=>host.classList.toggle('hidden',status.value!=='guest');
-
-      const phone=document.createElement('input');phone.type='tel';phone.inputMode='tel';phone.placeholder='Mobile (priv√©)';
-      phone.style.flex='1';phone.value=(S.contacts.find(c=>c.player_id===x.id)?.phone_number)||'';
-
-      const save=document.createElement('button');save.textContent='Enregistrer les infos';save.className='player-action-save';
-      save.onclick=async()=>{
-        const isMember=status.value==='member';save.disabled=true;
-        const {error}=await sb.rpc('manager_update_player_personal_info',{
-          p_player_id:x.id,p_name:nameInput.value.trim(),p_is_group_member:isMember,
-          p_guest_of_player_id:isMember?null:(host.value||null),p_phone_number:phone.value.trim()||null
-        });
-        save.disabled=false;if(error)return toast(error.message);
-        x.name=nameInput.value.trim();x.is_group_member=isMember;x.guest_of_player_id=isMember?null:(host.value||null);
-        const found=S.contacts.find(c=>c.player_id===x.id);if(found)found.phone_number=phone.value.trim()||null;else S.contacts.push({player_id:x.id,phone_number:phone.value.trim()||null});
-        await loadAll();
-        toast('Informations de '+x.name+' mises √† jour ‚úÖ');
-      };
-      edit.append(nameInput,status,host,phone,save);d.appendChild(edit);
-
-      if(x.is_group_member!==false){
-        const codeRow=document.createElement('div');codeRow.className='row';codeRow.style.marginTop='8px';codeRow.style.flexWrap='wrap';
-        const existing=S.teamCodes.find(c=>c.player_id===x.id);
-        const codeInfo=document.createElement('span');codeInfo.style.flex='1';
-        codeInfo.innerHTML='<b>Code cr√©ation d‚Äô√©quipe :</b> '+(existing?'<code style="font-size:1rem">'+esc(existing.code)+'</code> '+(existing.enabled?'üü¢ Autoris√©':'‚ö™ D√©sactiv√©'):'Aucun code');
-        const gen=document.createElement('button');gen.textContent=existing?'R√©g√©n√©rer':'G√©n√©rer un code';gen.className='player-action-code';
-        gen.onclick=async()=>{
-          if(existing&&!confirm('R√©g√©n√©rer le code de '+x.name+' ? L‚Äôancien code ne fonctionnera plus.'))return;
-          gen.disabled=true;
-          const {data,error}=await sb.rpc('admin_generate_player_team_code',{p_player_id:x.id});
-          gen.disabled=false;if(error)return toast(error.message);
-          await loadAll();toast('Nouveau code √©quipe : '+data);
-        };
-        codeRow.append(codeInfo,gen);
-        if(existing){
-          const tog=document.createElement('button');tog.textContent=existing.enabled?'D√©sactiver':'R√©activer';tog.className=existing.enabled?'player-action-disable':'player-action-enable';
-          tog.onclick=async()=>{
-            const {error}=await sb.rpc('admin_set_player_team_code_enabled',{p_player_id:x.id,p_enabled:!existing.enabled});
-            if(error)return toast(error.message);await loadAll();toast(existing.enabled?'Autorisation d√©sactiv√©e.':'Autorisation r√©activ√©e.');
-          };
-          codeRow.appendChild(tog);
-        }
-        d.appendChild(codeRow);
-      }
-    }
-    if(isCoorg()&&S.myPermissions.can_edit_player_personal_info){
-      const edit=document.createElement('div');edit.className='row';edit.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#f7f9ff;border:1px solid #dfe5f4;border-radius:14px';
-      const nameInput=document.createElement('input');nameInput.style.flex='1';nameInput.value=x.name||'';nameInput.placeholder='Nom du joueur';
-      const status=document.createElement('select');status.style.flex='1';status.innerHTML='<option value="member">Membre</option><option value="guest">Guest</option>';status.value=x.is_group_member===false?'guest':'member';
-      const host=document.createElement('select');host.style.flex='1';host.innerHTML='<option value="">Guest de‚Ä¶</option>'+S.players.filter(y=>y.id!==x.id&&y.active&&y.is_group_member!==false).map(y=>'<option value="'+y.id+'">'+esc(y.name)+'</option>').join('');host.value=x.guest_of_player_id||'';host.classList.toggle('hidden',status.value!=='guest');status.onchange=()=>host.classList.toggle('hidden',status.value!=='guest');
-      const phone=document.createElement('input');phone.type='tel';phone.inputMode='tel';phone.placeholder='Mobile (priv√©)';phone.style.flex='1';phone.value=(S.contacts.find(c=>c.player_id===x.id)?.phone_number)||'';
-      const saveInfo=document.createElement('button');saveInfo.textContent='üíæ Infos joueur';saveInfo.className='primary';
-      saveInfo.onclick=async()=>{const isMember=status.value==='member';saveInfo.disabled=true;const {error}=await sb.rpc('manager_update_player_personal_info',{p_player_id:x.id,p_name:nameInput.value.trim(),p_is_group_member:isMember,p_guest_of_player_id:isMember?null:(host.value||null),p_phone_number:phone.value.trim()||null});saveInfo.disabled=false;if(error)return toast(error.message);x.name=nameInput.value.trim();x.is_group_member=isMember;x.guest_of_player_id=isMember?null:(host.value||null);const found=S.contacts.find(c=>c.player_id===x.id);if(found)found.phone_number=phone.value.trim()||null;else S.contacts.push({player_id:x.id,phone_number:phone.value.trim()||null});await loadAll();toast('Informations mises √† jour ‚úÖ');};
-      edit.append(nameInput,status,host,phone,saveInfo);d.appendChild(edit);
-    }
-    if(isCoorg()&&S.myPermissions.can_delete_members){
-      const deleteRow=document.createElement('div');deleteRow.className='row';deleteRow.style.cssText='margin-top:8px;justify-content:flex-end';
-      const del=document.createElement('button');del.textContent='üóë Supprimer du groupe';del.className='danger smallbtn';
-      del.onclick=async()=>{if(!confirm('Supprimer '+x.name+' du groupe ?\n\nSon historique sportif sera conserv√© si n√©cessaire.'))return;del.disabled=true;const {data,error}=await sb.rpc('remove_player_member',{p_player_id:x.id});del.disabled=false;if(error)return toast(error.message);await loadAll();toast(data==='archived'?'Joueur suspendu : historique conserv√©.':'Joueur supprim√©.');};
-      deleteRow.appendChild(del);d.appendChild(deleteRow);
-    }
-    if(isCoorg()&&S.myPermissions.can_generate_team_codes&&x.is_group_member!==false){
-      const codeRow=document.createElement('div');codeRow.className='row';codeRow.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#fffaf0;border:1px solid #f3dfae;border-radius:14px';
-      const existingCode=S.teamCodes.find(c=>c.player_id===x.id);
-      const codeInfo=document.createElement('span');codeInfo.style.flex='1';codeInfo.innerHTML='<b>Code √©quipe :</b> '+(existingCode?'<code>'+esc(existingCode.code)+'</code> '+(existingCode.enabled?'üü¢':'‚ö™'):'Aucun code');
-      const gen=document.createElement('button');gen.textContent=existingCode?'R√©g√©n√©rer':'G√©n√©rer';gen.className='player-action-code';
-      gen.onclick=async()=>{if(existingCode&&!confirm('R√©g√©n√©rer le code de '+x.name+' ?'))return;gen.disabled=true;const {data,error}=await sb.rpc('admin_generate_player_team_code',{p_player_id:x.id});gen.disabled=false;if(error)return toast(error.message);const cur=S.teamCodes.find(c=>c.player_id===x.id);if(cur){cur.code=data;cur.enabled=true}else S.teamCodes.push({player_id:x.id,code:data,enabled:true,updated_at:new Date().toISOString()});renderPlayers();toast('Code √©quipe g√©n√©r√© : '+data);};
-      codeRow.append(codeInfo,gen);
-      if(existingCode){const tog=document.createElement('button');tog.textContent=existingCode.enabled?'D√©sactiver':'R√©activer';tog.className=existingCode.enabled?'player-action-disable':'player-action-enable';tog.onclick=async()=>{const {error}=await sb.rpc('admin_set_player_team_code_enabled',{p_player_id:x.id,p_enabled:!existingCode.enabled});if(error)return toast(error.message);existingCode.enabled=!existingCode.enabled;renderPlayers();};codeRow.appendChild(tog);}
-      d.appendChild(codeRow);
-    }
-    if(S.workspaceFeatures.player_ratings_enabled&&isCoorg()&&S.myLinkedPlayerId&&String(S.myLinkedPlayerId)===String(x.id)){
-      const selfNote=document.createElement('div');selfNote.style.cssText='margin-top:8px;padding:9px 10px;border-radius:12px;background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb';
-      selfNote.innerHTML='<b>üë§ Ton profil</b><div class="small">On te conna√Æt üòè : pas question de te mettre 5/5 partout ! Ton propre profil est donc hors vote üòÇ.</div>';
-      d.appendChild(selfNote);
-    }
-    if(S.workspaceFeatures.player_ratings_enabled&&(isAdmin()||isCoorg())&&!(isCoorg()&&S.myLinkedPlayerId&&String(S.myLinkedPlayerId)===String(x.id))){
-      const existing=S.myRatings.find(r=>r.player_id===x.id);
-      const rate=document.createElement('div');rate.className='player-skill-review player-rating-card';
-      const aggregate=playerSkillAggregate(x.id);
-      const aggText=aggregate&&Number(aggregate.voter_count)>0?(isCoorg()?'<div class="player-rating-verdict"><b>üïµÔ∏è Verdict collectif</b><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong></div>':'<div class="player-rating-verdict"><b>üïµÔ∏è Verdict collectif</b><span><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong> ‚Ä¢ '+aggregate.voter_count+' √©valuation'+(Number(aggregate.voter_count)>1?'s':'')+'</span></div>'):'<div class="player-rating-verdict is-empty">üìä Pas encore assez d‚Äôavis pour une moyenne.</div>';
-      const title=document.createElement('div');title.className='player-rating-head';title.innerHTML='<div class="player-rating-title-row"><b>‚öΩ Mon √©valuation</b><span class="player-rating-private">üîí CONFIDENTIEL</span></div><div class="muted small player-rating-scale">1 √† renforcer ¬∑ 2 moyen ¬∑ 3 bon ¬∑ 4 tr√®s bon ¬∑ 5 excellent</div><div class="player-rating-balance">‚öñÔ∏è Ces crit√®res alimentent la cr√©ation des √©quipes √©quilibr√©es.</div>'+aggText;
-      const criteria=document.createElement('div');criteria.className='player-rating-criteria';
-      const values={};
-      const labels={cardio:'‚ù§Ô∏è Cardio',dribble:'ü™Ñ Dribble',collectif:'ü§ù Collectif',frappe:'üéØ Frappe'};
-      const levelText={1:'√Ä renforcer',2:'Moyen',3:'Bon',4:'Tr√®s bon',5:'Excellent'};
-      Object.entries(labels).forEach(([key,txt])=>{
-        const wrap=document.createElement('label');wrap.className='player-rating-field';
-        const cap=document.createElement('span');cap.className='player-rating-label';cap.textContent=txt;
-        const sel=document.createElement('select');sel.className='player-rating-select';sel.setAttribute('aria-label',txt);sel.innerHTML='<option value="">‚Äî</option>'+[1,2,3,4,5].map(n=>'<option value="'+n+'">'+n+'/5 ¬∑ '+levelText[n]+'</option>').join('');
-        if(existing?.[key])sel.value=String(existing[key]);
-        values[key]=sel;wrap.append(cap,sel);criteria.appendChild(wrap);
-      });
-      const roleWrap=document.createElement('label');roleWrap.className='player-rating-role';
-      roleWrap.innerHTML='<span class="player-rating-label">üß≠ R√¥le de pr√©dilection</span>';
-      const role=document.createElement('select');role.className='player-rating-select';role.setAttribute('aria-label','R√¥le de pr√©dilection');
-      role.innerHTML='<option value="">Choisir‚Ä¶</option><option value="defenseur">üõ°Ô∏è D√©fenseur</option><option value="metronome">üéº M√©tronome</option><option value="ratisseur">üßπ Ratisseur</option><option value="finisseur">ü•Ö Finisseur</option><option value="dribbleur">ü™Ñ Dribbleur</option><option value="frappeur">üí• Frappeur</option><option value="top_player">‚≠ê Top player</option>';
-      if(existing?.preferred_role)role.value=existing.preferred_role;roleWrap.appendChild(role);
-      const progress=document.createElement('div');progress.className='player-rating-progress';progress.innerHTML='<div><span>Pr√©paration de l‚Äô√©valuation</span><b>0/5</b></div><span class="player-rating-progress-track"><i></i></span>';
-      const updateProgress=()=>{const done=[...Object.values(values),role].filter(control=>control.value).length;progress.querySelector('b').textContent=done+'/5';progress.querySelector('i').style.width=(done*20)+'%';progress.classList.toggle('is-complete',done===5);Object.values(values).forEach(control=>control.closest('.player-rating-field')?.classList.toggle('is-filled',!!control.value));roleWrap.classList.toggle('is-filled',!!role.value);};
-      [...Object.values(values),role].forEach(control=>control.addEventListener('change',updateProgress));updateProgress();
-      const finalWarning=document.createElement('div');finalWarning.style.cssText='margin-top:10px;padding:10px 12px;border-radius:12px;background:#fff7d6;border:1px solid #f1c84b;color:#604500;font-weight:800';finalWarning.textContent=existing?'üîí Cette √©valuation est d√©finitive. Seul le Super Admin peut la corriger.':'‚ö†Ô∏è Apr√®s validation, cette notation sera d√©finitive et non modifiable.';
-      if(existing)[...Object.values(values),role].forEach(control=>control.disabled=true);
-      const send=document.createElement('button');send.textContent=existing?'üîí √âvaluation d√©finitive':'üíæ Enregistrer mon √©valuation d√©finitive';send.className='primary';send.style.cssText='width:100%;margin-top:10px';send.disabled=!!existing;
-      send.onclick=async()=>{
-        const payload={p_player_id:x.id,p_cardio:Number(values.cardio.value),p_dribble:Number(values.dribble.value),p_collectif:Number(values.collectif.value),p_frappe:Number(values.frappe.value),p_preferred_role:role.value};
-        if(!payload.p_cardio||!payload.p_dribble||!payload.p_collectif||!payload.p_frappe||!payload.p_preferred_role)return toast('Compl√®te les 4 crit√®res et le r√¥le de pr√©dilection.');
-        send.disabled=true;send.textContent='Enregistrement‚Ä¶';
-        const {error}=await sb.rpc('submit_player_skill_review',payload);
-        if(error){send.disabled=false;send.textContent=existing?'üíæ Mettre √† jour mon √©valuation':'üíæ Enregistrer mon √©valuation';return toast(error.message)}
-        const avg=(payload.p_cardio+payload.p_dribble+payload.p_collectif+payload.p_frappe)/4;
-        const saved={player_id:x.id,rating:avg,cardio:payload.p_cardio,dribble:payload.p_dribble,collectif:payload.p_collectif,frappe:payload.p_frappe,preferred_role:payload.p_preferred_role,updated_at:new Date().toISOString()};
-        const idx=S.myRatings.findIndex(r=>r.player_id===x.id);if(idx>=0)S.myRatings[idx]=saved;else S.myRatings.push(saved);
-        const {data:aggData,error:aggError}=await sb.rpc('get_player_skill_aggregates',{p_workspace_id:S.workspace.id});
-        if(!aggError)S.skillAggregates=Array.isArray(aggData)?aggData:[];
-        if(isAdmin()){
-          const {data:reviewData,error:reviewError}=await sb.rpc('get_admin_player_skill_reviews',{p_workspace_id:S.workspace.id});
-          if(!reviewError)S.skillReviews=Array.isArray(reviewData)?reviewData:[];
-        }
-        send.disabled=false;toast('√âvaluation de '+x.name+' enregistr√©e üîí ‚Ä¢ moyenne mise √† jour');
-        renderPlayers();
-      };
-      rate.append(title,criteria,roleWrap,progress,finalWarning,send);d.appendChild(rate);
-    }
-    box.appendChild(d);
-  })
-}
-async function ensureWorkspace(){
-  if(S.workspace)return S.workspace;
-  const name=$('#newWorkspace').value.trim()||'SW√â Tournament 5/5';
-  const {data:workspaceId,error}=await sb.rpc('create_organizer_workspace_trial',{p_name:name,p_organizer_type:'group'});
-  if(error)throw error;
-  if(!workspaceId)throw new Error('Impossible de cr√©er l‚Äôespace.');
-  S.workspace={id:workspaceId,name,role:'admin'};
-  $('#workspaceSetup').classList.add('hidden');
-  $('#workspaceName').textContent=name+' ‚Ä¢ Administrateur';
-  return S.workspace;
-}
-$('#playerGroupStatus').onchange=()=>{
-  const isGuest=$('#playerGroupStatus').value==='guest';
-  $('#guestOfPlayer').classList.toggle('hidden',!isGuest);
-};
-$('#addPlayers').onclick=async()=>{
-  if(isCoorg()&&!S.myPermissions.can_add_members)return toast('Tu n‚Äôes pas autoris√© √† ajouter des membres.');
-  const btn=$('#addPlayers');
-  const names=[...new Set($('#playersInput').value.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean))];
-  if(!names.length)return toast('Entre au moins un joueur.');
-  const isMember=$('#playerGroupStatus').value!=='guest';
-  const guestOf=isMember?null:($('#guestOfPlayer').value||null);
-  btn.disabled=true;btn.textContent='Enregistrement‚Ä¶';
-  try{
-    const workspace=await ensureWorkspace();
-    const rows=names.map(name=>({
-      workspace_id:workspace.id,
-      name,
-      active:true,
-      is_group_member:isMember,
-      guest_of_player_id:guestOf
-    }));
-    const {error}=await sb.from('players').upsert(rows,{onConflict:'workspace_id,name',ignoreDuplicates:true});
-    if(error)throw error;
-    $('#playersInput').value='';
-    $('#playerGroupStatus').value='member';
-    $('#guestOfPlayer').value='';
-    $('#guestOfPlayer').classList.add('hidden');
-    if(isAdmin()){
-      const {data:freshPlayers,error:playersError}=await sb.rpc('get_admin_workspace_players',{p_workspace_id:workspace.id});
-      if(playersError)throw playersError;S.players=freshPlayers||[];
-    }else{
-      const {data:freshPlayers,error:playersError}=await sb.rpc('get_workspace_players_safe',{p_workspace_id:workspace.id});
-      if(playersError)throw playersError;S.players=freshPlayers||[];
-    }
-    renderPlayers();
-    toast(names.length+' joueur'+(names.length>1?'s':'')+' enregistr√©'+(names.length>1?'s':'')+' ‚úÖ');
-  }catch(error){toast(friendlyAuthError(error))}
-  finally{btn.disabled=false;btn.textContent='Enregistrer les joueurs'}
-};
-
-async function deleteTournament(t){
-  if(!hasAdminOps())return toast('Tu n‚Äôes pas autoris√© √† supprimer un tournoi.');
-  const label=t.name||('Tournoi du '+t.tournament_date);
-  if(!confirm('Supprimer d√©finitivement ¬´ '+label+' ¬ª ?\n\nLes √©quipes, matchs, buts et donn√©es li√©es √† ce tournoi seront √©galement supprim√©s. Cette action est irr√©versible.'))return;
-  const {error}=await sb.rpc('delete_tournament_admin',{p_tournament_id:t.id});
-  if(error)return toast(error.message);
-  if(S.activeTour===t.id)S.activeTour=null;
-  await loadAll();
-  toast('Tournoi supprim√© ‚úÖ');
-}
-
-function seasonNameForTournament(t){
-  const s=S.seasons.find(x=>x.id===t.season_id);
-  return s?s.name:'Sans saison';
-}
-
-
-
-function tournamentDeadlineMs(t){
-  if(!t||!t.registration_deadline)return null;
-  const ms=new Date(t.registration_deadline).getTime();
-  return Number.isFinite(ms)?ms:null;
-}
-function formatCountdown(ms){
-  if(ms<=0)return 'Inscriptions termin√©es';
-  const total=Math.floor(ms/1000);
-  const d=Math.floor(total/86400);
-  const hh=Math.floor((total%86400)/3600);
-  const mm=Math.floor((total%3600)/60);
-  const ss=total%60;
-  return (d?d+'j ':'')+String(hh).padStart(2,'0')+'h '+String(mm).padStart(2,'0')+'m '+String(ss).padStart(2,'0')+'s';
-}
-function updateTournamentCountdowns(){
-  document.querySelectorAll('[data-registration-deadline]').forEach(el=>{
-    const deadline=new Date(el.dataset.registrationDeadline).getTime();
-    if(!Number.isFinite(deadline)){el.textContent='‚ö†Ô∏è Date de cl√¥ture invalide';return}
-    const ms=deadline-Date.now();
-    const expired=ms<=0;
-    el.textContent=expired?'‚õî Inscriptions termin√©es':('‚è±Ô∏è Cl√¥ture dans '+formatCountdown(ms));
-    el.style.fontWeight='800';
-    el.style.fontSize='1.05rem';
-    el.style.color=expired?'#b91c1c':'#166534';
-  });
-  document.querySelectorAll('[data-tournament-start]').forEach(el=>{
-    const kickoff=new Date(el.dataset.tournamentStart).getTime();
-    if(!Number.isFinite(kickoff)){el.textContent='Coup d‚Äôenvoi √† confirmer';return}
-    const ms=kickoff-Date.now();
-    el.textContent=ms<=0?'‚öΩ Le coup d‚Äôenvoi est donn√©':'‚è±Ô∏è Coup d‚Äôenvoi dans '+formatCountdown(ms).replace('Inscriptions termin√©es','00h 00m 00s');
-  });
-}
-if(!window.__sweDeadlineTimer){
-  window.__sweDeadlineTimer=setInterval(updateTournamentCountdowns,1000);
-}
-function tournamentAutoPlan(count){
-  const n=Math.max(0,Math.min(35,Number(count||0)));
-  if(n<10)return {teams:0,pitches:0,core:0,subs:n,rule:'10 joueurs minimum pour cr√©er 2 √©quipes'};
-  const teams=Math.floor(n/5);
-  const core=teams*5;
-  const subs=n-core;
-  const pitches=teams<=3?1:(teams<=5?2:3);
-  return {
-    teams,
-    pitches,
-    core,
-    subs,
-    rule:teams%2
-      ?'2 buts d‚Äô√©cart = l‚Äô√©quipe dehors rentre, ou 10 min maximum'
-      :'Matchs de 10 min'
-  };
-}
-
-function registrationColorInfo(team){
-  const hex=String(team?.color||'#64748b').toLowerCase();
-  const names={
-    '#111827':'Noir','#2563eb':'Bleu','#f8fafc':'Blanc','#dc2626':'Rouge',
-    '#16a34a':'Vert','#eab308':'Jaune','#f97316':'Orange','#7c3aed':'Violet',
-    '#ec4899':'Rose','#78350f':'Marron','#64748b':'Gris'
-  };
-  return {hex,label:names[hex]||'Couleur personnalis√©e'};
-}
-function registrationGuestText(reg,playerMap){
-  const pl=playerMap.get(reg?.player_id);
-  if(pl?.is_group_member!==false)return 'Membre du groupe';
-  const hostId=reg?.registered_by_player_id||pl?.guest_of_player_id||null;
-  const host=hostId?playerMap.get(hostId):null;
-  return host?'Guest de '+host.name:'Guest';
-}
-function registrationSummaryHtml(tournamentId){
-  const tournament=S.tournaments.find(t=>t.id===tournamentId);
-  const regs=S.tPlayers.filter(r=>r.tournament_id===tournamentId&&r.present&&r.registration_status!=='waitlist');
-  const maxPlayers=Number(tournament?.max_players||20);
-  const remainingGlobal=Math.max(0,maxPlayers-regs.length);
-  const tournamentTeams=S.teams.filter(t=>t.tournament_id===tournamentId);
-  const teamIds=new Set(tournamentTeams.map(t=>t.id));
-  const teamPlayerRows=S.teamPlayers.filter(tp=>teamIds.has(tp.team_id));
-  const assignedIds=new Set(teamPlayerRows.map(tp=>tp.player_id));
-  const playerMap=new Map(S.players.map(pl=>[pl.id,pl]));
-  const regMap=new Map(regs.map(r=>[r.player_id,r]));
-
-  const freeRegs=regs.filter(r=>!assignedIds.has(r.player_id));
-  const freeHtml=freeRegs.length
-    ? freeRegs.map(r=>{
-        const pl=playerMap.get(r.player_id);
-        const guest=registrationGuestText(r,playerMap);
-        return '<div class="player row"><span style="flex:1">'+esc(pl?.name||'Joueur')+
-          (guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+
-          '</span><span class="muted">'+(r.is_substitute?'üü† Rempla√ßant commun':'√âquipe al√©atoire')+'</span></div>';
-      }).join('')
-    : '<p class="muted">Aucun joueur en √©quipe al√©atoire.</p>';
-
-  const teamsHtml=tournamentTeams.length
-    ? tournamentTeams.map(team=>{
-        const memberRows=teamPlayerRows.filter(tp=>tp.team_id===team.id);
-        const color=registrationColorInfo(team);
-        const membersHtml=memberRows.length?memberRows.map(tp=>{
-          const pl=playerMap.get(tp.player_id);
-          const guest=registrationGuestText(regMap.get(tp.player_id),playerMap);
-          return '<div style="margin-top:4px">‚Ä¢ '+esc(pl?.name||'Joueur')+(guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+'</div>';
-        }).join(''):'<div class="muted" style="margin-top:5px">Aucun joueur</div>';
-        return '<div class="player" style="margin-top:8px">'+
-          '<div class="row"><span style="width:18px;height:18px;border-radius:50%;background:'+esc(color.hex)+';border:1px solid #cbd5e1;flex:0 0 auto"></span>'+
-          '<b style="flex:1">'+esc(team.name||'√âquipe')+'</b><span class="muted">'+memberRows.length+' joueur'+(memberRows.length>1?'s':'')+'</span></div>'+
-          '<div class="muted" style="margin-top:4px">Couleur : <b>'+esc(color.label)+'</b></div>'+membersHtml+'</div>';
-      }).join('')
-    : '<p class="muted">Aucune √©quipe compos√©e.</p>';
-
-  return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>üìä '+regs.length+'/'+maxPlayers+' inscrits</b><div class="muted" style="margin-top:4px"><b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant d‚Äôatteindre le nombre maximum d√©fini pour ce tournoi.</div></div>'+
-         '<div class="player" style="margin-top:10px;background:#f8fbf9"><b>üë§ Joueurs en √©quipe al√©atoire</b>'+freeHtml+'</div>'+
-         '<div class="player" style="margin-top:10px;background:#f8fbff"><b>üë• √âquipes d√©j√† compos√©es</b>'+teamsHtml+'</div>';
-}
-
-function appendTournamentSeasonControl(container,t){
-  if(!container||!t||t.format==='league'||!hasAdminOps())return;
-  const wrap=document.createElement('div');
-  wrap.className='player';
-  wrap.style.marginTop='10px';
-  wrap.style.background='#f8fbf9';
-
-  const currentSeason=S.seasons.find(s=>String(s.id)===String(t.season_id||''));
-  wrap.innerHTML='<div><b>üìÖ Saison du tournoi</b><div class="muted" style="margin-top:4px">'+
-    (currentSeason
-      ?'Ce tournoi compte actuellement dans <b>'+esc(currentSeason.name)+'</b>. Ses buts et passes sont cumul√©s avec les autres tournois de cette saison.'
-      :'Ce tournoi est <b>hors saison</b>. Ses buts et passes restent uniquement dans les statistiques de ce tournoi et ne sont ajout√©s √† aucun classement de saison.')+
-    '</div></div>';
-
-  const row=document.createElement('div');
-  row.className='row';
-  row.style.marginTop='8px';
-  const sel=document.createElement('select');
-  sel.style.flex='1';
-  sel.innerHTML='<option value="">Hors saison ‚Äî statistiques du tournoi uniquement</option>'+
-    S.seasons.map(s=>'<option value="'+s.id+'">'+esc(s.name)+(s.is_active?' ‚Ä¢ active':'')+'</option>').join('');
-  sel.value=t.season_id||'';
-
-  const save=document.createElement('button');
-  save.type='button';
-  save.className='primary';
-  save.textContent='üíæ Enregistrer la saison';
-  save.onclick=async()=>{
-    const newSeasonId=sel.value||null;
-    if(String(newSeasonId||'')===String(t.season_id||''))return toast('Aucun changement de saison.');
-    save.disabled=true;
-    const {error}=await sb.from('tournaments').update({season_id:newSeasonId}).eq('id',t.id);
-    if(error){save.disabled=false;return toast(error.message)}
-    await loadAll();
-    setView('tournaments');
-    toast(newSeasonId?'Tournoi ajout√© √† la saison ‚úÖ':'Tournoi retir√© de la saison ‚úÖ');
-  };
-  row.append(sel,save);
-  wrap.appendChild(row);
-  container.appendChild(wrap);
-}
-
-function renderTournaments(){
-  // V40.02 : l'√©diteur de tournoi est prot√©g√© des synchronisations automatiques.
-  const ss=$('#seasonSelect');
-  ss.innerHTML='<option value="">Sans saison</option>'+S.seasons.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join('');
-  const box=$('#tournamentList');box.innerHTML='';
-
-  const tournamentOnly=S.tournaments.filter(t=>t.format!=='league');
-  const current=tournamentOnly.filter(t=>t.status!=='finished');
-  const finished=tournamentOnly.filter(t=>t.status==='finished');
-
-  if(!current.length){
-    const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucun tournoi en cours.';box.appendChild(empty);
-  }
-  current.forEach(t=>{
-    const d=document.createElement('div');d.className='player tournament-current-card';
-    const top=document.createElement('div');top.className='tournament-current-head';
-    const pitchLabels=(t.reserved_pitch_ids||[]).map(id=>pitchName(id)).filter(Boolean);
-    const venueLabel=pitchLabels.length?(complexLabel(t.complex_id)+' ‚Ä¢ '+pitchLabels.join(', ')):(t.venue||'Terrains non renseign√©s');
-    const priceLabel=(Number(t.entry_fee_cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:2})+' ‚Ç¨';
-    const generatedInfo=t.generated_team_count
-      ? t.generated_team_count+' √©quipes ‚Ä¢ '+(t.recommended_pitch_count||1)+' terrain'+((t.recommended_pitch_count||1)>1?'s':'')+' ‚Ä¢ '+(t.odd_team_rotation_rule?'R√®gle 2 buts d‚Äô√©cart / 10 min':'Matchs de 10 min')
-      : '√âquipes non g√©n√©r√©es';
-    top.innerHTML='<div><div class="tournament-current-name">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</div>'+
-      '<div class="tournament-badges"><span class="tournament-badge">üìÖ '+esc(t.tournament_date)+'</span><span class="tournament-badge">‚öΩ '+esc(formatLabel(t))+'</span><span class="tournament-badge">üèÜ '+esc(seasonNameForTournament(t))+'</span></div>'+
-      '<div class="tournament-info-grid">'+
-        '<div class="tournament-info-item"><span class="tournament-info-label">Lieu / terrains</span><span class="tournament-info-value">üìç '+esc(venueLabel)+'</span></div>'+
-        '<div class="tournament-info-item"><span class="tournament-info-label">Horaire & prix</span><span class="tournament-info-value">üïò '+esc(t.start_time?String(t.start_time).slice(0,5):'Non renseign√©e')+' ‚Ä¢ üí∂ '+esc(priceLabel)+'</span></div>'+
-        '<div class="tournament-info-item"><span class="tournament-info-label">Organisation</span><span class="tournament-info-value">‚öôÔ∏è '+esc(generatedInfo)+'</span></div>'+
-        '<div class="tournament-info-item"><span class="tournament-info-label">R√©servation</span><span class="tournament-info-value">'+esc(t.reservation_reference||'Non renseign√©e')+'</span></div>'+
-      '</div>'+
-      (t.registration_deadline?'<div class="tournament-info-item" style="margin-top:8px"><span class="tournament-info-label">Cl√¥ture des inscriptions</span><div data-registration-deadline="'+esc(t.registration_deadline)+'"></div><span class="tournament-info-value">Pr√©vue la veille √† 17h'+(Number(t.registration_extension_hours||0)===3?' ‚Ä¢ prolongation +3h':'')+'</span></div>':'')+
-      '</div>';
-    const open=document.createElement('button');open.textContent=t.id===S.activeTour?'Actif':'Ouvrir';if(t.id===S.activeTour)open.className='green';
-    open.onclick=async()=>{S.activeTour=t.id;await loadTournament();renderAll();toast('Tournoi s√©lectionn√©')};
-    top.appendChild(open);
-    const waShare=document.createElement('button');waShare.textContent='üü¢ Partager WhatsApp';waShare.onclick=()=>{const front='https://swetournament.fr/?swe='+encodeURIComponent(t.id);const mode=t.discovery_mode==='public'?'inscriptions directes':t.discovery_mode==='request'?'participation sur demande':'acc√®s par lien';const msg='‚öΩ '+(t.name||'Nouveau Sw√©')+' ‚Ä¢ '+t.tournament_date+(t.start_time?' √† '+String(t.start_time).slice(0,5):'')+'\nüìç '+(t.venue||'Lieu √† confirmer')+'\n'+mode+'\nüëâ '+front;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');};top.appendChild(waShare);
-    if(S.organizerSettings?.whatsapp_group_url){const wg=document.createElement('button');wg.textContent='üí¨ Groupe WhatsApp';wg.onclick=()=>window.open(S.organizerSettings.whatsapp_group_url,'_blank','noopener');top.appendChild(wg);}
-    d.appendChild(top);
-
-    if(hasAdminOps()){
-      const reg=document.createElement('div');reg.className='player tournament-admin-block';reg.style.marginTop='12px';
-      const confirmed=S.activeTour===t.id?S.tPlayers.filter(x=>x.registration_status!=='waitlist'&&x.present).length:null;
-      reg.innerHTML='<div class="row"><span style="flex:1"><b>Inscriptions : '+(t.registration_open?'üü¢ ouvertes':'üî¥ ferm√©es')+'</b><div class="muted">Maximum '+(t.max_players||20)+' joueurs'+(confirmed!==null?' ‚Ä¢ '+confirmed+' confirm√©'+(confirmed>1?'s':''):'')+'</div></span></div>';
-      const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
-      const max=document.createElement('input');max.type='number';max.min='10';max.max='35';max.value=t.max_players||35;max.style.maxWidth='105px';
-      const toggle=document.createElement('button');toggle.textContent=t.registration_open?'Fermer les inscriptions':'Ouvrir les inscriptions';toggle.className=t.registration_open?'danger':'primary';
-      const saveMax=document.createElement('button');saveMax.textContent='Modifier places';
-      toggle.onclick=async()=>{const {error}=await sb.from('tournaments').update({registration_open:!t.registration_open}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast(!t.registration_open?'Inscriptions ouvertes ‚úÖ':'Inscriptions ferm√©es')};
-      saveMax.onclick=async()=>{const n=Math.max(10,Math.min(35,Number(max.value)||35));const {error}=await sb.from('tournaments').update({max_players:n}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast('Nombre de places mis √† jour ‚úÖ')};
-      row.append(max,saveMax,toggle);
-      if(t.format!=='league'&&Number(t.registration_extension_hours||0)<3){
-        const extend=document.createElement('button');
-        extend.type='button';
-        extend.textContent='+3h inscriptions';
-        extend.title='Disponible une seule fois si le nombre maximum d‚Äôinscrits n‚Äôest pas atteint.';
-        extend.onclick=async()=>{
-          extend.disabled=true;
-          const {data,error}=await sb.rpc('extend_tournament_registration_3h',{p_tournament_id:t.id});
-          if(error){extend.disabled=false;return toast(error.message)}
-          await loadAll();
-          toast('Inscriptions prolong√©es de 3 heures ‚úÖ');
-        };
-        row.appendChild(extend);
-      }
-      reg.appendChild(row);
-      const discovery=document.createElement('div');discovery.className='tournament-discovery-admin';discovery.style.marginTop='10px';
-      const dm=document.createElement('select');dm.innerHTML='<option value="unlisted">Non r√©pertori√©</option><option value="request">Sur demande</option><option value="public">Public ‚Ä¢ inscription directe</option>';dm.value=t.discovery_mode||'unlisted';
-      const ext=document.createElement('label');ext.className='row';ext.style.gap='6px';const extCb=document.createElement('input');extCb.type='checkbox';extCb.style.width='auto';extCb.checked=!!t.allow_external_players;ext.append(extCb,document.createTextNode('Joueurs externes'));
-      const pay=document.createElement('label');pay.className='row';pay.style.gap='6px';const payCb=document.createElement('input');payCb.type='checkbox';payCb.style.width='auto';payCb.checked=!!t.external_payment_required;payCb.disabled=!S.organizerSettings?.external_payment_ready;pay.append(payCb,document.createTextNode('Paiement externe requis'));
-      const online=document.createElement('label');online.className='row';const onlineCb=document.createElement('input');onlineCb.type='checkbox';onlineCb.style.width='auto';onlineCb.checked=!!t.online_payment_enabled;onlineCb.disabled=!S.organizerSettings?.external_payment_ready;online.append(onlineCb,document.createTextNode('üí≥ Collecte en ligne'));const third=document.createElement('label');third.className='row';const thirdCb=document.createElement('input');thirdCb.type='checkbox';thirdCb.style.width='auto';thirdCb.checked=!!t.third_half_active;thirdCb.disabled=!S.workspaceFeatures.third_half_enabled;third.append(thirdCb,document.createTextNode('üßä Glaci√®re'));const saveDiscovery=document.createElement('button');saveDiscovery.textContent='Enregistrer les options';saveDiscovery.onclick=async()=>{if(dm.value!=='unlisted'&&!extCb.checked)return toast('Active les joueurs externes pour rendre ce Sw√© visible.');if(payCb.checked&&Number(t.entry_fee_cents||0)<=0)return toast('Indique d‚Äôabord un prix par participant.');const {error}=await sb.from('tournaments').update({discovery_mode:dm.value,allow_external_players:extCb.checked,external_payment_required:payCb.checked&&!!S.organizerSettings?.external_payment_ready,online_payment_enabled:onlineCb.checked&&!!S.organizerSettings?.external_payment_ready,third_half_active:thirdCb.checked&&!!S.workspaceFeatures.third_half_enabled}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast('Visibilit√© du Sw√© mise √† jour ‚úÖ');};
-      discovery.append(dm,ext,pay,online,third,saveDiscovery);reg.appendChild(discovery);
-
-      const editDetails=document.createElement('div');
-      editDetails.style.marginTop='10px';
-      const editBtn=document.createElement('button');
-      editBtn.type='button';
-      editBtn.textContent='‚úèÔ∏è Modifier date / terrain / heure / prix';
-
-      const editBox=document.createElement('div');
-      editBox.className='player'+(S.editingTournamentId===t.id?'':' hidden');
-      editBox.style.marginTop='8px';
-      editBox.onclick=e=>e.stopPropagation();
-      editBox.onchange=e=>e.stopPropagation();
-
-      const dateInput=document.createElement('input');
-      dateInput.type='date';
-      dateInput.value=t.tournament_date||'';
-
-      const complexSel=document.createElement('select');
-      complexSel.innerHTML='<option value="">Choisir le complexe</option>'+S.sportsComplexes.filter(c=>c.active!==false).map(c=>'<option value="'+c.id+'">'+esc(c.name)+(c.city?' ‚Ä¢ '+esc(c.city):'')+'</option>').join('');
-      complexSel.value=t.complex_id||'';
-
-      const pitchWrap=document.createElement('div');
-      pitchWrap.style.marginTop='8px';
-
-      const timeInput=document.createElement('input');
-      timeInput.type='time';
-      timeInput.value=t.start_time?String(t.start_time).slice(0,5):'09:00';
-
-      const priceInput=document.createElement('input');
-      priceInput.type='number';
-      priceInput.min='0';
-      priceInput.step='0.50';
-      priceInput.placeholder='Prix / participant (‚Ç¨)';
-      priceInput.value=(Number(t.entry_fee_cents||0)/100).toFixed(2);
-
-      const refInput=document.createElement('input');
-      refInput.placeholder='Nom ou n¬∞ de r√©servation (facultatif)';
-      refInput.value=t.reservation_reference||'';
-
-      let selectedPitchIds=new Set((t.reserved_pitch_ids||[]).map(String));
-
-      const renderEditPitches=()=>{
-        const rows=S.sportsPitches.filter(p=>p.active!==false&&String(p.complex_id)===String(complexSel.value));
-        pitchWrap.innerHTML='<div class="muted" style="margin-bottom:6px"><b>Terrains r√©serv√©s</b> ‚Ä¢ 1 √† 3 terrains</div>'+
-          (rows.length
-            ? rows.map(p=>'<label class="player row" style="justify-content:flex-start"><input class="editTourPitchCheck" type="checkbox" value="'+p.id+'" style="width:auto" '+(selectedPitchIds.has(String(p.id))?'checked':'')+'><span>'+esc(p.name)+'</span></label>').join('')
-            : '<div class="muted">Aucun terrain disponible pour ce complexe.</div>');
-
-        pitchWrap.querySelectorAll('.editTourPitchCheck').forEach(cb=>{
-          cb.onchange=e=>{
-            e.stopPropagation();
-            const checked=[...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')];
-            if(checked.length>3){
-              cb.checked=false;
-              toast('Maximum 3 terrains pour un tournoi.');
-            }
-            selectedPitchIds=new Set([...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')].map(x=>String(x.value)));
-          };
-        });
-      };
-
-      complexSel.onchange=e=>{
-        e.stopPropagation();
-        selectedPitchIds=new Set();
-        renderEditPitches();
-      };
-
-      renderEditPitches();
-
-      const seasonEditSel=document.createElement('select');
-      seasonEditSel.innerHTML='<option value="">Hors saison ‚Äî statistiques du tournoi uniquement</option>'+S.seasons.map(s=>'<option value="'+s.id+'">'+esc(s.name)+(s.is_active?' ‚Ä¢ active':'')+'</option>').join('');
-      seasonEditSel.value=t.season_id||'';
-
-      const saveDetails=document.createElement('button');
-      saveDetails.type='button';
-      saveDetails.className='primary';
-      saveDetails.textContent='üíæ Enregistrer les modifications';
-
-      const cancelDetails=document.createElement('button');
-      cancelDetails.type='button';
-      cancelDetails.textContent='Annuler';
-
-      editBox.innerHTML='<div class="muted" style="margin-bottom:8px"><b>Modifier ce tournoi</b><br>La fen√™tre reste ouverte tant que tu n‚Äôenregistres pas ou que tu n‚Äôannules pas.</div>';
-
-      const firstGrid=document.createElement('div');
-      firstGrid.className='grid g2';
-      firstGrid.append(dateInput,complexSel);
-      editBox.appendChild(firstGrid);
-      editBox.appendChild(pitchWrap);
-
-      const detailsGrid=document.createElement('div');
-      detailsGrid.className='grid g3';
-      detailsGrid.style.marginTop='8px';
-      detailsGrid.append(timeInput,priceInput,refInput);
-      editBox.appendChild(detailsGrid);
-
-      const seasonEditWrap=document.createElement('label');
-      seasonEditWrap.className='player';
-      seasonEditWrap.style.marginTop='8px';
-      seasonEditWrap.innerHTML='<span class="muted"><b>üìÖ Saison</b> ‚Äî facultatif</span><div class="muted" style="margin:4px 0 7px">Si une saison est choisie, les buts et passes de ce tournoi seront cumul√©s dans son classement. ¬´ Hors saison ¬ª conserve uniquement les statistiques propres √† ce tournoi.</div>';
-      seasonEditWrap.appendChild(seasonEditSel);
-      editBox.appendChild(seasonEditWrap);
-
-      const editActions=document.createElement('div');
-      editActions.className='row';
-      editActions.style.marginTop='10px';
-      editActions.append(saveDetails,cancelDetails);
-      editBox.appendChild(editActions);
-
-      editBtn.onclick=e=>{
-        e.preventDefault();
-        e.stopPropagation();
-        const opening=editBox.classList.contains('hidden');
-        if(opening){
-          S.editingTournamentId=t.id;
-          editBox.classList.remove('hidden');
-        }else{
-          S.editingTournamentId=null;
-          editBox.classList.add('hidden');
-        }
-      };
-
-      cancelDetails.onclick=e=>{
-        e.preventDefault();
-        e.stopPropagation();
-        S.editingTournamentId=null;
-        editBox.classList.add('hidden');
-        // Reprendre la synchronisation apr√®s fermeture volontaire.
-        setTimeout(safeAppSync,250);
-      };
-
-      saveDetails.onclick=async e=>{
-        e.preventDefault();
-        e.stopPropagation();
-
-        const tournamentDate=dateInput.value;
-        const complexId=complexSel.value;
-        const pitchIds=[...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')].map(x=>x.value);
-        const startTime=timeInput.value;
-        const price=Number(priceInput.value);
-
-        if(!tournamentDate)return toast('Choisis la date du tournoi.');
-        if(!complexId)return toast('Choisis le complexe sportif.');
-        if(!pitchIds.length)return toast('Choisis au moins 1 terrain r√©serv√©.');
-        if(pitchIds.length>3)return toast('Maximum 3 terrains pour un tournoi.');
-        if(!startTime)return toast('Indique l‚Äôheure de r√©servation.');
-        if(!Number.isFinite(price)||price<0)return toast('Indique un prix valide.');
-
-        const complex=S.sportsComplexes.find(c=>String(c.id)===String(complexId));
-        const selectedPitches=S.sportsPitches.filter(p=>pitchIds.includes(String(p.id))&&String(p.complex_id)===String(complexId));
-        if(selectedPitches.length!==pitchIds.length)return toast('Un terrain s√©lectionn√© est invalide.');
-
-        const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' ‚Äî ');
-
-        saveDetails.disabled=true;
-        saveDetails.textContent='Enregistrement‚Ä¶';
-
-        const {error}=await sb.from('tournaments').update({
-          tournament_date:tournamentDate,
-          complex_id:complexId,
-          reserved_pitch_ids:pitchIds,
-          venue,
-          start_time:startTime,
-          entry_fee_cents:Math.round(price*100),
-          reservation_reference:refInput.value.trim()||null,
-          season_id:seasonEditSel.value||null
-        }).eq('id',t.id);
-
-        if(error){
-          saveDetails.disabled=false;
-          saveDetails.textContent='üíæ Enregistrer les modifications';
-          return toast(error.message);
-        }
-
-        S.editingTournamentId=null;
-        await loadAll();
-        setView('tournaments');
-        toast('Tournoi modifi√© ‚úÖ Date, terrain(s), heure, prix et saison mis √† jour.');
-      };
-
-      editDetails.append(editBtn,editBox);
-      reg.appendChild(editDetails);
-      window.SWERegistrationPresentation?.briefingEditor(reg,t,{ratingGroupName:S.workspace.rating_group_name,saveRatingGroupName:async name=>{const {error}=await sb.from('workspaces').update({rating_group_name:name||null}).eq('id',S.workspace.id).select('id').single();if(error)throw error;S.workspace.rating_group_name=name;},editing:active=>{S.editingTournamentId=active?t.id:null;},save:async briefing=>{const {error}=await sb.from('tournaments').update({registration_briefing:briefing}).eq('id',t.id);if(error)throw error;}});
-
-      const publicUrl=registrationLink(t);
-      const shareBox=document.createElement('div');shareBox.style.marginTop='10px';
-      shareBox.innerHTML='<div class="muted" style="margin-bottom:6px"><b>üîó Lien unique de ce tournoi</b></div>';
-      const linkRow=document.createElement('div');linkRow.className='row';
-      const linkInput=document.createElement('input');linkInput.readOnly=true;linkInput.value=publicUrl;linkInput.style.flex='1';linkInput.title='Lien unique du tournoi '+(t.name||t.tournament_date);
-      const copyBtn=document.createElement('button');copyBtn.textContent='Copier le lien';
-      const waBtn=document.createElement('button');waBtn.textContent='üì≤ WhatsApp';waBtn.className='primary';
-      copyBtn.onclick=async()=>{
-        if(!publicUrl)return toast('Lien public indisponible.');
-        try{await navigator.clipboard.writeText(publicUrl);toast('Lien unique du tournoi copi√© ‚úÖ')}
-        catch(e){linkInput.focus();linkInput.select();toast('Lien s√©lectionn√© : copie-le.')}
-      };
-      waBtn.onclick=()=>{
-        if(!publicUrl)return toast('Lien public indisponible.');
-        const title=t.name||('Tournoi du '+t.tournament_date);
-        const msg='‚öΩ '+title+'\nüìÖ '+t.tournament_date+'\n\nLes inscriptions sont ouvertes. Clique sur le lien, choisis ton nom puis indique si tu participes :\n'+publicUrl;
-        window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');
-      };
-      linkRow.append(linkInput,copyBtn,waBtn);shareBox.appendChild(linkRow);reg.appendChild(shareBox);
-
-      const deskBox=document.createElement('div');deskBox.className='payment-link-card';deskBox.style.marginTop='10px';
-      const deskUrl=t.payment_short_code?APP_URL+'?pay='+encodeURIComponent(String(t.payment_short_code).toUpperCase()):'';
-      deskBox.innerHTML='<div class="payment-link-head"><span>‚úÖ</span><div><b>Lien de suivi des paiements sur place</b><small>Permet uniquement de marquer manuellement les joueurs PAY√â / NON PAY√â. Aucun encaissement en ligne depuis ce lien.</small></div><em>PRIV√â</em></div>';
-      const deskRow=document.createElement('div');deskRow.className='payment-link-row';
-      const deskInput=document.createElement('input');deskInput.readOnly=true;deskInput.value=deskUrl||'Lien en cours de cr√©ation';deskInput.className='short-link-input';
-      const deskCopy=document.createElement('button');deskCopy.textContent='üìã Copier';deskCopy.disabled=!deskUrl;
-      deskCopy.onclick=async()=>{try{await navigator.clipboard.writeText(deskInput.value);toast('Lien d‚Äôencaissement copi√© ‚úÖ')}catch(e){deskInput.focus();deskInput.select();toast('Lien s√©lectionn√© : copie-le.')}};
-      const deskCode=document.createElement('span');deskCode.className='short-code-badge';deskCode.textContent=t.payment_short_code?'Code : '+String(t.payment_short_code).toUpperCase():'Code indisponible';
-      deskRow.append(deskInput,deskCopy,deskCode);
-      if(isAdmin()){
-        const rotate=document.createElement('button');rotate.textContent='üîê R√©g√©n√©rer';rotate.className='secondary';
-        rotate.title='Invalide imm√©diatement l‚Äôancien lien d‚Äôencaissement';
-        rotate.onclick=async()=>{
-          if(!confirm('R√©g√©n√©rer le lien de suivi des paiements ? L‚Äôancien lien cessera imm√©diatement de fonctionner.'))return;
-          rotate.disabled=true;
-          const {data,error}=await sb.rpc('rotate_tournament_payment_access',{p_tournament_id:t.id});
-          rotate.disabled=false;if(error)return toast(error.message);
-          t.payment_short_code=data?.short_code||t.payment_short_code;
-          deskInput.value=APP_URL+'?pay='+encodeURIComponent(String(t.payment_short_code).toUpperCase());
-          deskCode.textContent='Code : '+String(t.payment_short_code).toUpperCase();
-          toast('Nouveau lien de suivi des paiements g√©n√©r√© ‚úÖ');
-        };
-        deskRow.appendChild(rotate);
-      }
-      deskBox.appendChild(deskRow);reg.appendChild(deskBox);
-      d.appendChild(reg);
-    }
-
-    const finish=document.createElement('button');finish.textContent='Terminer le tournoi';finish.style.marginTop='8px';
-    finish.onclick=async()=>{
-      if(!confirm('D√©clarer ce tournoi termin√© ? Il restera disponible dans l‚Äôhistorique.'))return;
-      finish.disabled=true;
-      const {error}=await sb.rpc('finish_tournament_with_payment_report',{p_tournament_id:t.id});
-      if(error){finish.disabled=false;return toast(error.message)}
-      if(S.activeTour===t.id)S.activeTour=null;
-      await loadAll();
-      toast('Tournoi termin√© ‚úÖ');
-    };
-    if(hasAdminOps()){
-      d.appendChild(finish);
-      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';del.style.margin='8px 0 0 8px';
-      del.onclick=async()=>await deleteTournament(t);
-      d.appendChild(del);
-    }else if(isCoorg()){
-      const del=makeDisabledActionButton('Supprimer','Seul l‚Äôadministrateur ou un admin temporaire peut supprimer un tournoi');
-      del.style.margin='8px 0 0 8px';d.appendChild(del);
-    }
-    if(!t.finished_at){
-      window.__sweOpenRegistrationLists=window.__sweOpenRegistrationLists||new Set();
-      const isRegOpen=window.__sweOpenRegistrationLists.has(t.id);
-      const regBtn=document.createElement('button');
-      regBtn.type='button';
-      regBtn.textContent=isRegOpen?'Masquer la liste des inscrits':'üë• Afficher la liste des inscrits';
-      regBtn.style.marginTop='10px';
-      const regList=document.createElement('div');
-      regList.className=isRegOpen?'':'hidden';
-      regList.style.marginTop='10px';
-      if(isRegOpen&&S.activeTour===t.id)regList.innerHTML=registrationSummaryHtml(t.id);
-      else if(isRegOpen)regList.innerHTML='<p class="muted">Chargement des inscrits‚Ä¶</p>';
-
-      regBtn.onclick=async()=>{
-        const opening=!window.__sweOpenRegistrationLists.has(t.id);
-        if(opening){
-          window.__sweOpenRegistrationLists.add(t.id);
-          if(S.activeTour!==t.id){
-            S.activeTour=t.id;
-            await loadTournament();
-            renderAll();
-            return;
-          }
-          regList.innerHTML=registrationSummaryHtml(t.id);
-          regList.classList.remove('hidden');
-          regBtn.textContent='Masquer la liste des inscrits';
-        }else{
-          window.__sweOpenRegistrationLists.delete(t.id);
-          regList.classList.add('hidden');
-          regBtn.textContent='üë• Afficher la liste des inscrits';
-        }
-      };
-      d.append(regBtn,regList);
-    }
-    appendTournamentSeasonControl(d,t);
-    box.appendChild(d);
-  });
-
-  if(finished.length){
-    const h=document.createElement('h2');h.className='sectiontitle';h.style.margin='20px 0 10px';h.textContent='Historique';box.appendChild(h);
-  }
-  finished.forEach(t=>{
-    const d=document.createElement('div');d.className='player';
-    const top=document.createElement('div');top.className='row';
-    top.innerHTML='<span style="flex:1"><b>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' ‚Ä¢ Termin√©</div><div class="muted">üìÖ '+esc(seasonNameForTournament(t))+'</div></span>';
-    const actions=document.createElement('div');actions.className='row';
-    const view=document.createElement('button');view.textContent='Voir les r√©sultats';view.className='primary';
-    view.onclick=async()=>await showTournamentHistory(t);
-    actions.appendChild(view);
-    if(isAdmin()){
-      const payReport=document.createElement('button');payReport.textContent='üßæ Rapport paiements';
-      payReport.onclick=async()=>{
-        payReport.disabled=true;
-        const {data,error}=await sb.rpc('admin_get_tournament_payment_report',{p_tournament_id:t.id});
-        payReport.disabled=false;
-        if(error)return toast(error.message);
-        if(!data)return toast('Aucun rapport de paiement archiv√© pour ce tournoi.');
-        paymentReportPrint(data,'Administrateur');
-      };
-      actions.appendChild(payReport);
-    }
-    if(hasAdminOps()){
-      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
-      del.onclick=async()=>await deleteTournament(t);
-      actions.appendChild(del);
-    }else if(isCoorg()){
-      actions.appendChild(makeDisabledActionButton('Supprimer','Seul l‚Äôadministrateur ou un admin temporaire peut supprimer un tournoi'));
-    }
-    top.appendChild(actions);
-    d.appendChild(top);
-    appendTournamentSeasonControl(d,t);
-    box.appendChild(d);
-  });
-
-  if(!tournamentOnly.length)box.innerHTML='<p class="muted">Aucun tournoi pour le moment.</p>';
-  updateTournamentCountdowns();
-}
-
-async function showTournamentHistory(t){
-  const {data:teams,error:te}=await sb.from('teams').select('*').eq('tournament_id',t.id).order('created_at');
-  if(te)return toast(te.message);
-  const {data:matches,error:me}=await sb.from('matches').select('*').eq('tournament_id',t.id).order('match_order');
-  if(me)return toast(me.message);
-  const mids=(matches||[]).map(m=>m.id);
-  let goals=[];
-  if(mids.length){
-    const {data,error}=await sb.from('goals').select('*').in('match_id',mids);
-    if(error)return toast(error.message);
-    goals=data||[];
-  }
-  const teamMap=new Map((teams||[]).map(x=>[x.id,x.name]));
-  const stats=(teams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
-  const sm=new Map(stats.map(x=>[x.id,x]));
-  (matches||[]).forEach(m=>{
-    const h=sm.get(m.home_team_id),a=sm.get(m.away_team_id);if(!h||!a)return;
-    h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;
-    if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}
-    else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}
-    else{h.n++;a.n++;h.pts++;a.pts++}
-  });
-  stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);
-
-  const ps=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
-  goals.forEach(g=>{
-    if(ps.has(g.scorer_player_id))ps.get(g.scorer_player_id).g++;
-    if(g.assister_player_id&&ps.has(g.assister_player_id))ps.get(g.assister_player_id).a++;
-  });
-  let scor=[...ps.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name));
-  let ass=[...ps.values()].filter(x=>x.a).sort((a,b)=>b.a-a.a||a.name.localeCompare(b.name));
-  scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
-
-  let panel=$('#historyPanel');
-  if(!panel){
-    panel=document.createElement('div');panel.id='historyPanel';panel.className='card';panel.style.marginTop='12px';
-    $('#tournamentList').parentElement.appendChild(panel);
-  }
-
-  const teamRows=stats.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ ‚Ä¢ '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
-  const scorerRows=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('');
-  const assistRows=ass.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('');
-  const matchRows=(matches||[]).map((m,i)=>{
-    const mg=goals.filter(g=>g.match_id===m.id);
-    const goalLines=mg.map(g=>{
-      const scorer=p(g.scorer_player_id);
-      const assister=g.assister_player_id?p(g.assister_player_id):null;
-      const team=teamMap.get(g.team_id);
-      return '<div class="small" style="margin-top:5px">‚öΩ '+esc(scorer?.name||'?')+
-        (assister?' <span class="muted">‚Üê passe '+esc(assister.name)+'</span>':'')+
-        (team?' <span class="muted">‚Ä¢ '+esc(team)+'</span>':'')+
-        '</div>';
-    }).join('');
-    return '<div class="player" style="padding:10px 0">'+
-      '<div class="muted" style="font-weight:700;margin-bottom:4px">Match '+(i+1)+'</div>'+
-      '<div style="font-size:1.05rem">'+esc(teamMap.get(m.home_team_id)||'?')+' <b>'+m.home_score+' - '+m.away_score+'</b> '+esc(teamMap.get(m.away_team_id)||'?')+'</div>'+
-      (goalLines||'<div class="small muted" style="margin-top:5px">Aucun buteur enregistr√©</div>')+
-      '</div>';
-  }).join('');
-
-  panel.innerHTML=
-    '<div class="row" style="justify-content:space-between"><div><h2 class="sectiontitle" style="margin:0">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</h2><div class="muted">'+t.tournament_date+'</div></div><button id="closeHistoryPanel">Fermer</button></div>'+
-    '<h3>üèÜ Classement final</h3>'+(teamRows||'<p class="muted">Aucun classement.</p>')+
-    '<h3 style="margin-top:16px">‚öΩ Buteurs du tournoi</h3>'+(scorerRows||'<p class="muted">Aucun buteur.</p>')+
-    '<h3 style="margin-top:16px">üéØ Passeurs du tournoi</h3>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+
-    '<h3 style="margin-top:16px">üìã R√©sultats</h3>'+(matchRows||'<p class="muted">Aucun match enregistr√©.</p>');
-  $('#closeHistoryPanel').onclick=()=>panel.remove();
-  panel.scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-$('#newSeasonBtn').onclick=()=>$('#newSeasonBox').classList.toggle('hidden');
-$('#createSeason').onclick=async()=>{const name=$('#seasonName').value.trim();if(!name)return;const {error}=await sb.from('seasons').insert({workspace_id:S.workspace.id,name,starts_on:today(),is_active:true});if(error)return toast(error.message);$('#seasonName').value='';$('#newSeasonBox').classList.add('hidden');toast('Saison cr√©√©e')};
-const newTournamentToggle=$('#newTournamentToggle');
-if(newTournamentToggle)newTournamentToggle.onclick=()=>{
-  S.tournamentCreateOpen=true;
-  S.seasonAdminOpen=false;
-  applyPermissions();
-  $('#tournamentAdminCard')?.scrollIntoView({behavior:'smooth',block:'start'});
-};
-const cancelTournamentCreate=$('#cancelTournamentCreate');
-if(cancelTournamentCreate)cancelTournamentCreate.onclick=()=>{
-  S.tournamentCreateOpen=false;
-  applyPermissions();
-  $('#tournamentList')?.scrollIntoView({behavior:'smooth',block:'start'});
-};
-const seasonSettingsToggle=$('#seasonSettingsToggle');
-if(seasonSettingsToggle)seasonSettingsToggle.onclick=()=>{
-  S.seasonAdminOpen=!S.seasonAdminOpen;
-  S.tournamentCreateOpen=false;
-  applyPermissions();
-  if(S.seasonAdminOpen)$('#seasonAdminCard')?.scrollIntoView({behavior:'smooth',block:'start'});
-};
-
-$('#createTournament').onclick=async()=>{
-  if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_create_tournaments)return toast('Tu n‚Äôes pas autoris√© √† cr√©er un tournoi.');
-  const btn=$('#createTournament');
-  const date=$('#tourDate').value;
-  if(!date)return toast('Choisis une date.');
-  const deadlineLocal=$('#tourRegistrationDeadline')?.value||'';
-  const registrationDeadline=registrationDeadlineIso(deadlineLocal);
-  if(!registrationDeadline)return toast('Indique la date et l‚Äôheure de fin des inscriptions.');
-  const eventStart=new Date(date+'T'+($('#tourStartTime')?.value||'09:00')+':00-04:00').getTime();
-  const deadlineMs=new Date(registrationDeadline).getTime();
-  if(deadlineMs<=Date.now())return toast('La fin des inscriptions doit √™tre dans le futur.');
-  if(deadlineMs>=eventStart)return toast('La fin des inscriptions doit √™tre avant le d√©but du tournoi.');
-  const complexId=$('#tourComplex')?.value||'';
-  const startTime=$('#tourStartTime')?.value||'';
-  const feeRaw=$('#tourEntryFee')?.value;
-  const pitchIds=[...document.querySelectorAll('.tourPitchCheck:checked')].map(x=>x.value);
-  if(!complexId)return toast('Choisis le complexe sportif.');
-  if(!pitchIds.length)return toast('Choisis au moins 1 terrain r√©serv√©.');
-  if(pitchIds.length>3)return toast('Maximum 3 terrains pour un tournoi.');
-  if(!startTime)return toast('Indique l‚Äôheure de r√©servation.');
-  if(feeRaw===''||Number(feeRaw)<0)return toast('Indique le prix par participant.');
-  const complex=S.sportsComplexes.find(c=>c.id===complexId);
-  const selectedPitches=S.sportsPitches.filter(p=>pitchIds.includes(p.id));
-  if(selectedPitches.length!==pitchIds.length)return toast('Un terrain s√©lectionn√© est invalide.');
-  btn.disabled=true;btn.textContent='Cr√©ation‚Ä¶';
-  try{
-    const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' ‚Äî ');
-    const row={
-      workspace_id:S.workspace.id,
-      season_id:$('#seasonSelect').value||null,
-      name:$('#tourName').value.trim()||null,
-      tournament_date:date,
-      format:$('#tourFormat').value,
-      status:'draft',
-      max_players:Math.max(10,Math.min(35,Number($('#tourMaxPlayers').value)||35)),
-      registration_open:$('#tourRegistrationOpen').checked,
-      registration_deadline:registrationDeadline,
-      complex_id:complexId,
-      reserved_pitch_ids:pitchIds,
-      venue,
-      start_time:startTime,
-      entry_fee_cents:Math.round(Number(feeRaw)*100),
-      reservation_reference:$('#tourReservationRef')?.value.trim()||null,
-      discovery_mode:$('#tourDiscoveryMode')?.value||'unlisted',
-      allow_external_players:!!$('#tourAllowExternal')?.checked,
-      external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked
-    };
-    if(S.workspaceFeatures.team_review_enabled){row.team_review_requested=true;row.team_review_duration_minutes=120;}
-    if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active ¬´ Accepter des joueurs externes ¬ª pour rendre ce Sw√© visible aux joueurs solo.');
-    if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant d‚Äôexiger un paiement en ligne.');
-    if(S.workspaceFeatures.third_half_enabled)row.cooler_suggested_cents=Math.round(Math.max(0,Number($('#tourCoolerSuggested')?.value)||0)*100);
-    const {data,error}=await sb.from('tournaments').insert(row).select().single();
-    if(error)throw error;
-    S.activeTour=data.id;
-    S.tournaments=[data,...S.tournaments.filter(t=>t.id!==data.id)].sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
-    S.tPlayers=[];S.teams=[];S.teamPlayers=[];S.matches=[];S.goals=[];
-    $('#tourName').value='';$('#tourReservationRef').value='';
-    S.tournamentCreateOpen=false;
-    renderAll();
-    setView('tournaments');
-    await loadAll();
-    setView('tournaments');
-    applyPermissions();
-    toast('Nouveau tournoi cr√©√© ‚úÖ Compte √† rebours des inscriptions activ√©.');
-  }catch(error){
-    toast(error.message||'Impossible de cr√©er le tournoi');
-  }finally{
-    btn.disabled=false;btn.textContent='Cr√©er le tournoi';
-  }
-};
-
-function presentIds(){return new Set(S.tPlayers.filter(x=>x.present&&x.registration_status!=='waitlist').map(x=>x.player_id))} function teamPlayerIds(teamId){return S.teamPlayers.filter(x=>x.team_id===teamId).map(x=>x.player_id)}
-function hasGeneratedTournamentTeams(){return S.teams.some(team=>!team.is_preformed)}
-function teamReviewStatusLabel(status){
-  return ({not_started:'Pas d√©marr√©e',pending:'Avis en cours',redraw_requested:'Nouveau tirage demand√©',approved:'Composition valid√©e',cancelled:'Cr√©ation annul√©e'})[status]||status||'‚Äî';
-}
-function renderTeamReviewPanel(t){
-  const box=$('#teamReviewPanel');if(!box)return;
-  if(!t||t.format==='league'||!S.workspaceFeatures.team_review_enabled){box.classList.add('hidden');box.innerHTML='';return;}
-  const r=S.teamReviewState||{status:t.team_review_status||'not_started',max_redraws:Number(t.max_team_redraws||1),redraws_used:Number(t.team_redraws_used||0),eligible_count:0,validate_votes:0,redraw_votes:0};
-  const deadline=r.deadline?new Date(r.deadline):null;
-  const deadlineText=deadline&&!Number.isNaN(deadline.getTime())?deadline.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'‚Äî';
-  const remaining=Math.max(0,Number(r.redraws_remaining ?? (Number(r.max_redraws||0)-Number(r.redraws_used||0))));
-  const statusClass=String(r.status||'not_started').replace(/_/g,'-');
-  let html='<div class="team-review-head"><div><b>üó≥Ô∏è Validation collaborative du tirage</b><div class="muted">Les co-gestionnaires inscrits √† ce Sw√© disposent de 2 heures pour donner leur avis. Les √©quipes restent masqu√©es sur le lien public jusqu‚Äô√† validation.</div></div><span class="team-review-status '+statusClass+'">'+esc(teamReviewStatusLabel(r.status))+'</span></div>'+
-    '<div class="team-review-stats"><span>üë• '+Number(r.eligible_count||0)+' co-gestionnaire(s) concern√©(s)</span><span>‚úÖ '+Number(r.validate_votes||0)+' valider</span><span>üîÑ '+Number(r.redraw_votes||0)+' refaire</span><span>‚ôªÔ∏è '+Number(r.redraws_used||0)+' / '+Number(r.max_redraws||0)+' nouveau(x) tirage(s)</span></div>';
-  if(r.status==='pending')html+='<div class="team-review-deadline">‚è≥ Avis possibles jusqu‚Äôau <b>'+esc(deadlineText)+'</b>.</div>';
-  if(isAdmin()){
-    html+='<div class="team-review-admin"><label><span>Nombre maximum de nouveaux tirages</span><input id="teamReviewMaxRedraws" type="number" min="0" max="10" value="'+Number(r.max_redraws ?? t.max_team_redraws ?? 1)+'"></label><button id="saveTeamReviewLimit">üíæ Enregistrer la limite</button>'+
-      (r.status==='pending'?'<button id="approveTeamsNow" class="primary">‚úÖ Valider maintenant</button>':'')+
-      (r.status==='redraw_requested'&&remaining>0?'<button id="applyTeamRedraw" class="primary">üîÑ Refaire le tirage ('+remaining+' restant'+(remaining>1?'s':'')+')</button>':'')+
-      ((S.teams||[]).length?'<button id="cancelTeamGeneration" class="danger">‚Ü© Annuler la cr√©ation des √©quipes</button>':'')+'</div>';
-  }else if(isCoorg()){
-    if(r.status==='pending'&&r.my_eligible){
-      html+='<div class="team-review-vote"><b>Ton avis</b><div class="row"><button id="voteValidateTeams" class="'+(r.my_vote==='validate'?'primary':'')+'">‚úÖ Valider</button><button id="voteRedrawTeams" class="'+(r.my_vote==='redraw'?'danger':'')+'">üîÑ Refaire le tirage</button></div>'+(r.my_vote?'<div class="muted">Ton choix actuel : <b>'+(r.my_vote==='validate'?'Valider':'Refaire le tirage')+'</b>. Tu peux le modifier tant que les 2 heures ne sont pas √©coul√©es.</div>':'')+'</div>';
-    }else if(r.status==='pending'&&!r.my_eligible){
-      html+='<div class="readonly-note">Le vote est r√©serv√© aux co-gestionnaires qui sont eux-m√™mes inscrits √† ce Sw√©.</div>';
-    }
-  }
-  if(r.status==='redraw_requested')html+='<div class="readonly-note"><b>üîÑ La majorit√© demande un nouveau tirage.</b> L‚Äôadministrateur peut appliquer le prochain tirage dans la limite autoris√©e.</div>';
-  if(r.status==='approved')html+='<div class="readonly-note success-note"><b>‚úÖ Composition valid√©e.</b> Les √©quipes peuvent maintenant appara√Ætre sur le lien d‚Äôinvitation.</div>';
-  box.innerHTML=html;box.classList.remove('hidden');
-  const save=$('#saveTeamReviewLimit');if(save)save.onclick=async()=>{const max=Math.max(0,Math.min(10,Number($('#teamReviewMaxRedraws').value)||0));save.disabled=true;const {error}=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:t.id,p_max_redraws:max,p_requested:true,p_duration_minutes:120});save.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Limite de nouveaux tirages enregistr√©e ‚úÖ');};
-  const approve=$('#approveTeamsNow');if(approve)approve.onclick=async()=>{if(!confirm('Valider cette composition maintenant ? Elle deviendra visible sur le lien public.'))return;approve.disabled=true;const {error}=await sb.rpc('admin_approve_tournament_team_review',{p_tournament_id:t.id});approve.disabled=false;if(error)return toast(error.message);await loadTournament();renderTeams();toast('Composition valid√©e ‚úÖ');};
-  const redraw=$('#applyTeamRedraw');if(redraw)redraw.onclick=()=>runSmartTeamGeneration(true);
-  const cancel=$('#cancelTeamGeneration');if(cancel)cancel.onclick=async()=>{if(!confirm('Annuler la cr√©ation des √©quipes ?\n\nLes √©quipes g√©n√©r√©es, les matchs associ√©s et la phase de validation seront supprim√©s. Les √©quipes pr√©form√©es restent conserv√©es.'))return;cancel.disabled=true;const {error}=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});cancel.disabled=false;if(error)return toast(error.message);await loadAll();S.activeTour=t.id;await loadTournament();renderAll();toast('Cr√©ation des √©quipes annul√©e.');};
-  const vote=async decision=>{const {error}=await sb.rpc('vote_tournament_team_review',{p_tournament_id:t.id,p_decision:decision});if(error)return toast(error.message);await loadTournament();renderTeams();toast(decision==='validate'?'Avis enregistr√© : valider ‚úÖ':'Avis enregistr√© : refaire le tirage üîÑ');};
-  const vb=$('#voteValidateTeams');if(vb)vb.onclick=()=>vote('validate');
-  const rb=$('#voteRedrawTeams');if(rb)rb.onclick=()=>vote('redraw');
-}
-
-const SWE_TEAM_COLOR_META={
-  '#111827':'Noir','#2563eb':'Bleu','#f8fafc':'Blanc','#dc2626':'Rouge','#16a34a':'Vert',
-  '#eab308':'Jaune','#f97316':'Orange','#7c3aed':'Violet','#ec4899':'Rose','#78350f':'Marron','#64748b':'Gris'
-};
-function sweTeamColor(team){
-  const raw=String(team?.color||'').trim().toLowerCase();
-  if(raw)return raw;
-  const name=String(team?.name||'').trim().toLowerCase();
-  const aliases={noir:'#111827',noirs:'#111827',bleu:'#2563eb',bleus:'#2563eb',blanc:'#f8fafc',blancs:'#f8fafc',rouge:'#dc2626',rouges:'#dc2626',vert:'#16a34a',verts:'#16a34a',jaune:'#eab308',jaunes:'#eab308',orange:'#f97316',oranges:'#f97316',violet:'#7c3aed',violets:'#7c3aed',rose:'#ec4899',roses:'#ec4899',marron:'#78350f',marrons:'#78350f',gris:'#64748b'};
-  return aliases[name]||'#64748b';
-}
-function sweTeamColorLabel(team){return SWE_TEAM_COLOR_META[sweTeamColor(team)]||'Couleur personnalis√©e';}
-function sweTeamTextColor(hex){return ['#f8fafc','#eab308'].includes(String(hex).toLowerCase())?'#111827':'#ffffff';}
-function tournamentCommonSubstitutes(){
-  const assigned=new Set(S.teamPlayers.map(x=>String(x.player_id)));
-  return S.tPlayers.filter(r=>r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!assigned.has(String(r.player_id)))
-    .map(r=>p(r.player_id)).filter(Boolean);
-}
-async function syncTournamentSubstitutes(tournamentId){
-  const result=await sb.rpc('sync_tournament_substitutes',{p_tournament_id:tournamentId});
-  if(result.error)throw result.error;
-  return result.data||null;
-}
-function chienBoulLabel(score){return 'üê∂‚öΩ Note √©quipe √©valu√©e par Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
-
-function renderTeams(){
-  const t=S.teamCompetitionId?S.tournaments.find(x=>String(x.id)===String(S.teamCompetitionId))||null:null,att=$('#attendanceList'),box=$('#teamList');
-  const note=$('#teamNoCreatePermission'),controls=$('#teamManagementControls');
-  const compSel=$('#teamCompetitionSelect'),compStatus=$('#teamCompetitionStatus');
-  att.innerHTML='';box.innerHTML='';
-
-  const competitions=S.tournaments
-    .slice()
-    .sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
-  if(compSel){
-    const keep=S.teamCompetitionId||'';
-    compSel.innerHTML='<option value="">Choisir une comp√©tition</option>'+competitions.map(c=>{
-      const kind=c.format==='league'?'üèÅ Sw√© de Ligue':'‚öΩ Tournoi';
-      return '<option value="'+c.id+'">'+kind+' ‚Ä¢ '+esc(c.name||c.tournament_date)+' ‚Ä¢ '+esc(c.tournament_date)+(c.status==='finished'?' ‚Ä¢ termin√©':'')+'</option>';
-    }).join('');
-    if(competitions.some(c=>c.id===keep))compSel.value=keep;
-    compSel.onchange=async()=>{
-      const id=compSel.value;
-      if(!id){
-        S.teamCompetitionId=null;
-        renderTeams();return;
-      }
-      S.teamCompetitionId=id;
-      S.activeTour=id;
-      compSel.disabled=true;
-      await loadTournament();
-      if(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams)){
-        try{await syncTournamentSubstitutes(id);await loadTournament()}catch(error){console.warn('substitute synchronization',error)}
-      }
-      compSel.disabled=false;
-      renderTeams();
-      renderHome();
-    };
-  }
-
-  const attendanceCard=$('#attendanceAdminCard');
-  if(!t){
-    if(compStatus)compStatus.innerHTML='<span style="color:#64748b">S√©lectionne une comp√©tition pour afficher les √©quipes et les joueurs inscrits.</span>';
-    att.innerHTML='';
-    box.innerHTML='';
-    if(note)note.classList.add('hidden');
-    if(controls)controls.classList.add('hidden');
-    if(attendanceCard)attendanceCard.classList.add('hidden');
-    return;
-  }
-  if(attendanceCard)attendanceCard.classList.remove('hidden');
-  if(compStatus){
-    const confirmedCount=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist').length;
-    const plan=t.format==='league'?null:tournamentAutoPlan(confirmedCount);
-    compStatus.innerHTML='<b>'+esc(t.format==='league'?'Sw√© de Ligue':'Tournoi')+' :</b> '+esc(t.name||t.tournament_date)+' ‚Ä¢ '+esc(t.tournament_date)+
-      (plan?'<div class="player" style="margin-top:8px;background:#eef8f2"><b>‚öôÔ∏è Configuration automatique avec '+confirmedCount+' inscrit'+(confirmedCount>1?'s':'')+'</b><div class="muted" style="margin-top:5px">'+plan.teams+' √©quipes ‚Ä¢ '+plan.pitches+' terrain'+(plan.pitches>1?'s':'')+(plan.subs?' ‚Ä¢ '+plan.subs+' rempla√ßant'+(plan.subs>1?'s':'')+' commun'+(plan.subs>1?'s':'')+' (derniers inscrits)':'')+'<br>R√®gle : '+esc(plan.rule)+(plan.subs?'<br>Les rempla√ßants peuvent jouer pour n‚Äôimporte quelle √©quipe.':'')+'</div></div>':'');
-  }
-
-  const ppt=$('#playersPerTeam');
-  if(ppt)ppt.classList.toggle('hidden',t.format!=='league');
-  renderTeamReviewPanel(t);
-
-  const canGenerate=hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams);
-  const canFullEdit=hasAdminOps();
-
-  if(controls)controls.classList.toggle('hidden',!canGenerate);
-  const genBtn=$('#smartAutoTeams');if(genBtn&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&hasGeneratedTournamentTeams()){genBtn.disabled=true;genBtn.title='Le tirage initial existe d√©j√†. Utilise la validation collaborative ou annule la cr√©ation.';}else if(genBtn){genBtn.disabled=false;genBtn.title='';}
-
-  if(!canFullEdit){
-    att.innerHTML='<div class="readonly-note">Tu peux consulter les joueurs inscrits et les √©quipes de cette comp√©tition. La modification manuelle des pr√©sences reste r√©serv√©e √† l‚Äôadministrateur.</div>';
-    const registeredIds=new Set(S.tPlayers.filter(tp=>tp.present).map(tp=>tp.player_id));
-    const registeredPlayers=S.players.filter(x=>x.active&&registeredIds.has(x.id));
-    att.innerHTML+='<div class="muted" style="margin:10px 0 6px">'+(t.format==='league'
-      ?'<b>Important :</b> cette liste contient uniquement les inscrits √† ce Sw√©, pas tous les membres de la Ligue.'
-      :'Liste des inscrits √† ce tournoi.')+'</div>'+
-      (registeredPlayers.map(x=>'<div class="player row"><span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((()=>{const z=S.tPlayers.find(tp=>tp.player_id===x.id);return z&&(z.registration_status==='waitlist'||z.is_substitute)})()?'Rempla√ßant':'Inscrit au Sw√©')+'</span></div>').join('')||'<p class="muted">Aucun inscrit √† cette comp√©tition.</p>');
-  }else{
-    const prs=presentIds();
-    if(t.format==='league'){
-      const sessionRows=S.tPlayers.filter(tp=>tp.present);
-      att.innerHTML='<div class="readonly-note"><b>üèÅ Inscrits √† CE Sw√© de Ligue uniquement</b><div style="margin-top:5px">√ätre membre de la Ligue ne signifie pas participer automatiquement √† ce Sw√©. Les membres de la Ligue qui ne se sont pas inscrits √† ce Sw√© ne sont pas affich√©s ici.</div></div>'+
-        (sessionRows.map(tp=>{
-          const x=p(tp.player_id);if(!x)return '';
-          return '<div class="player row"><span style="flex:1">'+esc(playerDisplayName(x))+'</span><span class="guest-badge">'+((tp.registration_status==='waitlist'||tp.is_substitute)?'Rempla√ßant':'Inscrit au Sw√©')+'</span></div>';
-        }).join('')||'<p class="muted">Aucun joueur inscrit √† ce Sw√© pour le moment.</p>');
-    }else{
-      S.players.filter(x=>x.active).forEach(x=>{
-        const l=document.createElement('label');l.className='player row';
-        const c=document.createElement('input');c.type='checkbox';c.style.width='auto';c.checked=prs.has(x.id);
-        c.onchange=async()=>{
-          const joining=c.checked;
-          if(c.checked){
-            const confirmed=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist'&&tp.player_id!==x.id).length;
-            const status=confirmed<(t.max_players||20)?'confirmed':'waitlist';
-            const {error}=await sb.from('tournament_players').upsert({tournament_id:t.id,player_id:x.id,present:true,registration_status:status,registered_at:new Date().toISOString()},{onConflict:'tournament_id,player_id'});
-            if(error)return toast(error.message);
-          }else{
-            const {error}=await sb.from('tournament_players').update({present:false,registration_status:'cancelled',deregistered_at:new Date().toISOString()}).eq('tournament_id',t.id).eq('player_id',x.id);
-            if(error)return toast(error.message);
-          }
-          try{await syncTournamentSubstitutes(t.id)}catch(error){c.checked=!joining;return toast(error.message)}
-          await loadTournament();renderAll();
-          const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(x.id));
-          toast(joining?(fresh?.registration_status==='waitlist'||fresh?.is_substitute?'Joueur ajout√© comme rempla√ßant üü†':'Joueur ajout√© aux confirm√©s ‚úÖ'):'Joueur retir√© du tournoi.');
-        };
-        const tp=S.tPlayers.find(z=>z.player_id===x.id);
-        const label=document.createElement('span');label.style.flex='1';label.textContent=playerDisplayName(x);
-        if(tp?.registration_status==='waitlist'&&tp?.present){
-          const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='Liste d‚Äôattente';
-          label.appendChild(document.createTextNode(' '));label.appendChild(badge);
-        }else if(tp?.is_substitute&&tp?.present){
-          const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='Rempla√ßant';
-          badge.style.background='#fff7ed';badge.style.borderColor='#fed7aa';badge.style.color='#b45309';
-          label.appendChild(document.createTextNode(' '));label.appendChild(badge);
-        }else if(tp&&!tp.present&&tp.registration_status==='cancelled'){
-          const badge=document.createElement('span');badge.className='guest-badge';badge.textContent='D√©sinscrit';
-          badge.style.background='#fff1f2';badge.style.borderColor='#fecdd3';badge.style.color='#be123c';
-          label.appendChild(document.createTextNode(' '));label.appendChild(badge);
-          if(tp.deregistered_at){
-            const d=new Date(tp.deregistered_at);
-            if(!Number.isNaN(d.getTime())){
-              const when=document.createElement('small');when.className='muted';when.textContent=' ‚Ä¢ '+d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-              label.appendChild(when);
-            }
-          }
-        }
-        l.append(c,label);att.appendChild(l);
-      });
-    }
-  }
-
-  if(!S.teams.length){
-    if(note){
-      if(canGenerate){
-        note.classList.add('hidden');
-      }else{
-        note.classList.remove('hidden');
-        note.innerHTML='<b>‚ÑπÔ∏è Les √©quipes ne sont pas encore cr√©√©es.</b><div style="margin-top:5px">Tu peux consulter les inscrits, mais ton compte co-organisateur n‚Äôa pas l‚Äôautorisation de cr√©er ou g√©n√©rer les √©quipes. L‚Äôadministrateur doit les cr√©er ou t‚Äôaccorder le droit ¬´ G√©n√©rer les √©quipes ¬ª.</div>';
-      }
-    }
-    box.innerHTML=canGenerate
-      ? '<p class="muted">Aucune √©quipe cr√©√©e pour cette comp√©tition. Tu peux les cr√©er ou les g√©n√©rer ci-dessus.</p>'
-      : '';
-    return;
-  }
-
-  if(note)note.classList.add('hidden');
-  const prs=presentIds();
-
-  S.teams.forEach(team=>{
-    const d=document.createElement('div');d.className='team swe-team-card';
-    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg),colorLabel=sweTeamColorLabel(team);
-    d.style.setProperty('--team-color',bg);
-    const head=document.createElement('div');head.className='row swe-team-card-head';head.style.justifyContent='space-between';head.style.background=bg;head.style.color=fg;
-    const titleWrap=document.createElement('div');
-    const title=document.createElement('b');title.innerHTML=esc(team.name)+' <span class="team-color-name">‚Ä¢ '+esc(colorLabel)+'</span>';titleWrap.appendChild(title);
-    const score=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
-    if(score){
-      const meta=document.createElement('div');meta.className='team-balance-badges';
-      meta.innerHTML='<span class="chien-boul-badge">'+esc(chienBoulLabel(score.team_score))+'</span><span class="team-mention">'+esc(score.mention||'√âquipe qui peut surprendre')+'</span>'+(Number(score.free_slots||0)>0?'<span class="team-free">'+Number(score.free_slots)+' place'+(Number(score.free_slots)>1?'s':'')+' libre'+(Number(score.free_slots)>1?'s':'')+'</span>':'<span class="team-locked">√âquipe compl√®te</span>');
-      titleWrap.appendChild(meta);
-    }
-    head.appendChild(titleWrap);
-
-    if(canFullEdit){
-      const rename=document.createElement('button');rename.textContent='‚úèÔ∏è Renommer';rename.className='secondary';
-      rename.onclick=async()=>{
-        const next=prompt('Nouveau nom de l‚Äô√©quipe',team.name);
-        if(next===null)return;
-        const name=next.trim();
-        if(!name||name.length>40)return toast('Le nom doit contenir entre 1 et 40 caract√®res.');
-        rename.disabled=true;
-        const {error}=await sb.from('teams').update({name}).eq('id',team.id).select('id').single();
-        if(error){rename.disabled=false;return toast(error.message)}
-        await loadTournament();renderAll();toast('√âquipe renomm√©e ‚úÖ');
-      };
-      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
-      del.onclick=async()=>{
-        const hasMatches=S.matches.some(m=>m.home_team_id===team.id||m.away_team_id===team.id);
-        const msg=hasMatches
-          ? 'Supprimer cette √©quipe ? Les matchs, buts et statistiques li√©s √† cette √©quipe seront aussi supprim√©s.'
-          : 'Supprimer cette √©quipe ?';
-        if(!confirm(msg))return;
-        del.disabled=true;
-        const {error}=await sb.from('teams').delete().eq('id',team.id);
-        if(error){del.disabled=false;return toast(error.message)}
-        await syncTournamentSubstitutes(t.id);await loadTournament();
-        if(t.format!=='league'&&Number(t.generated_team_count||0)>0&&!hasGeneratedTournamentTeams()){
-          const reset=await sb.rpc('admin_cancel_tournament_team_generation',{p_tournament_id:t.id});
-          if(reset.error)return toast('√âquipe supprim√©e, mais le tirage doit √™tre annul√© depuis le panneau de validation.');
-          await loadAll();S.activeTour=t.id;S.teamCompetitionId=t.id;await loadTournament();
-        }
-        renderAll();toast('√âquipe supprim√©e ‚úÖ');
-      };
-      head.append(rename,del);
-    }
-    d.appendChild(head);
-
-    if(canFullEdit){
-      const sel=document.createElement('select');
-      sel.innerHTML='<option value="">Ajouter un joueur inscrit...</option>'+S.players.filter(x=>prs.has(x.id)&&!S.teamPlayers.some(tp=>tp.player_id===x.id)).map(x=>{
-        const first=(x.temporary_league_member&&x.league_origin_id===t.league_id)||x.is_group_member===false;
-        return '<option value="'+x.id+'">'+esc(playerDisplayName(x))+(first?' ‚Ä¢ 1√®re fois':'')+'</option>';
-      }).join('');
-      sel.onchange=async()=>{
-        if(!sel.value)return;
-        if(teamPlayerIds(team.id).length>=Number(t.team_size||5))return toast('Cette √©quipe est compl√®te. Retire d‚Äôabord un joueur pour effectuer un remplacement.');
-        const {error}=await sb.from('team_players').insert({team_id:team.id,player_id:sel.value});
-        if(error)return toast(error.message);
-        try{await syncTournamentSubstitutes(t.id)}catch(e){return toast(e.message)}
-        await loadTournament();renderTeams();
-      };
-      d.appendChild(sel);
-    }
-
-    teamPlayerIds(team.id).forEach(id=>{
-      const pl=p(id);if(!pl)return;
-      const r=document.createElement('div');
-      r.className='row small '+(pl.is_group_member===false?'guest-row':'');
-      r.innerHTML='<span style="flex:1">'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</span>';
-      if(canFullEdit){
-        const b=document.createElement('button');b.textContent='√ó';
-        b.onclick=async()=>{const {error}=await sb.from('team_players').delete().eq('team_id',team.id).eq('player_id',id);if(error)return toast(error.message);try{await syncTournamentSubstitutes(t.id)}catch(e){return toast(e.message)}await loadTournament();renderTeams();};
-        r.appendChild(b);
-      }
-      d.appendChild(r);
-    });
-    box.appendChild(d);
-  });
-
-  const commonSubs=tournamentCommonSubstitutes();
-  if(commonSubs.length){
-    const sub=document.createElement('div');sub.className='team swe-substitutes-card';
-    sub.innerHTML='<div class="swe-substitutes-head"><b>üü† Rempla√ßants communs</b><span>Peuvent entrer dans n‚Äôimporte quelle √©quipe</span></div><div class="swe-substitutes-list">'+commonSubs.map(pl=>'<span>‚Ü™ '+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <em>Guest</em>':'')+'</span>').join('')+'</div>';
-    box.appendChild(sub);
-  }
-}
-
-function exportTeamsToPdf(){
-  const t=currentTour();
-  if(!t)return toast('Choisis d‚Äôabord une comp√©tition.');
-  if(!S.teams.length)return toast('Aucune √©quipe √† exporter.');
-  const subs=tournamentCommonSubstitutes();
-  const cards=S.teams.map(team=>{
-    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg),label=sweTeamColorLabel(team);
-    const score=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
-    const names=teamPlayerIds(team.id).map(id=>p(id)).filter(Boolean).map(pl=>'<li>'+esc(playerDisplayName(pl))+(pl.is_group_member===false?' <small>Guest</small>':'')+'</li>').join('');
-    return '<section class="team"><header style="background:'+bg+';color:'+fg+'"><strong>üëï '+esc(team.name)+'</strong><span>'+esc(label)+'</span></header>'+(score?'<div class="academy">'+esc(chienBoulLabel(score.team_score))+(score.mention?' ‚Ä¢ '+esc(score.mention):'')+'</div>':'')+'<ol>'+(names||'<li>Aucun joueur</li>')+'</ol></section>';
-  }).join('');
-  const subHtml=subs.length?'<section class="subs"><h2>üü† Rempla√ßants communs</h2><p>Peuvent jouer pour n‚Äôimporte quelle √©quipe.</p><div>'+subs.map(pl=>'<span>'+esc(playerDisplayName(pl))+'</span>').join('')+'</div></section>':'';
-  const w=window.open('','_blank','noopener,noreferrer');
-  if(!w)return toast('Autorise les fen√™tres pop-up pour g√©n√©rer le PDF.');
-  const title='√âquipes - '+esc(t.name||t.tournament_date||'SW√â');
-  w.document.open();
-  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>'+title+'</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17251f;margin:0}h1{margin:0;font-size:25px}.meta{color:#66756e;margin:5px 0 18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.team{border:1px solid #d9e2dd;border-radius:12px;overflow:hidden;break-inside:avoid}.team header{padding:12px 14px;display:flex;justify-content:space-between;gap:12px;font-size:17px}.team header span{font-weight:700}.academy{padding:8px 14px;background:#fff8df;font-weight:700;font-size:13px}.team ol{margin:10px 0 12px;padding:0 14px 0 36px}.team li{padding:4px 0}.team small{color:#777}.subs{margin-top:14px;padding:12px 14px;border:2px dashed #f59e0b;border-radius:12px;background:#fff8eb;break-inside:avoid}.subs h2{font-size:17px;margin:0 0 3px}.subs p{margin:0 0 8px;color:#8a5a00}.subs div{display:flex;flex-wrap:wrap;gap:7px}.subs span{background:#fff;border:1px solid #f6c65b;border-radius:999px;padding:6px 10px;font-weight:700}.foot{margin-top:18px;border-top:1px solid #ddd;padding-top:8px;color:#777;font-size:11px}@media print{button{display:none}}@media(max-width:650px){.grid{grid-template-columns:1fr}}</style></head><body><h1>‚öΩ SW√â TOURNAMENT - √âquipes</h1><div class="meta">'+esc(t.name||'')+' ‚Ä¢ '+esc(t.tournament_date||'')+'</div><div class="grid">'+cards+'</div>'+subHtml+'<div class="foot">üê∂‚öΩ √âquilibre selon Chien Boul Academy ‚Ä¢ G√©n√©r√© par SW√â Tournament</div><script>setTimeout(()=>window.print(),250)<\/script></body></html>');
-  w.document.close();
-}
-const exportTeamsPdfBtn=$('#exportTeamsPdf');if(exportTeamsPdfBtn)exportTeamsPdfBtn.onclick=exportTeamsToPdf;
-
-$('#addTeam').onclick=async()=>{
-  if(!(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams)))return toast('Tu n‚Äôas pas l‚Äôautorisation de cr√©er une √©quipe.');
-  const t=currentTour(),name=$('#teamName').value.trim(),color=$('#teamColor').value;
-  if(!t)return toast('Choisis d‚Äôabord le tournoi ou le Sw√© de Ligue concern√©.');
-  if(!name)return toast('Indique le nom de l‚Äô√©quipe.');
-  const {error}=await sb.from('teams').insert({tournament_id:t.id,name,color});
-  if(error)return toast(error.message);
-  $('#teamName').value='';
-  await loadTournament();renderTeams();toast('√âquipe cr√©√©e pour ¬´ '+(t.name||t.tournament_date)+' ¬ª ‚úÖ');
-};
-async function runSmartTeamGeneration(isRedraw=false){
-  if(isRedraw&&!isAdmin())return toast('Seul l‚Äôadministrateur peut appliquer un nouveau tirage.');
-  if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_generate_teams)return toast('Tu n‚Äôes pas autoris√© √† g√©n√©rer les √©quipes.');
-  const t=currentTour();if(!t)return toast('Choisis d‚Äôabord le tournoi ou le Sw√© de Ligue concern√©.');
-  if(!isRedraw&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&hasGeneratedTournamentTeams())return toast('Un tirage existe d√©j√†. Utilise la validation collaborative ou annule la cr√©ation avant de repartir de z√©ro.');
-  if(isRedraw&&S.teamReviewState?.status!=='redraw_requested')return toast('Aucun nouveau tirage n‚Äôa √©t√© demand√©.');
-  const confirmed=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist').length;
-  if(t.format!=='league'&&confirmed<10)return toast('Il faut au moins 10 joueurs confirm√©s pour cr√©er 2 √©quipes.');
-  if(t.format==='league'&&confirmed<4)return toast('Il faut au moins 4 joueurs confirm√©s.');
-  const perTeam=Math.max(2,Math.min(11,Number($('#playersPerTeam').value)||5));
-  const message=isRedraw?'Appliquer un nouveau tirage ?\n\nCe tirage consommera 1 des nouveaux tirages autoris√©s pour ce tournoi et relancera une fen√™tre d‚Äôavis de 2 heures.':'G√©n√©rer les √©quipes ?\n\n‚Ä¢ Les √©quipes pr√©form√©es compl√®tes restent intactes.\n‚Ä¢ Les joueurs ayant d√©j√† accept√© leur √©quipe restent verrouill√©s.\n‚Ä¢ Les invitations non confirm√©es et les inscrits en √©quipe al√©atoire sont redistribu√©s.\n‚Ä¢ Les places libres sont compl√©t√©es en recherchant le meilleur √©quilibre.\n‚Ä¢ Les anciens matchs/buts li√©s √† une ancienne r√©partition seront supprim√©s.';
-  if((isRedraw||S.matches.length||S.teams.length)&&!confirm(message))return;
-  const btn=isRedraw?$('#applyTeamRedraw'):$('#smartAutoTeams');if(btn){btn.disabled=true;btn.textContent=isRedraw?'Nouveau tirage‚Ä¶':'G√©n√©ration‚Ä¶';}
-  try{
-    const targetId=t.id;
-    S.activeTour=targetId;S.teamCompetitionId=targetId;
-    if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&isAdmin()){
-      const configured=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:targetId,p_max_redraws:Number(t.max_team_redraws??1),p_requested:true,p_duration_minutes:120});
-      if(configured.error)throw configured.error;
-    }
-    const call=t.format==='league'?sb.rpc('generate_balanced_teams',{p_tournament_id:t.id,p_players_per_team:perTeam}):sb.rpc('generate_swe_tournament_teams',{p_tournament_id:t.id});
-    const {data,error}=await call;if(error)throw error;
-    let reviewError=null;
-    if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled){
-      const review=await sb.rpc('start_tournament_team_review',{p_tournament_id:t.id,p_is_redraw:!!isRedraw});
-      reviewError=review.error||null;
-    }
-    await loadAll();S.activeTour=targetId;S.teamCompetitionId=targetId;await loadTournament();renderAll();setView('teams');
-    const n=Number(data?.team_count||S.teams.length||0);
-    if(t.format==='league')$('#teamBalanceInfo').textContent=n+' √©quipes g√©n√©r√©es automatiquement selon les niveaux priv√©s d√©finis par l‚Äôadministrateur.';
-    else{
-      const subs=Number(data?.substitute_count||0),pitches=Number(data?.pitch_count||1),scores=(data?.team_scores||[]).map(x=>x.team_name+' '+Number(x.score||0).toFixed(1)+'/5 ‚Ä¢ '+x.mention).join(' ¬∑ ');
-      $('#teamBalanceInfo').innerHTML='<b>'+n+' √©quipes ‚Ä¢ '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' ‚Ä¢ '+subs+' rempla√ßant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>üîí Les √©quipes compl√®tes et les joueurs ayant accept√© leur place ont √©t√© conserv√©s. Les autres joueurs ont √©t√© r√©partis dans les places libres pour √©quilibrer les niveaux.'+(scores?'<br><b>‚öñÔ∏è Note moyenne √©quipes :</b> '+esc(scores):'')+'<br>R√®gle automatique : '+(data?.odd_team_rule?'2 buts d‚Äô√©cart = l‚Äô√©quipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(S.workspaceFeatures.team_review_enabled?(reviewError?'<br><b>‚ö†Ô∏è Avis des co-gestionnaires :</b> les √©quipes sont cr√©√©es, mais le lancement des votes a √©chou√©. Relance la page puis r√©essaie.':'<br><b>üó≥Ô∏è Validation :</b> les √©quipes restent masqu√©es du lien public pendant la fen√™tre d‚Äôavis des co-gestionnaires pr√©sents.'):'');
-    }
-    toast(reviewError?'√âquipes g√©n√©r√©es, mais les votes n‚Äôont pas d√©marr√© : '+reviewError.message:(isRedraw?'Nouveau tirage cr√©√©. Nouvelle fen√™tre d‚Äôavis ouverte ‚úÖ':n+' √©quipes g√©n√©r√©es ‚úÖ'));
-  }catch(e){toast(e.message||'Impossible de g√©n√©rer les √©quipes')}
-  finally{if(btn){btn.disabled=false;btn.textContent=isRedraw?'üîÑ Refaire le tirage':'‚ö° G√©n√©rer √©quipes √©quilibr√©es';}}
-}
-$('#smartAutoTeams').onclick=()=>runSmartTeamGeneration(false);
-
-function matchOptions(){return '<option value="">Choisir</option>'+S.teams.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')}
-function buildMatchPlayerManager(match,home,away){
-  const wrap=document.createElement('div');
-  wrap.className='player match-player-manager';
-  wrap.style.marginTop='12px';
-  wrap.style.background='#f8fbf9';
-  const canMove=canEditCurrentMatches();
-  const rows=S.matchAssignments.filter(a=>String(a.match_id)===String(match.id));
-  const assignedMap=new Map(rows.map(a=>[a.player_id,a.team_id||'']));
-  const homeBase=new Set(teamPlayerIds(home.id).map(String));
-  const awayBase=new Set(teamPlayerIds(away.id).map(String));
-  const tournamentPlayers=S.tPlayers.filter(tp=>tp.present&&tp.registration_status!=='waitlist')
-    .map(tp=>({tp,pl:p(tp.player_id)})).filter(x=>x.pl)
-    .sort((a,b)=>String(a.pl.name).localeCompare(String(b.pl.name)));
-  const starters=tournamentPlayers.filter(({pl})=>homeBase.has(String(pl.id))||awayBase.has(String(pl.id))||[home.id,away.id].map(String).includes(String(assignedMap.get(pl.id)||'')));
-  const substitutes=tournamentPlayers.filter(({pl})=>!starters.some(x=>String(x.pl.id)===String(pl.id)));
-
-  wrap.innerHTML='<div class="row" style="justify-content:space-between"><div><b>üîÑ Composition du match</b><div class="muted">Les listes sont repli√©es pour garder la page lisible pendant la saisie des scores.</div></div></div>';
-  const formula=document.createElement('div');formula.className='muted';formula.style.marginTop='6px';
-  if(S.workspaceFeatures.player_ratings_enabled)formula.innerHTML='‚≠ê Note automatique : victoire 6 ‚Ä¢ nul 5 ‚Ä¢ d√©faite 4 ‚Ä¢ +1/but ‚Ä¢ +0,5/passe ‚Ä¢ maximum 10.';
-  wrap.appendChild(formula);
-
-  const makePlayerRow=({tp,pl})=>{
-    const currentTeam=assignedMap.has(pl.id)?assignedMap.get(pl.id):(homeBase.has(String(pl.id))?home.id:(awayBase.has(String(pl.id))?away.id:''));
-    const row=document.createElement('div');row.className='row small match-player-row';row.style.padding='7px 0';row.style.borderBottom='1px solid #edf2ef';
-    const name=document.createElement('span');name.style.flex='1';name.innerHTML='<b>'+esc(pl.name)+'</b>'+(tp.is_substitute?' <span class="guest-badge">Rempla√ßant commun</span>':'');
-    const sel=document.createElement('select');sel.className='match-player-team-select';sel.disabled=!canMove;
-    sel.innerHTML='<option value="">Hors match / rempla√ßant</option><option value="'+home.id+'">'+esc(home.name)+'</option><option value="'+away.id+'">'+esc(away.name)+'</option>';
-    sel.value=currentTeam||'';
-    const future=document.createElement('label');future.className='row match-future-label';future.style.justifyContent='flex-start';future.style.gap='4px';future.style.fontSize='11px';
-    const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.disabled=!canMove;future.append(cb,document.createTextNode(' matchs suivants'));
-    const save=document.createElement('button');save.textContent='D√©placer';save.className='smallbtn';save.disabled=!canMove;
-    save.onclick=async()=>{save.disabled=true;const {error}=await sb.rpc('set_match_player_assignment',{p_match_id:match.id,p_player_id:pl.id,p_team_id:sel.value||null,p_apply_future:cb.checked});if(error){save.disabled=false;return toast(error.message)}await loadTournament();renderMatches();toast(cb.checked?'Joueur d√©plac√© pour ce match et les suivants ‚úÖ':'Joueur d√©plac√© pour ce match ‚úÖ');};
-    row.append(name,sel,future,save);return row;
-  };
-  const makeDetails=(title,items,cls)=>{
-    const det=document.createElement('details');det.className='match-player-details '+cls;
-    const sum=document.createElement('summary');sum.innerHTML='<b>'+title+'</b><span class="muted">'+items.length+' joueur'+(items.length>1?'s':'')+'</span>';det.appendChild(sum);
-    const list=document.createElement('div');list.className='match-player-list';items.forEach(x=>list.appendChild(makePlayerRow(x)));det.appendChild(list);return det;
-  };
-  wrap.appendChild(makeDetails('üë• Joueurs des 2 √©quipes',starters,'match-starters-details'));
-  if(substitutes.length)wrap.appendChild(makeDetails('üü† Rempla√ßants du tournoi',substitutes,'match-subs-details'));
-
-  if(S.workspaceFeatures.player_ratings_enabled){
-    const notes=document.createElement('details');notes.className='match-player-details match-notes-details';
-    const rated=S.matchAssignments.filter(a=>a.match_id===match.id&&a.team_id).map(a=>{const pl=p(a.player_id),rr=ratingForMatchPlayer(match,a.player_id,a.team_id,S.goals);return pl&&rr?{pl,rr,team:a.team_id}:null;}).filter(Boolean).sort((a,b)=>b.rr.rating-a.rr.rating||a.pl.name.localeCompare(b.pl.name));
-    notes.innerHTML='<summary><b>‚≠ê Notes des joueurs</b><span class="muted">'+rated.length+' √©valu√©'+(rated.length>1?'s':'')+'</span></summary><div class="muted" style="padding:8px 2px">'+(rated.length?rated.map(x=>esc(x.pl.name)+' <b>'+x.rr.rating.toFixed(1)+'/10</b> ('+x.rr.result+' ‚Ä¢ ‚öΩ '+x.rr.goals+' ‚Ä¢ üéØ '+x.rr.assists+')').join('<br>'):'Aucune note calculable pour le moment.')+'</div>';
-    wrap.appendChild(notes);
-  }
-  return wrap;
-}
-
-function renderMatches(){
-  const current=currentTour();
-  const selector=$('#matchCompetitionSelect');
-  const selectorStatus=$('#matchCompetitionStatus');
-  const accessHelp=$('#matchAccessHelp');
-  const eligible=S.tournaments
-    .filter(t=>t.status!=='finished')
-    .sort((a,b)=>String(a.tournament_date).localeCompare(String(b.tournament_date)));
-  if(selector){
-    const keep=current?.id||'';
-    selector.innerHTML='<option value="">Choisir une comp√©tition</option>'+eligible.map(t=>{
-      const kind=t.format==='league'?'üèÅ Sw√© de Ligue':'‚öΩ Tournoi';
-      return '<option value="'+t.id+'">'+kind+' ‚Ä¢ '+esc(t.name||t.tournament_date)+' ‚Ä¢ '+esc(t.tournament_date)+'</option>';
-    }).join('');
-    if(eligible.some(t=>t.id===keep))selector.value=keep;
-    selector.onchange=async()=>{
-      const id=selector.value;
-      if(!id)return;
-      S.activeTour=id;
-      selector.disabled=true;
-      await loadTournament();
-      selector.disabled=false;
-      renderMatches();
-      renderHome();
-    };
-  }
-  if(accessHelp&&isCoorg()&&!hasTemporaryAdmin()&&S.myPermissions.can_enter_scores){
-    accessHelp.innerHTML='Ton profil est autoris√© √† <b>saisir les scores et les buteurs/passeurs pendant les matchs</b>. Choisis la comp√©tition ci-dessous.';
-  }
-  if(selectorStatus){
-    if(current){
-      selectorStatus.innerHTML=(current.format==='league'?'Sw√© de Ligue : ':'Tournoi : ')+esc(current.name||current.tournament_date)+' ‚Ä¢ '+S.matches.length+' match'+(S.matches.length>1?'s':'')+
-        (current.format!=='league'&&S.teams.length
-          ?'<div class="player" style="margin-top:8px;background:#fff8e8;border:1px solid #f2d18a"><b>‚è±Ô∏è R√®gle de rotation automatique</b><div class="muted" style="margin-top:5px">'+
-             (S.teams.length%2
-               ?'Nombre d‚Äô√©quipes impair ('+S.teams.length+') : <b>2 buts d‚Äô√©cart = l‚Äô√©quipe dehors rentre</b>. Sinon, le match s‚Äôarr√™te √† <b>10 minutes</b>.'
-               :'Nombre d‚Äô√©quipes pair ('+S.teams.length+') : tous les matchs durent <b>10 minutes</b>.')+
-           '</div></div>'
-          :'');
-    }else selectorStatus.textContent='Aucune comp√©tition s√©lectionn√©e.';
-  }
-  const isLeagueMatch=current?.format==='league';
-  const req=$('#leaguePitchRequirement');
-  if(req)req.classList.toggle('hidden',!isLeagueMatch);
-  const rr=$('#roundRobin');
-  if(rr){
-    rr.disabled=!!isLeagueMatch;
-    rr.title=isLeagueMatch?'En Ligue, cr√©e chaque match individuellement afin d‚Äôindiquer son terrain.':'';
-  }
-  $('#homeTeam').innerHTML=matchOptions();
-  $('#awayTeam').innerHTML=matchOptions();
-  const box=$('#matchesList');box.innerHTML='';
-  S.matches.forEach((m,i)=>{
-    const home=tm(m.home_team_id),away=tm(m.away_team_id);if(!home||!away)return;
-    const d=document.createElement('div');d.className='card match';
-    d.innerHTML='<div class="muted">Match '+(i+1)+(m.pitch?' ‚Ä¢ '+esc(m.pitch):'')+(m.round_label?' ‚Ä¢ '+esc(m.round_label):'')+'</div><div class="row" style="justify-content:space-between"><b>'+esc(home.name)+'</b><span class="score">'+m.home_score+' - '+m.away_score+'</span><b>'+esc(away.name)+'</b></div>';
-
-    if(canEditCurrentMatches()){
-      const scoreEdit=document.createElement('div');scoreEdit.className='grid g3';scoreEdit.style.marginTop='10px';
-      const hs=document.createElement('input'),ascore=document.createElement('input'),saveScore=document.createElement('button');
-      hs.type='number';hs.min='0';hs.value=Number(m.home_score||0);hs.placeholder=home.name;
-      ascore.type='number';ascore.min='0';ascore.value=Number(m.away_score||0);ascore.placeholder=away.name;
-      saveScore.textContent='üíæ Score';saveScore.className='primary';
-      saveScore.onclick=async()=>{
-        saveScore.disabled=true;
-        const {error}=await sb.from('matches').update({home_score:Math.max(0,Number(hs.value)||0),away_score:Math.max(0,Number(ascore.value)||0),status:'finished',finished_at:new Date().toISOString()}).eq('id',m.id);
-        if(error){saveScore.disabled=false;return toast(error.message)}
-        await loadTournament();renderMatches();toast('Score enregistr√© et notes recalcul√©es ‚úÖ');
-      };
-      scoreEdit.append(hs,ascore,saveScore);d.appendChild(scoreEdit);
-    }
-    d.appendChild(buildMatchPlayerManager(m,home,away));
-
-    if(canManageMatchStructure()){
-      const actions=document.createElement('div');actions.className='row';actions.style.marginTop='8px';
-      const edit=document.createElement('button');edit.textContent='Modifier';
-      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
-      actions.append(edit,del);d.appendChild(actions);
-
-      edit.onclick=async()=>{
-        const editor=document.createElement('div');editor.className='grid g2';editor.style.marginTop='8px';
-        const hs=document.createElement('select'),as2=document.createElement('select'),ps=document.createElement('select'),rl=document.createElement('input');
-        hs.innerHTML=S.teams.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
-        as2.innerHTML=S.teams.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
-        ps.innerHTML='<option value="">Terrain</option><option value="Carrefour">Carrefour</option><option value="Mercedes">Mercedes</option><option value="Boulogne">Boulogne</option>';
-        hs.value=m.home_team_id;as2.value=m.away_team_id;ps.value=m.pitch||'';rl.value=m.round_label||'';rl.placeholder='Tour / phase (facultatif)';
-        const save=document.createElement('button');save.textContent='Enregistrer';save.className='primary';
-        const cancel=document.createElement('button');cancel.textContent='Annuler';
-        editor.append(hs,as2,ps,rl,save,cancel);
-        d.appendChild(editor);edit.disabled=true;
-        cancel.onclick=()=>{editor.remove();edit.disabled=false};
-        save.onclick=async()=>{
-          if(hs.value===as2.value)return toast('Choisis deux √©quipes diff√©rentes');
-          save.disabled=true;
-          const {error}=await sb.from('matches').update({home_team_id:hs.value,away_team_id:as2.value,pitch:ps.value||null,round_label:rl.value.trim()||null}).eq('id',m.id);
-          if(error){save.disabled=false;return toast(error.message)}
-          await loadTournament();renderAll();toast('Match modifi√© ‚úÖ');
-        };
-      };
-
-      del.onclick=async()=>{
-        const goalCount=S.goals.filter(g=>g.match_id===m.id).length;
-        const msg=goalCount?'Supprimer ce match ? Les '+goalCount+' but(s) li√©s seront aussi supprim√©s.':'Supprimer ce match ?';
-        if(!confirm(msg))return;
-        const {error}=await sb.from('matches').delete().eq('id',m.id);
-        if(error)return toast(error.message);
-        await loadTournament();renderAll();toast('Match supprim√© ‚úÖ');
-      };
-    }
-
-    const form=document.createElement('div');form.className='grid g3';
-    const team=document.createElement('select'),sc=document.createElement('select'),as=document.createElement('select');
-    team.innerHTML='<option value="'+home.id+'">'+esc(home.name)+'</option><option value="'+away.id+'">'+esc(away.name)+'</option>';
-    const savedTeam=S.goalTeamSelections[m.id];
-    if(savedTeam===home.id||savedTeam===away.id)team.value=savedTeam;
-    function fill(){
-      S.goalTeamSelections[m.id]=team.value;
-      const ids=matchTeamPlayerIds(m.id,team.value);
-      sc.innerHTML='<option value="">Buteur</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
-      as.innerHTML='<option value="">Sans passe</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
-    }
-    fill();team.onchange=fill;form.append(team,sc,as);
-    const b=document.createElement('button');b.textContent='+ But';b.className='primary';
-    b.onclick=async()=>{
-      if(!sc.value)return toast('Choisis le buteur');
-      if(as.value===sc.value)return toast('Buteur et passeur diff√©rents');
-      const selectedTeam=team.value;S.goalTeamSelections[m.id]=selectedTeam;b.disabled=true;
-      const {error}=await sb.from('goals').insert({match_id:m.id,team_id:selectedTeam,scorer_player_id:sc.value,assister_player_id:as.value||null});
-      b.disabled=false;if(error)return toast(error.message);
-      sc.value='';as.value='';await loadTournament();renderAll();toast('But ajout√© ‚úÖ');
-    };
-    if(canEditCurrentMatches())d.append(form,b);
-
-    const hist=document.createElement('div');hist.style.marginTop='8px';
-    S.goals.filter(g=>g.match_id===m.id).forEach(g=>{
-      const r=document.createElement('div');r.className='row small';
-      r.innerHTML='<span style="flex:1">‚öΩ '+esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' ‚Üê '+esc(p(g.assister_player_id)?.name||''):'')+'</span>';
-      const x=document.createElement('button');x.textContent='Annuler';
-      x.onclick=async()=>{const {error}=await sb.from('goals').delete().eq('id',g.id);if(error)return toast(error.message);await loadTournament();renderAll();toast('But annul√©')};
-      if(canEditCurrentMatches())r.appendChild(x);hist.appendChild(r);
-    });
-    d.appendChild(hist);box.appendChild(d);
-  });
-  if(!current){
-    box.innerHTML='<div class="card"><p class="muted">Choisis d‚Äôabord un tournoi ou un Sw√© de Ligue ci-dessus.</p></div>';
-  }else if(!S.matches.length){
-    box.innerHTML='<div class="card"><p class="muted">Aucun match n‚Äôest encore cr√©√© pour cette comp√©tition. D√®s que l‚Äôadministrateur cr√©e les matchs, ils appara√Ætront ici pour la saisie des scores.</p></div>';
-  }
-}
-
-$('#addMatch').onclick=async()=>{
-  if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_enter_scores)return toast('Tu n‚Äôes pas autoris√© √† saisir les scores.');
-  const t=currentTour(),home=$('#homeTeam').value,away=$('#awayTeam').value,pitch=$('#pitch').value;
-  if(!t||!home||!away||home===away)return toast('Choisis deux √©quipes diff√©rentes');
-  if(t.format==='league'&&!pitch)return toast('Pour un match de Ligue, indique obligatoirement le terrain.');
-  const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:S.matches.length+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null});
-  if(error)toast(error.message);else{$('#pitch').value='';$('#roundLabel').value=''}
-};
-$('#roundRobin').onclick=async()=>{const t=currentTour();if(!t||S.teams.length<2)return toast('Cr√©e les √©quipes d‚Äôabord');if(t.format==='league')return toast('En Ligue, cr√©e les matchs un par un afin d‚Äôindiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent d√©j√†');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs g√©n√©r√©s')};
-
-
-async function renderLeague(){
-  const disabled=$('#leagueFeatureDisabled'),createCard=$('#leagueCreateCard');
-  if(!disabled||!createCard)return;
-  const enabled=!!S.workspaceFeatures.league_enabled;
-  disabled.classList.toggle('hidden',enabled);
-  const canCreate=hasAdminOps()||(isCoorg()&&S.myPermissions.can_create_tournaments);
-  createCard.classList.toggle('hidden',!enabled||!hasAdminOps());
-  $('#leagueSessionCard')?.classList.toggle('hidden',!enabled||!canCreate);
-  $('#leagueAdminRegistrationCard')?.classList.add('hidden');
-  const canScoreLeague=hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores);
-  $('#leagueScoringCard')?.classList.toggle('hidden',!enabled||!canScoreLeague);
-  document.querySelectorAll('#view-league .card').forEach(c=>{if(c!==disabled)c.style.opacity=enabled?'':'0.55'});
-  if(!enabled)return;
-
-  if($('#leagueStart')&&!$('#leagueStart').value)$('#leagueStart').value=today();
-  if($('#leagueSessionDate')&&!$('#leagueSessionDate').value){$('#leagueSessionDate').value=today();if($('#leagueSessionRegistrationDeadline')&&!$('#leagueSessionRegistrationDeadline').value)$('#leagueSessionRegistrationDeadline').value=defaultRegistrationDeadlineLocal($('#leagueSessionDate').value);}
-
-  const leagueSessionSelect=$('#leagueSessionLeague');
-  const leagueSessionForm=$('#leagueSessionForm');
-  const noLeague=$('#noLeagueForSession');
-  const activeLeagues=S.leagues.filter(l=>l.status!=='finished');
-  if(leagueSessionSelect){
-    const keep=leagueSessionSelect.value||S.activeLeague||'';
-    leagueSessionSelect.innerHTML='<option value="">Choisir une Ligue</option>'+activeLeagues.map(l=>'<option value="'+l.id+'">'+esc(l.name)+'</option>').join('');
-    if(activeLeagues.some(l=>l.id===keep))leagueSessionSelect.value=keep;
-    leagueSessionSelect.onchange=()=>{if(leagueSessionSelect.value){S.activeLeague=leagueSessionSelect.value;renderLeague();}};
-  }
-  if(!activeLeagues.length){
-    if(leagueSessionForm)leagueSessionForm.classList.add('hidden');
-    if(noLeague){
-      noLeague.classList.remove('hidden');
-      noLeague.innerHTML=hasAdminOps()
-        ? '<b>‚ÑπÔ∏è Aucune Ligue disponible.</b><div style="margin-top:5px">Cr√©e d‚Äôabord une Ligue dans la section ¬´ Cr√©er une Ligue ¬ª avant de pouvoir cr√©er un Sw√© de Ligue.</div>'
-        : '<b>‚ÑπÔ∏è Aucune Ligue disponible.</b><div style="margin-top:5px">Demande √† l‚Äôadministrateur de cr√©er une Ligue avant de pouvoir cr√©er un Sw√© de Ligue.</div>';
-    }
-  }else{
-    if(leagueSessionForm)leagueSessionForm.classList.remove('hidden');
-    if(noLeague)noLeague.classList.add('hidden');
-  }
-
-  const list=$('#leagueList');list.innerHTML='';
-  if(!S.leagues.length)list.innerHTML='<p class="muted">Aucune Ligue cr√©√©e pour le moment.</p>';
-  S.leagues.forEach(l=>{
-    const d=document.createElement('div');d.className='player';d.style.marginBottom='10px';
-    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(l.name)+'</b><div class="muted">'+l.starts_on+(l.ends_on?' ‚Üí '+l.ends_on:'')+' ‚Ä¢ '+(l.status==='finished'?'Termin√©e':'Active')+'</div><div class="muted" style="margin-top:4px">üë• Tous les membres actifs du groupe peuvent participer. L‚Äôinscription se fait uniquement √† chaque Sw√© de Ligue.</div></span></div>';
-    const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
-    const open=document.createElement('button');open.textContent=l.id===S.activeLeague?'Ligue s√©lectionn√©e':'Ouvrir';open.className=l.id===S.activeLeague?'green':'';
-    open.onclick=()=>{S.activeLeague=l.id;renderLeague();};
-    row.appendChild(open);
-    if(hasAdminOps()&&l.status!=='finished'){
-      const finish=document.createElement('button');finish.textContent='Terminer';finish.className='danger';
-      finish.onclick=async()=>{if(!confirm('Terminer cette Ligue ? Les inscriptions seront ferm√©es.'))return;const {error}=await sb.rpc('finish_league',{p_league_id:l.id});if(error)return toast(error.message);await loadAll();setView('league');};
-      row.appendChild(finish);
-    }
-    if(isAdmin()){
-      const del=document.createElement('button');del.textContent='üóëÔ∏è Supprimer la Ligue';del.className='danger';
-      del.onclick=async()=>{
-        const warning='‚ö†Ô∏è ATTENTION ‚Äî SUPPRESSION IRR√âVERSIBLE\n\nLa Ligue ¬´ '+(l.name||'Sans nom')+' ¬ª va √™tre supprim√©e d√©finitivement.\n\nCela supprimera √©galement tous les Sw√©s rattach√©s √† cette Ligue et leurs donn√©es associ√©es (inscriptions, √©quipes, matchs, scores, buts et passes).\n\nCette action ne peut pas √™tre annul√©e.\n\nConfirmer la suppression ?';
-        if(!confirm(warning))return;
-        del.disabled=true;del.textContent='Suppression‚Ä¶';
-        const {error}=await sb.rpc('delete_league_admin',{p_league_id:l.id});
-        if(error){del.disabled=false;del.textContent='üóëÔ∏è Supprimer la Ligue';return toast(error.message);}
-        if(S.activeLeague===l.id)S.activeLeague=null;
-        if(S.activeTour&&S.tournaments.find(t=>t.id===S.activeTour)?.league_id===l.id)S.activeTour=null;
-        await loadAll();
-        setView('league');
-        toast('Ligue supprim√©e d√©finitivement ‚úÖ');
-      };
-      row.appendChild(del);
-    }
-    d.appendChild(row);list.appendChild(d);
-  });
-
-  const league=S.leagues.find(l=>l.id===S.activeLeague)||null;
-  const info=$('#activeLeagueInfo'),shareBox=$('#leagueRegistrationShare');
-  if(!league){
-    info.innerHTML='<p class="muted">S√©lectionne ou cr√©e une Ligue.</p>';shareBox.innerHTML='';
-    $('#leaguePrizesCard')?.classList.add('hidden');
-    $('#leagueDays').innerHTML='<p class="muted">Aucun Sw√© de Ligue.</p>';
-    $('#leagueScorers').innerHTML='<p class="muted">Aucune donn√©e.</p>';
-    $('#leagueAssists').innerHTML='<p class="muted">Aucune donn√©e.</p>';
-    if($('#generateLeagueTeams'))$('#generateLeagueTeams').disabled=true;
-    if($('#leagueAdminSessionTools'))$('#leagueAdminSessionTools').classList.add('hidden');
-    if($('#leagueAdminNoSession'))$('#leagueAdminNoSession').classList.remove('hidden');
-    if($('#leagueScoringBody'))$('#leagueScoringBody').innerHTML='<p class="muted">S√©lectionne une Ligue puis un Sw√© pour saisir son r√©sultat.</p>';
-    return;
-  }
-  info.innerHTML='<div class="player"><b>'+esc(league.name)+'</b><div class="muted">üìÖ Du '+esc(league.starts_on)+(league.ends_on?' au '+esc(league.ends_on):' ‚Ä¢ sans date de fin')+'</div><div class="muted" style="margin-top:5px"><b>üë• Tous les membres actifs du groupe sont √©ligibles √† cette Ligue.</b></div></div>'+
-    '<div class="readonly-note" style="margin-top:8px"><b>Fonctionnement :</b> aucune inscription √† la Ligue n‚Äôest n√©cessaire. Un joueur s‚Äôinscrit uniquement au <b>Sw√© de Ligue</b> auquel il souhaite participer.</div>';
-
-  const prizeCard=$('#leaguePrizesCard'),prizeToggle=$('#leaguePrizesEnabled'),prizeFields=$('#leaguePrizeFields'),prizeReadonly=$('#leaguePrizeReadonly');
-  if(prizeCard){
-    prizeCard.classList.toggle('hidden',!league);
-    const canPrizeAdmin=hasAdminOps();
-    if(prizeToggle){
-      prizeToggle.checked=!!league.prizes_enabled;
-      prizeToggle.disabled=!canPrizeAdmin;
-    }
-    if(prizeFields)prizeFields.classList.toggle('hidden',!league.prizes_enabled||!canPrizeAdmin);
-    if($('#leaguePrizeFirst'))$('#leaguePrizeFirst').value=league.prize_first||'';
-    if($('#leaguePrizeSecond'))$('#leaguePrizeSecond').value=league.prize_second||'';
-    if($('#leaguePrizeThird'))$('#leaguePrizeThird').value=league.prize_third||'';
-    if(prizeReadonly){
-      prizeReadonly.innerHTML=league.prizes_enabled
-        ? 'ü•á '+esc(league.prize_first||'Lot √† d√©finir ult√©rieurement')+'<br>ü•à '+esc(league.prize_second||'Lot √† d√©finir ult√©rieurement')+'<br>ü•â '+esc(league.prize_third||'Lot √† d√©finir ult√©rieurement')
-        : 'Aucun lot annonc√© pour cette Ligue.';
-    }
-    if(prizeToggle&&canPrizeAdmin){
-      prizeToggle.onchange=()=>{
-        if(prizeFields)prizeFields.classList.toggle('hidden',!prizeToggle.checked);
-      };
-    }
-  }
-  shareBox.innerHTML='<div class="readonly-note"><b>Pas d‚Äôinscription √† la Ligue.</b> Utilise le lien d‚Äôinscription du Sw√© de Ligue concern√© dans la liste ci-dessous.</div>';
-
-  const leagueTours=S.tournaments.filter(t=>t.format==='league'&&t.league_id===league.id).sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
-  const box=$('#leagueDays');box.innerHTML='';
-  if(!leagueTours.length)box.innerHTML='<p class="muted">Aucun Sw√© cr√©√© dans cette Ligue.</p>';
-  leagueTours.forEach(t=>{
-    const d=document.createElement('div');d.className='player';
-    const pitchLabels=(t.reserved_pitch_ids||[]).map(id=>pitchName(id)).filter(Boolean);
-    d.innerHTML='<div class="row"><span style="flex:1"><b>'+esc(t.name||('Sw√© Ligue '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' ‚Ä¢ '+(t.status==='finished'?'Termin√©':'√Ä jouer')+'</div>'+
-      '<div class="muted" style="margin-top:3px">üìç '+esc(pitchLabels.length?(complexLabel(t.complex_id)+' ‚Ä¢ '+pitchLabels.join(', ')):(t.venue||'Terrain non renseign√©'))+(t.start_time?' ‚Ä¢ üïò '+esc(String(t.start_time).slice(0,5)):'')+' ‚Ä¢ üí∂ '+(Number(t.entry_fee_cents||0)/100).toLocaleString('fr-FR')+' ‚Ç¨</div>'+
-      (t.reservation_reference?'<div class="muted">R√©servation : '+esc(t.reservation_reference)+'</div>':'')+
-      (t.registration_deadline?'<div data-registration-deadline="'+esc(t.registration_deadline)+'" style="margin-top:6px"></div><div class="muted">Fin des inscriptions : '+new Date(t.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div>':'')+
-      '</span></div>';
-    const row=document.createElement('div');row.className='row';row.style.marginTop='8px';row.style.flexWrap='wrap';
-    const open=document.createElement('button');open.textContent=t.id===S.activeTour?'Sw√© s√©lectionn√©':'Ouvrir';open.onclick=async()=>{S.activeTour=t.id;await loadTournament();renderAll();toast('Sw√© de Ligue s√©lectionn√©')};row.appendChild(open);
-    if(t.registration_open&&S.workspace?.public_token){
-      const share=document.createElement('button');share.textContent='üîó Lien de ce Sw√©';
-      const url=registrationLink(t);
-      share.onclick=async()=>{try{await navigator.clipboard.writeText(url);toast('Lien du Sw√© copi√© ‚úÖ')}catch(e){}};
-      row.appendChild(share);
-    }
-    if(isAdmin()){
-      const del=document.createElement('button');
-      del.className='danger';
-      del.textContent='üóëÔ∏è Supprimer le Sw√©';
-      del.onclick=async()=>{
-        const label=t.name||('Sw√© du '+t.tournament_date);
-        const warning='‚ö†Ô∏è SUPPRESSION IRR√âVERSIBLE\n\nLe Sw√© ¬´ '+label+' ¬ª va √™tre supprim√© d√©finitivement.\n\nCela supprimera aussi ses inscriptions, √©quipes, match(s), scores, buts et passes d√©cisives rattach√©s √† ce Sw√©.\n\nLes autres Sw√©s et la Ligue ne seront pas supprim√©s.\n\nConfirmer la suppression ?';
-        if(!confirm(warning))return;
-        const typed=prompt('Pour confirmer, saisis exactement SUPPRIMER');
-        if(typed!=='SUPPRIMER')return toast('Suppression annul√©e.');
-        del.disabled=true;del.textContent='Suppression‚Ä¶';
-        const {error}=await sb.rpc('delete_league_session_admin',{p_tournament_id:t.id});
-        if(error){del.disabled=false;del.textContent='üóëÔ∏è Supprimer le Sw√©';return toast(error.message);}
-        if(S.activeTour===t.id)S.activeTour=null;
-        await loadAll();
-        setView('league');
-        toast('Sw√© supprim√© d√©finitivement ‚úÖ');
-      };
-      row.appendChild(del);
-    }
-    d.appendChild(row);box.appendChild(d);
-  });
-
-  const current=currentTour();
-  const gen=$('#generateLeagueTeams');
-  const currentIsLeagueSession=current?.format==='league'&&current?.league_id===league.id;
-  if(gen){
-    gen.disabled=!(currentIsLeagueSession&&hasAdminOps());
-    gen.title=currentIsLeagueSession?'Cr√©er 2 √©quipes avec les inscrits confirm√©s':'S√©lectionne un Sw√© de cette Ligue';
-  }
-
-  if(hasAdminOps()){
-    const tools=$('#leagueAdminSessionTools'),noSession=$('#leagueAdminNoSession');
-    if(currentIsLeagueSession){
-      tools?.classList.remove('hidden');noSession?.classList.add('hidden');
-
-      const {data:registered,error:regError}=await sb.rpc('get_registered_players_for_tournament',{p_tournament_id:current.id});
-      const rows=regError?[]:(Array.isArray(registered)?registered:[]);
-      const presentRows=rows.filter(r=>r.present);
-      const regIds=new Set(presentRows.map(r=>r.player_id));
-      const confirmedLeagueIds=new Set(S.leaguePlayers.filter(lp=>lp.league_id===league.id&&lp.status==='confirmed').map(lp=>lp.player_id));
-      const available=S.players
-        .filter(p=>p.active&&confirmedLeagueIds.has(p.id)&&!regIds.has(p.id))
-        .sort((a,b)=>a.name.localeCompare(b.name));
-
-      const selectedSessionLabel=$('#leagueAdminSelectedSession');
-      if(selectedSessionLabel)selectedSessionLabel.textContent=(current.name||('Sw√© du '+current.tournament_date))+' ‚Ä¢ '+current.tournament_date;
-      const registeredTitle=$('#leagueRegisteredTitle');
-      if(registeredTitle)registeredTitle.textContent='Inscrits √† CE Sw√© uniquement ‚Äî '+(current.name||('Sw√© du '+current.tournament_date));
-      const manualSel=$('#leagueManualPlayerSelect');
-      if(manualSel)manualSel.innerHTML=available.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-
-      const count=$('#leagueRegisteredCount');
-      if(count)count.textContent=presentRows.length+' participant'+(presentRows.length>1?'s':'')+' √† ce Sw√©';
-      const list=$('#leagueRegisteredPlayersList');
-      if(list){
-        list.innerHTML=presentRows.length?presentRows.map((r,i)=>'<div class="player row"><b style="min-width:30px">'+(i+1)+'.</b><span style="flex:1">'+esc(r.player_name)+(r.is_group_member===false?' <span class="guest-badge">Invit√©</span>':'')+'</span><span class="guest-badge">'+(r.registration_status==='waitlist'||r.is_substitute?'Rempla√ßant':'Confirm√©')+'</span></div>').join(''):'<p class="muted">Aucun inscrit pour ce Sw√©.</p>';
-      }
-
-      const saved=$('#leagueSavedTeams');
-      if(saved){
-        if(S.teams.length){
-          saved.innerHTML=S.teams.map(team=>{
-            const names=S.teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>S.players.find(p=>p.id===tp.player_id)?.name).filter(Boolean);
-            return '<div class="team" style="margin-bottom:8px"><div class="row"><span style="width:18px;height:18px;border-radius:50%;background:'+esc(team.color||'#64748b')+';border:1px solid #cbd5e1"></span><b>'+esc(team.name)+'</b></div><div class="muted" style="margin-top:6px">'+(names.length?names.map(esc).join(' ‚Ä¢ '):'Aucun joueur')+'</div></div>';
-          }).join('');
-        }else saved.innerHTML='<p class="muted">Les √©quipes ne sont pas encore cr√©√©es.</p>';
-      }
-
-      const createText=$('#leagueTeamsCreationText');
-      if(createText)createText.textContent=S.teams.length
-        ? 'Les √©quipes de ce Sw√© sont d√©j√† enregistr√©es. Tu peux les consulter ci-dessous.'
-        : 'Cr√©e automatiquement 2 √©quipes √† partir des joueurs confirm√©s inscrits √† ce Sw√©.';
-      if(gen){
-        gen.classList.toggle('hidden',S.teams.length>0);
-      }
-    }else{
-      tools?.classList.add('hidden');noSession?.classList.remove('hidden');
-      if(noSession)noSession.textContent='S√©lectionne un Sw√© de cette Ligue dans la liste ci-dessus pour g√©rer ses inscrits et ses √©quipes.';
-    }
-  }
-
-
-  // V40.02 ‚Äî Saisie du r√©sultat directement depuis l'onglet Ligue.
-  const scoringCard=$('#leagueScoringCard'),scoringBody=$('#leagueScoringBody'),scoringLabel=$('#leagueScoringSessionLabel');
-  if(scoringCard)scoringCard.classList.toggle('hidden',!canScoreLeague);
-  if(canScoreLeague&&scoringBody){
-    const scoringTour=currentTour();
-    const validSession=scoringTour?.format==='league'&&scoringTour?.league_id===league.id;
-    if(!validSession){
-      if(scoringLabel)scoringLabel.textContent='S√©lectionne un Sw√© dans ¬´ Sw√©s de la Ligue ¬ª pour saisir le r√©sultat.';
-      scoringBody.innerHTML='<p class="muted">Aucun Sw√© de cette Ligue n‚Äôest s√©lectionn√©.</p>';
-    }else{
-      if(scoringLabel)scoringLabel.textContent=(scoringTour.name||('Sw√© du '+scoringTour.tournament_date))+' ‚Ä¢ '+scoringTour.tournament_date;
-      if(!S.teams.length){
-        scoringBody.innerHTML='<div class="readonly-note"><b>√âquipes non cr√©√©es.</b><div style="margin-top:5px">Cr√©e d‚Äôabord les 2 √©quipes de ce Sw√©. Le formulaire de r√©sultat appara√Ætra ensuite ici.</div></div>';
-      }else if(!S.matches.length){
-        scoringBody.innerHTML='<div class="readonly-note"><b>Match non cr√©√©.</b><div style="margin-top:5px">Le Sw√© poss√®de ses √©quipes mais aucun match. Va dans l‚Äôonglet Matchs pour cr√©er le match de Ligue.</div></div>';
-      }else{
-        const m=S.matches[0],home=tm(m.home_team_id),away=tm(m.away_team_id);
-        if(!home||!away){
-          scoringBody.innerHTML='<p class="muted">Impossible de charger les deux √©quipes de ce Sw√©.</p>';
-        }else{
-          const goals=S.goals.filter(g=>g.match_id===m.id);
-          const playersForTeam=teamId=>teamPlayerIds(teamId).map(id=>p(id)).filter(Boolean);
-          const goalRows=goals.map(g=>{
-            const scorer=p(g.scorer_player_id),assister=g.assister_player_id?p(g.assister_player_id):null;
-            return '<div class="player row" style="margin-top:6px"><span style="flex:1">‚öΩ <b>'+esc(scorer?.name||'?')+'</b>'+(assister?' <span class="muted">‚Üê passe : '+esc(assister.name)+'</span>':' <span class="muted">‚Ä¢ sans passe</span>')+'</span><button type="button" class="danger leagueDeleteGoal" data-goal="'+g.id+'">Annuler</button></div>';
-          }).join('')||'<p class="muted">Aucun buteur enregistr√©.</p>';
-
-          scoringBody.innerHTML=
-            '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4">'+
-              '<div class="muted">'+(m.pitch?'üìç '+esc(m.pitch)+' ‚Ä¢ ':'')+'1 Sw√© = 1 match d‚Äôenviron 60 min</div>'+
-              '<div class="grid g2" style="margin-top:10px">'+
-                '<label><span class="muted">'+esc(home.name)+'</span><input id="leagueHomeScore" type="number" min="0" value="'+Number(m.home_score||0)+'"></label>'+
-                '<label><span class="muted">'+esc(away.name)+'</span><input id="leagueAwayScore" type="number" min="0" value="'+Number(m.away_score||0)+'"></label>'+
-              '</div>'+
-              '<button id="leagueSaveScore" class="primary" style="margin-top:10px">üíæ Enregistrer le score</button>'+
-            '</div>'+
-            '<div class="player" style="margin-top:12px">'+
-              '<b>‚ûï Ajouter un buteur / passeur</b>'+
-              '<div class="grid g3" style="margin-top:8px">'+
-                '<select id="leagueGoalTeam"><option value="'+home.id+'">'+esc(home.name)+'</option><option value="'+away.id+'">'+esc(away.name)+'</option></select>'+
-                '<select id="leagueGoalScorer"><option value="">Buteur</option></select>'+
-                '<select id="leagueGoalAssist"><option value="">Sans passe d√©cisive</option></select>'+
-              '</div>'+
-              '<button id="leagueAddGoal" class="primary" style="margin-top:10px">+ Ajouter le but</button>'+
-            '</div>'+
-            '<div style="margin-top:12px"><h3 style="margin-bottom:8px">Buteurs enregistr√©s sur ce Sw√©</h3>'+goalRows+'</div>';
-
-          const teamSel=$('#leagueGoalTeam'),scorerSel=$('#leagueGoalScorer'),assistSel=$('#leagueGoalAssist');
-          const fillLeagueGoalPlayers=()=>{
-            const roster=playersForTeam(teamSel.value);
-            scorerSel.innerHTML='<option value="">Buteur</option>'+roster.map(pl=>'<option value="'+pl.id+'">'+esc(pl.name)+'</option>').join('');
-            assistSel.innerHTML='<option value="">Sans passe d√©cisive</option>'+roster.map(pl=>'<option value="'+pl.id+'">'+esc(pl.name)+'</option>').join('');
-          };
-          teamSel.onchange=fillLeagueGoalPlayers;fillLeagueGoalPlayers();
-
-          $('#leagueSaveScore').onclick=async()=>{
-            const hs=Math.max(0,Number($('#leagueHomeScore').value)||0),as=Math.max(0,Number($('#leagueAwayScore').value)||0);
-            const b=$('#leagueSaveScore');b.disabled=true;
-            const {error}=await sb.from('matches').update({home_score:hs,away_score:as,status:'finished',finished_at:new Date().toISOString()}).eq('id',m.id);
-            b.disabled=false;if(error)return toast(error.message);
-            await loadTournament();await renderLeague();toast('R√©sultat du Sw√© enregistr√© ‚úÖ');
-          };
-
-          $('#leagueAddGoal').onclick=async()=>{
-            if(!scorerSel.value)return toast('Choisis le buteur.');
-            if(assistSel.value===scorerSel.value)return toast('Le buteur et le passeur doivent √™tre diff√©rents.');
-            const b=$('#leagueAddGoal');b.disabled=true;
-            const {error}=await sb.from('goals').insert({match_id:m.id,team_id:teamSel.value,scorer_player_id:scorerSel.value,assister_player_id:assistSel.value||null});
-            b.disabled=false;if(error)return toast(error.message);
-            await loadTournament();await renderLeague();toast('Buteur / passeur ajout√© ‚úÖ');
-          };
-
-          scoringBody.querySelectorAll('.leagueDeleteGoal').forEach(btn=>{
-            btn.onclick=async()=>{
-              if(!confirm('Annuler ce but et sa passe d√©cisive √©ventuelle ?'))return;
-              btn.disabled=true;
-              const {error}=await sb.from('goals').delete().eq('id',btn.dataset.goal);
-              if(error){btn.disabled=false;return toast(error.message)}
-              await loadTournament();await renderLeague();toast('But annul√©.');
-            };
-          });
-        }
-      }
-    }
-  }
-
-  const {data,error}=await sb.rpc('get_league_rankings',{p_league_id:league.id});
-  if(error){$('#leagueScorers').innerHTML='<p class="muted">'+esc(error.message)+'</p>';$('#leagueAssists').innerHTML='';return}
-  let rows=Array.isArray(data)?data:[];
-  let scor=rows.filter(x=>Number(x.goals)>0).sort((a,b)=>Number(b.goals)-Number(a.goals)||String(a.player_name).localeCompare(String(b.player_name)));
-  let ass=rows.filter(x=>Number(x.assists)>0).sort((a,b)=>Number(b.assists)-Number(a.assists)||String(a.player_name).localeCompare(String(b.player_name)));
-  scor=competitionRanks(scor,'goals');ass=competitionRanks(ass,'assists');
-  $('#leagueScorers').innerHTML=scor.map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.player_name)+'</span><b class="right">'+x.goals+' but'+(Number(x.goals)>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but pour le moment.</p>';
-  $('#leagueAssists').innerHTML=ass.map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.player_name)+'</span><b class="right">'+x.assists+' passe'+(Number(x.assists)>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe pour le moment.</p>';
-}
-
-$('#createLeague').onclick=async()=>{
-  if(!hasAdminOps())return toast('Seul l‚Äôadministrateur peut cr√©er une Ligue.');
-  const name=$('#leagueName').value.trim(),start=$('#leagueStart').value,end=$('#leagueEnd').value||null;
-  if(!name||!start)return toast('Indique le nom et la date de d√©but.');
-  const {data,error}=await sb.rpc('create_league',{p_workspace_id:S.workspace.id,p_name:name,p_starts_on:start,p_ends_on:end});
-  if(error)return toast(error.message);
-  S.activeLeague=data;$('#leagueName').value='';$('#leagueEnd').value='';
-  await loadAll();setView('league');toast('Ligue cr√©√©e ‚úÖ');
-};
-
-$('#saveLeaguePrizes').onclick=async()=>{
-  if(!hasAdminOps())return toast('Seul l‚Äôadministrateur peut d√©finir les lots.');
-  const league=S.leagues.find(l=>l.id===S.activeLeague);
-  if(!league)return toast('S√©lectionne une Ligue.');
-  const enabled=!!$('#leaguePrizesEnabled')?.checked;
-  const {error}=await sb.rpc('set_league_prizes',{
-    p_league_id:league.id,
-    p_enabled:enabled,
-    p_first:$('#leaguePrizeFirst')?.value.trim()||null,
-    p_second:$('#leaguePrizeSecond')?.value.trim()||null,
-    p_third:$('#leaguePrizeThird')?.value.trim()||null
-  });
-  if(error)return toast(error.message);
-  await loadAll();setView('league');
-  toast(enabled?'Lots du Top 3 enregistr√©s ‚úÖ':'Lots d√©sactiv√©s pour cette Ligue.');
-};
-
-$('#createLeagueSession').onclick=async()=>{
-  if(!S.leagues.some(l=>l.status!=='finished'))return toast(hasAdminOps()?'Cr√©e d‚Äôabord une Ligue.':'Demande √† l‚Äôadministrateur de cr√©er une Ligue.');
-  const leagueId=$('#leagueSessionLeague')?.value||'';
-  const league=S.leagues.find(l=>l.id===leagueId&&l.status!=='finished');
-  if(!league)return toast('Choisis la Ligue concern√©e.');
-  const date=$('#leagueSessionDate').value;if(!date)return toast('Choisis la date du Sw√©.');
-  const deadlineLocal=$('#leagueSessionRegistrationDeadline')?.value||'';
-  const registrationDeadline=registrationDeadlineIso(deadlineLocal);
-  if(!registrationDeadline)return toast('Indique la date et l‚Äôheure de fin des inscriptions.');
-  const eventStart=new Date(date+'T'+($('#leagueSessionStartTime')?.value||'09:00')+':00-04:00').getTime();
-  const deadlineMs=new Date(registrationDeadline).getTime();
-  if(deadlineMs<=Date.now())return toast('La fin des inscriptions doit √™tre dans le futur.');
-  if(deadlineMs>=eventStart)return toast('La fin des inscriptions doit √™tre avant le d√©but du Sw√©.');
-  const complexId=$('#leagueSessionComplex')?.value||'';
-  const pitchId=$('#leagueSessionPitch')?.value||'';
-  const startTime=$('#leagueSessionStartTime')?.value||'';
-  const feeRaw=$('#leagueSessionEntryFee')?.value;
-  if(!complexId)return toast('Choisis le complexe du Sw√©.');
-  if(!pitchId)return toast('Choisis le terrain du Sw√©.');
-  if(!startTime)return toast('Indique l‚Äôheure de r√©servation.');
-  if(feeRaw===''||Number(feeRaw)<0)return toast('Indique le prix par participant.');
-  const {data,error}=await sb.rpc('create_league_session_v2',{
-    p_league_id:league.id,
-    p_date:date,
-    p_name:$('#leagueSessionName').value.trim()||null,
-    p_max_players:100,
-    p_complex_id:complexId,
-    p_pitch_id:pitchId,
-    p_start_time:startTime,
-    p_entry_fee_cents:Math.round(Number(feeRaw)*100),
-    p_reservation_reference:$('#leagueSessionReservationRef')?.value.trim()||null,
-    p_cooler_suggested_cents:S.workspaceFeatures.third_half_enabled?Math.round(Math.max(0,Number($('#leagueSessionCoolerSuggested')?.value)||0)*100):0,
-    p_registration_deadline:registrationDeadline
-  });
-  if(error)return toast(error.message);
-  S.activeLeague=league.id;S.activeTour=data;
-  $('#leagueSessionName').value='';$('#leagueSessionReservationRef').value='';$('#leagueSessionRegistrationDeadline').value=defaultRegistrationDeadlineLocal($('#leagueSessionDate').value);
-  await loadAll();setView('league');toast('Sw√© cr√©√© dans ¬´ '+league.name+' ¬ª ‚úÖ');
-};
-
-$('#leagueManualAddPlayer').onclick=async()=>{
-  if(!hasAdminOps())return toast('Seul l‚Äôadministrateur peut ajouter manuellement un inscrit.');
-  const t=currentTour();
-  const league=S.leagues.find(l=>l.id===S.activeLeague);
-  if(!t||t.format!=='league'||!league||t.league_id!==league.id)return toast('S√©lectionne un Sw√© de cette Ligue.');
-  const sel=$('#leagueManualPlayerSelect');
-  const ids=sel?[...sel.selectedOptions].map(o=>o.value).filter(Boolean):[];
-  if(!ids.length)return toast('S√©lectionne au moins une personne.');
-  const b=$('#leagueManualAddPlayer');b.disabled=true;b.textContent='Ajout‚Ä¶';
-  let added=0,waitlisted=0,failed=0;
-  for(const pid of ids){
-    const {data,error}=await sb.rpc('admin_add_registered_member_to_league_session',{p_tournament_id:t.id,p_player_id:pid});
-    if(error)failed++; else {added++; if(data==='waitlist')waitlisted++;}
-  }
-  b.disabled=false;b.textContent='Ajouter la s√©lection';
-  await loadTournament();await renderLeague();
-  if(failed)return toast(added+' ajout√©(s), '+failed+' √©chec(s).');
-  toast(added+' personne'+(added>1?'s':'')+' ajout√©e'+(added>1?'s':'')+(waitlisted?' ‚Ä¢ '+waitlisted+' rempla√ßant(s)':'')+' ‚úÖ');
-};
-
-$('#generateLeagueTeams').onclick=async()=>{
-  const t=currentTour();if(!t||t.format!=='league')return toast('Ouvre une journ√©e de Ligue.');
-  if(!hasAdminOps())return toast('Seul l‚Äôadministrateur peut cr√©er les √©quipes depuis l‚Äôonglet Ligue.');
-  if(S.teams.length)return toast('Les √©quipes de ce Sw√© sont d√©j√† enregistr√©es.');
-  const b=$('#generateLeagueTeams');b.disabled=true;b.textContent='Cr√©ation‚Ä¶';
-  const {data,error}=await sb.rpc('generate_league_two_teams',{p_tournament_id:t.id});
-  b.disabled=false;b.textContent='Cr√©er les √©quipes avec les inscrits';
-  if(error)return toast(error.message);
-  await loadTournament();renderAll();
-  $('#leagueGenerationInfo').textContent='2 √©quipes cr√©√©es avec '+Number(data?.player_count||0)+' joueurs confirm√©s.';
-  toast('√âquipes de Ligue cr√©√©es ‚úÖ');
-};
-
-
-async function rankingDataset(){
-  const t=currentTour();
-  if(S.rankMode==='day'){
-    const mids=S.matches.map(m=>m.id);
-    return {goals:S.goals||[],matches:S.matches||[],tournaments:t?[t]:[]};
-  }
-  let seasonId=t?.season_id||null;
-  if(!seasonId){
-    const activeSeason=S.seasons.find(s=>s.is_active)||S.seasons[0];
-    seasonId=activeSeason?.id||null;
-  }
-  if(!seasonId)return {goals:[],matches:[],tournaments:[]};
-  let tournaments=S.tournaments.filter(x=>x.season_id===seasonId&&x.format!=='league');
-  tournaments=tournaments.filter(x=>x.status==='finished'||x.id===S.activeTour);
-  const tids=tournaments.map(x=>x.id);
-  if(!tids.length)return {goals:[],matches:[],tournaments:[]};
-  const mr=await sb.from('matches').select('*').in('tournament_id',tids);
-  const matches=mr.data||[];
-  const mids=matches.map(x=>x.id);
-  if(!mids.length)return {goals:[],matches,tournaments};
-  const gr=await sb.from('goals').select('*').in('match_id',mids);
-  return {goals:gr.data||[],matches,tournaments};
-}
-
-function competitionRanks(arr,key){let prev=null,rank=0;return arr.map((x,i)=>{if(x[key]!==prev){rank=i+1;prev=x[key]}return {...x,rank}})}
-
-async function renderRanking(){
-  const ds=await rankingDataset(),goals=ds.goals,matches=ds.matches,tournaments=ds.tournaments;
-  const seasonShareCard=$('#seasonPublicShareCard'),seasonShareInput=$('#seasonPublicShareLink');
-  if(seasonShareCard)seasonShareCard.classList.toggle('hidden',!isAdmin());
-  if(seasonShareInput)seasonShareInput.value=seasonPublicRankingLink();
-  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,guest_of_player_id:x.guest_of_player_id,g:0,a:0,matchIds:new Set(),tournamentIds:new Set()}]));
-  const matchMap=new Map(matches.map(m=>[m.id,m]));
-  goals.forEach(g=>{
-    const m=matchMap.get(g.match_id);
-    if(stats.has(g.scorer_player_id)){
-      const s=stats.get(g.scorer_player_id);s.g++;s.matchIds.add(g.match_id);if(m)s.tournamentIds.add(m.tournament_id);
-    }
-    if(g.assister_player_id&&stats.has(g.assister_player_id)){
-      const a=stats.get(g.assister_player_id);a.a++;a.matchIds.add(g.match_id);if(m)a.tournamentIds.add(m.tournament_id);
-    }
-  });
-
-  // Count appearances even without a goal/assist, using team membership for each tournament.
-  for(const tour of tournaments){
-    const {data:teams}=await sb.from('teams').select('id').eq('tournament_id',tour.id);
-    const teamIds=(teams||[]).map(x=>x.id);
-    if(!teamIds.length)continue;
-    const {data:tp}=await sb.from('team_players').select('*').in('team_id',teamIds);
-    const playerTeam=new Map((tp||[]).map(x=>[x.player_id,x.team_id]));
-    const tourMatches=matches.filter(m=>m.tournament_id===tour.id);
-    for(const [playerId,teamId] of playerTeam.entries()){
-      const s=stats.get(playerId);if(!s)continue;
-      const played=tourMatches.filter(m=>m.home_team_id===teamId||m.away_team_id===teamId);
-      if(played.length){
-        s.tournamentIds.add(tour.id);
-        played.forEach(m=>s.matchIds.add(m.id));
-      }
-    }
-  }
-
-  const allMatchIds=matches.map(m=>m.id);
-  let rankingAssignments=[];
-  if(allMatchIds.length){
-    const {data:ma,error:maError}=await sb.from('match_player_assignments').select('*').in('match_id',allMatchIds);
-    if(!maError)rankingAssignments=ma||[];
-  }
-
-  const playerSeasonStats=new Map(S.players.map(x=>[x.id,{
-    id:x.id,name:x.name,is_group_member:x.is_group_member,
-    trophies:0,matchWins:0,g:0,a:0,ratingTotal:0,ratingMatches:0,avg:0
-  }]));
-  goals.forEach(g=>{
-    if(playerSeasonStats.has(g.scorer_player_id))playerSeasonStats.get(g.scorer_player_id).g++;
-    if(g.assister_player_id&&playerSeasonStats.has(g.assister_player_id))playerSeasonStats.get(g.assister_player_id).a++;
-  });
-
-  matches.forEach(m=>{
-    const winner=Number(m.home_score)>Number(m.away_score)?m.home_team_id:(Number(m.away_score)>Number(m.home_score)?m.away_team_id:null);
-    rankingAssignments.filter(a=>a.match_id===m.id&&a.team_id).forEach(a=>{
-      const st=playerSeasonStats.get(a.player_id);if(!st)return;
-      if(winner&&String(a.team_id)===String(winner))st.matchWins++;
-      if(S.workspaceFeatures.player_ratings_enabled){
-        const rr=ratingForMatchPlayer(m,a.player_id,a.team_id,goals);
-        if(rr){st.ratingTotal+=rr.rating;st.ratingMatches++;}
-      }
-    });
-  });
-
-  for(const tour of tournaments.filter(t=>t.status==='finished')){
-    const tourMatches=matches.filter(m=>m.tournament_id===tour.id);
-    if(!tourMatches.length)continue;
-    const {data:tTeams}=await sb.from('teams').select('id,name').eq('tournament_id',tour.id);
-    const rows=(tTeams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
-    const sm=new Map(rows.map(x=>[x.id,x]));
-    tourMatches.forEach(m=>{
-      const a=sm.get(m.home_team_id),b=sm.get(m.away_team_id);if(!a||!b)return;
-      a.mj++;b.mj++;a.bp+=Number(m.home_score||0);a.bc+=Number(m.away_score||0);b.bp+=Number(m.away_score||0);b.bc+=Number(m.home_score||0);
-      if(Number(m.home_score)>Number(m.away_score)){a.v++;b.d++;a.pts+=3}
-      else if(Number(m.away_score)>Number(m.home_score)){b.v++;a.d++;b.pts+=3}
-      else{a.n++;b.n++;a.pts++;b.pts++}
-    });
-    rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
-    const champion=rows[0];if(!champion)continue;
-    const mids=new Set(tourMatches.map(m=>m.id));
-    const champs=new Set(rankingAssignments.filter(a=>mids.has(a.match_id)&&String(a.team_id)===String(champion.id)).map(a=>a.player_id));
-    champs.forEach(pid=>{if(playerSeasonStats.has(pid))playerSeasonStats.get(pid).trophies++;});
-  }
-  playerSeasonStats.forEach(s=>{s.avg=s.ratingMatches?s.ratingTotal/s.ratingMatches:0;});
-
-  const trophyRows=[...playerSeasonStats.values()].filter(x=>x.trophies||x.matchWins||x.g||x.a)
-    .sort((a,b)=>b.trophies-a.trophies||b.matchWins-a.matchWins||b.g-a.g||b.a-a.a||b.avg-a.avg||a.name.localeCompare(b.name));
-  const topPlayerRows=[...playerSeasonStats.values()].filter(x=>x.ratingMatches)
-    .sort((a,b)=>b.avg-a.avg||b.g-a.g||b.a-a.a||b.trophies-a.trophies||a.name.localeCompare(b.name));
-
-  let trophyExpanded=false,adminTopExpanded=false;
-  const renderTrophies=()=>{
-    const visible=trophyExpanded?trophyRows:trophyRows.slice(0,10);
-    const box=$('#playerTrophyRank');
-    if(box)box.innerHTML=visible.map((x,i)=>{
-      const pos=trophyRows.indexOf(x)+1;
-      return '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+(pos===1?'üëë':pos)+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.matchWins+' victoire'+(x.matchWins>1?'s':'')+' de match ‚Ä¢ ‚öΩ '+x.g+' ‚Ä¢ üéØ '+x.a+(x.ratingMatches?' ‚Ä¢ ‚≠ê '+x.avg.toFixed(1):'')+'</div></span><b class="right">üèÜ '+x.trophies+'</b></div>';
-    }).join('')||'<p class="muted">Aucun troph√©e enregistr√©.</p>';
-    const b=$('#togglePlayerTrophyRank');if(b){b.classList.toggle('hidden',trophyRows.length<=10);b.textContent=trophyExpanded?'R√©duire':'D√©velopper';}
-  };
-  const renderAdminTop=()=>{
-    const visible=adminTopExpanded?topPlayerRows:topPlayerRows.slice(0,10);
-    const box=$('#adminTopPlayerRank');
-    if(box)box.innerHTML=visible.map((x,i)=>{
-      const pos=topPlayerRows.indexOf(x)+1;
-      return '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+(pos===1?'üëë':pos)+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.ratingMatches+' match'+(x.ratingMatches>1?'s':'')+' ‚Ä¢ üèÜ '+x.trophies+' ‚Ä¢ ‚öΩ '+x.g+' ‚Ä¢ üéØ '+x.a+'</div></span><b class="right">‚≠ê '+x.avg.toFixed(1)+'</b></div>';
-    }).join('')||'<p class="muted">Aucune note disponible.</p>';
-    const b=$('#toggleAdminTopPlayerRank');if(b){b.classList.toggle('hidden',topPlayerRows.length<=10);b.textContent=adminTopExpanded?'R√©duire':'D√©velopper';}
-  };
-  renderTrophies();renderAdminTop();
-  if($('#togglePlayerTrophyRank'))$('#togglePlayerTrophyRank').onclick=()=>{trophyExpanded=!trophyExpanded;renderTrophies();};
-  if($('#toggleAdminTopPlayerRank'))$('#toggleAdminTopPlayerRank').onclick=()=>{adminTopExpanded=!adminTopExpanded;renderAdminTop();};
-  if($('#sharePlayerTrophyRank'))$('#sharePlayerTrophyRank').onclick=async()=>{
-    let text='üèÜ TROPH√âES REMPORT√âS PAR JOUEUR\\n\\n';
-    trophyRows.forEach((x,i)=>text+=(i+1)+'. '+x.name+' ‚Äî '+x.trophies+' troph√©e'+(x.trophies>1?'s':'')+' ‚Ä¢ '+x.matchWins+' victoire'+(x.matchWins>1?'s':'')+' ‚Ä¢ ‚öΩ '+x.g+' ‚Ä¢ üéØ '+x.a+'\\n');
-    if(navigator.share){try{await navigator.share({title:'Troph√©es remport√©s par joueur',text});return}catch(e){}}
-    try{await navigator.clipboard.writeText(text);toast('Classement des troph√©es copi√© ‚úÖ')}catch(e){toast('Copie impossible')}
-  };
-
-  let scor=[...stats.values()].filter(x=>x.g||x.matchIds.size||x.tournamentIds.size)
-    .sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
-  let ass=[...stats.values()].filter(x=>x.a)
-    .sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
-  scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
-
-  $('#scorerRank').innerHTML=scor.map(x=>
-    '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span><b>'+esc(x.name)+'</b>'+(x.is_group_member===false?'<span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'<div class="muted">'+x.tournamentIds.size+' tournoi'+(x.tournamentIds.size>1?'s':'')+' ‚Ä¢ '+x.matchIds.size+' match'+(x.matchIds.size>1?'s':'')+'</div></span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>'
-  ).join('')||'<p class="muted">Aucune donn√©e</p>';
-
-  $('#assistRank').innerHTML=ass.map(x=>
-    '<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>'
-  ).join('')||'<p class="muted">Aucune donn√©e</p>';
-
-  renderTeamRanking();
-
-  let txt='‚öΩ '+(S.rankMode==='season'?'CLASSEMENT BUTEURS DE LA SAISON':'CLASSEMENT BUTEURS DU TOURNOI')+'\n\n';
-  scor.forEach(x=>txt+=x.rank+'. '+x.name+' ‚Äî '+x.g+' but'+(x.g>1?'s':'')+' ‚Ä¢ '+x.tournamentIds.size+' tournoi'+(x.tournamentIds.size>1?'s':'')+' ‚Ä¢ '+x.matchIds.size+' match'+(x.matchIds.size>1?'s':'')+'\n');
-  txt+='\nüéØ PASSEURS\n';
-  ass.forEach(x=>txt+=x.rank+'. '+x.name+' ‚Äî '+x.a+' passe'+(x.a>1?'s':'')+'\n');
-  txt+='\nüèÜ TROPH√âES REMPORT√âS PAR JOUEUR\n';
-  trophyRows.forEach((x,i)=>txt+=(i+1)+'. '+x.name+' ‚Äî '+x.trophies+' troph√©e'+(x.trophies>1?'s':'')+'\n');
-  if(S.workspaceFeatures.player_ratings_enabled){
-    txt+='\n‚≠ê TOP PLAYER\n';
-    topPlayerRows.forEach((x,i)=>txt+=(i+1)+'. '+x.name+' ‚Äî '+x.avg.toFixed(1)+'/10\n');
-  }
-  $('#shareText').value=txt;
-}
-
-function renderTeamRanking(){const r=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(r.map(x=>[x.id,x]));S.matches.forEach(m=>{const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});r.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);$('#teamRank').innerHTML=r.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune √©quipe</p>'}
-document.querySelectorAll('.rankMode').forEach(b=>b.onclick=()=>{S.rankMode=b.dataset.mode;document.querySelectorAll('.rankMode').forEach(x=>x.classList.toggle('primary',x===b));renderRanking()});
-$('#shareWhatsapp').onclick=async()=>{const text=$('#shareText').value;if(navigator.share){try{await navigator.share({title:'Classement du tournoi',text});return}catch{}}await navigator.clipboard.writeText(text);toast('R√©sum√© copi√©')};
-if($('#copySeasonPublicShareLink'))$('#copySeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');try{await navigator.clipboard.writeText(link);toast('Lien de la saison copi√© ‚úÖ')}catch(e){$('#seasonPublicShareLink').select();document.execCommand('copy');toast('Lien de la saison copi√© ‚úÖ')}};
-if($('#shareSeasonPublicShareLink'))$('#shareSeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');const season=S.seasons.find(x=>x.is_active)||S.seasons[0],seasonName=String(season?.name||'en cours').replace(/^saison\s+/i,''),message='Voici les r√©sultats de la saison '+seasonName;if(navigator.share){try{await navigator.share({title:'R√©sultats de la saison SW√â',text:message,url:link});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(message+'\n'+link);toast('Message et lien copi√©s ‚úÖ')}catch(e){toast('Partage indisponible')}};
-if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{const link=$('#seasonPublicShareLink').value;if(link)window.open(link,'_blank','noopener')};
-
-function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
-
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=4203',{updateViaCache:'none'})
-    .then(reg=>{
-      reg.update().catch(()=>{});
-      navigator.serviceWorker.addEventListener('controllerchange',()=>{
-        if(sessionStorage.getItem('SW_BUILD_RELOAD_4203'))return;
-        sessionStorage.setItem('SW_BUILD_RELOAD_4203','1');
-        location.reload();
-      },{once:true});
-      return reg;
-    })
-    .then(reg=>reg.update())
-    .catch(()=>{});
-}
-sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){S.session=session;showRecoveryForm();return}setTimeout(authState,0)});
-
-function latestTournamentForVisual(){
-  return currentTour()||S.tournaments[0]||null;
-}
-
-const VISUAL_W=1080, VISUAL_H=1350;
-let currentVisualBlob=null;
-let currentVisualFilename='tournoi-du-dimanche.png';
-
-function vRoundRect(ctx,x,y,w,h,r,fill,stroke){
-  const rr=Math.min(r,w/2,h/2);
-  ctx.beginPath();
-  ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);
-  ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();
-  if(fill){ctx.fillStyle=fill;ctx.fill();}
-  if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}
-}
-function vText(ctx,text,x,y,maxWidth,font,color,align='left'){
-  ctx.font=font;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='alphabetic';
-  ctx.fillText(String(text),x,y,maxWidth);
-}
-function vWrap(ctx,text,maxWidth){
-  const words=String(text||'').split(/\s+/);const lines=[];let line='';
-  words.forEach(word=>{
-    const test=line?line+' '+word:word;
-    if(ctx.measureText(test).width>maxWidth && line){lines.push(line);line=word}else line=test;
-  });
-  if(line)lines.push(line);
-  return lines;
-}
-function vDrawWrapped(ctx,text,x,y,maxWidth,lineHeight,font,color,maxLines=3){
-  ctx.font=font;ctx.fillStyle=color;ctx.textAlign='left';
-  const lines=vWrap(ctx,text,maxWidth).slice(0,maxLines);
-  lines.forEach((line,i)=>ctx.fillText(line,x,y+i*lineHeight,maxWidth));
-  return y+lines.length*lineHeight;
-}
-function visualDate(t){
-  try{return new Date((t?.tournament_date||'')+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
-  catch(e){return t?.tournament_date||''}
-}
-function visualTheme(ctx,title,t){
-  const g=ctx.createLinearGradient(0,0,1080,1350);
-  g.addColorStop(0,'#08291d');g.addColorStop(.6,'#0d3b29');g.addColorStop(1,'#061c14');
-  ctx.fillStyle=g;ctx.fillRect(0,0,VISUAL_W,VISUAL_H);
-  ctx.globalAlpha=.08;ctx.fillStyle='#ffffff';
-  for(let i=0;i<16;i++){ctx.beginPath();ctx.arc(80+i*75,110+(i%3)*42,22,0,Math.PI*2);ctx.fill()}
-  ctx.globalAlpha=1;
-  vText(ctx,'‚öΩ SW√â TOURNAMENT 5/5',70,105,940,'700 34px Arial','#9ee6b8');
-  vText(ctx,title,70,180,940,'800 62px Arial','#ffffff');
-  vText(ctx,visualDate(t),70,228,940,'500 28px Arial','#c9e7d5');
-  ctx.fillStyle='#36c36c';ctx.fillRect(70,258,115,7);
-}
-function visualFooter(ctx,t){
-  vText(ctx,(t?.name||'SW√â TOURNAMENT 5/5'),70,1292,760,'600 24px Arial','#a8c9b6');
-  vText(ctx,'G√©n√©r√© par l‚Äôapp',1010,1292,300,'500 22px Arial','#7da28e','right');
-}
-
-function makeVisualTeams(ctx,t){
-  visualTheme(ctx,'√âQUIPES',t);
-  let y=320;
-  const cards=S.teams.slice(0,8);
-  cards.forEach((team,idx)=>{
-    const ids=teamPlayerIds(team.id);
-    const names=ids.map(id=>playerDisplayName(p(id))).filter(Boolean);
-    const cardH=Math.max(118,78+Math.ceil(names.length/2)*38);
-    vRoundRect(ctx,70,y,940,cardH,24,'#ffffff');
-    const bg=sweTeamColor(team),fg=sweTeamTextColor(bg);
-    vRoundRect(ctx,90,y+22,185,52,15,bg);
-    vText(ctx,'üëï '+team.name,182,y+57,165,'800 23px Arial',fg,'center');
-    vText(ctx,sweTeamColorLabel(team),295,y+57,120,'700 18px Arial','#66756e');
-    const balance=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
-    if(balance){
-      vText(ctx,'üê∂ Chien Boul Academy '+Number(balance.team_score||0).toFixed(1)+'/5',930,y+58,310,'700 19px Arial','#0c6b3d','right');
-    }
-    let tx=285,ty=y+50;
-    names.forEach((name,i)=>{
-      const col=i%2,row=Math.floor(i/2);
-      vText(ctx,'‚Ä¢ '+name,tx+col*345,ty+row*38,320,'600 24px Arial','#183428');
-    });
-    y+=cardH+20;
-  });
-  if(!cards.length)vText(ctx,'Aucune √©quipe cr√©√©e',70,390,940,'600 34px Arial','#ffffff');
-  const subs=tournamentCommonSubstitutes();
-  if(subs.length && y<1195){
-    const h=Math.max(74,54+Math.ceil(subs.length/3)*30);
-    vRoundRect(ctx,70,y,940,h,20,'#fff4d6');
-    vText(ctx,'üü† REMPLA√áANTS COMMUNS',95,y+38,300,'800 21px Arial','#9a5a00');
-    subs.forEach((pl,i)=>{const col=i%3,row=Math.floor(i/3);vText(ctx,playerDisplayName(pl),405+col*195,y+36+row*30,180,'600 18px Arial','#5b4a2e');});
-  }
-  visualFooter(ctx,t);
-}
-
-function makeVisualResults(ctx,t){
-  visualTheme(ctx,'R√âSULTATS',t);
-  let y=315;
-  const matches=S.matches.slice(0,12);
-  matches.forEach((m,i)=>{
-    const home=tm(m.home_team_id)?.name||'?';
-    const away=tm(m.away_team_id)?.name||'?';
-    vRoundRect(ctx,70,y,940,76,20,'#ffffff');
-    vText(ctx,'M'+(i+1),102,y+49,70,'800 22px Arial','#0c6b3d');
-    vText(ctx,home,205,y+49,270,'700 25px Arial','#183428','right');
-    vRoundRect(ctx,480,y+15,120,48,14,'#0d3b29');
-    vText(ctx,(m.home_score??0)+' - '+(m.away_score??0),540,y+49,105,'800 28px Arial','#ffffff','center');
-    vText(ctx,away,625,y+49,270,'700 25px Arial','#183428');
-    if(m.pitch)vText(ctx,m.pitch,975,y+49,120,'600 20px Arial','#6b8075','right');
-    y+=90;
-  });
-  if(!matches.length)vText(ctx,'Aucun match enregistr√©',70,390,940,'600 34px Arial','#ffffff');
-  visualFooter(ctx,t);
-}
-
-function tournamentScorerVisualData(){
-  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,g:0,guest:x.is_group_member===false}]));
-  S.goals.forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++});
-  let arr=[...stats.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name));
-  let prev=null,rank=0;
-  return arr.map((x,i)=>{if(x.g!==prev){rank=i+1;prev=x.g}return {...x,rank}});
-}
-function makeVisualScorers(ctx,t){
-  visualTheme(ctx,'CLASSEMENT BUTEURS',t);
-  const arr=tournamentScorerVisualData().slice(0,14);
-  let y=315;
-  arr.forEach((x,i)=>{
-    const podium=x.rank<=3;
-    vRoundRect(ctx,70,y,940,64,18,podium?'#e9f8ef':'#ffffff');
-    const medal=x.rank===1?'ü•á':x.rank===2?'ü•à':x.rank===3?'ü•â':String(x.rank);
-    vText(ctx,medal,105,y+43,60,'800 27px Arial','#0c6b3d');
-    vText(ctx,x.name+(x.guest?'  ‚Ä¢ Guest':''),190,y+43,630,'700 25px Arial',x.guest?'#718079':'#183428');
-    vText(ctx,x.g+' but'+(x.g>1?'s':''),955,y+43,160,'800 26px Arial','#0c6b3d','right');
-    y+=76;
-  });
-  if(!arr.length)vText(ctx,'Aucun but enregistr√©',70,390,940,'600 34px Arial','#ffffff');
-  visualFooter(ctx,t);
-}
-
-async function generateVisual(kind){
-  const t=latestTournamentForVisual();
-  if(!t)return toast('Aucun tournoi disponible.');
-  const canvas=$('#visualCanvas'),ctx=canvas.getContext('2d');
-  canvas.width=VISUAL_W;canvas.height=VISUAL_H;
-  if(kind==='teams')makeVisualTeams(ctx,t);
-  else if(kind==='results')makeVisualResults(ctx,t);
-  else makeVisualScorers(ctx,t);
-  currentVisualFilename='tournoi-'+kind+'-'+(t.tournament_date||'').replaceAll('-','')+'.png';
-  currentVisualBlob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png',1));
-  $('#visualPreviewBox').classList.remove('hidden');
-  $('#visualPreviewBox').scrollIntoView({behavior:'smooth',block:'center'});
-  toast('Visuel g√©n√©r√© ‚úÖ');
-}
-
-async function saveCurrentVisual(){
-  if(!currentVisualBlob)return toast('G√©n√®re d‚Äôabord un visuel.');
-  const url=URL.createObjectURL(currentVisualBlob);
-  const a=document.createElement('a');a.href=url;a.download=currentVisualFilename;
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
-}
-async function shareCurrentVisual(){
-  if(!currentVisualBlob)return toast('G√©n√®re d‚Äôabord un visuel.');
-  const file=new File([currentVisualBlob],currentVisualFilename,{type:'image/png'});
-  if(navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
-    try{
-      await navigator.share({files:[file],title:'SW√â TOURNAMENT 5/5'});
-      return;
-    }catch(e){if(e.name==='AbortError')return;}
-  }
-  saveCurrentVisual();
-  toast('Partage de fichier non disponible : image enregistr√©e.');
-}
-$('#visualTeams').onclick=()=>generateVisual('teams');
-$('#visualResults').onclick=()=>generateVisual('results');
-$('#visualScorers').onclick=()=>generateVisual('scorers');
-$('#downloadVisual').onclick=saveCurrentVisual;
-$('#shareVisual').onclick=shareCurrentVisual;
-$('#closeVisual').onclick=()=>$('#visualPreviewBox').classList.add('hidden');
-
-function publicHistoryReturnUrl(token){
-  const q=swePublicParams();
-  const out=new URLSearchParams();
-  out.set('public',token);
-  for(const key of ['tournament','view','mode','league']){
-    const value=q.get(key);
-    if(value)out.set(key,value);
-  }
-  return APP_URL+'?'+out.toString();
-}
-function publicHistoryUrl(token,historyId){
-  const q=swePublicParams();
-  const stored=sweStoredPublicRegistrationContext();
-  const remembered=stored.public===String(token)?stored:{};
-  const out=new URLSearchParams();
-  out.set('public',token);
-  out.set('history',historyId);
-  const short=q.get('s')||remembered.s;if(/^[A-Za-z0-9]{1,32}$/.test(short||''))out.set('from_s',short);
-  for(const key of ['tournament','view','mode','league']){
-    const value=q.get(key)||remembered[key];
-    if(value)out.set('from_'+key,value);
-  }
-  return APP_URL+'?'+out.toString();
-}
-function publicHistoryBackUrl(token){
-  const q=swePublicParams();
-  const stored=sweStoredPublicRegistrationContext();
-  const remembered=stored.public===String(token)?stored:{};
-  const short=q.get('from_s')||remembered.s;if(/^[A-Za-z0-9]{1,32}$/.test(short||''))return APP_URL+'?s='+encodeURIComponent(short);
-  const out=new URLSearchParams();
-  out.set('public',token);
-  for(const key of ['tournament','view','mode','league']){
-    const value=q.get('from_'+key)||remembered[key];
-    if(value)out.set(key,value);
-  }
-  return APP_URL+'?'+out.toString();
-}
-
-function swePublicParams(){
-  const q=new URLSearchParams(location.search);
-  const r=window.__sweResolvedShortLink;
-  if(r){
-    if(r.tournament)q.set('tournament',r.tournament);
-    if(r.view)q.set('view',r.view);
-    if(r.league)q.set('league',r.league);
-  }
-  return q;
-}
-function sweRememberPublicRegistrationContext(){
-  const q=swePublicParams();
-  if(q.get('history'))return;
-  const ctx={public:String(q.get('public')||publicTokenFromUrl||'')};
-  for(const key of ['s','tournament','view','mode','league']){
-    const v=q.get(key);
-    if(v)ctx[key]=v;
-  }
-  if(ctx.tournament||ctx.view||ctx.mode||ctx.league){
-    try{sessionStorage.setItem('swe_public_registration_context',JSON.stringify(ctx));}catch(e){}
-  }
-}
-function sweStoredPublicRegistrationContext(){
-  try{
-    const raw=sessionStorage.getItem('swe_public_registration_context');
-    const obj=raw?JSON.parse(raw):null;
-    return obj&&typeof obj==='object'?obj:{};
-  }catch(e){return {}}
-}
-function paymentMoney(cents){
-  return (Number(cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ‚Ç¨';
-}
-function paymentReportPrint(report,editorName=''){
-  if(!report)return;
-  let host=document.getElementById('swePaymentPrintHost');
-  if(host)host.remove();
-  host=document.createElement('div');
-  host.id='swePaymentPrintHost';
-  host.className='payment-print-host';
-  const players=Array.isArray(report.players)?report.players:[];
-  const walkins=Array.isArray(report.walkins)?report.walkins:[];
-  const rows=[...players.map(r=>({...r,walkin:false})),...walkins.map(r=>({...r,walkin:true}))];
-  const paid=rows.filter(r=>!!r.paid).length;
-  const unpaid=rows.filter(r=>!r.paid).length;
-  const total=rows.filter(r=>!!r.paid).reduce((sum,r)=>sum+Number(r.amount_cents||report.entry_fee_cents||0),0);
-  const fmt=(iso)=>{if(!iso)return '‚Äî';try{return new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(new Date(iso));}catch(e){return String(iso)}};
-  const body=rows.map(r=>'<tr><td>'+esc(r.player_name||'Joueur')+(r.walkin?' <small>(ajout√© sur place)</small>':'')+'</td><td>'+esc(paymentMoney(r.amount_cents||report.entry_fee_cents||0))+'</td><td>'+(r.paid?'PAY√â':'NON PAY√â')+'</td><td>'+esc(r.collector_name||'‚Äî')+'</td><td>'+esc(fmt(r.paid_at))+'</td></tr>').join('');
-  host.innerHTML='<div class="payment-print-sheet"><h1>'+esc(report.tournament_name||('Sw√© du '+(report.tournament_date||'')))+'</h1><p>Date du Sw√© : '+esc(report.tournament_date||'‚Äî')+' ‚Ä¢ Prix par participant : '+esc(paymentMoney(report.entry_fee_cents||0))+'</p>'+(editorName?'<p>Rapport √©dit√© par : '+esc(editorName)+'</p>':'')+'<div class="payment-print-summary"><b>'+paid+' pay√©'+(paid>1?'s':'')+'</b><b>'+unpaid+' non pay√©'+(unpaid>1?'s':'')+'</b><b>Total encaiss√© : '+esc(paymentMoney(total))+'</b></div><table><thead><tr><th>Joueur</th><th>Montant</th><th>Statut</th><th>Enregistr√© par</th><th>Date / heure</th></tr></thead><tbody>'+body+'</tbody></table><p class="payment-print-foot">Rapport de suivi manuel des paiements sur place ‚Äî SW√â Tournament.</p></div>';
-  document.body.appendChild(host);
-  requestAnimationFrame(()=>setTimeout(()=>window.print(),40));
-}
-
-async function bootPaymentDesk(token){
-  S.publicMode=true;
-  if(window.__swePublicRegistrationInterval){clearInterval(window.__swePublicRegistrationInterval);window.__swePublicRegistrationInterval=null;}
-  $('#auth').classList.add('hidden');
-  $('#main').classList.add('hidden');
-  $('#publicView').classList.remove('hidden');
-  const root=$('#publicView');
-  root.innerHTML='<header class="top"><h1 class="public-title"><img src="./favicon.png?v=4218" class="brand-mark" alt="SW√â">Suivi des paiements sur place</h1><div class="public-sub">SW√â TOURNAMENT 5/5 ‚Ä¢ saisie manuelle uniquement</div></header><div class="card"><div id="paymentDeskContent"><p class="muted">Chargement de la liste des inscrits‚Ä¶</p></div></div>';
-  let snapshot=null;
-  const collectorStorageKey='swe_payment_collector_name';
-  const rememberedCollector=()=>{try{return (localStorage.getItem(collectorStorageKey)||'').trim();}catch(e){return ''}};
-  const saveCollector=(name,remember)=>{try{if(remember&&name.trim())localStorage.setItem(collectorStorageKey,name.trim());else if(!remember)localStorage.removeItem(collectorStorageKey);}catch(e){}};
-  const fmtDateTime=(iso)=>{if(!iso)return '‚Äî';try{return new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(new Date(iso));}catch(e){return iso}};
-  const getCollector=()=>($('#paymentDeskCollector')?.value||'').trim();
-  const ensureCollector=()=>{const n=getCollector();if(!n){toast('Indique ton pr√©nom / nom avant de continuer.');$('#paymentDeskCollector')?.focus();return '';}saveCollector(n,!!$('#paymentDeskRememberCollector')?.checked);return n;};
-  async function loadDesk(){
-    const content=$('#paymentDeskContent');if(!content)return;
-    const {data,error}=await sb.rpc('payment_desk_snapshot',{p_token:token});
-    if(error||!data){content.innerHTML='<h2 class="sectiontitle">Lien indisponible</h2><p class="muted">'+esc(error?.message||'Ce lien de suivi est invalide ou d√©sactiv√©.')+'</p>';return;}
-    snapshot=data;renderDesk();
-  }
-  function currentReport(){
-    const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='waitlist');
-    return {tournament_name:snapshot?.tournament_name,tournament_date:snapshot?.tournament_date,entry_fee_cents:snapshot?.entry_fee_cents||0,
-      players:all.map(r=>({player_name:r.player_name,paid:!!r.manual_paid_at,paid_at:r.manual_paid_at,collector_name:r.manual_paid_collector_name,amount_cents:snapshot?.entry_fee_cents||0})),
-      walkins:(snapshot?.walkins||[]).map(r=>({player_name:r.player_name,paid:true,paid_at:r.paid_at,collector_name:r.collector_name,amount_cents:r.amount_cents,walkin:true}))};
-  }
-  function renderDesk(){
-    const content=$('#paymentDeskContent');if(!content||!snapshot)return;
-    const all=(snapshot.players||[]).filter(r=>r.present||r.registration_status==='late_withdrawal');
-    const confirmed=all.filter(r=>r.registration_status!=='waitlist'&&r.registration_status!=='late_withdrawal'&&!r.is_substitute);
-    const walkins=snapshot.walkins||[];
-    const paidCount=confirmed.filter(r=>!!r.manual_paid_at).length+walkins.length;
-    const unpaidCount=Math.max(0,confirmed.filter(r=>!r.manual_paid_at).length);
-    const price=Number(snapshot.entry_fee_cents||0);
-    const totalCollected=paidCount*price;
-    const savedName=rememberedCollector();
-    content.innerHTML='<div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:230px"><h2 class="sectiontitle" style="margin-bottom:5px">üí∂ '+esc(snapshot.tournament_name||('Sw√© du '+snapshot.tournament_date))+'</h2><div class="muted">üìÖ '+esc(snapshot.tournament_date||'')+'</div><div class="payment-price-highlight">Prix √† payer : <b>'+esc(paymentMoney(price))+'</b> par joueur</div><div class="muted" style="margin-top:5px">Indique ton pr√©nom, puis marque simplement qui a pay√© sur place.</div></div><button id="paymentDeskRefresh">‚Üª Actualiser</button></div>'+ 
-      '<div class="player" style="margin-top:14px;background:#f8fafc"><label for="paymentDeskCollector"><b>üë§ Ton pr√©nom / nom</b></label><input id="paymentDeskCollector" maxlength="60" placeholder="Ex. Laurent" value="'+esc(savedName)+'" autocomplete="name" style="margin-top:6px"><label class="row" style="gap:8px;margin-top:8px;justify-content:flex-start"><input id="paymentDeskRememberCollector" type="checkbox" style="width:auto" '+(savedName?'checked':'')+'><span>M√©moriser ce nom sur cet appareil pour la prochaine fois</span></label><div class="muted" style="margin-top:5px">Le nom est enregistr√© avec chaque validation de paiement.</div></div>'+ 
-      '<div class="grid g3" style="margin-top:14px"><div class="player" style="background:#eef8f2"><b style="font-size:1.2rem">'+paidCount+'</b><div class="muted">Pay√©'+(paidCount>1?'s':'')+'</div></div><div class="player" style="background:#fff3e8"><b style="font-size:1.2rem">'+unpaidCount+'</b><div class="muted">Non pay√©'+(unpaidCount>1?'s':'')+'</div></div><div class="player"><b style="font-size:1.2rem">'+esc(paymentMoney(totalCollected))+'</b><div class="muted">Total encaiss√©</div></div></div>'+ 
-      '<div class="payment-walkin-card"><div><b>‚ûï Joueur absent de la liste</b><div class="muted">S‚Äôil se pr√©sente et paie, ajoute simplement son nom. Le montant utilis√© sera '+esc(paymentMoney(price))+'.</div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input id="paymentDeskWalkinName" maxlength="80" placeholder="Nom / pr√©nom du joueur" style="flex:1;min-width:220px"><button id="paymentDeskAddWalkin" class="primary">Ajouter comme PAY√â</button></div></div>'+ 
-      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px"><div style="flex:1;min-width:220px"><input id="paymentDeskSearch" placeholder="üîé Rechercher un joueur" autocomplete="off"></div><button id="paymentDeskPrint">üñ®Ô∏è Imprimer / Enregistrer PDF</button></div><div id="paymentDeskRows" style="margin-top:10px"></div>'+ 
-      (walkins.length?'<div style="margin-top:16px"><h3 class="sectiontitle">Ajout√©s sur place</h3><div id="paymentDeskWalkins"></div></div>':'')+
-      '<div class="readonly-note" style="margin-top:12px">üîê Lien priv√© : suivi manuel uniquement. √Ä la cl√¥ture du tournoi, un rapport d√©finitif est archiv√© et disponible pour l‚Äôadministrateur.</div>';
-    const rowsBox=$('#paymentDeskRows');
-    const draw=()=>{
-      const q=($('#paymentDeskSearch')?.value||'').trim().toLowerCase();
-      const rows=all.filter(r=>!q||String(r.player_name||'').toLowerCase().includes(q));
-      rowsBox.innerHTML='';
-      if(!rows.length){rowsBox.innerHTML='<p class="muted">Aucun joueur correspondant.</p>';return;}
-      rows.forEach(r=>{
-        const wait=r.registration_status==='waitlist';
-        const withdrawn=r.registration_status==='late_withdrawal';
-        const substitute=!!r.is_substitute;
-        const paid=!!r.manual_paid_at;
-        const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';if(withdrawn){d.style.opacity='.58';d.style.background='#f3f4f6'}
-        const audit=paid&&r.manual_paid_collector_name?'<div class="muted" style="margin-top:3px">Saisi par '+esc(r.manual_paid_collector_name)+' ‚Ä¢ '+esc(fmtDateTime(r.manual_paid_at))+'</div>':'';
-        const statusText=withdrawn?'‚ö†Ô∏è D√©sistement de derni√®re minute':(substitute?'üü† Rempla√ßant':(wait?'‚è≥ Liste d‚Äôattente':'‚úÖ Inscrit confirm√©'));const withdrawalInfo=withdrawn?'<div class="muted" style="margin-top:3px">Retir√© de la feuille active'+(r.withdrawal_note?' ‚Ä¢ '+esc(r.withdrawal_note):'')+'</div>':'';d.innerHTML='<span style="flex:1;min-width:170px"><b>'+esc(r.player_name||'Joueur')+'</b><div class="muted" style="margin-top:3px">'+statusText+(withdrawn?'':' ‚Ä¢ '+esc(paymentMoney(price)))+'</div>'+withdrawalInfo+audit+'</span><span class="guest-badge" style="background:'+(withdrawn?'#e5e7eb':(paid?'#e8f7ec':(wait?'#fff1d6':'#ffe9e7')))+';color:'+(withdrawn?'#4b5563':(paid?'#176a36':(wait?'#9a5b00':'#b3261e')))+'">'+(withdrawn?'D√âSISTEMENT':(paid?'PAY√â':'NON PAY√â'))+'</span>';
-        if(!wait&&!withdrawn){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'‚Ü© Marquer non pay√©':'‚úÖ Marquer pay√©';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);}
-        rowsBox.appendChild(d);
-      });
-    };
-    const walkBox=$('#paymentDeskWalkins');
-    if(walkBox){walkBox.innerHTML='';walkins.forEach(r=>{const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.innerHTML='<span style="flex:1"><b>'+esc(r.player_name)+'</b><div class="muted">PAY√â ‚Ä¢ '+esc(paymentMoney(r.amount_cents||price))+' ‚Ä¢ Saisi par '+esc(r.collector_name||'‚Äî')+' ‚Ä¢ '+esc(fmtDateTime(r.paid_at))+'</div></span><span class="guest-badge" style="background:#e8f7ec;color:#176a36">PAY√â</span>';const del=document.createElement('button');del.className='danger';del.textContent='Retirer';del.onclick=async()=>{if(!confirm('Retirer '+r.player_name+' de la feuille de paiement ?'))return;const {error}=await sb.rpc('payment_desk_delete_walkin',{p_token:token,p_walkin_id:r.id});if(error)return toast(error.message);await loadDesk();};d.appendChild(del);walkBox.appendChild(d);});}
-    $('#paymentDeskSearch').oninput=draw;
-    $('#paymentDeskRefresh').onclick=loadDesk;
-    $('#paymentDeskPrint').onclick=()=>paymentReportPrint(currentReport(),getCollector());
-    $('#paymentDeskAddWalkin').onclick=async()=>{const collector=ensureCollector();if(!collector)return;const name=($('#paymentDeskWalkinName')?.value||'').trim();if(!name){toast('Indique le nom du joueur √† ajouter.');return;}const btn=$('#paymentDeskAddWalkin');btn.disabled=true;const {error}=await sb.rpc('payment_desk_add_walkin',{p_token:token,p_player_name:name,p_collector_name:collector});if(error){btn.disabled=false;return toast(error.message);}await loadDesk();toast(name+' ajout√© comme pay√© ‚úÖ');};
-    const collectorInput=$('#paymentDeskCollector');const rememberBox=$('#paymentDeskRememberCollector');
-    if(collectorInput)collectorInput.onchange=()=>saveCollector(collectorInput.value,!!rememberBox?.checked);
-    if(rememberBox)rememberBox.onchange=()=>saveCollector(collectorInput?.value||'',rememberBox.checked);
-    draw();
-  }
-  await loadDesk();
-}
-
-let publicBootState=null;
-async function bootPublic(token){
-  const key=String(token)+'|'+location.search;
-  if(publicBootState?.key===key){
-    if(publicBootState.loading)return publicBootState.loading;
-    if(publicBootState.loaded)return publicBootState.refresh?.();
-  }
-  const state={key,loaded:false,refresh:null};publicBootState=state;
-  state.loading=loadPublicPage(token,state);
-  try{state.loaded=(await state.loading)!==false;}finally{state.loading=null;}
-}
-async function loadPublicPage(token,bootState){
-  S.publicMode=true;
-  if(window.__sweResolvedShortLink){
-    const r=window.__sweResolvedShortLink;
-    // Inject resolved values into the in-memory URL parameter object only.
-    // The browser address remains the original short URL (?s=...).
-    if(r.tournament)urlParams.set('tournament',r.tournament);
-    if(r.view)urlParams.set('view',r.view);
-    if(r.league)urlParams.set('league',r.league);
-  }
-  sweRememberPublicRegistrationContext();
-  // V40.02 ‚Äî √©tat global pour √©viter qu'un ancien rafra√Æchissement public
-  // reconstruise le formulaire d'inscription √©quipe apr√®s validation du code.
-  window.__swePublicTeamEditing=false;
-  if(window.__swePublicRegistrationInterval){
-    clearInterval(window.__swePublicRegistrationInterval);
-    window.__swePublicRegistrationInterval=null;
-  }
-  $('#auth').classList.add('hidden');
-  $('#main').classList.add('hidden');
-  $('#publicView').classList.remove('hidden');
-  let parsed;
-  try{
-    const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
-    if(error)throw error;
-    if(!data)throw new Error('Lien public invalide ou d√©sactiv√©.');
-    parsed=data;
-  }catch(e){
-    $('#publicWorkspaceName').textContent='Lien indisponible';
-    $('#publicSeasonScorers').innerHTML='<p class="muted">'+esc(e.message||e)+'</p>';
-    return false;
-  }
-  const P=parsed;
-  let ratingGroupName='';
-  let refreshSeasonRankings=()=>{};
-  const pageParams=swePublicParams();
-  const viewedTournament=pageParams.get('history')||pageParams.get('tournament');
-  const viewedLeague=pageParams.get('league');
-  window.swePageViewContext={page:pageParams.get('history')?'history':viewedTournament?'registration':viewedLeague?'league':'workspace',token,id:viewedTournament||viewedLeague||null};
-  document.dispatchEvent(new Event('swe:page-view'));
-  const publicThirdHalf=!!P.workspace?.third_half_enabled;
-  $('#publicWorkspaceName').textContent=P.workspace?.name||'SW√â TOURNAMENT 5/5';
-  let players=P.players||[],seasons=P.seasons||[],leagues=P.leagues||[],leaguePlayers=P.league_players||[],tournaments=(P.tournaments||[]).sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
-  let teams=P.teams||[],teamPlayers=P.team_players||[],teamInvitations=P.team_player_invitations||[],matches=P.matches||[],goals=P.goals||[],matchAssignments=P.match_player_assignments||[];
-  const publicPlayerRatingsEnabled=!!P.features?.player_ratings_enabled&&!!P.features?.top_player_enabled;
-  const publicTeamReviewEnabled=!!P.features?.team_review_enabled;
-  const publicTeamReviewStates=P.team_review_states||[];
-  S.sportsComplexes=P.sports_complexes||[];
-  S.sportsPitches=P.sports_pitches||[];
-  let registrations=P.tournament_players||[];
-  let tournamentGroupLevels=P.tournament_group_levels||[];
-  const publicParamsTop=swePublicParams();
-  const requestedPublicView=publicParamsTop.get('view')||'';
-  const legacyMode=publicParamsTop.get('mode')||'';
-  const leagueJoinId=publicParamsTop.get('league');
-  const isLeagueRegistration=(requestedPublicView==='league')||(!requestedPublicView&&legacyMode==='league'&&leagueJoinId&&!publicParamsTop.get('tournament'));
-  if(isLeagueRegistration&&leagueJoinId&&!publicParamsTop.get('tournament')){
-    const league=leagues.find(l=>l.id===leagueJoinId);
-    if(!league){
-      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SW√â">SW√â TOURNAMENT 5/5</h1></header><div class="card"><p>Ligue introuvable.</p></div>';return;
-    }
-
-    const groupMembers=players.filter(p=>p.active&&p.is_group_member!==false).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-    const confirmedIds=new Set(leaguePlayers.filter(lp=>lp.league_id===league.id&&lp.status==='confirmed').map(lp=>lp.player_id));
-    const confirmedMembers=players.filter(p=>p.active&&confirmedIds.has(p.id)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-
-    // Une Ligue = une succession de Sw√©s. Chaque Sw√© de Ligue correspond √† UN match long (~60 min).
-    // Les statistiques ci-dessous ne prennent que les Sw√©s rattach√©s √† CETTE Ligue.
-    const leagueSessions=tournaments
-      .filter(t=>t.format==='league'&&t.league_id===league.id)
-      .sort((a,b)=>String(a.tournament_date).localeCompare(String(b.tournament_date)));
-    const leagueTournamentIds=new Set(leagueSessions.map(t=>t.id));
-    const leagueMatches=matches
-      .filter(m=>leagueTournamentIds.has(m.tournament_id))
-      .sort((a,b)=>{
-        const ta=leagueSessions.find(t=>t.id===a.tournament_id),tb=leagueSessions.find(t=>t.id===b.tournament_id);
-        return String(ta?.tournament_date||'').localeCompare(String(tb?.tournament_date||''))||(Number(a.match_order||0)-Number(b.match_order||0));
-      });
-    const leagueMatchIds=new Set(leagueMatches.map(m=>m.id));
-
-    // Inclure tous les joueurs ayant r√©ellement particip√© √† la Ligue, y compris les "1√®re fois".
-    const leaguePlayerIds=new Set(confirmedIds);
-    const leagueTeamIds=new Set();
-    leagueMatches.forEach(m=>{leagueTeamIds.add(m.home_team_id);leagueTeamIds.add(m.away_team_id);});
-    teamPlayers.filter(tp=>leagueTeamIds.has(tp.team_id)).forEach(tp=>leaguePlayerIds.add(tp.player_id));
-    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{
-      if(g.scorer_player_id)leaguePlayerIds.add(g.scorer_player_id);
-      if(g.assister_player_id)leaguePlayerIds.add(g.assister_player_id);
-    });
-    const leaguePeople=players.filter(p=>leaguePlayerIds.has(p.id));
-    const leagueStats=new Map(leaguePeople.map(p=>[p.id,{id:p.id,name:p.name,g:0,a:0,w:0}]));
-
-    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{
-      if(leagueStats.has(g.scorer_player_id))leagueStats.get(g.scorer_player_id).g++;
-      if(g.assister_player_id&&leagueStats.has(g.assister_player_id))leagueStats.get(g.assister_player_id).a++;
-    });
-
-    // Top Player = nombre de Sw√©s / matchs de Ligue gagn√©s.
-    leagueMatches.forEach(m=>{
-      const hs=Number(m.home_score||0),as=Number(m.away_score||0);
-      if(hs===as)return;
-      const winnerId=hs>as?m.home_team_id:m.away_team_id;
-      teamPlayers.filter(tp=>tp.team_id===winnerId).forEach(tp=>{
-        if(leagueStats.has(tp.player_id))leagueStats.get(tp.player_id).w++;
-      });
-    });
-
-    let leagueScorers=[...leagueStats.values()].filter(x=>x.g>0).sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
-    let prevGoals=null,goalRank=0;
-    leagueScorers=leagueScorers.map((x,i)=>{if(x.g!==prevGoals){goalRank=i+1;prevGoals=x.g}return {...x,rank:goalRank}});
-
-    let leagueAssists=[...leagueStats.values()].filter(x=>x.a>0).sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
-    let prevAssists=null,assistRank=0;
-    leagueAssists=leagueAssists.map((x,i)=>{if(x.a!==prevAssists){assistRank=i+1;prevAssists=x.a}return {...x,rank:assistRank}});
-
-    let leagueWinners=[...leagueStats.values()].filter(x=>x.w>0).sort((a,b)=>b.w-a.w||b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
-    let prevWins=null,winRank=0;
-    leagueWinners=leagueWinners.map((x,i)=>{if(x.w!==prevWins){winRank=i+1;prevWins=x.w}return {...x,rank:winRank}});
-
-    const scorersHtml=leagueScorers.slice(0,10).map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but enregistr√© pour le moment.</p>';
-    const assistsHtml=leagueAssists.slice(0,10).map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe enregistr√©e pour le moment.</p>';
-    const winnersHtml=leagueWinners.slice(0,10).map(x=>'<div class="rank"><b>'+(x.rank===1?'üëë':x.rank)+'</b><span><b>'+esc(x.name)+'</b><div class="muted">Top Player ‚Ä¢ victoires en Sw√© de Ligue</div></span><b class="right">'+x.w+' victoire'+(x.w>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune victoire individuelle enregistr√©e pour le moment.</p>';
-
-    const memberHtml=confirmedMembers.map((p,i)=>{
-      const first=p.temporary_league_member&&p.league_origin_id===league.id;
-      return '<div class="player row"><span style="flex:1"><b>'+esc(p.name)+'</b>'+(first?' <span class="guest-badge">üÜï 1√®re fois</span>':'')+'</span><span class="muted">#'+(i+1)+'</span></div>';
-    }).join('')||'<p class="muted">Aucun membre inscrit pour le moment.</p>';
-
-    const prizeHtml=league.prizes_enabled
-      ? '<div class="card" style="background:linear-gradient(145deg,#fff8df,#fffdf5);border:1px solid #f4df9f"><h2 class="sectiontitle">üéÅ Lots de la Ligue</h2>'+
-        '<div class="muted" style="margin-bottom:8px">Des lots sont pr√©vus pour le classement des buteurs.</div>'+
-        '<div class="player">ü•á <b>1er buteur :</b> '+esc(league.prize_first||'Lot √† d√©finir ult√©rieurement')+'</div>'+
-        '<div class="player">ü•à <b>2e buteur :</b> '+esc(league.prize_second||'Lot √† d√©finir ult√©rieurement')+'</div>'+
-        '<div class="player">ü•â <b>3e buteur :</b> '+esc(league.prize_third||'Lot √† d√©finir ult√©rieurement')+'</div></div>'
-      : '';
-
-    // Dernier Sw√© de Ligue ayant effectivement un match : afficher UNIQUEMENT ses deux √©quipes.
-    const sessionsWithMatch=leagueSessions.filter(s=>leagueMatches.some(m=>m.tournament_id===s.id));
-    const latestLeagueSession=sessionsWithMatch.length?sessionsWithMatch[sessionsWithMatch.length-1]:null;
-    const latestLeagueMatches=latestLeagueSession?leagueMatches.filter(m=>m.tournament_id===latestLeagueSession.id):[];
-    // Le format attendu est 1 Sw√© = 1 match de 60 min. Si plusieurs anciens matchs existent, on montre le dernier enregistr√©.
-    const latestLeagueMatch=latestLeagueMatches.length?latestLeagueMatches[latestLeagueMatches.length-1]:null;
-
-    let latestSweHtml='';
-    if(latestLeagueSession&&latestLeagueMatch){
-      const home=teams.find(t=>t.id===latestLeagueMatch.home_team_id);
-      const away=teams.find(t=>t.id===latestLeagueMatch.away_team_id);
-      const involved=[home,away].filter(Boolean);
-      const cards=involved.map(team=>{
-        const members=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>players.find(p=>p.id===tp.player_id)).filter(Boolean);
-        const isWinner=Number(latestLeagueMatch.home_score||0)!==Number(latestLeagueMatch.away_score||0) &&
-          ((Number(latestLeagueMatch.home_score||0)>Number(latestLeagueMatch.away_score||0)&&team.id===latestLeagueMatch.home_team_id)||
-           (Number(latestLeagueMatch.away_score||0)>Number(latestLeagueMatch.home_score||0)&&team.id===latestLeagueMatch.away_team_id));
-        return '<div class="public-team-card">'+
-          '<div class="public-team-head"><div>'+(isWinner?'üëë ':'')+esc(team.name)+'</div>'+(isWinner?'<div class="public-team-shirt">üèÜ Vainqueur du dernier Sw√©</div>':'')+'</div>'+
-          '<div class="public-team-players">'+(members.map(pl=>'<div class="public-team-player">'+esc(pl.name)+'</div>').join('')||'<div class="muted">Composition non enregistr√©e</div>')+'</div>'+
-        '</div>';
-      }).join('');
-      const mg=goals.filter(g=>g.match_id===latestLeagueMatch.id);
-      const goalLines=mg.map(g=>{
-        const scorer=players.find(p=>p.id===g.scorer_player_id);
-        const assister=g.assister_player_id?players.find(p=>p.id===g.assister_player_id):null;
-        return '<div class="small" style="margin-top:5px">‚öΩ '+esc(scorer?.name||'?')+(assister?' <span class="muted">‚Üê passe '+esc(assister.name)+'</span>':'')+'</div>';
-      }).join('');
-      latestSweHtml=
-        '<div class="card"><div class="row" style="justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">'+
-          '<div><h2 class="sectiontitle">üî• Dernier Sw√© de Ligue</h2><div class="muted">'+esc(latestLeagueSession.name||latestLeagueSession.tournament_date)+' ‚Ä¢ '+esc(latestLeagueSession.tournament_date)+' ‚Ä¢ 1 match d‚Äôenviron 60 min</div></div>'+
-          '<span class="guest-badge">FORMAT LIGUE</span>'+
-        '</div>'+
-        '<div class="player" style="margin-top:10px"><div class="row" style="justify-content:space-between;gap:8px"><b>'+esc(home?.name||'√âquipe A')+'</b><span class="score">'+Number(latestLeagueMatch.home_score||0)+' - '+Number(latestLeagueMatch.away_score||0)+'</span><b>'+esc(away?.name||'√âquipe B')+'</b></div>'+(goalLines?'<div style="margin-top:8px">'+goalLines+'</div>':'')+'</div>'+
-        '<h3 style="margin-top:15px">üë• Les √©quipes qui se sont affront√©es</h3><div id="publicLeagueLastTeams" style="display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px">'+cards+'</div>'+
-        '</div>';
-    }else{
-      latestSweHtml='<div class="card" style="background:#f8fbf9"><h2 class="sectiontitle">üî• Dernier Sw√© de Ligue</h2><p class="muted">Aucun match de Ligue n‚Äôa encore √©t√© enregistr√©.</p></div>';
-    }
-
-    $('#publicView').innerHTML=
-      '<header class="top"><h1>üèÅ '+esc(league.name)+'</h1><div class="public-sub">SW√â TOURNAMENT 5/5 ‚Ä¢ Ligue ‚Ä¢ 1 Sw√© = 1 match d‚Äôenviron 60 min</div></header>'+
-      '<div class="card"><h2 class="sectiontitle">üìÖ Saison de la Ligue</h2><div class="player"><b>D√©but :</b> '+esc(league.starts_on)+'</div><div class="player"><b>Fin :</b> '+esc(league.ends_on||'Non d√©finie')+'</div><div class="muted" style="margin-top:8px">Contrairement au format Tournoi (environ 5 √† 8 matchs sur 2h), un Sw√© de Ligue correspond √† un seul match long d‚Äôenviron 60 minutes.</div></div>'+
-      '<div class="grid g3">'+
-        '<div class="card"><h2 class="sectiontitle">‚öΩ Meilleurs buteurs</h2>'+scorersHtml+'</div>'+
-        '<div class="card"><h2 class="sectiontitle">üéØ Meilleurs passeurs</h2>'+assistsHtml+'</div>'+
-        '<div class="card"><h2 class="sectiontitle">üëë Top Player</h2><div class="muted" style="margin-bottom:8px">Classement par nombre de Sw√©s de Ligue gagn√©s.</div>'+winnersHtml+'</div>'+
-      '</div>'+
-      latestSweHtml+
-      prizeHtml+
-      '<div class="card"><h2 class="sectiontitle">Rejoindre la Ligue</h2><p class="muted">Si tu es d√©j√† membre du groupe, s√©lectionne ton nom. Sinon, l‚Äôoption ¬´ 1√®re fois ¬ª reste disponible uniquement pour l‚Äôinscription √† la Ligue.</p>'+
-      '<select id="publicLeaguePlayer"><option value="">Choisis ton nom</option>'+groupMembers.map(p=>'<option value="'+p.id+'">'+esc(p.name)+(confirmedIds.has(p.id)?' ‚Ä¢ d√©j√† inscrit':'')+'</option>').join('')+'</select>'+
-      '<div class="space"></div><div class="row"><button id="publicLeagueJoin" class="primary">Je rejoins la Ligue</button><button id="publicLeagueLeave">Me retirer</button></div><div id="publicLeagueStatus" class="muted" style="margin-top:8px"></div>'+
-      '<div class="player" style="margin-top:14px;background:#f8fbf9"><b>üÜï Premi√®re fois avec le groupe ?</b><div class="muted" style="margin:5px 0 8px">Entre ton nom pour t‚Äôinscrire √† cette Ligue. Tu pourras participer aux prochains Sw√©s de Ligue.</div><input id="publicNewLeaguePlayerName" maxlength="60" placeholder="Ton pr√©nom / nom"><div class="space"></div><button id="publicNewLeagueJoin" class="primary">M‚Äôinscrire pour cette Ligue</button><div id="publicNewLeagueStatus" class="muted" style="margin-top:8px"></div></div></div>'+
-      '<div class="card"><h2 class="sectiontitle">üë• Membres de la Ligue ('+confirmedMembers.length+')</h2><div class="readonly-note" style="margin-bottom:10px"><b>Attention :</b> cette liste correspond aux membres de la Ligue. Elle ne signifie pas qu‚Äôils participent au prochain Sw√©. Chaque Sw√© n√©cessite une inscription s√©par√©e.</div><div id="publicLeagueMembers">'+memberHtml+'</div></div>';
-
-    $('#publicLeagueJoin').onclick=async()=>{
-      const pid=$('#publicLeaguePlayer').value;
-      if(!pid)return $('#publicLeagueStatus').textContent='Choisis ton nom.';
-      const {error}=await sb.rpc('public_league_registration',{p_token:token,p_league_id:league.id,p_player_id:pid,p_action:'join'});
-      if(error)return $('#publicLeagueStatus').textContent=error.message;
-      $('#publicLeagueStatus').textContent='üü¢ Participation √† la Ligue confirm√©e !';
-      setTimeout(()=>location.reload(),500);
-    };
-    $('#publicLeagueLeave').onclick=async()=>{
-      const pid=$('#publicLeaguePlayer').value;
-      if(!pid)return $('#publicLeagueStatus').textContent='Choisis ton nom.';
-      const {error}=await sb.rpc('public_league_registration',{p_token:token,p_league_id:league.id,p_player_id:pid,p_action:'leave'});
-      if(error)return $('#publicLeagueStatus').textContent=error.message;
-      $('#publicLeagueStatus').textContent='Inscription retir√©e.';
-      setTimeout(()=>location.reload(),500);
-    };
-    $('#publicNewLeagueJoin').onclick=async()=>{
-      const name=$('#publicNewLeaguePlayerName').value.trim();
-      if(!name)return $('#publicNewLeagueStatus').textContent='Entre ton nom.';
-      const b=$('#publicNewLeagueJoin');b.disabled=true;
-      const {error}=await sb.rpc('public_register_new_league_player',{p_token:token,p_league_id:league.id,p_name:name});
-      b.disabled=false;
-      if(error)return $('#publicNewLeagueStatus').textContent=error.message;
-      $('#publicNewLeagueStatus').textContent='üü¢ Inscription confirm√©e ! Ton nom est ajout√© aux membres de cette Ligue pour la saison.';
-      setTimeout(()=>location.reload(),600);
-    };
-    return;
-  }
-
-  const historyId=swePublicParams().get('history');
-  if(historyId){
-    // The shared registration link is never modified. We only remember its context locally
-    // so every "Retour" from history returns to the exact tournament / Sw√© that opened it.
-
-    const ht=tournaments.find(x=>x.id===historyId);
-    if(!ht){
-      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SW√â">SW√â TOURNAMENT 5/5</h1></header><div class="card"><p>Tournoi introuvable.</p><button id="backPublic">‚Üê Retour √† mon inscription</button></div>';
-      $('#backPublic').onclick=()=>location.href=publicHistoryBackUrl(token);
-      return;
-    }
-    const tteams=teams.filter(x=>x.tournament_id===ht.id);
-    const tmatches=matches.filter(x=>x.tournament_id===ht.id).sort((a,b)=>(a.match_order||0)-(b.match_order||0));
-    const mids=new Set(tmatches.map(m=>m.id));
-    const tgoals=goals.filter(g=>mids.has(g.match_id));
-    const tmap2=new Map(tteams.map(x=>[x.id,x.name]));
-    const pmap2=new Map(players.map(x=>[x.id,x]));
-    const standings=tteams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
-    const sm=new Map(standings.map(x=>[x.id,x]));
-    tmatches.forEach(m=>{
-      const a=sm.get(m.home_team_id),z=sm.get(m.away_team_id);if(!a||!z)return;
-      a.mj++;z.mj++;a.bp+=m.home_score;a.bc+=m.away_score;z.bp+=m.away_score;z.bc+=m.home_score;
-      if(m.home_score>m.away_score){a.v++;z.d++;a.pts+=3}else if(m.away_score>m.home_score){z.v++;a.d++;z.pts+=3}else{a.n++;z.n++;a.pts++;z.pts++}
-    });
-    standings.sort((a,z)=>z.pts-a.pts||(z.bp-z.bc)-(a.bp-a.bc)||z.bp-a.bp);
-    const teamRows=standings.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ ‚Ä¢ '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
-    const stats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false,guest_of:x.guest_of_player_id}]));
-    tgoals.forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++});
-    let scor=[...stats.values()].filter(x=>x.g).sort((a,z)=>z.g-a.g||a.name.localeCompare(z.name));
-    let prev=null,rank=0;scor=scor.map((x,i)=>{if(x.g!==prev){rank=i+1;prev=x.g}return {...x,rank}});
-    let ass=[...stats.values()].filter(x=>x.a).sort((a,z)=>z.a-a.a||a.name.localeCompare(z.name));
-    let ap=null,ar=0;ass=ass.map((x,i)=>{if(x.a!==ap){ar=i+1;ap=x.a}return {...x,rank:ar}});
-    const historyRankRows=(arr,type,expanded=false)=>{
-      const visible=expanded?arr:arr.slice(0,10);
-      return visible.map((x,i)=>{
-        const right=type==='g'?(x.g+' but'+(x.g>1?'s':'')):type==='a'?(x.a+' passe'+(x.a>1?'s':'')):('‚≠ê '+x.avg.toFixed(1));
-        const pos=type==='top'?(i===0?'üëë':(i+1)):x.rank;
-        const extra=type==='top'?'<div class="muted">'+x.matches+' match'+(x.matches>1?'s':'')+' ‚Ä¢ ‚öΩ '+x.g+' ‚Ä¢ üéØ '+x.a+'</div>':'';
-        return '<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+pos+'</b><span><b>'+esc(x.name)+'</b>'+extra+'</span><b class="right">'+right+'</b></div>';
-      }).join('');
-    };
-    const histTop=publicPlayerRatingsEnabled?topPlayersFromData(tmatches,tgoals,matchAssignments,players,new Set([ht.id])):[];
-    const matchRows=tmatches.map((m,i)=>{
-      const mg=tgoals.filter(g=>g.match_id===m.id);
-      const goalBlock=(teamId)=>{
-        const rows=mg.filter(g=>String(g.team_id)===String(teamId)).map(g=>{
-          const sc=pmap2.get(g.scorer_player_id),as=g.assister_player_id?pmap2.get(g.assister_player_id):null;
-          return '<div class="small" style="margin-top:5px">‚öΩ '+esc(sc?.name||'?')+(as?' <span class="muted">‚Üê '+esc(as.name)+'</span>':'')+'</div>';
-        }).join('');
-        return rows||'<div class="small muted" style="margin-top:5px">Aucun buteur</div>';
-      };
-      const rated=publicPlayerRatingsEnabled?matchAssignments.filter(a=>a.match_id===m.id&&a.team_id).map(a=>{
-        const pl=pmap2.get(a.player_id),rr=ratingForMatchPlayer(m,a.player_id,a.team_id,tgoals);
-        return rr&&pl?{name:pl.name,r:rr.rating,team:a.team_id}:null;
-      }).filter(Boolean):[];
-      const best= rated.length?Math.max(...rated.map(x=>x.r)):null;
-      const noteCol=(teamId)=>{
-        const rows=rated.filter(x=>String(x.team)===String(teamId)).sort((a,b)=>b.r-a.r||a.name.localeCompare(b.name));
-        return rows.map(n=>'<div class="small" style="padding:4px 0">'+(n.r===best?'‚≠ê ':'')+esc(n.name)+' <b style="float:right">'+n.r.toFixed(1)+'/10</b></div>').join('')||'<div class="small muted">Aucune note</div>';
-      };
-      const notesHtml=publicPlayerRatingsEnabled?'<div class="notes-columns" style="margin-top:10px">'+
-        '<div class="player notes-column" style="margin:0"><b>'+esc(tmap2.get(m.home_team_id)||'?')+'</b>'+noteCol(m.home_team_id)+'</div>'+
-        '<div class="player notes-column" style="margin:0"><b>'+esc(tmap2.get(m.away_team_id)||'?')+'</b>'+noteCol(m.away_team_id)+'</div>'+
-        '</div>':'';
-      return '<div class="player"><div class="muted">Match '+(i+1)+(m.pitch?' ‚Ä¢ '+esc(m.pitch):'')+'</div>'+
-        '<div class="history-scoreline" style="margin-top:6px">'+
-          '<b class="history-team-name">'+esc(tmap2.get(m.home_team_id)||'?')+'</b>'+
-          '<div class="score">'+m.home_score+' - '+m.away_score+'</div>'+
-          '<b class="history-team-name">'+esc(tmap2.get(m.away_team_id)||'?')+'</b>'+
-          '<div class="history-goals home">'+goalBlock(m.home_team_id)+'</div>'+
-          '<div class="history-goals away">'+goalBlock(m.away_team_id)+'</div>'+
-        '</div>'+notesHtml+'</div>';
-    }).join('');
-    const standingOrder=new Map(standings.map((x,i)=>[x.id,i]));
-    const sortedHistoryTeams=tteams.slice().sort((a,b)=>(standingOrder.get(a.id)??999)-(standingOrder.get(b.id)??999)||String(a.name).localeCompare(String(b.name)));
-    const teamsRows='<div style="display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px">'+sortedHistoryTeams.map(team=>{
-      const ids=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>tp.player_id);
-      const rank=(standingOrder.get(team.id)??999)+1;
-      return '<div class="team" style="min-width:230px;flex:0 0 230px;'+(rank===1?'border:2px solid #d6a800;box-shadow:0 3px 12px rgba(214,168,0,.14);':'')+'"><div class="row" style="justify-content:space-between"><b>'+(rank===1?'üëë ':'')+esc(team.name)+'</b><span class="guest-badge">'+(rank===1?'üèÜ Vainqueur':'#'+rank)+'</span></div>'+ids.map(id=>'<div class="small" style="margin-top:6px">'+esc(pmap2.get(id)?.name||'?')+'</div>').join('')+'</div>';
-    }).join('')+'</div>';
-    $('#publicView').innerHTML=
-      '<header class="top"><div class="row" style="justify-content:space-between"><div><h1>‚öΩ '+esc(ht.name||'SW√â TOURNAMENT 5/5')+'</h1><div class="public-sub">'+ht.tournament_date+' ‚Ä¢ Historique</div></div><button id="backPublic">‚Üê Retour</button></div></header>'+
-      '<div class="card"><h2 class="sectiontitle">üë• √âquipes</h2>'+ (teamsRows||'<p class="muted">Aucune √©quipe.</p>') +'</div>'+
-      '<div class="card"><h2 class="sectiontitle">üèÜ Classement final</h2>'+ (teamRows||'<p class="muted">Aucun classement.</p>') +'</div>'+
-      '<div class="grid g2"><div class="card"><h2 class="sectiontitle">‚öΩ Buteurs</h2><div id="historyScorersBox">'+(historyRankRows(scor,'g')||'<p class="muted">Aucun buteur.</p>')+'</div>'+(scor.length>10?'<button id="historyToggleScorers" style="margin-top:10px">D√©velopper</button>':'')+'</div>'+
-      '<div class="card"><h2 class="sectiontitle">üéØ Passeurs</h2><div id="historyAssistsBox">'+(historyRankRows(ass,'a')||'<p class="muted">Aucun passeur.</p>')+'</div>'+(ass.length>10?'<button id="historyToggleAssists" style="margin-top:10px">D√©velopper</button>':'')+'</div></div>'+
-      (publicPlayerRatingsEnabled?'<div class="card"><h2 class="sectiontitle">‚≠ê Top Player du tournoi</h2><div class="muted" style="margin-bottom:8px">Classement des meilleures performances individuelles du tournoi.</div><div id="historyTopPlayerBox">'+(historyRankRows(histTop,'top')||'<p class="muted">Aucune note disponible.</p>')+'</div>'+(histTop.length>10?'<button id="historyToggleTopPlayer" style="margin-top:10px">D√©velopper</button>':'')+'</div>':'')+
-      '<div class="card"><h2 class="sectiontitle">üìã R√©sultats & notes</h2>'+ (matchRows||'<p class="muted">Aucun match.</p>') +'</div>';
-    let histScExpanded=false,histAssExpanded=false,histTopExpanded=false;
-    if($('#historyToggleScorers'))$('#historyToggleScorers').onclick=()=>{histScExpanded=!histScExpanded;$('#historyScorersBox').innerHTML=historyRankRows(scor,'g',histScExpanded);$('#historyToggleScorers').textContent=histScExpanded?'R√©duire':'D√©velopper';};
-    if($('#historyToggleAssists'))$('#historyToggleAssists').onclick=()=>{histAssExpanded=!histAssExpanded;$('#historyAssistsBox').innerHTML=historyRankRows(ass,'a',histAssExpanded);$('#historyToggleAssists').textContent=histAssExpanded?'R√©duire':'D√©velopper';};
-    if($('#historyToggleTopPlayer'))$('#historyToggleTopPlayer').onclick=()=>{histTopExpanded=!histTopExpanded;$('#historyTopPlayerBox').innerHTML=historyRankRows(histTop,'top',histTopExpanded);$('#historyToggleTopPlayer').textContent=histTopExpanded?'R√©duire':'D√©velopper';};
-    $('#backPublic').onclick=()=>location.href=publicHistoryBackUrl(token);
-    return;
-  }
-  const openTours=[...tournaments].filter(t=>t.status!=='finished'&&t.registration_open).sort((a,b)=>String(a.tournament_date).localeCompare(String(b.tournament_date)));
-  const publicParams=swePublicParams();
-  const requestedTournament=publicParams.get('tournament');
-  const requestedView=publicParams.get('view')||'';
-  const requestedMode=publicParams.get('mode')||'';
-  const wantsLeagueSession=requestedView==='league-session'||(!requestedView&&requestedMode==='league_session');
-  const wantsTournament=requestedView==='tournament'||(!requestedView&&requestedMode==='tournament');
-  const modeMatches=t=>wantsLeagueSession?t.format==='league':(wantsTournament?t.format!=='league':true);
-  const consultationOnly=!requestedTournament&&!requestedView&&!requestedMode&&!publicParams.get('league')&&!publicParams.get('history');
-  let regTour=null;
-  if(requestedTournament){
-    regTour=tournaments.find(t=>t.id===requestedTournament&&modeMatches(t))||null;
-  }else if(!consultationOnly&&(wantsLeagueSession||wantsTournament)){
-    regTour=openTours.find(modeMatches)||null;
-  }
-  const regBox=$('#publicRegistration');
-  let registrationPresentation=null;
-  let registrationCoorganizers=[],registrationRatingWindows=[],registrationIsCoorganizer=false,registrationPersonalInstruction='';
-  let presentationMetadataAt=0;
-  async function loadPresentationMetadata(){
-    if(!regTour||regTour.format==='league'||Date.now()-presentationMetadataAt<30000)return;
-    presentationMetadataAt=Date.now();
-    const session=await sb.auth.getSession();
-    registrationIsCoorganizer=false;registrationCoorganizers=[];registrationRatingWindows=[];registrationPersonalInstruction='';
-    if(!session.data?.session){registrationPresentation?.updateMissions();return;}
-    const {data,error}=await sb.rpc('get_my_tournament_presentation_v1',{p_tournament_id:regTour.id});
-    if(error||!data){registrationPresentation?.updateMissions();return;}
-    registrationIsCoorganizer=data.is_coorganizer===true;
-    registrationPersonalInstruction=String(data.personal_instructions||'').trim();
-    registrationCoorganizers=data.is_coorganizer&&data.my_player_id?[data.my_player_id]:[];registrationRatingWindows=data.tournament_rating_windows||[];
-    registrationPresentation?.updateMissions();
-  }
-  if(requestedTournament&&!regTour){
-    $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SW√â">SW√â TOURNAMENT 5/5</h1></header><div class="card"><h2 class="sectiontitle">Lien d‚Äôinscription indisponible</h2><p class="muted">Ce lien ne correspond pas √† une inscription ouverte, ou le type de comp√©tition ne correspond pas au lien g√©n√©r√©. Aucun autre tournoi ni aucune Ligue ne sera affich√© √† sa place.</p></div>';
-    return;
-  }
-
-  // V40.02 ‚Äî informations utiles visibles d√®s la premi√®re page, avant le choix solo/√©quipe.
-  function renderPublicQuickStats(){
-    const box=$('#publicQuickStats');
-    if(!box)return;
-    if(!regTour){box.innerHTML='';return;}
-    const activeRegs=registrations.filter(r=>r.tournament_id===regTour.id&&r.present);
-    const confirmed=activeRegs.filter(r=>r.registration_status!=='waitlist').length;
-    const waiting=activeRegs.filter(r=>r.registration_status==='waitlist').length;
-    const substitutes=activeRegs.filter(r=>r.registration_status!=='waitlist'&&r.is_substitute).length;
-    const maxPlayers=Number(regTour.max_players||35);
-    const remaining=Math.max(0,maxPlayers-confirmed);
-    const fee=(Number(regTour.entry_fee_cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:Number(regTour.entry_fee_cents||0)%100?2:0,maximumFractionDigits:2});
-    let deadline='√Ä pr√©ciser';
-    if(regTour.registration_deadline){
-      const d=new Date(regTour.registration_deadline);
-      if(!Number.isNaN(d.getTime())) deadline=d.toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',', ' ‚Ä¢');
-    }
-    const item=(icon,label,value,extra='')=>'<div class="player" style="margin:0;background:#fbfaf6;border:1px solid #eadfca;min-height:74px"><div class="muted" style="font-size:.78rem">'+icon+' '+label+'</div><div style="font-size:1.08rem;font-weight:900;margin-top:3px">'+value+'</div>'+(extra?'<div class="muted" style="font-size:.75rem;margin-top:2px">'+extra+'</div>':'')+'</div>';
-    box.innerHTML=
-      item('üë•','Inscrits',activeRegs.length+' / '+maxPlayers,(substitutes?substitutes+' rempla√ßant'+(substitutes>1?'s':''):'')+(waiting?(substitutes?' ‚Ä¢ ':'')+waiting+' en attente':''))+
-      item('üéüÔ∏è','Places restantes',Math.max(0,maxPlayers-activeRegs.length),activeRegs.length>=maxPlayers?'Complet ‚Äî liste d‚Äôattente':'')+
-      (()=>{
-        const gl=tournamentGroupLevels.find(x=>String(x.tournament_id)===String(regTour.id));
-        const score=gl&&Number.isFinite(Number(gl.avg_rating))?Number(gl.avg_rating):null;
-        const label=score===null?'En cours d‚Äô√©valuation':(score<1.5?'√Ä renforcer':score<2.5?'Moyen':score<3.5?'Bon':score<4.5?'Tr√®s bon':'Excellent');
-        return item('‚ö°','Niveau du groupe',score===null?label:(score.toFixed(1).replace('.',',')+' / 5 ‚Äî '+label),'G√©n√©r√© automatiquement en fonction du niveau des joueurs du groupe.');
-      })()+
-      item('üìÖ','Rendez-vous',esc(regTour.tournament_date||'√Ä pr√©ciser')+(regTour.start_time?' ‚Ä¢ '+esc(String(regTour.start_time).slice(0,5)):''),esc(regTour.venue||'Terrain √† pr√©ciser'))+
-      item('‚è≥','Fin des inscriptions',esc(deadline))+
-      item('üí∂','Participation',fee+' ‚Ç¨','par joueur');
-  }
-  renderPublicQuickStats();
-
-  function publicGuestLabel(pl){
-    if(!pl)return '';
-    if(pl.is_group_member!==false)return 'Membre du groupe';
-    const host=players.find(x=>x.id===pl.guest_of_player_id);
-    return host?'Guest de '+host.name:'Guest';
-  }
-  function isFirstTimePublicPlayer(playerId,tournamentId){
-    if(regTour?.format!=='league')return false;
-    const pl=players.find(x=>x.id===playerId);
-    if(!pl||pl.is_group_member!==false)return false;
-    return !registrations.some(r=>r.player_id===playerId&&r.tournament_id!==tournamentId&&r.present);
-  }
-
-  function publicRegistrationSummaryHtml(){
-    if(!regTour)return '';
-    const regs=registrations.filter(r=>r.tournament_id===regTour.id&&r.present&&r.registration_status!=='waitlist');
-    const maxPlayers=Number(regTour.max_players||20);
-    const remainingGlobal=Math.max(0,maxPlayers-regs.length);
-    const tourTeams=teams.filter(t=>t.tournament_id===regTour.id);
-    const ids=new Set(tourTeams.map(t=>t.id));
-    const tpRows=teamPlayers.filter(tp=>ids.has(tp.team_id));
-    const assigned=new Set(tpRows.map(tp=>tp.player_id));
-    const pmap=new Map(players.map(pl=>[pl.id,pl]));
-    const regMap=new Map(regs.map(r=>[r.player_id,r]));
-
-    const guestText=r=>{
-      const pl=pmap.get(r?.player_id);
-      if(pl?.is_group_member!==false)return 'Membre du groupe';
-      const hostId=r?.registered_by_player_id||pl?.guest_of_player_id||null;
-      const host=hostId?pmap.get(hostId):null;
-      return host?'Guest de '+host.name:'Guest';
-    };
-    const colorInfo=team=>{
-      const hex=String(team?.color||'#64748b').toLowerCase();
-      const names={'#111827':'Noir','#2563eb':'Bleu','#f8fafc':'Blanc','#dc2626':'Rouge','#16a34a':'Vert','#eab308':'Jaune','#f97316':'Orange','#7c3aed':'Violet','#ec4899':'Rose','#78350f':'Marron','#64748b':'Gris'};
-      return {hex,label:names[hex]||'Couleur personnalis√©e'};
-    };
-
-    const free=regs.filter(r=>!assigned.has(r.player_id));
-    const freeHtml=free.length
-      ? free.map(r=>{
-          const pl=pmap.get(r.player_id);
-          const guest=guestText(r);
-          const pendingInvite=teamInvitations.find(i=>i.tournament_id===regTour.id&&String(i.player_id)===String(r.player_id)&&i.status==='pending');
-          const pendingTeam=pendingInvite?tourTeams.find(t=>String(t.id)===String(pendingInvite.team_id)):null;
-          const freeState=pendingTeam?'‚è≥ Proposition : '+pendingTeam.name:(r.is_substitute?'üü† Rempla√ßant commun':'üé≤ √âquipe al√©atoire');
-          const when=publicRegistrationDateTime(r.registered_at||r.created_at);
-          return '<div class="player row" style="align-items:flex-start"><span style="flex:1">'+esc(pl?.name||'Joueur')+
-            (guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+
-            (when?'<div class="muted" style="margin-top:3px;font-size:12px">üïí Inscrit le '+esc(when)+'</div>':'')+
-            '</span><span class="muted" style="padding-top:2px">'+esc(freeState)+'</span></div>';
-        }).join('')
-      : '<p class="muted">Aucun joueur en √©quipe al√©atoire.</p>';
-
-    const teamsHtml=tourTeams.length
-      ? tourTeams.map(team=>{
-          const rows=tpRows.filter(tp=>tp.team_id===team.id);
-          const color=colorInfo(team);
-          const pendingRows=teamInvitations.filter(i=>i.tournament_id===regTour.id&&String(i.team_id)===String(team.id)&&i.status==='pending');
-          const membersHtml=(rows.length||pendingRows.length)
-            ? rows.map(tp=>{
-                const pl=pmap.get(tp.player_id);
-                const guest=guestText(regMap.get(tp.player_id));
-                const reg=regMap.get(tp.player_id);
-                const when=publicRegistrationDateTime(reg?.registered_at||reg?.created_at);
-                return '<div style="margin-top:7px">‚úÖ '+esc(pl?.name||'Joueur')+(guest?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin:2px 0 0 22px;font-size:12px">üïí Inscrit le '+esc(when)+'</div>':'')+'</div>';
-              }).join('')+pendingRows.map(inv=>{
-                const pl=pmap.get(inv.player_id);
-                return '<div style="margin-top:4px">‚è≥ '+esc(pl?.name||'Joueur')+' <span class="muted">‚Ä¢ en attente d‚Äôaccord</span></div>';
-              }).join('')
-            : '<div class="muted" style="margin-top:5px">Aucun joueur</div>';
-          return '<div class="player" style="margin-top:8px"><div class="row">'+
-            '<span style="width:18px;height:18px;border-radius:50%;background:'+esc(color.hex)+';border:1px solid #cbd5e1;flex:0 0 auto"></span>'+
-            '<b style="flex:1">'+esc(team.name||'√âquipe')+'</b><span class="muted">'+rows.length+'/5 confirm√©'+(rows.length>1?'s':'')+(pendingRows.length?' ‚Ä¢ '+pendingRows.length+' en attente':'')+'</span></div>'+
-            '<div class="muted" style="margin-top:4px">Couleur : <b>'+esc(color.label)+'</b></div>'+membersHtml+'</div>';
-        }).join('')
-      : '<p class="muted">Aucune √©quipe compos√©e.</p>';
-
-    return '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4"><b>üìä '+regs.length+'/'+maxPlayers+' inscrits</b><div class="muted" style="margin-top:4px"><b>'+remainingGlobal+' place'+(remainingGlobal>1?'s':'')+' restante'+(remainingGlobal>1?'s':'')+'</b> avant d‚Äôatteindre la limite d‚Äôinscrits.</div></div>'+
-           (free.length?'<div class="player" style="margin-top:10px;background:#f8fbf9"><b>üë§ Joueurs en √©quipe al√©atoire</b>'+freeHtml+'</div>':'')+
-           (tourTeams.length?'<div class="player" style="margin-top:10px;background:#f8fbff"><b>üë• √âquipes d√©j√† compos√©es</b>'+teamsHtml+'</div>':'');
-  }
-
-  function publicRegistrationDateTime(value){
-    if(!value)return '';
-    try{
-      return new Date(value).toLocaleString('fr-FR',{timeZone:'America/Martinique',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    }catch(e){return ''}
-  }
-
-  function renderPublicRegistrationList(){
-    if(!regTour||!regBox)return;
-    const regs=registrations.filter(r=>r.tournament_id===regTour.id).sort((a,b)=>String(a.registered_at||a.created_at||'').localeCompare(String(b.registered_at||b.created_at||'')));
-    const confirmed=regs.filter(r=>r.registration_status!=='waitlist'&&r.present);
-    const waiting=regs.filter(r=>r.registration_status==='waitlist');
-    const playerMap=new Map(players.map(x=>[x.id,x]));
-    const listRows=confirmed.map((r,i)=>{
-      const pl=playerMap.get(r.player_id);if(!pl)return '';
-      const host=(pl?.is_group_member===false&&r.registered_by_player_id)?playerMap.get(r.registered_by_player_id):null;
-      const guest=pl?.is_group_member!==false?'Membre du groupe':(host?('Guest de '+host.name):publicGuestLabel(pl));
-      const first=isFirstTimePublicPlayer(pl.id,regTour.id);
-      const when=publicRegistrationDateTime(r.registered_at||r.created_at);
-      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b><span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">üÜï 1√®re fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">üïí Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:'+(r.is_substitute?'#b45309':'#15803d')+'">'+(r.is_substitute?'Rempla√ßant':'Confirm√©')+'</span></div>';
-    }).filter(Boolean);
-    const waitRows=waiting.map((r,i)=>{
-      const pl=playerMap.get(r.player_id);if(!pl)return '';
-      const host=(pl?.is_group_member===false&&r.registered_by_player_id)?playerMap.get(r.registered_by_player_id):null;
-      const guest=pl?.is_group_member!==false?'Membre du groupe':(host?('Guest de '+host.name):publicGuestLabel(pl));
-      const first=isFirstTimePublicPlayer(pl.id,regTour.id);
-      const when=publicRegistrationDateTime(r.registered_at||r.created_at);
-      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b><span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">üÜï 1√®re fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">üïí Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:#b45309">Attente</span></div>';
-    }).join('');
-    const maxPublic=Number(regTour.max_players||20);
-    const activePublic=regs.filter(r=>r.present);
-    const subsPublic=confirmed.filter(r=>r.is_substitute);
-    const remainingPublic=Math.max(0,maxPublic-activePublic.length);
-    const count=$('#publicRegCount');if(count)count.textContent=activePublic.length+'/'+maxPublic+' inscrits ‚Ä¢ '+remainingPublic+' place'+(remainingPublic>1?'s':'')+' restante'+(remainingPublic>1?'s':'')+(subsPublic.length?' ‚Ä¢ '+subsPublic.length+' rempla√ßant'+(subsPublic.length>1?'s':''):'')+(waiting.length?' ‚Ä¢ '+waiting.length+' en attente':'');
-    const list=$('#publicRegisteredList');if(list){
-      const expanded=!!$('#publicMoreRegistrations')?.open;
-      list.innerHTML=listRows.slice(0,5).join('')+(listRows.length>5?'<details id="publicMoreRegistrations"'+(expanded?' open':'')+'><summary><span class="when-closed">Voir les '+(listRows.length-5)+' autres inscrits</span><span class="when-open">Masquer la suite de la liste</span></summary>'+listRows.slice(5).join('')+'</details>':'');
-    }
-    const wlist=$('#publicWaitList');if(wlist){wlist.innerHTML=waitRows;wlist.parentElement.classList.toggle('hidden',!waiting.length)}
-  }
-
-  if(regTour){
-    const linkedLeague=regTour.format==='league'?leagues.find(l=>l.id===regTour.league_id):null;
-    $('#publicWorkspaceName').textContent=regTour.format==='league'
-      ?(regTour.name||('Sw√© de '+(linkedLeague?.name||'Ligue')))
-      :(regTour.name||('Tournoi du '+regTour.tournament_date));
-    const regs=registrations.filter(r=>r.tournament_id===regTour.id);
-    const confirmedRows=regs.filter(r=>r.registration_status!=='waitlist'&&r.present);
-    const confirmed=confirmedRows.length;
-    const substitutes=confirmedRows.filter(r=>r.is_substitute).length;
-    const waiting=regs.filter(r=>r.registration_status==='waitlist'&&r.present).length;
-    const publicAutoPlan=regTour.format==='league'?null:tournamentAutoPlan(confirmed);
-    const publicFee=(Number(regTour.entry_fee_cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:Number(regTour.entry_fee_cents||0)%100?2:0,maximumFractionDigits:2});
-    const reservedPitchNames=(regTour.reserved_pitch_ids||[]).map(id=>S.sportsPitches.find(p=>p.id===id)?.name).filter(Boolean);
-    const publicTerrainLabel=reservedPitchNames.length?reservedPitchNames.join(', '):(regTour.venue||'√Ä pr√©ciser');
-    const publicTime=regTour.start_time?String(regTour.start_time).slice(0,5):'√Ä pr√©ciser';
-    regBox.innerHTML=
-      '<div class="player"><b>'+esc(regTour.name||('Tournoi du '+regTour.tournament_date))+'</b><div id="publicRegCount" class="muted">'+confirmed+'/'+(regTour.max_players||35)+' inscrits'+(substitutes?' ‚Ä¢ '+substitutes+' rempla√ßant'+(substitutes>1?'s':''):'')+(waiting?' ‚Ä¢ '+waiting+' en attente':'')+'</div>'+
-      (regTour.format!=='league'?(()=>{const plan=tournamentAutoPlan(confirmed);return '<div style="margin-top:7px;font-weight:800">‚öôÔ∏è Sc√©nario actuel : '+(plan.teams?plan.teams+' √©quipe'+(plan.teams>1?'s':'')+' ‚Ä¢ '+plan.pitches+' terrain'+(plan.pitches>1?'s':'')+(plan.subs?' ‚Ä¢ '+plan.subs+' rempla√ßant'+(plan.subs>1?'s':'')+' commun'+(plan.subs>1?'s':''):''):'moins de 10 joueurs ‚Äî √©quipes non g√©n√©rables')+'</div>'})():'')+
-      (regTour.registration_deadline?'<div style="margin-top:8px;padding:9px 11px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0"><b>‚è±Ô∏è Compte √† rebours des inscriptions</b><div data-registration-deadline="'+esc(regTour.registration_deadline)+'" style="margin-top:4px"></div><div class="muted">Fin des inscriptions : '+new Date(regTour.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div></div>':'')+'</div>'+
-      (regTour.format!=='league'
-        ? '<div class="player" style="margin-top:12px;background:#eef8f2;border:1px solid #b7dfc4"><b>üìç Infos pratiques</b><div class="muted" style="margin-top:6px;line-height:1.7">Complexe / terrains : <b>'+esc(publicTerrainLabel)+'</b><br>Heure de r√©servation : <b>'+esc(publicTime)+'</b><br>Prix : <b>'+esc(publicFee)+' ‚Ç¨ / participant</b>'+(regTour.reservation_reference?'<br>R√©servation : <b>'+esc(regTour.reservation_reference)+'</b>':'')+'</div><div class="muted" style="margin-top:8px;line-height:1.7"><b>Programme :</b><br>8h45 : arriv√©e, paiement + √©chauffement<br>9h00 : d√©but du tournoi ‚Äî les premi√®res √©quipes arriv√©es commencent'+(regTour.third_half_active?'<br>11h00 : 3e mi-temps':'')+'</div></div>'
-        : '')+
-      (publicAutoPlan&&confirmed>=10?'<div class="player" style="margin-top:12px;background:#eef8f2;border:1px solid #b7dfc4"><b>‚öôÔ∏è Format pr√©vu avec '+confirmed+' inscrits</b><div class="muted" style="margin-top:5px;line-height:1.6">'+publicAutoPlan.teams+' √©quipes ‚Ä¢ '+publicAutoPlan.pitches+' terrain'+(publicAutoPlan.pitches>1?'s':'')+(publicAutoPlan.subs?' ‚Ä¢ '+publicAutoPlan.subs+' rempla√ßant'+(publicAutoPlan.subs>1?'s':'')+' commun'+(publicAutoPlan.subs>1?'s':''):'')+'.'+(publicAutoPlan.subs?' Les rempla√ßants pourront jouer pour n‚Äôimporte quelle √©quipe.':'')+'</div></div>':'')+
-      '<div class="player" style="margin-top:12px;background:#f8fbf9"><b>‚úÖ Inscription</b><div class="muted" style="margin-top:6px;line-height:1.6">Inscris-toi en cliquant sur <b>¬´ Je participe ¬ª</b>. Si tu viens accompagn√©, indique le nom de tes invit√©s. Chaque membre peut ajouter jusqu‚Äô√† <b>5 invit√©s maximum</b>.</div></div>'+
-      '<div class="space"></div><select id="publicPlayerSelect"><option value="">Choisis ton nom</option></select>'+
-      '<div id="publicSelectedStatus" class="muted" style="margin-top:7px">Choisis ton nom pour voir ton statut.</div><div class="muted" style="margin-top:5px">Si un autre joueur t‚Äôa propos√© une √©quipe, les boutons <b>Accepter</b> / <b>Refuser</b> appara√Ætront ici apr√®s s√©lection de ton nom.</div><div id="publicTeamInvitationDecision" class="hidden" style="margin-top:10px"></div>'+
-      '<div class="space"></div><div id="publicParticipationActions" class="row"><button id="publicJoin" class="primary">‚úÖ Je participe</button><button id="publicLeave">‚ùå Je ne participe pas</button></div>'+
-      '<div id="publicPaymentBox" data-payment-controller="app" class="hidden" style="margin-top:12px"></div>'+
-      (regTour.format==='league'
-        ? '<div class="player" style="margin-top:12px;background:#fffdf4;border:1px solid #f2df9b"><b>üÜï Premi√®re fois ?</b><div class="muted" style="margin:5px 0 8px">Tu n‚Äôes pas encore membre du groupe ? Entre ton nom pour t‚Äôinscrire √† cette Ligue.</div><input id="publicNewPlayerName" maxlength="60" placeholder="Ton pr√©nom / nom"><div class="space"></div><button id="publicNewPlayerJoin" class="primary">M‚Äôinscrire pour la premi√®re fois</button></div>'
-        : '<div class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa"><b>ü§ù Tu ne participes pas mais tu invites quelqu‚Äôun ?</b><div class="muted" style="margin-top:6px;line-height:1.6">Aucun probl√®me : <b>s√©lectionne simplement ton nom</b> dans la liste ci-dessus, sans cliquer sur ¬´ Je participe ¬ª, puis saisis le nom de ton invit√© ci-dessous. Ton invit√© sera rattach√© √† ton nom et <b>toi, tu ne seras pas inscrit au tournoi</b>.</div></div>')+
-      '<details class="player" id="publicGuestFields" style="margin-top:12px"><summary style="cursor:pointer"><b>üë§ Mes invit√©s</b></summary><div class="muted" style="margin:4px 0 8px">'+
-        (regTour.format==='league'
-          ? 'S√©lectionne ton nom ci-dessus puis ajoute tes invit√©s un par un. Tu peux en ajouter jusqu‚Äô√† <b>5 au total</b> pour ce Sw√©.'
-          : 'Pour un tournoi, une personne ext√©rieure ne peut pas s‚Äôinscrire seule : elle doit √™tre <b>invit√©e par un membre du groupe</b>. S√©lectionne ton nom puis ajoute ton ou tes invit√©s, m√™me si toi-m√™me tu ne participes pas. Tu peux en ajouter jusqu‚Äô√† <b>5 au total</b>.')+
-      '</div><div id="publicPreviousGuestsWrap" class="hidden"><label for="publicPreviousGuest"><b>Retrouver un ancien invit√©</b></label><select id="publicPreviousGuest"><option value="">Ajouter un nouvel invit√©</option></select><p class="muted">Les invit√©s d√©j√† inscrits √† cette √©dition sont indiqu√©s dans la liste.</p></div><label for="publicGuestName">Nom de l‚Äôinvit√©</label><input id="publicGuestName" maxlength="60" placeholder="Nom du nouvel invit√© ou de l‚Äôinvit√© s√©lectionn√©"><label class="row" style="margin-top:8px;justify-content:flex-start"><input id="publicGuestMember" type="checkbox" style="width:auto"><span>Ajouter cet invit√© comme membre du groupe</span></label><div id="publicGuestPhoneWrap" class="hidden" style="margin-top:8px"><input id="publicGuestPhone" type="tel" inputmode="tel" placeholder="Num√©ro de mobile de l‚Äôinvit√©"><div class="muted" style="margin-top:4px">Le num√©ro est demand√© uniquement pour cr√©er sa fiche membre. Il reste priv√© et visible uniquement par l‚Äôadministrateur.</div></div><div class="space"></div><button id="publicAddGuest" class="primary">+ Ajouter mon invit√©</button></details>'+
-      '<div id="publicRegStatus" class="player" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;line-height:1.6"><b>üü† Comment fonctionne le statut ¬´ Rempla√ßant ¬ª ?</b><div class="muted" style="margin-top:6px">Le statut rempla√ßant est attribu√© uniquement lorsqu‚Äôil n‚Äôy a pas encore assez de joueurs pour constituer une √©quipe compl√®te suppl√©mentaire de <b>5 joueurs</b>.<br><br><b>Exemple :</b> avec <b>14 inscrits</b>, on peut former <b>2 √©quipes compl√®tes de 5</b> : les joueurs class√©s de la 11e √† la 14e place sont donc <b>4 rempla√ßants</b>. D√®s qu‚Äôun <b>15e joueur</b> s‚Äôinscrit, ces 5 joueurs forment la <b>3e √©quipe compl√®te</b> et ne sont plus rempla√ßants.<br><br>M√™me principe ensuite : 16 √† 19 inscrits = rempla√ßants pour pr√©parer la 4e √©quipe ; √† 20 inscrits = 4 √©quipes compl√®tes. L‚Äôordre est bas√© sur la <b>date et l‚Äôheure d‚Äôinscription</b>, affich√©es sous le nom de chaque joueur dans la liste.</div></div>'+
-      '<h3 style="margin-top:18px">üë• Liste des inscrits</h3><div id="publicRegisteredList"></div>'+
-      '<div id="publicWaitWrap" class="'+(waiting?'':'hidden')+'"><h3 style="margin-top:14px">‚è≥ Liste d‚Äôattente</h3><div id="publicWaitList"></div></div>';
-    renderPublicRegistrationList();
-    updateTournamentCountdowns();
-    const publicDeadline=tournamentDeadlineMs(regTour);
-    const publicRegistrationExpired=regTour.format!=='league'&&publicDeadline!==null&&Date.now()>=publicDeadline;
-    if(publicRegistrationExpired){
-      const st=$('#publicRegStatus');
-      if(st)st.innerHTML='<b>‚õî Inscriptions termin√©es.</b> La cl√¥ture √©tait fix√©e la veille du tournoi √† 17h.';
-      ['publicJoin','publicAddGuest','publicNewPlayerJoin'].forEach(id=>{const b=$('#'+id);if(b)b.disabled=true;});
-    }
-
-    if(publicThirdHalf&&regTour.third_half_active){document.querySelectorAll('#publicThirdHalfDonorCard').forEach(x=>x.remove());
-      const donorCard=document.createElement('div');donorCard.id='publicThirdHalfDonorCard';
-      donorCard.className='card';
-      donorCard.innerHTML='<h2 class="sectiontitle">üßä Top donateurs de la 3e mi-temps</h2><p class="muted">Le classement appara√Ætra ici d√®s que les participations √† la glaci√®re seront enregistr√©es par l‚Äôorganisateur.</p><div id="publicCoolerDonors"></div>';
-      regBox.parentElement?.insertBefore(donorCard,regBox.nextSibling);
-    }
-
-    setTimeout(updateTournamentCountdowns,0);
-    const PUBLIC_GUEST_LIMIT=5;
-
-    function publicGuestUsage(hostId){
-      const used=registrations.filter(r=>
-        r.tournament_id===regTour.id &&
-        String(r.registered_by_player_id||'')===String(hostId||'')
-      ).length;
-      return {used,remaining:Math.max(0,PUBLIC_GUEST_LIMIT-used)};
-    }
-
-    function refreshPublicPlayerSelect(){
-      const sel=$('#publicPlayerSelect');
-      if(!sel)return;
-      const previous=sel.value;
-      const members=players.filter(x=>x.active&&x.is_group_member!==false).sort((a,b)=>a.name.localeCompare(b.name));
-      const signature=JSON.stringify(members.map(x=>[x.id,x.name]));
-      if(sel.dataset.memberSignature===signature||document.activeElement===sel)return;
-      sel.dataset.memberSignature=signature;
-      sel.innerHTML='<option value="">Choisis ton nom</option>'+members.map(x=>{
-        // La liste reste volontairement simple : le statut et les invit√©s sont affich√©s juste en dessous apr√®s s√©lection.
-        return '<option value="'+x.id+'">'+esc(x.name)+'</option>';
-      }).join('');
-      if([...sel.options].some(o=>o.value===previous))sel.value=previous;
-    }
-
-    function renderPreviousGuests(){
-      const select=$('#publicPreviousGuest'),wrap=$('#publicPreviousGuestsWrap'),host=$('#publicPlayerSelect')?.value;
-      if(!select||!wrap)return;
-      const previousIds=new Set(registrations.filter(r=>r.tournament_id!==regTour.id&&(String(r.registered_by_player_id||'')===String(host)||players.some(p=>p.id===r.player_id&&String(p.guest_of_player_id||'')===String(host)))).map(r=>r.player_id));
-      const previous=host?players.filter(p=>p.is_group_member===false&&previousIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name)):[];
-      wrap.classList.toggle('hidden',!previous.length);
-      if(document.activeElement===select)return;
-      const old=select.value,html='<option value="">Ajouter un nouvel invit√©</option>'+previous.map(p=>{const present=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===p.id&&r.present);return '<option value="'+p.id+'" '+(present?'disabled':'')+'>'+esc(p.name)+(present?' ‚Äî d√©j√† inscrit':'')+'</option>';}).join('');
-      if(select.innerHTML!==html){select.innerHTML=html;if([...select.options].some(o=>o.value===old&&!o.disabled))select.value=old;}
-    }
-    $('#publicPreviousGuest').onchange=()=>{const p=players.find(p=>p.id===$('#publicPreviousGuest').value);$('#publicGuestName').value=p?.name||'';if(p){$('#publicGuestMember').checked=false;$('#publicGuestPhone').value='';$('#publicGuestPhoneWrap').classList.add('hidden');}};
-    $('#publicGuestName').addEventListener('input',()=>{$('#publicPreviousGuest').value='';});
-    function updateSelectedRegistrationStatus(){
-      renderPreviousGuests();
-      const pid=$('#publicPlayerSelect')?.value;
-      const status=$('#publicSelectedStatus');
-      if(!status)return;
-      if(!pid){status.textContent='Choisis ton nom pour voir ton statut et le nombre d‚Äôinvit√©s qu‚Äôil te reste.';return}
-      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
-      const cancelledReg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&!r.present&&r.registration_status==='cancelled');
-      const usage=publicGuestUsage(pid);
-      const inviteText=usage.remaining>0
-        ?' ‚Ä¢ '+usage.used+'/'+PUBLIC_GUEST_LIMIT+' invit√©'+(usage.used>1?'s':'')+' utilis√©'+(usage.used>1?'s':'')+' ‚Äî '+usage.remaining+' restant'+(usage.remaining>1?'s':'')+'.'
-        :' ‚Ä¢ '+usage.used+'/'+PUBLIC_GUEST_LIMIT+' invit√©s utilis√©s ‚Äî aucune invitation restante.';
-      if(!reg){
-        status.textContent=(cancelledReg
-          ?'üî¥ Tu t‚Äôes d√©sinscrit de ce Sw√©. Tu peux te r√©inscrire tant que les inscriptions sont ouvertes.'
-          :(regTour.format==='league'
-            ?'‚ö™ Tu n‚Äôes pas encore inscrit √† ce Sw√©.'
-            :'‚ö™ Tu ne participes pas actuellement. Tu peux quand m√™me inviter quelqu‚Äôun ci-dessous sans t‚Äôinscrire.'))+inviteText;
-      }else{
-        const assignedTeamIds=new Set(teams.filter(t=>t.tournament_id===regTour.id).map(t=>t.id));
-        const inTeam=teamPlayers.some(tp=>String(tp.player_id)===String(pid)&&assignedTeamIds.has(tp.team_id));
-        const when=publicRegistrationDateTime(reg.registered_at);
-        status.textContent=((reg.registration_status==='waitlist'||reg.is_substitute)
-          ?'üü† Tu es d√©j√† inscrit comme rempla√ßant pour compl√©ter la prochaine √©quipe.'
-          :(inTeam?'üü¢ Tu es d√©j√† inscrit dans une √©quipe.':'üü¢ Tu es d√©j√† inscrit et confirm√©.'))+(when?' ‚Ä¢ Inscription : '+when:'')+inviteText;
-      }
-      const addGuestBtn=$('#publicAddGuest');
-      if(addGuestBtn){
-        addGuestBtn.disabled=usage.remaining<=0;
-        addGuestBtn.textContent=usage.remaining<=0
-          ?'Limite de 5 invit√©s atteinte'
-          :'+ Ajouter mon invit√© ('+usage.remaining+' restant'+(usage.remaining>1?'s':'')+')';
-      }
-    }
-    let publicPaymentSeq=0;
-    let publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};
-    let publicPaymentLoadingFor=null;
-    let publicStripeConfirmLastAt=0;
-    let publicStripeConfirmRunning=false;
-    async function confirmPublicStripePayment(pid,sessionId=null,force=false){
-      if(!pid||publicStripeConfirmRunning)return false;
-      const now=Date.now();
-      if(!force&&now-publicStripeConfirmLastAt<20000)return false;
-      publicStripeConfirmLastAt=now;publicStripeConfirmRunning=true;
-      try{
-        const {data,error}=await sb.functions.invoke('stripe-confirm-entry-payment',{body:{public_token:token,tournament_id:regTour.id,player_id:pid,session_id:sessionId||null}});
-        if(error||data?.error)return false;
-        if(data?.paid){
-          publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};
-          return true;
-        }
-        return false;
-      }catch(_e){return false;}finally{publicStripeConfirmRunning=false;}
-    }
-    const publicMoney=cents=>(Number(cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ‚Ç¨';
-    function publicOnsitePriceLabel(){
-      const cents=regTour.onsite_entry_fee_cents;
-      return cents!=null&&Number.isFinite(Number(cents))&&Number(cents)>=0?publicMoney(cents):'Tarif √† confirmer aupr√®s du complexe';
-    }
-    function applyPublicPaymentView(box,html,bg,border){
-      box.className='player';
-      box.style.background=bg||'#f8fbff';
-      box.style.border=border||'1px solid #cbdcf5';
-      if(box.innerHTML!==html)box.innerHTML=html;
-    }
-    async function renderPublicPaymentBox(options={}){
-      const box=$('#publicPaymentBox');
-      if(!box)return;
-      const pid=$('#publicPlayerSelect')?.value;
-      if(!pid||regTour.status==='finished'){++publicPaymentSeq;publicPaymentLoadingFor=null;publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;}
-      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
-      if(!reg){
-        ++publicPaymentSeq;publicPaymentLoadingFor=null;
-        publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.className='hidden';box.innerHTML='';return;
-      }
-      if(publicPaymentLoadingFor===pid)return;
-      const seq=++publicPaymentSeq;
-      const samePlayer=publicPaymentCache.playerId===pid&&publicPaymentCache.html;
-      if(samePlayer){
-        applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
-      }else{
-        applyPublicPaymentView(box,'<b>üí≥ Paiement de la participation</b><div class="muted" style="margin-top:5px">V√©rification du statut‚Ä¶</div>','#f8fbff','1px solid #cbdcf5');
-      }
-      publicPaymentLoadingFor=pid;
-      try{
-        const [{data,error},{data:choiceData,error:choiceError}]=await Promise.all([
-          sb.rpc('public_tournament_payment_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid}),
-          sb.rpc('public_tournament_payment_choice_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid})
-        ]);
-        if(seq!==publicPaymentSeq||$('#publicPlayerSelect')?.value!==pid||!box.isConnected)return;
-        if(error||choiceError){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.innerHTML='<b>üí≥ Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
-        const st=data||{};
-        if(st.reason==='waitlist'){
-          const html='<b>üü† Paiement en attente de confirmation</b><div class="muted" style="margin-top:5px;line-height:1.6">Tu es actuellement rempla√ßant. Le paiement sera propos√© automatiquement lorsqu‚Äôune place confirm√©e se lib√©rera.</div>';
-          publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
-          return;
-        }
-        if(st.reason==='online_disabled'){box.className='hidden';box.innerHTML='';return;}if(st.reason==='free'||Number(st.entry_fee_cents||0)<=0){box.className='hidden';box.innerHTML='';return;}
-        if(st.payment_status==='paid'){
-          const html='<b>‚úÖ Participation pay√©e en ligne</b><div class="muted" style="margin-top:5px">Paiement confirm√© par Stripe'+(st.paid_at?' ‚Ä¢ '+new Date(st.paid_at).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'}):'')+'.</div>';
-          publicPaymentCache={playerId:pid,status:st,html,bg:'#eef8f2',border:'1px solid #b7dfc4'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
-          return;
-        }
-        const choice=choiceData||{};
-        if(choice.manual_paid_at){
-          const html='<b>‚úÖ Participation pay√©e sur place</b><div class="muted" style="margin-top:5px">Le complexe a confirm√© la r√©ception de ton paiement'+(choice.manual_paid_at?' ‚Ä¢ '+new Date(choice.manual_paid_at).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'}):'')+'.</div>';
-          publicPaymentCache={playerId:pid,status:st,html,bg:'#eef8f2',border:'1px solid #b7dfc4'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
-          return;
-        }
-        if(choice.payment_preference==='onsite'){
-          const html='<b>üèüÔ∏è Paiement sur place choisi</b><div style="margin-top:7px">Tarif public sur place : <b style="font-size:1.05rem">'+publicOnsitePriceLabel()+'</b></div><div class="muted" style="margin-top:5px">Ton inscription est enregistr√©e. Le complexe confirmera ton paiement lorsqu‚Äôil le recevra.</div><button id="publicSwitchOnline" style="width:100%;margin-top:10px">üí≥ Finalement payer en ligne</button>';
-          publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
-          $('#publicSwitchOnline').onclick=async()=>{await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'online'});publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};await renderPublicPaymentBox({skipStripeReconcile:true});};
-          return;
-        }
-        if(!st.available){
-          const html='<b>üí≥ Paiement en ligne momentan√©ment indisponible</b><div class="muted" style="margin-top:5px">L‚Äôorganisateur finalise actuellement la configuration des paiements.</div>';
-          publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
-          return;
-        }
-        const pending=['created','pending'].includes(String(st.payment_status||''));
-        if(pending&&!options.skipStripeReconcile){
-          // R√©conciliation silencieuse : une actualisation ou un joueur d√©j√† s√©lectionn√©
-          // ne doit jamais d√©clencher un popup de confirmation.
-          confirmPublicStripePayment(pid,null,false).then(async paid=>{if(paid){await renderPublicPaymentBox({skipStripeReconcile:true});}});
-        }
-        const html='<div><b style="font-size:1.02rem">üí∂ Comment veux-tu payer ?</b><div class="muted" style="margin-top:5px">Choisis ton mode de paiement pour cette inscription.</div></div>'+ 
-          '<div class="grid g2" style="gap:9px;margin-top:12px">'+
-            '<button id="publicPayEntry" class="primary" style="min-height:64px"><span style="font-size:1.05rem">üí≥ Payer en ligne</span><br><span style="font-size:.76rem;font-weight:700">Gagner du temps ‚Ä¢ s√©curis√© par Stripe</span></button>'+ 
-            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">üèüÔ∏è Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicOnsitePriceLabel()+' tarif public</span></button>'+ 
-          '</div>'+ 
-          '<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e4e8ee"><div style="font-weight:850;font-size:.88rem">Paiement en ligne accept√©</div><div class="muted" style="font-size:.70rem;line-height:1.35;margin:3px 0 8px">Selon ton appareil, ton navigateur et les moyens de paiement disponibles sur Stripe.</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">'+
-            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="display:flex;align-items:center;justify-content:center;gap:6px;height:28px"><span style="font-weight:950;font-size:.72rem;background:#1434CB;color:#fff;border-radius:4px;padding:3px 5px;font-style:italic">VISA</span><span aria-label="Mastercard" style="display:inline-flex;align-items:center"><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#EB001B;margin-right:-5px"></i><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#F79E1B;opacity:.92"></i></span></div><div class="muted" style="font-size:.67rem">Carte bancaire</div></div>'+
-            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" style="display:block;max-width:58px;max-height:24px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Apple Pay</div></div>'+
-            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" style="display:block;max-width:64px;max-height:24px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Google Pay</div></div>'+
-            '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/7/73/Revolut_logo.svg" alt="Revolut Pay" style="display:block;max-width:72px;max-height:22px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Revolut Pay</div></div>'+
-          '</div></div>'+ 
-          (pending?'<div class="muted" style="margin-top:8px">Un paiement en ligne a d√©j√† √©t√© commenc√© mais n‚Äôest pas encore confirm√©.</div>':'')+
-          '<div class="muted" style="margin-top:8px;font-size:.76rem;text-align:center">‚ú® Paiement en ligne pour gagner du temps, ou paiement sur place au tarif public du complexe.</div>';
-        publicPaymentCache={playerId:pid,status:st,html,bg:'#f8fbff',border:'1px solid #cbdcf5'};
-        applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
-        $('#publicPayEntry').onclick=async()=>{
-          const b=$('#publicPayEntry');if(!b)return;b.disabled=true;b.textContent='Ouverture du paiement‚Ä¶';
-          await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'online'});
-          const u=new URL(location.href);u.searchParams.delete('stripe');u.searchParams.delete('session_id');u.searchParams.delete('pay_player');
-          const sep=u.search?'&':'?';
-          const success=u.toString()+sep+'stripe=success&pay_player='+encodeURIComponent(pid)+'&session_id={CHECKOUT_SESSION_ID}';
-          const cancel=u.toString()+sep+'stripe=cancel&pay_player='+encodeURIComponent(pid);
-          const {data:checkout,error:checkoutError}=await sb.functions.invoke('stripe-create-entry-checkout',{body:{public_token:token,tournament_id:regTour.id,player_id:pid,success_url:success,cancel_url:cancel}});
-          if(checkoutError||checkout?.error){b.disabled=false;b.textContent='üí≥ Payer '+publicMoney(st.total_cents);return toast(checkout?.error||checkoutError?.message||'Impossible d‚Äôouvrir le paiement.');}
-          if(checkout?.url)location.href=checkout.url;
-          else{b.disabled=false;b.textContent='üí≥ Payer en ligne';toast('Lien de paiement indisponible.');}
-        };
-        const onsiteBtn=$('#publicPayOnsite');
-        if(onsiteBtn)onsiteBtn.onclick=async()=>{
-          onsiteBtn.disabled=true;onsiteBtn.textContent='Enregistrement‚Ä¶';
-          const {error}=await sb.rpc('public_set_tournament_payment_preference',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_preference:'onsite'});
-          if(error){onsiteBtn.disabled=false;onsiteBtn.textContent='üèüÔ∏è Payer sur place';return toast(error.message);}
-          publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};
-          toast('Paiement sur place enregistr√© ‚úÖ');
-          await renderPublicPaymentBox({skipStripeReconcile:true});
-        };
-      }catch(e){
-        if(seq===publicPaymentSeq&&!publicPaymentCache.html)box.innerHTML='<b>üí≥ Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';
-      }finally{
-        if(seq===publicPaymentSeq&&publicPaymentLoadingFor===pid)publicPaymentLoadingFor=null;
-      }
-    }
-
-    function renderTeamInvitationDecision(){
-      const box=$('#publicTeamInvitationDecision');
-      const pid=$('#publicPlayerSelect')?.value;
-      if(!box)return;
-      const inv=teamInvitations.find(i=>i.tournament_id===regTour.id&&String(i.player_id)===String(pid||'')&&i.status==='pending');
-      if(!inv){box.className='hidden';box.style.display='none';box.innerHTML='';return}
-      const team=teams.find(t=>String(t.id)===String(inv.team_id));
-      const inviter=players.find(pl=>String(pl.id)===String(inv.invited_by_player_id||''));
-      box.className='player';
-      box.style.display='block';
-      box.style.background='#fff8e8';box.style.border='1px solid #f2d18a';
-      box.innerHTML='<b>üë• Proposition d‚Äô√©quipe</b><div class="muted" style="margin-top:5px;line-height:1.6">'+
-        (inviter?'<b>'+esc(inviter.name)+'</b> t‚Äôa propos√© de rejoindre ':'Tu as √©t√© ajout√© √† ')+
-        '<b>'+esc(team?.name||'cette √©quipe')+'</b>. Tu restes libre de choisir : si tu refuses, ton inscription est conserv√©e en <b>√âquipe al√©atoire</b>.</div>'+
-        '<div class="row" style="margin-top:10px"><button id="acceptTeamInvitation" class="primary">‚úÖ Accepter l‚Äô√©quipe</button><button id="declineTeamInvitation">üé≤ Refuser / √©quipe al√©atoire</button></div>';
-      $('#acceptTeamInvitation').onclick=async()=>{
-        const b=$('#acceptTeamInvitation');b.disabled=true;
-        const {error}=await sb.rpc('public_respond_team_invitation',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_accept:true});
-        b.disabled=false;if(error)return toast(error.message);
-        toast('√âquipe accept√©e ‚úÖ');await refreshPublicRegistration();
-      };
-      $('#declineTeamInvitation').onclick=async()=>{
-        const b=$('#declineTeamInvitation');b.disabled=true;
-        const {error}=await sb.rpc('public_respond_team_invitation',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_accept:false});
-        b.disabled=false;if(error)return toast(error.message);
-        toast('Tu restes en √âquipe al√©atoire üé≤');await refreshPublicRegistration();
-      };
-    }
-    refreshPublicPlayerSelect();
-    $('#publicPlayerSelect').onchange=()=>{updateSelectedRegistrationStatus();renderTeamInvitationDecision();renderPublicPaymentBox();};
-    const payPlayerFromUrl=publicParams.get('pay_player');
-    if(payPlayerFromUrl&&[...$('#publicPlayerSelect').options].some(o=>o.value===payPlayerFromUrl))$('#publicPlayerSelect').value=payPlayerFromUrl;
-    updateSelectedRegistrationStatus();
-    renderTeamInvitationDecision();
-    const stripeReturn=publicParams.get('stripe');
-    const stripeSessionId=publicParams.get('session_id');
-    if(stripeReturn==='success'&&payPlayerFromUrl){
-      // Le popup Stripe n'est autoris√© qu'une seule fois pour une vraie session de retour Checkout.
-      // Le joueur s√©lectionn√©, les rafra√Æchissements automatiques et les r√©ouvertures de page restent silencieux.
-      const returnKey='swe_stripe_return_seen_'+String(stripeSessionId||'no-session');
-      const alreadyShown=sessionStorage.getItem(returnKey)==='1';
-      if(!alreadyShown){
-        sessionStorage.setItem(returnKey,'1');
-        toast('Paiement envoy√© ‚úÖ V√©rification aupr√®s de Stripe‚Ä¶');
-      }
-      confirmPublicStripePayment(payPlayerFromUrl,stripeSessionId,true).then(async paid=>{
-        await renderPublicPaymentBox({skipStripeReconcile:true});
-        if(!alreadyShown){
-          if(paid)toast('‚úÖ Paiement confirm√© par Stripe');
-          else toast('Paiement re√ßu par Stripe, confirmation en cours‚Ä¶');
-        }
-        // Nettoie imm√©diatement les param√®tres Stripe pour emp√™cher tout nouveau popup
-        // lors d'un refresh, d'un changement de joueur ou d'un retour arri√®re.
-        try{
-          const clean=new URL(location.href);
-          clean.searchParams.delete('stripe');
-          clean.searchParams.delete('session_id');
-          clean.searchParams.delete('pay_player');
-          history.replaceState({},'',clean.toString());
-        }catch(_e){}
-      });
-    }else{
-      renderPublicPaymentBox();
-    }
-    if(stripeReturn==='cancel')toast('Paiement annul√©. Tu peux le reprendre quand tu veux.');
-    $('#publicGuestMember').onchange=()=>{
-      const wrap=$('#publicGuestPhoneWrap');
-      const phone=$('#publicGuestPhone');
-      if($('#publicGuestMember').checked){
-        wrap.classList.remove('hidden');
-        setTimeout(()=>phone.focus(),50);
-      }else{
-        wrap.classList.add('hidden');
-        phone.value='';
-      }
-    };
-
-    let publicRefreshSeq=0;
-    async function refreshPublicRegistration(){
-      const seq=++publicRefreshSeq;
-      try{
-        const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
-        if(error||!data||seq!==publicRefreshSeq)return;
-        players=data.players||players;
-        seasons=data.seasons||seasons;
-        const freshTour=(data.tournaments||[]).find(t=>t.id===regTour.id);
-        if(freshTour)regTour=freshTour;
-        tournaments=data.tournaments||tournaments;matches=data.matches||matches;goals=data.goals||goals;
-        loadPresentationMetadata().catch(()=>{});
-        registrations=data.tournament_players||registrations;
-        tournamentGroupLevels=data.tournament_group_levels||tournamentGroupLevels;
-        renderPublicQuickStats();
-        teams=data.teams||teams;
-        teamPlayers=data.team_players||teamPlayers;
-        teamInvitations=data.team_player_invitations||teamInvitations;
-        matchAssignments=data.match_player_assignments||matchAssignments;
-        renderPublicRegistrationList();
-        refreshPublicPlayerSelect();
-        updateSelectedRegistrationStatus();
-        renderTeamInvitationDecision();
-        renderPublicPaymentBox({backgroundRefresh:true});
-        // Ne pas reconstruire le formulaire √©quipe pendant que l‚Äôutilisateur le remplit.
-        // Le rafra√Æchissement automatique de 8 s reste actif pour les donn√©es, mais ne reset plus l'inscription √©quipe.
-        if(typeof renderPublicTeamBuilder==='function'&&!window.__swePublicTeamEditing)renderPublicTeamBuilder();
-        refreshSeasonRankings();
-        registrationPresentation?.update();
-        updateTournamentCountdowns();
-      }catch(e){}
-    }
-
-    bootState.refresh=refreshPublicRegistration;
-
-    function showRegistrationConfirmation(playerName,data){
-      const pos=Number(data?.position||0);
-      const isSub=!!data?.is_substitute;
-      const subPos=Number(data?.substitute_position||0);
-      const nextTeam=Math.ceil(Math.max(11,pos)/5)*5;
-      const title=isSub?'üü† Inscription confirm√©e ‚Äî rempla√ßant':'‚úÖ Inscription confirm√©e';
-      const when=publicRegistrationDateTime(data?.registered_at||new Date().toISOString());
-      const detail=isSub
-        ? `<b>${esc(playerName)}</b>, tu es le <b>${pos}e inscrit</b> et actuellement <b>rempla√ßant${subPos?' n¬∞'+subPos:''}</b>.<br>${when?'<span style="font-size:13px;color:#64748b">üïí Inscrit le '+esc(when)+'</span><br>':''}<br>Pourquoi ? Une nouvelle √©quipe n‚Äôest confirm√©e que lorsqu‚Äôun groupe complet de <b>5 joueurs</b> est atteint. Par exemple, <b>14 inscrits = 2 √©quipes de 5 + 4 rempla√ßants</b>. √Ä <b>15 inscrits</b>, ces 5 joueurs deviennent la <b>3e √©quipe compl√®te</b>.<br><br>D√®s que nous atteignons <b>${nextTeam} inscrits</b>, ton statut sera automatiquement mis √† jour.`
-        : `<b>${esc(playerName)}</b>, ton inscription est bien enregistr√©e.<br>${when?'<span style="font-size:13px;color:#64748b">üïí Inscrit le '+esc(when)+'</span><br>':''}<br>Tu es actuellement le <b>${pos}e inscrit</b>.`;
-      const old=document.getElementById('registrationConfirmOverlay');if(old)old.remove();
-      const ov=document.createElement('div');ov.id='registrationConfirmOverlay';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
-      ov.innerHTML=`<div style="width:min(92vw,440px);background:#fff;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28);text-align:center"><div style="font-size:21px;font-weight:900;margin-bottom:12px">${title}</div><div style="font-size:16px;line-height:1.55;color:#334155">${detail}</div><button id="registrationConfirmOk" class="primary" style="margin-top:20px;min-width:150px">OK</button></div>`;
-      document.body.appendChild(ov);
-      const close=()=>ov.remove();
-      ov.querySelector('#registrationConfirmOk').onclick=close;
-      ov.onclick=e=>{if(e.target===ov)close()};
-    }
-
-    $('#publicJoin').onclick=async()=>{
-      if(regTour.format!=='league'&&tournamentDeadlineMs(regTour)!==null&&Date.now()>=tournamentDeadlineMs(regTour))return $('#publicRegStatus').textContent='‚õî Les inscriptions sont termin√©es.';
-      const pid=$('#publicPlayerSelect').value;if(!pid)return $('#publicRegStatus').textContent='Choisis ton nom.';
-      const b=$('#publicJoin');b.disabled=true;
-      const {data,error}=await sb.rpc('public_tournament_registration',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_action:'join'});
-      b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
-      const selectedName=($('#publicPlayerSelect').selectedOptions?.[0]?.textContent||'Joueur').replace(/\s+‚Äî.*$/,'').trim();
-      $('#publicRegStatus').textContent=data?.is_substitute?'üü† Inscription confirm√©e : tu es actuellement rempla√ßant.':'üü¢ Inscription confirm√©e !';
-      showRegistrationConfirmation(selectedName,data);
-      await refreshPublicRegistration();
-    };
-    if($('#publicNewPlayerJoin'))$('#publicNewPlayerJoin').onclick=async()=>{
-      const name=$('#publicNewPlayerName').value.trim();
-      if(!name)return $('#publicRegStatus').textContent='Entre ton nom pour t‚Äôinscrire.';
-      const b=$('#publicNewPlayerJoin');b.disabled=true;
-      const {data,error}=await sb.rpc('public_register_new_tournament_player',{p_token:token,p_tournament_id:regTour.id,p_name:name});
-      b.disabled=false;
-      if(error)return $('#publicRegStatus').textContent=error.message;
-      $('#publicNewPlayerName').value='';
-      $('#publicRegStatus').textContent=data?.status==='waitlist'
-        ? 'üü† Quota atteint : tu es inscrit comme rempla√ßant. üÜï 1√®re fois'
-        : 'üü¢ Inscription confirm√©e ! üÜï 1√®re fois';
-      await refreshPublicRegistration();
-    };
-    $('#publicLeave').onclick=async()=>{
-      const pid=$('#publicPlayerSelect').value;if(!pid)return $('#publicRegStatus').textContent='Choisis ton nom.';
-      const b=$('#publicLeave');b.disabled=true;
-      const {error}=await sb.rpc('public_tournament_registration',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_action:'absent'});
-      b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
-      $('#publicRegStatus').textContent='Inscription retir√©e.';
-      await refreshPublicRegistration();
-    };
-    $('#publicAddGuest').onclick=async()=>{
-      if(regTour.format!=='league'&&tournamentDeadlineMs(regTour)!==null&&Date.now()>=tournamentDeadlineMs(regTour))return $('#publicRegStatus').textContent='‚õî Les inscriptions sont termin√©es.';
-      const host=$('#publicPlayerSelect').value;
-      const guestName=$('#publicGuestName').value.trim();
-      if(!host)return $('#publicRegStatus').textContent='Choisis d‚Äôabord ton nom dans la liste ci-dessus. Tu peux ajouter un invit√© m√™me si tu es d√©j√† inscrit.';
-      if(!guestName)return $('#publicRegStatus').textContent='Entre le nom de ton invit√©.';
-      const existingGuest=players.find(p=>p.id===$('#publicPreviousGuest')?.value);
-      if(existingGuest&&registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===existingGuest.id&&r.present))return $('#publicRegStatus').textContent='Cet invit√© est d√©j√† inscrit √† cette √©dition.';
-      const usageBefore=publicGuestUsage(host);
-      if(usageBefore.remaining<=0)return $('#publicRegStatus').textContent='Tu as d√©j√† utilis√© tes 5 invitations pour ce tournoi.';
-      const phone=$('#publicGuestPhone').value.trim();
-      const addMember=$('#publicGuestMember').checked;
-      if(addMember&&!phone)return $('#publicRegStatus').textContent='Pour ajouter ton invit√© comme membre du groupe, indique son num√©ro de mobile.';
-      const b=$('#publicAddGuest');b.disabled=true;
-      const {data,error}=await sb.rpc('public_register_tournament_guest',{p_token:token,p_tournament_id:regTour.id,p_host_player_id:host,p_guest_name:guestName,p_phone_number:phone||null,p_add_as_member:addMember});
-      b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
-      $('#publicGuestName').value='';$('#publicPreviousGuest').value='';$('#publicGuestPhone').value='';$('#publicGuestMember').checked=false;
-      const used=publicGuestUsage(host).used+1;
-      const remaining=Math.max(0,PUBLIC_GUEST_LIMIT-used);
-      const hostIsRegistered=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===host&&r.present);
-      $('#publicRegStatus').textContent=(data?.status==='waitlist'?'üü† Quota atteint : l‚Äôinvit√© est inscrit comme rempla√ßant.':'üü¢ Invit√© ajout√© et confirm√© !')+(data?.member?' Il est aussi enregistr√© comme membre du groupe.':'')+(!hostIsRegistered&&regTour.format!=='league'?' Tu restes non inscrit au tournoi.':'')+' ‚Ä¢ '+remaining+' invitation'+(remaining>1?'s':'')+' restante'+(remaining>1?'s':'')+'.';
-      await refreshPublicRegistration();
-    };
-    if(window.__swePublicRegistrationInterval)clearInterval(window.__swePublicRegistrationInterval);
-    window.__swePublicRegistrationInterval=window.setInterval(()=>{
-      // Pendant la composition d'une √©quipe, aucune reconstruction du formulaire.
-      refreshPublicRegistration();
-    },8000);
-  }else{
-    regBox.innerHTML=consultationOnly
-      ? '<div class="readonly-note"><b>üëÅÔ∏è Consultation uniquement</b><div class="muted" style="margin-top:5px">Ce lien affiche les r√©sultats, classements et informations publiques du groupe. Pour s‚Äôinscrire √† un Sw√©, utilise le lien d‚Äôinscription propre au tournoi.</div></div>'
-      : '<p class="muted">Aucune inscription ouverte actuellement.</p>';
-  }
-
-  const entryChoiceCard=$('#publicEntryChoiceCard');
-  const soloCard=$('#publicRegistrationCard');
-  const teamCard=$('#publicTeamBuilderCard');
-  if(consultationOnly){
-    entryChoiceCard?.classList.add('hidden');
-    soloCard?.classList.add('hidden');
-    teamCard?.classList.add('hidden');
-  }
-  function setPublicEntryMode(mode){
-    if(!entryChoiceCard||!soloCard||!teamCard)return;
-    const premium=$('#publicView').classList.contains('swe-premium');
-    if(premium&&!mode)mode='solo';
-    entryChoiceCard.classList.toggle('hidden',!!mode&&!premium);
-    $('#chooseSoloMode')?.setAttribute('aria-pressed',String(mode==='solo'));
-    $('#chooseTeamMode')?.setAttribute('aria-pressed',String(mode==='team'));
-    soloCard.classList.toggle('hidden',mode!=='solo');
-    teamCard.classList.toggle('hidden',mode!=='team');
-    if(mode)window.scrollTo({top:0,behavior:'smooth'});
-  }
-  if(regTour){
-    $('#chooseTeamMode').classList.remove('hidden');
-    if(regTour.format==='league'){
-      const title=entryChoiceCard?.querySelector('.sectiontitle');if(title)title.textContent='üèÅ Inscription au Sw√© de Ligue';
-      const help=entryChoiceCard?.querySelector('.muted');if(help)help.innerHTML='Cette page concerne uniquement ce <b>Sw√© de Ligue</b>. Elle permet de confirmer ta participation √† cette journ√©e ou de venir avec ton √©quipe. L‚Äôinscription √† la Ligue elle-m√™me utilise un autre lien.';
-    }
-    const teamBtn=$('#chooseTeamMode');
-    if(teamBtn){
-      const teamTitle=teamBtn.querySelector('div[style*="font-size:1.2rem"]');
-      if(teamTitle)teamTitle.textContent='Je viens avec mon √©quipe';
-      const teamHelp=teamBtn.querySelectorAll('div');
-      if(teamHelp.length) teamBtn.title='√âquipe de 5 joueurs maximum, avec jusqu‚Äô√† 4 co√©quipiers ou invit√©s';
-    }
-    $('#chooseSoloMode').onclick=()=>setPublicEntryMode('solo');
-    $('#chooseTeamMode').onclick=()=>{
-      // Nouvelle ouverture volontaire : repartir d'un formulaire propre.
-      window.__swePublicTeamEditing=false;
-      renderPublicTeamBuilder();
-      setPublicEntryMode('team');
-    };
-    $('#backFromSoloMode').onclick=()=>setPublicEntryMode(null);
-    $('#backFromTeamMode').onclick=()=>{
-      window.__swePublicTeamEditing=false;
-      setPublicEntryMode(null);
-    };
-    setPublicEntryMode(null);
-  }else if(entryChoiceCard){
-    entryChoiceCard.classList.add('hidden');
-  }
-
-  if(regTour?.format==='league'){
-    // Un lien de Sw√© de Ligue ne doit jamais afficher les anciens classements de tournoi/saison.
-    ['publicTeamRanking','publicSeasonScorers','publicSeasonAssists','publicSeasonWins','publicLastTournamentDetails','publicHistory'].forEach(id=>{
-      const el=$('#'+id);const card=el?.closest('.card');if(card)card.classList.add('hidden');
-    });
-  }
-
-  const teamBuilder=$('#publicTeamBuilder');
-  const teamBuilderCard=$('#publicTeamBuilderCard');
-  function renderPublicTeamBuilder(){
-    if(!teamBuilder||!teamBuilderCard)return;
-    if(!regTour){
-      teamBuilderCard.classList.add('hidden');return;
-    }
-    const regs=registrations.filter(r=>r.tournament_id===regTour.id&&r.present&&r.registration_status!=='waitlist');
-    const confirmedIds=new Set(regs.map(r=>r.player_id));
-    const currentTeamIds=new Set(teams.filter(t=>t.tournament_id===regTour.id).map(t=>t.id));
-    const alreadyAssigned=new Set(teamPlayers.filter(tp=>currentTeamIds.has(tp.team_id)).map(tp=>tp.player_id));
-    const pendingTeamInviteIds=new Set(teamInvitations.filter(i=>i.tournament_id===regTour.id&&i.status==='pending').map(i=>i.player_id));
-    const creators=players.filter(pl=>pl.active&&pl.is_group_member!==false).sort((a,b)=>a.name.localeCompare(b.name));
-    teamBuilder.innerHTML=
-      '<div class="player" style="background:linear-gradient(145deg,#eef5ff,#f8fbff);border:1px solid #d7e7fb"><div style="font-size:1.05rem;font-weight:800">üîê √âtape 1 ‚Äî Code √©quipe</div><div class="muted" style="margin-top:5px;line-height:1.6"><b>Tu viens avec ton √©quipe ?</b> Demande √† <b>Forssa</b> de te communiquer ton <b>code √©quipe</b> pour pouvoir inscrire ton √©quipe au tournoi !</div><div class="space"></div><input id="publicTeamCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Code √©quipe personnel (6 chiffres)"><div class="space"></div><button id="publicValidateTeamCode" type="button" class="primary" style="width:100%">Valider le code</button><div id="publicTeamCodeStatus" class="muted" style="margin-top:8px"></div></div>'+
-      '<div id="publicTeamFormAfterCode" class="hidden">'+
-      '<div class="player" style="margin-top:12px;background:#fbfcfd"><div style="font-size:1.05rem;font-weight:800">üôãüèΩ‚Äç‚ôÇÔ∏è √âtape 2 ‚Äî Identifie-toi</div><div class="muted" style="margin-top:5px">Choisis ton nom parmi les membres actifs du groupe.</div><div class="space"></div><select id="publicTeamCreator"><option value="">Choisis ton nom</option>'+creators.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('')+'</select></div>'+
-      '<div class="player" style="margin-top:12px;background:#fbfcfd"><div style="font-size:1.05rem;font-weight:800">üõ°Ô∏è √âtape 3 ‚Äî Identit√© de l‚Äô√©quipe</div><div class="muted" style="margin-top:5px">Choisis un nom court et indique obligatoirement la couleur des maillots.</div><div class="space"></div><input id="publicTeamName" maxlength="30" placeholder="Ex. Les Lions, Team Nord, FC Poto..."><div class="space"></div><div id="publicTeamColorChoices" class="row" style="gap:8px;flex-wrap:wrap"><button type="button" data-team-color="#111827" style="background:#111827;color:white">Noir</button><button type="button" data-team-color="#2563eb" style="background:#2563eb;color:white">Bleu</button><button type="button" data-team-color="#f8fafc" style="background:#f8fafc;color:#111827;border:1px solid #cbd5e1">Blanc</button><button type="button" data-team-color="#dc2626" style="background:#dc2626;color:white">Rouge</button><button type="button" data-team-color="#16a34a" style="background:#16a34a;color:white">Vert</button><button type="button" data-team-color="#eab308" style="background:#eab308;color:#111827">Jaune</button><button type="button" data-team-color="#f97316" style="background:#f97316;color:white">Orange</button><button type="button" data-team-color="#7c3aed" style="background:#7c3aed;color:white">Violet</button><button type="button" data-team-color="#ec4899" style="background:#ec4899;color:white">Rose</button><button type="button" data-team-color="#78350f" style="background:#78350f;color:white">Marron</button><button type="button" data-team-color="#64748b" style="background:#64748b;color:white">Gris</button></div><div id="publicTeamColorStatus" class="muted" style="margin-top:6px">Aucune couleur s√©lectionn√©e.</div></div>'+
-      '<div class="player" style="margin-top:12px"><div style="font-size:1.05rem;font-weight:800">üë• √âtape 4 ‚Äî Compose ton groupe</div><div class="muted" style="margin-top:5px">Ton √©quipe peut √™tre cr√©√©e avec <b>1 √† 5 joueurs</b>. Lors de la g√©n√©ration, le noyau form√© par le cr√©ateur, les membres ayant accept√© et ses Guests est conserv√©. Tu n‚Äôes donc pas oblig√© de la compl√©ter tout de suite : lors de la g√©n√©ration finale, les places encore libres seront remplies avec les joueurs inscrits en <b>√âquipe al√©atoire</b>. Tu peux s√©lectionner uniquement des membres d√©j√† inscrits au tournoi ; ils devront ensuite confirmer qu‚Äôils acceptent de rejoindre ton √©quipe. Les invit√©s hors groupe sont ajout√©s directement.</div><div id="publicTeamMateBox" style="margin-top:12px"><p class="muted">S√©lectionne d‚Äôabord ton nom.</p></div><div id="publicTeamSlotsStatus" class="muted" style="margin-top:8px"><b>0/4 co√©quipiers ajout√©s</b> ‚Ä¢ 4 places restantes</div><div style="height:1px;background:#e8ecef;margin:14px 0"></div><b>üë• Composition de ton √©quipe</b><div class="muted" style="margin:4px 0 8px;line-height:1.6">Tu peux compl√©ter les 4 places autour de toi comme tu veux : <b>1 membre + 3 invit√©s</b>, <b>2 membres + 2 invit√©s</b>, <b>3 membres + 1 invit√©</b> ou <b>4 membres</b>. Le total reste limit√© √† 4 co√©quipiers en plus de toi.</div><div class="player" style="background:#fff8e8;border:1px solid #f2d18a;margin:8px 0"><b>‚ÑπÔ∏è Accord des membres</b><div class="muted" style="margin-top:4px;line-height:1.55">Un membre du groupe ajout√© ici re√ßoit une <b>proposition d‚Äô√©quipe</b>. Lorsqu‚Äôil s√©lectionnera son nom sur le lien d‚Äôinscription, il pourra <b>accepter</b> ou <b>refuser</b>. S‚Äôil refuse, il reste inscrit mais repasse en <b>√âquipe al√©atoire</b>.</div></div><b>‚ûï Invit√©s hors groupe</b><div id="publicTeamGuests"><input data-team-guest placeholder="Nom de l‚Äôinvit√© 1"></div><div class="row" style="margin-top:8px"><button id="publicAddTeamGuest" type="button" class="primary">+ Ajouter un autre invit√©</button></div></div>'+
-      '<div class="space"></div><button id="publicCreateTeam" class="primary" style="width:100%;padding:14px;font-size:1.05rem">üî• Valider mon √©quipe</button>'+
-      '<div id="publicTeamStatus" class="muted" style="margin-top:8px"></div></div>';
-
-    const creatorSel=$('#publicTeamCreator');
-    const mateBox=$('#publicTeamMateBox');
-    const codeInput=$('#publicTeamCode');
-    const codeStatus=$('#publicTeamCodeStatus');
-    const formAfterCode=$('#publicTeamFormAfterCode');
-    let validatedTeamCode='';
-    $('#publicValidateTeamCode').onclick=async()=>{
-      const code=codeInput.value.trim();
-      if(!/^\d{6}$/.test(code)){codeStatus.textContent='Entre un code secret valide √† 6 chiffres.';return}
-      const {data,error}=await sb.rpc('public_validate_team_code',{p_token:token,p_tournament_id:regTour.id,p_code:code});
-      if(error||!data){codeStatus.textContent=error?.message||'Code √©quipe invalide ou non autoris√©. Demande ton code √† l‚Äôadministrateur.';formAfterCode.classList.add('hidden');validatedTeamCode='';return}
-      validatedTeamCode=code;
-      window.__swePublicTeamEditing=true;
-      const ownerId=String(data);
-      if([...creatorSel.options].some(o=>o.value===ownerId)){
-        creatorSel.value=ownerId;
-        creatorSel.disabled=true;
-        renderMates();
-        const ownerName=players.find(x=>x.id===ownerId)?.name||'membre';
-        const existingTeam=teams.find(t=>t.tournament_id===regTour.id&&String(t.created_by_player_id||'')===ownerId&&t.is_preformed===true);
-        const createBtn=$('#publicCreateTeam');
-        if(existingTeam){
-          const directIds=teamPlayers.filter(tp=>tp.team_id===existingTeam.id).map(tp=>tp.player_id);
-          const pendingIds=teamInvitations.filter(i=>i.team_id===existingTeam.id&&i.status==='pending').map(i=>i.player_id);
-          const occupied=directIds.length+pendingIds.length;
-          codeStatus.innerHTML='üü¢ Code valid√© pour <b>'+esc(ownerName)+'</b>. Tu retrouves ton √©quipe <b>'+esc(existingTeam.name)+'</b> ci-dessous. '+Math.max(0,5-occupied)+' place'+(Math.max(0,5-occupied)>1?'s':'')+' encore disponible'+(Math.max(0,5-occupied)>1?'s':'')+'.';
-          const nameInput=$('#publicTeamName');if(nameInput){nameInput.value=existingTeam.name||'';nameInput.disabled=true}
-          selectedTeamColor=String(existingTeam.color||'').toLowerCase();
-          document.querySelectorAll('#publicTeamColorChoices [data-team-color]').forEach(b=>{
-            const active=b.dataset.teamColor===selectedTeamColor;
-            b.disabled=true;
-            b.style.outline=active?'3px solid #0f5132':'none';
-            b.style.outlineOffset=active?'2px':'0';
-          });
-          const colorStatus=$('#publicTeamColorStatus');if(colorStatus)colorStatus.textContent='üëï Couleur actuelle : '+(document.querySelector('#publicTeamColorChoices [data-team-color="'+selectedTeamColor+'"]')?.textContent||'d√©finie');
-          if(createBtn){createBtn.disabled=occupied>=5;createBtn.textContent=occupied>=5?'‚úÖ √âquipe compl√®te':'‚ûï Compl√©ter mon √©quipe'}
-        }else{
-          codeStatus.textContent='üü¢ Code valid√© pour '+ownerName+'. Tu peux maintenant composer ton √©quipe.';
-          if(createBtn){createBtn.disabled=false;createBtn.textContent='üî• Valider mon √©quipe'}
-        }
-      }else{
-        creatorSel.disabled=false;
-        codeStatus.textContent='üü¢ Code valid√©. Choisis ton nom puis compose ton √©quipe.';
-      }
-      formAfterCode.classList.remove('hidden');
-      requestAnimationFrame(()=>formAfterCode.scrollIntoView({behavior:'smooth',block:'start'}));
-    };
-    codeInput.addEventListener('input',()=>{
-      if(validatedTeamCode&&codeInput.value.trim()!==validatedTeamCode){
-        validatedTeamCode='';
-        window.__swePublicTeamEditing=false;
-        creatorSel.disabled=false;creatorSel.value='';
-        formAfterCode.classList.add('hidden');
-        codeStatus.textContent='Le code a √©t√© modifi√© : valide-le √† nouveau.';
-      }
-    });
-    function renderMates(){
-      const creator=creatorSel.value;
-      if(!creator){mateBox.innerHTML='<p class="muted">S√©lectionne d‚Äôabord ton nom.</p>';return}
-      const existingTeam=teams.find(t=>t.tournament_id===regTour.id&&String(t.created_by_player_id||'')===String(creator)&&t.is_preformed===true);
-      const directRows=existingTeam?teamPlayers.filter(tp=>tp.team_id===existingTeam.id):[];
-      const pendingRows=existingTeam?teamInvitations.filter(i=>i.team_id===existingTeam.id&&i.status==='pending'):[];
-      const acceptedRows=existingTeam?teamInvitations.filter(i=>i.team_id===existingTeam.id&&i.status==='accepted'):[];
-      const occupiedCount=directRows.length+pendingRows.length;
-      const directIds=new Set(directRows.map(tp=>tp.player_id));
-      const pendingIds=new Set(pendingRows.map(i=>i.player_id));
-      const currentTeamHtml=existingTeam
-        ? '<div class="player" style="background:#eef8f2;border:1px solid #b7dfc4;margin-bottom:12px"><b>üë• Ton √©quipe actuelle ‚Äî '+esc(existingTeam.name)+'</b><div class="muted" style="margin-top:5px">Les joueurs confirm√©s et les Guests sont conserv√©s. Les joueurs en attente doivent encore accepter.</div>'+
-          directRows.map(tp=>{const pl=players.find(p=>p.id===tp.player_id);return pl?'<div style="margin-top:6px">‚úÖ '+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('')+
-          pendingRows.map(i=>{const pl=players.find(p=>p.id===i.player_id);return pl?'<div style="margin-top:6px">‚è≥ '+esc(pl.name)+' <span class="muted">‚Ä¢ en attente de confirmation</span></div>':''}).join('')+
-          '<div class="muted" style="margin-top:9px"><b>'+occupiedCount+'/5 places r√©serv√©es</b> ‚Ä¢ '+Math.max(0,5-occupiedCount)+' place'+(Math.max(0,5-occupiedCount)>1?'s':'')+' √† compl√©ter</div></div>'
-        : '';
-      const available=players.filter(pl=>pl.active&&pl.is_group_member!==false&&pl.id!==creator&&confirmedIds.has(pl.id)).sort((a,b)=>a.name.localeCompare(b.name));
-      mateBox.innerHTML=currentTeamHtml+(confirmedIds.has(creator)?'<div class="readonly-note" style="margin-bottom:10px">‚ÑπÔ∏è Tu es d√©j√† inscrit √† ce Sw√©. Ton inscription existante est conserv√©e.</div>':'')+
-        '<b>Membres du groupe disponibles</b><div class="muted" style="margin:3px 0 8px;line-height:1.55">Tu peux s√©lectionner uniquement les <b>membres d√©j√† inscrits et confirm√©s √† ce tournoi</b>. Les membres d√©j√† dans ton √©quipe ou d√©j√† en attente de confirmation sont affich√©s ci-dessus et ne sont pas propos√©s une deuxi√®me fois.</div>'+
-        (available.map(pl=>{
-          const assigned=alreadyAssigned.has(pl.id);
-          const pending=pendingTeamInviteIds.has(pl.id);
-          const unavailable=assigned||pending||directIds.has(pl.id)||pendingIds.has(pl.id);
-          const registered=confirmedIds.has(pl.id);
-          return '<label class="row" style="justify-content:flex-start;margin:5px 0;opacity:'+(unavailable?'.55':'1')+'"><input type="checkbox" data-team-mate="'+pl.id+'" style="width:auto" '+(unavailable?'disabled':'')+'><span>'+esc(pl.name)+(assigned?' <span class="muted">‚Ä¢ d√©j√† dans une √©quipe</span>':(pending?' <span class="muted">‚Ä¢ proposition d‚Äô√©quipe en attente</span>':(registered?' <span class="muted">‚Ä¢ d√©j√† inscrit</span>':'')))+'</span></label>';
-        }).join('')||'<p class="muted">Aucun autre membre d√©j√† inscrit et confirm√© n‚Äôest disponible pour cette √©quipe.</p>');
-      mateBox.querySelectorAll('[data-team-mate]').forEach(cb=>cb.onchange=()=>{
-        const info=teamMateUsage();
-        if(info.total>5){
-          cb.checked=false;
-          toast('Ton √©quipe est limit√©e √† 5 places, confirmations en attente comprises.');
-        }
-        updateTeamSlotsStatus();
-      });
-      updateTeamSlotsStatus();
-    }
-    creatorSel.onchange=renderMates;
-    const guestsBox=$('#publicTeamGuests');
-
-    function teamMateUsage(){
-      const creator=creatorSel.value;
-      const existingTeam=teams.find(t=>t.tournament_id===regTour.id&&String(t.created_by_player_id||'')===String(creator||'')&&t.is_preformed===true);
-      const existingDirect=existingTeam?teamPlayers.filter(tp=>tp.team_id===existingTeam.id).length:1;
-      const existingPending=existingTeam?teamInvitations.filter(i=>i.team_id===existingTeam.id&&i.status==='pending').length:0;
-      const baseOccupied=existingTeam?(existingDirect+existingPending):1;
-      const mateCount=[...mateBox.querySelectorAll('[data-team-mate]:checked')].length;
-      const filledGuests=[...guestsBox.querySelectorAll('[data-team-guest]')].map(x=>x.value.trim()).filter(Boolean).length;
-      const added=mateCount+filledGuests;
-      const total=baseOccupied+added;
-      return {mateCount,filledGuests,used:added,total,baseOccupied,remaining:Math.max(0,5-total)};
-    }
-
-    function updateTeamSlotsStatus(){
-      const info=teamMateUsage();
-      const status=$('#publicTeamSlotsStatus');
-      if(status)status.innerHTML='<b>'+info.total+'/5 places occup√©es ou r√©serv√©es</b> ‚Ä¢ '+info.remaining+' place'+(info.remaining>1?'s':'')+' restante'+(info.remaining>1?'s':'');
-      const addBtn=$('#publicAddTeamGuest');
-      if(addBtn){
-        addBtn.disabled=info.remaining<=0;
-        addBtn.textContent=info.remaining<=0?'√âquipe compl√®te (5 joueurs)':'+ Ajouter un autre invit√©';
-      }
-    }
-
-    $('#publicAddTeamGuest').onclick=()=>{
-      const fields=[...guestsBox.querySelectorAll('[data-team-guest]')];
-      const info=teamMateUsage();
-      if(info.remaining<=0)return toast('Ton √©quipe est d√©j√† compl√®te ou toutes ses places sont r√©serv√©es.');
-      // Un champ vide d√©j√† affich√© ne consomme pas une place.
-      const emptyField=fields.find(x=>!x.value.trim());
-      if(emptyField){emptyField.focus();return}
-      const input=document.createElement('input');
-      input.setAttribute('data-team-guest','');
-      input.placeholder='Nom de l‚Äôinvit√© '+(fields.length+1);
-      input.style.marginTop='8px';
-      input.addEventListener('input',updateTeamSlotsStatus);
-      guestsBox.appendChild(input);
-      input.focus();
-      updateTeamSlotsStatus();
-    };
-    guestsBox.querySelectorAll('[data-team-guest]').forEach(input=>input.addEventListener('input',updateTeamSlotsStatus));
-    updateTeamSlotsStatus();
-
-    let selectedTeamColor='';
-    document.querySelectorAll('#publicTeamColorChoices [data-team-color]').forEach(btn=>{
-      btn.onclick=()=>{
-        selectedTeamColor=btn.dataset.teamColor;
-        document.querySelectorAll('#publicTeamColorChoices [data-team-color]').forEach(b=>{
-          b.style.outline=b===btn?'3px solid #0f5132':'none';
-          b.style.outlineOffset=b===btn?'2px':'0';
-        });
-        const s=$('#publicTeamColorStatus');
-        if(s)s.textContent='üëï Couleur choisie : '+btn.textContent;
-      };
-    });
-
-    $('#publicCreateTeam').onclick=async()=>{
-      if(regTour.format!=='league'&&tournamentDeadlineMs(regTour)!==null&&Date.now()>=tournamentDeadlineMs(regTour))return status.textContent='‚õî Les inscriptions sont termin√©es.';
-      const creator=creatorSel.value;
-      const code=validatedTeamCode;
-      const name=$('#publicTeamName').value.trim();
-      const color=selectedTeamColor;
-      const status=$('#publicTeamStatus');
-      if(!code)return status.textContent='Valide d‚Äôabord ton code secret √©quipe.';
-      if(!creator)return status.textContent='Choisis ton nom.';
-      if(!name)return status.textContent='Donne un nom √† ton √©quipe.';
-      if(!color)return status.textContent='Choisis la couleur des maillots de ton √©quipe.';
-      const mates=[...mateBox.querySelectorAll('[data-team-mate]:checked')].map(x=>x.dataset.teamMate);
-      const guests=[...guestsBox.querySelectorAll('[data-team-guest]')].map(x=>x.value.trim()).filter(Boolean);
-      const usage=teamMateUsage();
-      if(usage.total>5)return status.textContent='Ton √©quipe ne peut pas d√©passer 5 places, joueurs en attente compris.';
-      const btn=$('#publicCreateTeam');btn.disabled=true;
-      const {data,error}=await sb.rpc('public_create_team_with_member_code_v2',{
-        p_token:token,p_tournament_id:regTour.id,p_player_id:creator,p_code:code,p_team_name:name,p_team_color:color,p_player_ids:mates,p_guest_names:guests
-      });
-      btn.disabled=false;
-      if(error){
-        const msg=String(error.message||'');
-        if(/d√©j√†.*√©quipe|already.*team/i.test(msg))return status.textContent='Un des nouveaux joueurs s√©lectionn√©s appartient d√©j√† √† une autre √©quipe. Retire-le puis r√©essaie.';
-        if(/d√©j√† inscrit|already registered/i.test(msg))return status.textContent='Un joueur s√©lectionn√© est d√©j√† inscrit. Il peut √™tre ajout√© uniquement s‚Äôil n‚Äôappartient pas d√©j√† √† une autre √©quipe.';
-        return status.textContent=msg;
-      }
-      status.textContent='üü¢ √âquipe enregistr√©e ! Les nouveaux membres s√©lectionn√©s ont une proposition √† accepter ou refuser. Les joueurs d√©j√† confirm√©s et les Guests restent dans ton noyau. Les places encore libres seront compl√©t√©es en √âquipe al√©atoire lors de la g√©n√©ration finale.';
-      window.__swePublicTeamEditing=false;
-      $('#publicTeamCode').value='';$('#publicTeamName').value='';validatedTeamCode='';selectedTeamColor='';creatorSel.disabled=false;creatorSel.value='';$('#publicTeamFormAfterCode')?.classList.add('hidden');
-      try{
-        const snap=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
-        if(!snap.error&&snap.data){
-          players=snap.data.players||players;registrations=snap.data.tournament_players||registrations;
-          teams=snap.data.teams||teams;teamPlayers=snap.data.team_players||teamPlayers;teamInvitations=snap.data.team_player_invitations||teamInvitations;
-          renderPublicTeamBuilder();
-        }
-      }catch(e){}
-    };
-  }
-  if(!window.__swePublicTeamEditing)renderPublicTeamBuilder();
-
-
-  const TEAM_COLOR_META={
-    '#111827':['Noir','Noirs','Noire','Noires'],
-    '#2563eb':['Bleu','Bleus','Bleue','Bleues'],
-    '#f8fafc':['Blanc','Blancs','Blanche','Blanches'],
-    '#dc2626':['Rouge','Rouges'],
-    '#16a34a':['Vert','Verts','Verte','Vertes'],
-    '#eab308':['Jaune','Jaunes'],
-    '#f97316':['Orange','Oranges'],
-    '#7c3aed':['Violet','Violets','Violette','Violettes'],
-    '#ec4899':['Rose','Roses'],
-    '#78350f':['Marron','Marrons'],
-    '#64748b':['Gris','Grise','Grises']
-  };
-  function inferredTeamColor(team){
-    if(team?.color)return String(team.color).toLowerCase();
-    const name=String(team?.name||'').trim().toLowerCase();
-    for(const [hex,names] of Object.entries(TEAM_COLOR_META)){
-      if(names.some(n=>n.toLowerCase()===name))return hex;
-    }
-    return '#eef2f3';
-  }
-  function teamColorLabel(team){
-    const hex=inferredTeamColor(team);
-    const meta=TEAM_COLOR_META[hex];
-    return meta?meta[0]:'Non pr√©cis√©e';
-  }
-  function teamTextColor(hex){
-    return ['#f8fafc','#eab308'].includes(hex)?'#111827':'#ffffff';
-  }
-
-  const pmap=new Map(players.map(x=>[x.id,x]));
-  const tmap=new Map(teams.map(x=>[x.id,x]));
-
-  // V40.02 ‚Äî Vue publique d√©di√©e aux Sw√©s de Ligue : aucune donn√©e de tournoi classique.
-  if(wantsLeagueSession&&regTour){
-    const linkedLeague=leagues.find(l=>l.id===regTour.league_id)||null;
-    const linkLeagueId=publicParams.get('league');
-    if(!linkedLeague || (linkLeagueId&&linkLeagueId!==regTour.league_id)){
-      $('#publicView').innerHTML='<header class="top"><h1><img src="./favicon.png?v=4100" class="brand-mark" alt="SW√â">SW√â TOURNAMENT 5/5</h1></header><div class="card"><h2 class="sectiontitle">Lien de Ligue indisponible</h2><p class="muted">Ce lien ne correspond pas √† la Ligue de ce Sw√©. Aucun tournoi ne sera affich√© √† sa place.</p></div>';
-      return;
-    }
-
-    const leagueTournamentIds=new Set(tournaments.filter(t=>t.format==='league'&&t.league_id===linkedLeague.id).map(t=>t.id));
-    const leagueMatches=matches.filter(m=>leagueTournamentIds.has(m.tournament_id));
-    const leagueMatchIds=new Set(leagueMatches.map(m=>m.id));
-    const leagueTeamIds=new Set();
-    leagueMatches.forEach(m=>{leagueTeamIds.add(m.home_team_id);leagueTeamIds.add(m.away_team_id);});
-    const leaguePlayerIds=new Set(players.filter(pl=>pl.active&&pl.is_group_member!==false).map(pl=>pl.id));
-    teamPlayers.filter(tp=>leagueTeamIds.has(tp.team_id)).forEach(tp=>leaguePlayerIds.add(tp.player_id));
-    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{if(g.scorer_player_id)leaguePlayerIds.add(g.scorer_player_id);if(g.assister_player_id)leaguePlayerIds.add(g.assister_player_id);});
-    const stats=new Map(players.filter(pl=>leaguePlayerIds.has(pl.id)).map(pl=>[pl.id,{id:pl.id,name:pl.name,g:0,a:0,w:0}]));
-    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++;});
-    leagueMatches.forEach(m=>{const hs=Number(m.home_score||0),as=Number(m.away_score||0);if(hs===as)return;const winner=hs>as?m.home_team_id:m.away_team_id;teamPlayers.filter(tp=>tp.team_id===winner).forEach(tp=>{if(stats.has(tp.player_id))stats.get(tp.player_id).w++;});});
-    function leagueRanks(arr,key){let prev=null,rank=0;return arr.sort((a,b)=>b[key]-a[key]||a.name.localeCompare(b.name)).map((x,i)=>{if(x[key]!==prev){rank=i+1;prev=x[key]}return {...x,rank};});}
-    const scorers=leagueRanks([...stats.values()].filter(x=>x.g>0),'g');
-    const assists=leagueRanks([...stats.values()].filter(x=>x.a>0),'a');
-    const winners=leagueRanks([...stats.values()].filter(x=>x.w>0),'w');
-
-    const sessionRegs=registrations.filter(r=>r.tournament_id===regTour.id);
-    const confirmed=sessionRegs.filter(r=>r.present&&r.registration_status!=='waitlist').length;
-    const waiting=sessionRegs.filter(r=>r.registration_status==='waitlist').length;
-    const leagueMembers=players.filter(pl=>pl.active&&confirmedLeagueIds.has(pl.id)).sort((a,b)=>a.name.localeCompare(b.name));
-
-    const sessions=tournaments.filter(t=>t.format==='league'&&t.league_id===linkedLeague.id).sort((a,b)=>String(a.tournament_date).localeCompare(String(b.tournament_date)));
-    const played=sessions.filter(s=>leagueMatches.some(m=>m.tournament_id===s.id));
-    const latestSession=played.length?played[played.length-1]:null;
-    const latestMatch=latestSession?(leagueMatches.filter(m=>m.tournament_id===latestSession.id).pop()||null):null;
-
-    let lastSweHtml='<div class="card" style="background:#f8fbf9"><h2 class="sectiontitle">üî• Dernier Sw√© de la Ligue</h2><p class="muted">Aucun match n‚Äôa encore √©t√© jou√© dans cette Ligue. Aucune √©quipe de tournoi n‚Äôest affich√©e.</p></div>';
-    if(latestSession&&latestMatch){
-      const home=tmap.get(latestMatch.home_team_id),away=tmap.get(latestMatch.away_team_id);
-      const teamCard=team=>{if(!team)return '';const members=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>pmap.get(tp.player_id)).filter(Boolean);return '<div class="public-team-card"><div class="public-team-head"><b>'+esc(team.name)+'</b></div><div class="public-team-players">'+(members.map(pl=>'<div class="public-team-player">'+esc(pl.name)+'</div>').join('')||'<div class="muted">Composition non enregistr√©e</div>')+'</div></div>';};
-      lastSweHtml='<div class="card"><h2 class="sectiontitle">üî• Dernier Sw√© de la Ligue</h2><div class="muted">'+esc(latestSession.name||latestSession.tournament_date)+' ‚Ä¢ '+esc(latestSession.tournament_date)+'</div><div class="player" style="margin-top:10px"><div class="row" style="justify-content:space-between;gap:8px"><b>'+esc(home?.name||'√âquipe A')+'</b><span class="score">'+Number(latestMatch.home_score||0)+' - '+Number(latestMatch.away_score||0)+'</span><b>'+esc(away?.name||'√âquipe B')+'</b></div></div><div style="display:flex;gap:12px;overflow-x:auto;margin-top:12px">'+teamCard(home)+teamCard(away)+'</div></div>';
-    }
-
-    $('#publicView').innerHTML=
-      '<header class="top"><h1>üèÅ '+esc(linkedLeague.name)+'</h1><div class="public-sub">SW√â TOURNAMENT 5/5 ‚Ä¢ Inscription au Sw√© de Ligue</div></header>'+
-      '<div class="card"><h2 class="sectiontitle">‚úÖ Inscription √† ce Sw√©</h2>'+
-        '<div class="player" style="background:#f8fbf9"><b>'+esc(regTour.name||('Sw√© du '+regTour.tournament_date))+'</b><div class="muted">'+esc(regTour.tournament_date)+' ‚Ä¢ 1 match d‚Äôenviron 60 min</div></div>'+
-        '<div class="grid g3" style="margin-top:10px"><div class="player"><span class="muted">üìç Terrain r√©serv√©</span><br><b>'+esc(regTour.venue||'√Ä pr√©ciser')+'</b></div><div class="player"><span class="muted">üïò Heure</span><br><b>'+esc(regTour.start_time?String(regTour.start_time).slice(0,5):'√Ä pr√©ciser')+'</b></div><div class="player"><span class="muted">üí∂ Prix</span><br><b>'+(Number(regTour.entry_fee_cents||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:Number(regTour.entry_fee_cents||0)%100?2:0,maximumFractionDigits:2})+' ‚Ç¨ / participant</b></div></div>'+
-        (regTour.reservation_reference?'<div class="muted" style="margin-top:8px">R√©servation : <b>'+esc(regTour.reservation_reference)+'</b></div>':'')+
-        '<div class="muted" style="margin:10px 0">Ce lien concerne uniquement ce Sw√©. Les informations affich√©es en dessous concernent uniquement la Ligue <b>'+esc(linkedLeague.name)+'</b>.</div>'+
-        '<div class="player"><b>'+confirmed+'/'+(regTour.max_players||100)+' confirm√©s</b>'+(waiting?' ‚Ä¢ '+waiting+' rempla√ßant'+(waiting>1?'s':''):'')+'</div>'+
-        '<div class="readonly-note" style="margin:10px 0"><b>Tu es membre de la Ligue ?</b> Cela te permet de t‚Äôinscrire ici, mais tu n‚Äôes participant √† ce Sw√© que si tu cliques sur ¬´ Je participe √† ce Sw√© ¬ª.</div>'+
-        '<div class="space"></div><select id="leagueSessionPublicPlayer"><option value="">Choisis ton nom parmi les membres de la Ligue</option>'+leagueMembers.map(pl=>'<option value="'+pl.id+'">'+esc(pl.name)+'</option>').join('')+'</select>'+
-        '<div class="space"></div><div class="row"><button id="leagueSessionPublicJoin" class="primary">‚úÖ Je participe √† CE Sw√©</button><button id="leagueSessionPublicLeave">‚ùå Je ne participe pas √† CE Sw√©</button></div>'+
-        '<div id="leagueSessionPublicStatus" class="muted" style="margin-top:8px"></div>'+
-        '<h3 style="margin-top:18px">üë• Participants inscrits √† CE Sw√©</h3><div class="muted" style="margin-bottom:8px">Cette liste est ind√©pendante de la liste des membres de la Ligue.</div><div id="leagueSessionPublicRegistered"></div>'+
-      '</div>'+
-      '<div class="card"><h2 class="sectiontitle">üèÅ '+esc(linkedLeague.name)+'</h2><div class="player"><b>Saison :</b> '+esc(linkedLeague.starts_on)+(linkedLeague.ends_on?' ‚Üí '+esc(linkedLeague.ends_on):'')+'</div><div class="muted" style="margin-top:8px">Informations de la Ligue s√©lectionn√©e uniquement.</div></div>'+
-      '<div class="grid g3">'+
-        '<div class="card"><h2 class="sectiontitle">‚öΩ Meilleurs buteurs</h2>'+(scorers.map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but pour le moment.</p>')+'</div>'+
-        '<div class="card"><h2 class="sectiontitle">üéØ Meilleurs passeurs</h2>'+(assists.map(x=>'<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe pour le moment.</p>')+'</div>'+
-        '<div class="card"><h2 class="sectiontitle">üëë Top Player</h2><div class="muted" style="margin-bottom:8px">Nombre de Sw√©s de Ligue gagn√©s.</div>'+(winners.map(x=>'<div class="rank"><b>'+(x.rank===1?'üëë':x.rank)+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.w+' victoire'+(x.w>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune victoire pour le moment.</p>')+'</div>'+
-      '</div>'+lastSweHtml;
-
-    const renderRegistered=()=>{$('#leagueSessionPublicRegistered').innerHTML=sessionRegs.filter(r=>r.present).map(r=>{const pl=pmap.get(r.player_id);return '<div class="player row"><span style="flex:1">'+esc(pl?.name||'Joueur')+'</span><span class="guest-badge">'+(r.registration_status==='waitlist'||r.is_substitute?'Rempla√ßant':'Confirm√©')+'</span></div>';}).join('')||'<p class="muted">Aucun inscrit pour le moment.</p>';};
-    renderRegistered();
-    $('#leagueSessionPublicJoin').onclick=async()=>{const pid=$('#leagueSessionPublicPlayer').value;if(!pid)return $('#leagueSessionPublicStatus').textContent='Choisis ton nom.';const b=$('#leagueSessionPublicJoin');b.disabled=true;const {data,error}=await sb.rpc('public_tournament_registration',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_action:'join'});b.disabled=false;if(error)return $('#leagueSessionPublicStatus').textContent=error.message;$('#leagueSessionPublicStatus').textContent=data?.status==='waitlist'?'üü† Tu es inscrit comme rempla√ßant.':'üü¢ Inscription au Sw√© confirm√©e !';setTimeout(()=>location.reload(),450);};
-    $('#leagueSessionPublicLeave').onclick=async()=>{const pid=$('#leagueSessionPublicPlayer').value;if(!pid)return $('#leagueSessionPublicStatus').textContent='Choisis ton nom.';const b=$('#leagueSessionPublicLeave');b.disabled=true;const {error}=await sb.rpc('public_tournament_registration',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_action:'absent'});b.disabled=false;if(error)return $('#leagueSessionPublicStatus').textContent=error.message;$('#leagueSessionPublicStatus').textContent='Inscription retir√©e.';setTimeout(()=>location.reload(),450);};
-    return;
-  }
-
-  function tournamentStandings(tournamentId){
-    const tt=teams.filter(x=>x.tournament_id===tournamentId);
-    const rows=tt.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
-    const map=new Map(rows.map(x=>[x.id,x]));
-    matches.filter(m=>m.tournament_id===tournamentId).forEach(m=>{
-      const home=map.get(m.home_team_id),away=map.get(m.away_team_id); if(!home||!away)return;
-      home.mj++;away.mj++;home.bp+=Number(m.home_score||0);home.bc+=Number(m.away_score||0);away.bp+=Number(m.away_score||0);away.bc+=Number(m.home_score||0);
-      if(Number(m.home_score)>Number(m.away_score)){home.v++;away.d++;home.pts+=3}
-      else if(Number(m.away_score)>Number(m.home_score)){away.v++;home.d++;away.pts+=3}
-      else{home.n++;away.n++;home.pts++;away.pts++}
-    });
-    rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
-    return rows;
-  }
-
-  const activeSeason=seasons.find(x=>x.is_active)||seasons[0];
-  let scor=[],seasonAss=[];
-  function collectSeasonRankings(){
-    const season=seasons.find(x=>x.is_active)||seasons[0];
-    const tids=new Set(tournaments.filter(x=>x.format!=='league'&&(!season||x.season_id===season.id)).map(x=>x.id));
-    const mids=new Set(matches.filter(x=>tids.has(x.tournament_id)).map(x=>x.id));
-    const gs=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false}]));
-    goals.filter(g=>mids.has(g.match_id)&&!g.is_own_goal).forEach(g=>{if(gs.has(g.scorer_player_id))gs.get(g.scorer_player_id).g++;if(gs.has(g.assister_player_id))gs.get(g.assister_player_id).a++;});
-    const rankBy=key=>{let previous=null,rank=0;return [...gs.values()].filter(x=>x[key]).sort((a,b)=>b[key]-a[key]||a.name.localeCompare(b.name)).map((x,i)=>{if(x[key]!==previous){previous=x[key];rank=i+1}return {...x,rank}})};
-    scor=rankBy('g');seasonAss=rankBy('a');
-  }
-  collectSeasonRankings();
-  let publicScorersExpanded=false;
-  const renderPublicSeasonScorers=()=>{
-    const visible=publicScorersExpanded?scor:scor.slice(0,10);
-    $('#publicSeasonScorers').innerHTML=visible.map(x=>'<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.guest?' <span class="guest-badge">Guest</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but enregistr√©.</p>';
-    const b=$('#togglePublicSeasonScorers');if(b){b.classList.toggle('hidden',scor.length<=10);b.textContent=publicScorersExpanded?'R√©duire':'D√©velopper';}
-  };
-  renderPublicSeasonScorers();
-  if($('#togglePublicSeasonScorers'))$('#togglePublicSeasonScorers').onclick=()=>{publicScorersExpanded=!publicScorersExpanded;renderPublicSeasonScorers();};
-
-  let publicAssistsExpanded=false;
-  const renderPublicSeasonAssists=()=>{
-    const visible=publicAssistsExpanded?seasonAss:seasonAss.slice(0,10);
-    $('#publicSeasonAssists').innerHTML=visible.map(x=>'<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.guest?' <span class="guest-badge">Guest</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe enregistr√©e.</p>';
-    const b=$('#togglePublicSeasonAssists');if(b){b.classList.toggle('hidden',seasonAss.length<=10);b.textContent=publicAssistsExpanded?'R√©duire':'D√©velopper';}
-  };
-  renderPublicSeasonAssists();
-  if($('#togglePublicSeasonAssists'))$('#togglePublicSeasonAssists').onclick=()=>{publicAssistsExpanded=!publicAssistsExpanded;renderPublicSeasonAssists();};
-
-  function renderTournamentTopFive(){
-    const box=$('#publicTournamentTopFive');if(!box)return false;
-    const seasonId=regTour?.season_id||activeSeason?.id;
-    const season=seasons.find(s=>s.id===seasonId)||activeSeason;
-    const seasonTournamentIds=new Set(tournaments.filter(t=>t.format!=='league'&&(!seasonId||t.season_id===seasonId)).map(t=>t.id));
-    const finishedTournamentIds=new Set(tournaments.filter(t=>t.status==='finished'&&seasonTournamentIds.has(t.id)).map(t=>t.id));
-    const completed=matches.filter(m=>m.status==='finished'||finishedTournamentIds.has(m.tournament_id));
-    const rows=publicPlayerRatingsEnabled&&seasonTournamentIds.size?topPlayersFromData(completed,goals,matchAssignments,players,seasonTournamentIds).slice(0,5):[];
-    box.classList.toggle('hidden',!rows.length);if(!rows.length){box.replaceChildren();return false;}
-    const html='<div class="top-five-heading"><small>LES JOUEURS √Ä L‚ÄôHONNEUR</small><h2>üëë Top 5 de la saison</h2><p>'+esc(season?.name||'Saison en cours')+' ¬∑ Tous les r√©sultats valid√©s de la saison</p></div><ol>'+rows.map((x,i)=>'<li><span class="top-five-rank" aria-label="Place '+(i+1)+'">'+(i+1)+'</span><span class="top-five-name">'+esc(x.name)+'<span class="top-five-detail">'+x.matches+' match'+(x.matches>1?'s':'')+' ¬∑ ‚öΩ '+x.g+' ¬∑ üéØ '+x.a+'</span></span><span class="top-five-score">'+x.avg.toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+'<small>/10</small></span></li>').join('')+'</ol><p class="top-five-caption">Moyenne de la saison ¬∑ tous les matchs des tournois termin√©s sont cumul√©s.</p>';
-    if(box.innerHTML!==html)box.innerHTML=html;return true;
-  }
-  refreshSeasonRankings=()=>{collectSeasonRankings();renderPublicSeasonScorers();renderPublicSeasonAssists();const hasTop=renderTournamentTopFive();if(regTour){$('#publicSeasonScorers')?.closest('.card')?.classList.toggle('hidden',!scor.length);$('#publicSeasonAssists')?.closest('.card')?.classList.toggle('hidden',!seasonAss.length);$('#registrationSeasonRankings')?.classList.toggle('hidden',!scor.length&&!seasonAss.length&&!hasTop);}};
-  renderTournamentTopFive();
-
-  const seasonWinStats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,matchWins:0,tournamentWins:0,g:0,a:0,avg:0,ratingTotal:0,ratingMatches:0,guest:x.is_group_member===false}]));
-  const seasonTours=tournaments.filter(t=>t.format!=='league'&&t.status==='finished'&&(!activeSeason||t.season_id===activeSeason.id));
-  const seasonTourIdsForWins=new Set(seasonTours.map(t=>t.id));
-  const seasonMatchesForWins=matches.filter(m=>seasonTourIdsForWins.has(m.tournament_id));
-  const seasonMatchIdsForWins=new Set(seasonMatchesForWins.map(m=>m.id));
-
-  goals.filter(g=>seasonMatchIdsForWins.has(g.match_id)).forEach(g=>{
-    if(seasonWinStats.has(g.scorer_player_id))seasonWinStats.get(g.scorer_player_id).g++;
-    if(g.assister_player_id&&seasonWinStats.has(g.assister_player_id))seasonWinStats.get(g.assister_player_id).a++;
-  });
-
-  seasonMatchesForWins.forEach(m=>{
-    let winner=null;
-    if(Number(m.home_score)>Number(m.away_score))winner=m.home_team_id;
-    else if(Number(m.away_score)>Number(m.home_score))winner=m.away_team_id;
-    matchAssignments.filter(a=>a.match_id===m.id&&a.team_id).forEach(a=>{
-      const s=seasonWinStats.get(a.player_id);if(!s)return;
-      if(winner&&String(a.team_id)===String(winner))s.matchWins++;
-      if(publicPlayerRatingsEnabled){
-        const rr=ratingForMatchPlayer(m,a.player_id,a.team_id,goals);
-        if(rr){s.ratingTotal+=rr.rating;s.ratingMatches++;}
-      }
-    });
-  });
-
-  seasonTours.forEach(t=>{
-    const standings=tournamentStandings(t.id);
-    const champion=standings[0];
-    if(!champion)return;
-    const tMatchIds=new Set(matches.filter(m=>m.tournament_id===t.id).map(m=>m.id));
-    const championPlayers=new Set(matchAssignments.filter(a=>tMatchIds.has(a.match_id)&&String(a.team_id)===String(champion.id)).map(a=>a.player_id));
-    championPlayers.forEach(pid=>{if(seasonWinStats.has(pid))seasonWinStats.get(pid).tournamentWins++});
-  });
-  seasonWinStats.forEach(s=>{s.avg=s.ratingMatches?s.ratingTotal/s.ratingMatches:0;});
-  const winRows=[...seasonWinStats.values()].filter(x=>x.matchWins||x.tournamentWins||x.g||x.a)
-    .sort((a,b)=>b.tournamentWins-a.tournamentWins||b.matchWins-a.matchWins||b.g-a.g||b.a-a.a||b.avg-a.avg||a.name.localeCompare(b.name));
-  let publicWinsExpanded=false;
-  const renderPublicSeasonWins=()=>{
-    const visible=publicWinsExpanded?winRows:winRows.slice(0,5);
-    $('#publicSeasonWins').innerHTML=visible.map((x,i)=>
-      '<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+(winRows.indexOf(x)+1)+'</b><span><b>'+esc(x.name)+'</b>'+(x.guest?' <span class="guest-badge">Guest</span>':'')+
-      '<div class="muted">'+x.matchWins+' victoire'+(x.matchWins>1?'s':'')+' ‚Ä¢ ‚öΩ '+x.g+' ‚Ä¢ üéØ '+x.a+(publicPlayerRatingsEnabled&&x.ratingMatches?' ‚Ä¢ ‚≠ê '+x.avg.toFixed(1)+'/10':'')+'</div></span>'+
-      '<b class="right">üèÜ '+x.tournamentWins+'</b></div>'
-    ).join('')||'<p class="muted">Aucune victoire enregistr√©e pour cette saison.</p>';
-    const b=$('#togglePublicSeasonWins');if(b){b.classList.toggle('hidden',winRows.length<=5);b.textContent=publicWinsExpanded?'R√©duire':'D√©velopper la liste';}
-  };
-  renderPublicSeasonWins();
-  if($('#togglePublicSeasonWins'))$('#togglePublicSeasonWins').onclick=()=>{publicWinsExpanded=!publicWinsExpanded;renderPublicSeasonWins();};
-
-  if(publicPlayerRatingsEnabled){
-    const topWrap=$('#publicTopPlayerSeasonWrap'),topBox=$('#publicSeasonTopPlayers');
-    if(topWrap)topWrap.classList.remove('hidden');
-    const top=topPlayersFromData(seasonMatchesForWins,goals,matchAssignments,players,seasonTourIdsForWins).slice(0,10);
-    if(topBox)topBox.innerHTML=top.map((x,i)=>'<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+(i===0?'üëë':(i+1))+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.matches+' match'+(x.matches>1?'s':'')+' ‚Ä¢ ‚öΩ '+x.g+' ‚Ä¢ üéØ '+x.a+'</div></span><b class="right">‚≠ê '+x.avg.toFixed(1)+'</b></div>').join('')||'<p class="muted">Aucune note disponible.</p>';
-  }
-
-  const historySeason=regTour?.season_id||seasons.find(s=>s.is_active)?.id||null;
-  const finishedHistory=tournaments.filter(t=>t.status==='finished'&&t.format!=='league'&&(!historySeason||t.season_id===historySeason));
-  const latest=finishedHistory[0]||null;
-  if(latest){
-    const lteams=teams.filter(x=>x.tournament_id===latest.id);
-    const lm=matches.filter(m=>m.tournament_id===latest.id).sort((a,b)=>(a.match_order||0)-(b.match_order||0));
-    const latestMatchIds=new Set(lm.map(m=>m.id));
-
-    const tournamentGoalStats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false}]));
-    goals.filter(g=>latestMatchIds.has(g.match_id)).forEach(g=>{
-      if(tournamentGoalStats.has(g.scorer_player_id))tournamentGoalStats.get(g.scorer_player_id).g++;
-      if(g.assister_player_id&&tournamentGoalStats.has(g.assister_player_id))tournamentGoalStats.get(g.assister_player_id).a++;
-    });
-    let tournamentScorers=[...tournamentGoalStats.values()].filter(x=>x.g)
-      .sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
-    let tPrev=null,tRank=0;
-    tournamentScorers=tournamentScorers.map((x,i)=>{
-      if(x.g!==tPrev){tRank=i+1;tPrev=x.g}
-      return {...x,rank:tRank};
-    });
-    let publicTournamentScorersExpanded=false;
-    const renderTournamentScorers=()=>{
-      const visible=publicTournamentScorersExpanded?tournamentScorers:tournamentScorers.slice(0,10);
-      $('#publicTournamentScorers').innerHTML=visible.map(x=>
-        '<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.guest?' <span class="guest-badge">Guest</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>'
-      ).join('')||'<p class="muted">Aucun but enregistr√©.</p>';
-    };
-    renderTournamentScorers();
-
-    let tournamentAss=[...tournamentGoalStats.values()].filter(x=>x.a)
-      .sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
-    let taPrev=null,taRank=0;
-    tournamentAss=tournamentAss.map((x,i)=>{
-      if(x.a!==taPrev){taRank=i+1;taPrev=x.a}
-      return {...x,rank:taRank};
-    });
-    let publicTournamentAssistsExpanded=false;
-    const renderTournamentAssists=()=>{
-      const visible=publicTournamentAssistsExpanded?tournamentAss:tournamentAss.slice(0,10);
-      $('#publicTournamentAssists').innerHTML=visible.map(x=>
-        '<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.guest?' <span class="guest-badge">Guest</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>'
-      ).join('')||'<p class="muted">Aucune passe enregistr√©e.</p>';
-    };
-    renderTournamentAssists();
-    const btnTournamentScorers=$('#togglePublicTournamentScorers');
-    if(btnTournamentScorers){
-      btnTournamentScorers.classList.toggle('hidden',tournamentScorers.length<=10);
-      btnTournamentScorers.onclick=()=>{publicTournamentScorersExpanded=!publicTournamentScorersExpanded;renderTournamentScorers();btnTournamentScorers.textContent=publicTournamentScorersExpanded?'R√©duire':'D√©velopper';};
-    }
-    const btnTournamentAssists=$('#togglePublicTournamentAssists');
-    if(btnTournamentAssists){
-      btnTournamentAssists.classList.toggle('hidden',tournamentAss.length<=10);
-      btnTournamentAssists.onclick=()=>{publicTournamentAssistsExpanded=!publicTournamentAssistsExpanded;renderTournamentAssists();btnTournamentAssists.textContent=publicTournamentAssistsExpanded?'R√©duire':'D√©velopper';};
-    }
-    if(publicPlayerRatingsEnabled){
-      const wrap=$('#publicTournamentTopPlayerWrap'),boxTop=$('#publicTournamentTopPlayers'),btnTop=$('#togglePublicTournamentTopPlayers');
-      if(wrap)wrap.classList.remove('hidden');
-      const topTournament=topPlayersFromData(lm,goals,matchAssignments,players,new Set([latest.id]));
-      let publicTournamentTopExpanded=false;
-      const renderTournamentTop=()=>{
-        const visible=publicTournamentTopExpanded?topTournament:topTournament.slice(0,10);
-        if(boxTop)boxTop.innerHTML=visible.map((x,i)=>{
-          const pos=topTournament.indexOf(x)+1;
-          return '<div class="rank '+(x.guest?'guest-row':'')+'"><b>'+(pos===1?'üëë':pos)+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.matches+' match'+(x.matches>1?'s':'')+' ‚Ä¢ ‚öΩ '+x.g+' ‚Ä¢ üéØ '+x.a+'</div></span><b class="right">‚≠ê '+x.avg.toFixed(1)+'</b></div>';
-        }).join('')||'<p class="muted">Aucune note disponible.</p>';
-        if(btnTop){btnTop.classList.toggle('hidden',topTournament.length<=10);btnTop.textContent=publicTournamentTopExpanded?'R√©duire':'D√©velopper';}
-      };
-      renderTournamentTop();
-      if(btnTop)btnTop.onclick=()=>{publicTournamentTopExpanded=!publicTournamentTopExpanded;renderTournamentTop();};
-    }
-    const trs=lteams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
-    const trm=new Map(trs.map(x=>[x.id,x]));
-    lm.forEach(m=>{
-      const h=trm.get(m.home_team_id),a=trm.get(m.away_team_id);if(!h||!a)return;
-      h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;
-      if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}
-      else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}
-      else{h.n++;a.n++;h.pts++;a.pts++}
-    });
-    trs.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
-    $('#publicTeamRanking').innerHTML=trs.map((x,i)=>'<div class="rank"><b>'+(i===0?'üëë':(i+1))+'</b><span><b>'+esc(x.name)+'</b><div class="muted">'+x.mj+' MJ ‚Ä¢ '+x.v+' V ‚Ä¢ '+x.n+' N ‚Ä¢ '+x.d+' D ‚Ä¢ '+x.bp+' BP ‚Ä¢ '+x.bc+' BC ‚Ä¢ Diff '+((x.bp-x.bc)>=0?'+':'')+(x.bp-x.bc)+'</div></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucun classement disponible.</p>';
-
-    const championTeamId=trs.length?trs[0].id:null;
-    $('#publicTeams').innerHTML=lteams.map(team=>{
-      const bg=inferredTeamColor(team),fg=teamTextColor(bg),label=teamColorLabel(team);
-            const playersHtml=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>{const pl=pmap.get(tp.player_id);return pl?'<div class="public-team-player">'+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('');
-      const crown=team.id===championTeamId?'üëë ':'';
-      const champ=team.id===championTeamId?'<div class="public-team-shirt">üèÜ √âquipe victorieuse</div>':'';
-      const avg=Number(team.team_score||0)>0?'<div class="public-team-average">üê∂‚öΩ <b>Note √©quipe √©valu√©e par Chien Boul Academy : '+Number(team.team_score).toFixed(1)+'/5</b>'+(team.mention?' ‚Ä¢ '+esc(team.mention):'')+'</div>':'';return '<div class="public-team-card"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+'<div class="public-team-shirt">üëï Maillots : '+esc(label)+'</div></div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
-    }).join('')||(publicTeamReviewEnabled&&['pending','redraw_requested'].includes(publicTeamReviewStates.find(x=>String(x.tournament_id)===String(latest.id))?.status)?'<div class="public-review-wait"><b>üó≥Ô∏è Composition en validation</b><div>Les co-gestionnaires pr√©sents disposent de 2 heures pour donner leur avis. Les √©quipes seront publi√©es d√®s validation.</div></div>':'<p class="muted">Aucune √©quipe.</p>');
-    const publicAssigned=new Set(teamPlayers.map(x=>String(x.player_id)));
-    const publicSubs=registrations.filter(r=>r.tournament_id===latest.id&&r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!publicAssigned.has(String(r.player_id))).map(r=>pmap.get(r.player_id)).filter(Boolean);
-    if(publicSubs.length)$('#publicTeams').insertAdjacentHTML('beforeend','<div class="public-common-subs"><b>üü† Rempla√ßants communs</b><div class="muted">Ils peuvent jouer pour n‚Äôimporte quelle √©quipe.</div><div>'+publicSubs.map(pl=>'<span>'+esc(pl.name)+'</span>').join('')+'</div></div>');
-    $('#publicResults').innerHTML=lm.map((m,i)=>{
-      const mg=goals.filter(g=>g.match_id===m.id);
-      const goalBlock=(teamId)=>{
-        const rows=mg.filter(g=>String(g.team_id)===String(teamId)).map(g=>{
-          const scorer=pmap.get(g.scorer_player_id);
-          const assister=g.assister_player_id?pmap.get(g.assister_player_id):null;
-          return '<div class="small" style="margin-top:5px">‚öΩ '+esc(scorer?.name||'?')+(assister?' <span class="muted">‚Üê '+esc(assister.name)+'</span>':'')+'</div>';
-        }).join('');
-        return rows||'<div class="small muted" style="margin-top:5px">Aucun buteur</div>';
-      };
-      const rated=publicPlayerRatingsEnabled?matchAssignments.filter(a=>a.match_id===m.id&&a.team_id).map(a=>{
-        const pl=pmap.get(a.player_id),rr=ratingForMatchPlayer(m,a.player_id,a.team_id,goals);
-        return rr&&pl?{name:pl.name,r:rr.rating,team:a.team_id}:null;
-      }).filter(Boolean):[];
-      const best=rated.length?Math.max(...rated.map(x=>x.r)):null;
-      const noteCol=(teamId)=>{
-        const rows=rated.filter(x=>String(x.team)===String(teamId)).sort((a,b)=>b.r-a.r||a.name.localeCompare(b.name));
-        return rows.map(n=>'<div class="small" style="padding:4px 0">'+(n.r===best?'‚≠ê ':'')+esc(n.name)+' <b>'+n.r.toFixed(1)+'/10</b></div>').join('')||'<div class="small muted">Aucune note</div>';
-      };
-      const notesHtml=publicPlayerRatingsEnabled?'<div class="notes-columns" style="margin-top:10px">'+
-        '<div class="player notes-column" style="margin:0"><b>'+esc(tmap.get(m.home_team_id)?.name||'?')+'</b>'+noteCol(m.home_team_id)+'</div>'+
-        '<div class="player notes-column" style="margin:0"><b>'+esc(tmap.get(m.away_team_id)?.name||'?')+'</b>'+noteCol(m.away_team_id)+'</div>'+
-        '</div>':'';
-      return '<div class="player"><div class="muted">Match '+(i+1)+(m.pitch?' ‚Ä¢ '+esc(m.pitch):'')+'</div>'+
-        '<div class="history-scoreline" style="margin-top:6px">'+
-          '<b class="history-team-name">'+esc(tmap.get(m.home_team_id)?.name||'?')+'</b>'+
-          '<div class="score">'+m.home_score+' - '+m.away_score+'</div>'+
-          '<b class="history-team-name">'+esc(tmap.get(m.away_team_id)?.name||'?')+'</b>'+
-          '<div class="history-goals home">'+goalBlock(m.home_team_id)+'</div>'+
-          '<div class="history-goals away">'+goalBlock(m.away_team_id)+'</div>'+
-        '</div>'+notesHtml+'</div>';
-    }).join('')||'<p class="muted">Aucun r√©sultat.</p>';
-  } else {
-    $('#publicTeamRanking').innerHTML='<p class="muted">Aucun tournoi disponible.</p>';
-    $('#publicTournamentScorers').innerHTML='<p class="muted">Aucun tournoi disponible.</p>'; $('#publicTournamentAssists').innerHTML='<p class="muted">Aucun tournoi disponible.</p>'; if($('#publicTournamentTopPlayers'))$('#publicTournamentTopPlayers').innerHTML='<p class="muted">Aucune note disponible.</p>';
-    $('#publicTeams').innerHTML='<p class="muted">Aucune √©quipe.</p>';
-    $('#publicResults').innerHTML='<p class="muted">Aucun r√©sultat.</p>';
-  }
-  const lastDetails=$('#publicLastTournamentDetails');
-  const toggleLast=$('#toggleLastTournamentPublic');
-  if(toggleLast){toggleLast.disabled=!latest;toggleLast.setAttribute('aria-expanded','false');toggleLast.textContent=latest?'D√©velopper les derniers r√©sultats':'Aucun r√©sultat';}
-  if(toggleLast&&lastDetails){
-    toggleLast.onclick=()=>{
-      if(regTour&&latest){location.href=publicHistoryUrl(token,latest.id);return;}
-      const opening=lastDetails.classList.contains('hidden');
-      lastDetails.classList.toggle('hidden',!opening);
-      toggleLast.textContent=opening?'R√©duire les derniers r√©sultats':'D√©velopper les derniers r√©sultats';
-      toggleLast.setAttribute('aria-expanded',String(opening));
-    };
-  }
-
-  if(regTour&&toggleLast&&latest){toggleLast.textContent='Voir les derniers r√©sultats ‚Üí';toggleLast.removeAttribute('aria-expanded');}
-
-  const pubHist=$('#publicHistory');
-  pubHist.innerHTML='';
-  pubHist.closest('.card')?.classList.toggle('hidden',regTour?.format==='league');
-  finishedHistory.forEach(t=>{
-    const d=document.createElement('div');d.className='player row';
-    d.innerHTML='<span style="flex:1"><b>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' ‚Ä¢ Termin√©</div></span>';
-    const b=document.createElement('a');b.textContent='Voir les r√©sultats';b.className='primary';
-    b.href=publicHistoryUrl(token,t.id);
-    d.appendChild(b);pubHist.appendChild(d);
-  });
-  if(!finishedHistory.length)pubHist.innerHTML='<p class="muted">Aucun tournoi termin√© dans cette saison.</p>';
-  if(regTour&&regTour.format!=='league'&&window.SWERegistrationPresentation){
-    registrationPresentation=window.SWERegistrationPresentation.mount({token,appUrl:APP_URL,setEntryMode:setPublicEntryMode,loadRating:async playerId=>{const {data,error}=await sb.rpc('get_public_registration_player_rating',{p_token:token,p_tournament_id:regTour.id,p_player_id:playerId});if(error)throw error;return data;},loadRules:async()=>{const {data,error}=await sb.rpc('get_public_tournament_king_rules',{p_token:token,p_tournament_id:regTour.id});if(error)throw error;return data;},standings:tournamentStandings,rateMatch:(...args)=>ratingForMatchPlayer(...args),data:()=>({tournament:regTour,tournaments,seasons,players,registrations,teams,teamPlayers,matches,goals,matchAssignments,ratingGroupName,coorganizers:registrationCoorganizers,isCoorganizer:registrationIsCoorganizer,personalInstruction:registrationPersonalInstruction,ratingWindows:registrationRatingWindows,pitches:S.sportsPitches,groupLevels:tournamentGroupLevels})});
-    refreshSeasonRankings();
-    updateTournamentCountdowns();
-    loadPresentationMetadata().catch(()=>{});
-  }
-}
-authState();
-document.addEventListener('click',e=>{const t=e.target?.closest?.('.tab[data-view="cooler"]');if(t)setTimeout(loadThirdHalfFunds,0);});
+Y™Áäx-ÆÈ‹j◊ù¢Îi∫⁄+äßj[hëÈ‹¢ÈÌ◊Ω∏„¥Ëµ©h∫⁄n∂XßzÕX€€ú›»‹ôX]P€Y[ùHH⁄[ô›Àú›\Xò\ŸN¬ò€€ú›õ‘›‹ôQô]⁄J[ú][ö]^ﬂJOOôô]⁄
+[ú]Àããö[ö]ÿX⁄Nâ€õÀ\›‹ôIﬂJN¬ò€€ú›ÿèX‹ôX]P€Y[ù
+	⁄ŒãÀŸòú\Ÿû›õY⁄ô[]‹€ãú›\Xò\ŸKò€…À	‹ÿó‹Xõ\⁄XõW“€“ÃPÃQPãX’“íÿTWŸNY–ÿûY‹	À¬à€ÿò[ûŸô]⁄õõ‘›‹ôQô]⁄Kà]]û¬àããäô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+Kö\ 	›\›››\õò[Y[ù	 Oﬁ‹›‹òYŸRŸ^Nâ‹›ŸKYõ‹ú‹ÿYZ[ãX]]]åIﬂNûﬂJKàõ›’\Nâ‹ÿŸIÀà\ú⁄\›Ÿ\‹⁄[€éùùYKà]]‘ôYúô\⁄⁄Ÿ[éùùYKà]X›Ÿ\‹⁄[€í[ï\õùùYBàBüJN¬ÇãÀ»çHŸX›\ö]Hõ›[ô][€éàô]ô\àXZ»ôX\ô\à[ö‹»õ›Y⁄ôYô\úô\à[ô€X\àŸ[ú⁄]]ôBãÀ»⁄X⁄€›]‹^[Y[ùY\⁄»\ò[Y]\ú»úõ€Húõ›‹Ÿ\à\›‹ûH\»€€€à\»^H\ôHÿ\\ôYÇò€€ú›—P’TíUW’ëTî“S”èIÕKå	Œ¬ôù[ò›[€àÿ[ö]^ôTŸ[ú⁄]]ôU\õ\ò[\ 
+^¬àû^¬à€€ú›O[ô]»Tì
+ÿÿ][€ãöôYäN¬à€€ú›Ÿ[ú⁄]]ôOV…ÿ€€‹ô◊‹Ÿ\‹⁄[€ó⁄Y	◊N¬à]⁄[ôŸYYò[ŸN¬àŸ[ú⁄]]ôKôõ‹ëXX⁄
+œOû⁄YäKúŸX\ò⁄\ò[\Àö\  J^›KúŸX\ò⁄\ò[\Àô[]J Nÿ⁄[ôŸY]ùYNﬂ_JN¬àYä⁄[ôŸY
+H\›‹ûKúô\XŸT›]JﬂK	…ÀKù‘›ö[ô 
+JN¬àXÿ]⁄
+ ^ﬂBüBù⁄[ô›ÀòY]ô[ù\›[ô\ä	‹YŸ\⁄›…À
+
+OOúÿ[ö]^ôTŸ[ú⁄]]ôU\õ\ò[\ 
+JN¬Çù⁄[ô›ÀòY]ô[ù\›[ô\ä	Ÿ\úõ‹âÀ
+JHOà¬à€€ú›Yÿ›[Y[ùú]Y\ûTŸ[X›‹ä	»›ÿ\›	 N¬àYä
+^›ù^€€ù[ùI—\úô]\àH⁄\ôŸ[Y[ùH8†&X\Xÿ][€ãàôX⁄\ôŸHHYŸKâŒ›ú›[Kô\‹^OIÿõÿ⁄…ŒﬂBüJN¬Çò€€ú›œ^‹Ÿ\‹⁄[€éõù[YZ[îõŸö[Nõù[\‘›\\êYZ[éôò[ŸK›\\ï€‹ö‹‹XŸ\Œñ◊K€‹ö‹‹XŸNõù[Y[Xô\úŒñ◊K€€‹ô‹Œñ◊K€€‹ô–€›[ùå€‹ö‹‹XŸQôX]\ô\Œû€X^ÿ€€‹ôÿ[ö^ô\úŒåÀX^ÿ€€‹ôÿ[ö^ô\ú◊ÿÿ\åLò[ö⁄[ô‹◊Ÿ[òXõYùùYKXY›YWŸ[òXõYùùYK›\õò[Y[ù◊Ÿ[òXõYùùYK\ô⁄[óŸ[òXõYôò[ŸK^Y\ó‹ò][ô‹◊Ÿ[òXõYôò[ŸKX^‹^Y\ú◊ÿÿ\åÕK^[Y[ù◊Ÿ[òXõYùùYK‹‹^Y\óŸ[òXõYôò[ŸKX]⁄‹ò][ô‹◊Ÿ[òXõYôò[ŸKX[W‹ô]öY]◊Ÿ[òXõYôò[Ÿ_K€€[Y\ò⁄X[XÿŸ\‹Œû‹›Xúÿ‹ö\[€ó‹[éâŸúôYIÀ‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõYôò[ŸK\‹òYW‹ô\]Y\›Yÿ]õù[Kö[[ô‘›]\Œõù[€€‹ô‘\ò⁄\ŸP€€ôö\õZ[ôŒôò[ŸK^T\õZ\‹⁄[€úŒûÿÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\úŒôò[ŸKÿ[óŸ[ù\ó‹ÿ€‹ô\Œôò[ŸKÿ[óÿY€Y[Xô\úŒôò[ŸKÿ[óŸ[]W€Y[Xô\úŒôò[ŸKÿ[óÿ‹ôX]W››\õò[Y[ùŒôò[ŸKÿ[ó›öY]◊‹^Y\úŒùùYKÿ[óŸŸ[ô\ò]W›X[\Œôò[ŸK[\‹ò\ûWÿYZ[ó›[ù[õù[K^Tò][ô‹Œñ◊K\›‹ôX]Y[ùö]Nõù[[ùö]\Œñ◊K^Y\úŒñ◊K€€ùX›Œñ◊K⁄⁄[ô]öY]‹Œñ◊K⁄⁄[YŸ‹ôYÿ]\Œñ◊KX[P€Ÿ\Œñ◊KŸX\€€úŒñ◊KXY›Y\Œñ◊KXY›YT^Y\úŒñ◊KX›]ôSXY›YNõù[›\õò[Y[ùŒñ◊KX›]ôU›\éõù[^Y\úŒñ◊KX[\Œñ◊KX[T^Y\úŒñ◊KX]⁄\‹⁄Y€õY[ùŒñ◊KX]⁄\Œñ◊K€ÿ[Œñ◊KX[Pò[[òŸTÿ€‹ô\Œñ◊Kò[ö”[ŸNâ‹ŸX\€€âÀ⁄[õô[õù[€ÿ[X[TŸ[X›[€úŒûﬂK‹‹ù–€€\^\Œñ◊K‹‹ù‘]⁄\Œñ◊KXõX”[ŸNôò[ŸKXõX’⁄Ÿ[éõù[›\õò[Y[ù‹ôX]S‹[éôò[ŸKŸX\€€êYZ[ì‹[éôò[ŸKY][ô’›\õò[Y[ùYõù[X[P€€\]][€íYõù[\›öY]Œõù[€€‹ô‘][›Tô\]Y\›õù[›\\ê€€‹ô‘][›Tô\]Y\›Œñ◊K^S[öŸY^Y\íYõù[^Y\ë\⁄õÿ\ôõù[^Y\ë\ôX›‹ûNñ◊K‹ôÿ[ö^ô\îŸ][ô‹Œõù[^Y\îô\]Y\›Œñ◊K]õ‹õTŸ][ô‹Œûÿ€€úŸ[ùŸÿ]WŸ[òXõYôò[Ÿ_K\ô[ëù[ôŒñ◊KX[Tô]öY]‘›]Nõù[€òõÿ\ô[ô‘›]\Œõù[Y[Xô\ú⁄\Œñ◊K‹ôÿ[ö^ô\êXÿŸ\‹Œõù[N¬Çõ]ÿYôTﬁ[ò’[Y\è[ù[¬õ]ÿYôTﬁ[ò–ù\ﬁOYò[ŸN¬õ]\›\Ÿ\í[ù\òX›[€ê]L¬ôù[ò›[€àX\ö’\Ÿ\í[ù\òX›[€ä
+^€\›\Ÿ\í[ù\òX›[€ê]Q]Kõõ› 
+NﬂBñ…⁄[ú]	À	ÿ⁄[ôŸIÀ	⁄Ÿ^Y›€âÀ	‹⁄[ù\ô›€âÀ	››X⁄›\ù	◊Kôõ‹ëXX⁄
+]ùOôÿ›[Y[ùòY]ô[ù\›[ô\ä]ùOOû¬àYäKù\ôŸ]Àò€‹Ÿ\›Àä	»€XZ[â JHX\ö’\Ÿ\í[ù\òX›[€ä
+N¬üKÿÿ\\ôNùùYK\‹⁄]ôNùùY_JJN¬ôù[ò›[€à\Ÿ\í\—Y][ô 
+^¬à€€ú›OYÿ›[Y[ùòX›]ôQ[[Y[ù¬àYäIâòKò€‹Ÿ\›Àä	»€XZ[â Iâä◊äSîUVTëP_—SP’
+IÀù\›
+KùY”ò[YJ_Kö\–€€ù[ùY]XõJJ\ô]\õàùYN¬àô]\õà]Kõõ› 
+K[\›\Ÿ\í[ù\òX›[€ê]Ã¬üBò\ﬁ[ò»ù[ò›[€àÿYôP\ﬁ[ò 
+^¬àÀ»ôHò[XZ\»ôX€€ú›ùZ\ôH	⁄[ù\ôòXŸH[ô[ù[ôHÿZ\⁄YH\úòZ[ãÇàYäÿYôTﬁ[ò–ù\ﬁH\Ÿ\í\—Y][ô 
+HÀôY][ô’›\õò[Y[ùYÀúXõX”[ŸHTÀúŸ\‹⁄[€àTÀù€‹ö‹‹XŸHÿ›[Y[ùùö\⁄Xö[]T›]OOOI⁄Y[â»ÿ›[Y[ùú]Y\ûTŸ[X›‹ä	»›öY]À\\õZ\‹⁄[€úÀòX›]ôI JHô]\õé¬àÿYôTﬁ[ò–ù\ﬁO]ùYN¬àû^»]ÿZ]ÿY[
+
+N»Bàÿ]⁄
+J^»€€ú€€Kùÿ\õä	‹ÿYôP\ﬁ[ò…ÀJN»Bàö[ò[^»ÿYôTﬁ[ò–ù\ﬁOYò[ŸN»BüBôù[ò›[€à›\ùÿYôP\ﬁ[ò 
+^¬àYäÿYôTﬁ[ò’[Y\äH€X\í[ù\ùò[
+ÿYôTﬁ[ò’[Y\äN¬àÀ»òYúòpÎò⁄\‹Ÿ[Y[ùHÍX›\ö]0ÍH[⁄[ú»Y‹ô\‹⁄YààH[\»∞ÍY[ô\›Hö[‹ö]Z\ôKÇàÿYôTﬁ[ò’[Y\è\Ÿ][ù\ùò[
+ÿYôP\ﬁ[òÀå
+N¬üBôÿ›[Y[ùòY]ô[ù\›[ô\ä	›ö\⁄Xö[]X⁄[ôŸIÀ
+
+OOû¬àYäÿ›[Y[ùùö\⁄Xö[]T›]OOOI›ö\⁄XõI…âà]\Ÿ\í\—Y][ô 
+JHŸ][Y[›]
+ÿYôP\ﬁ[òÀ
+N¬üJN¬ù⁄[ô›ÀòY]ô[ù\›[ô\ä	‹YŸ\⁄›…À
+
+OOû⁄Yä]\Ÿ\í\—Y][ô 
+J\Ÿ][Y[›]
+ÿYôP\ﬁ[òÀ
+_JN¬Çò€€ú›	\œOôÿ›[Y[ùú]Y\ûTŸ[X›‹ä N¬ò€€ú›ÿ\›]Oûÿ€€ú›I
+	»›ÿ\›	 Nﬁù^€€ù[ù]ﬁú›[Kô\‹^OIÿõÿ⁄…Œ‹Ÿ][Y[›]
+
+
+OOûú›[Kô\‹^OI€õ€ôIÀçå
+_N¬ò€€ú›\ÿœ\œOî›ö[ô œœ…… Kúô\XŸJ÷…èàóKŸÀœOä……âŒâ…ò[\…À	œ	Œâ…õ…À	œâŒâ…ô›…À	»âŒâ…ú][›…ﬂVÿ◊JJN¬ôù[ò›[€àô[ô\î]õ‹õQõ€›\ä
+^¬à€€ú›õ€›\èI
+	»‹]õ‹õQõ€›\â N¬àYäYõ€›\ä\ô]\õé¬à€€ú›ŸôœTÀú]õ‹õTŸ][ô‹ﬂﬂN¬à€€ú›[òXõYXŸôÀôõ€›\óŸ[òXõYOOYò[ŸN¬àõ€›\ãò€\‹”\›ùŸŸ€J	⁄Y[âÀY[òXõY
+N¬àYäY[òXõY
+\ô]\õé¬Çà€€ú›€€\[ûOI
+	»‹]õ‹õQõ€›\ê€€\[ûI N¬à€€ú›^I
+	»‹]õ‹õQõ€›\ï^	 N¬à€€ú›[ö‹œI
+	»‹]õ‹õQõ€›\ì[ö‹… N¬àYä€€\[ûJX€€\[ûKù^€€ù[ùXŸôÀôõ€›\óÿ€€\[ûW€ò[Y_	‘’‚H›\õò[Y[ù	Œ¬àYä^
+]^ù^€€ù[ùXŸôÀôõ€›\ó€Yÿ[›^	…Œ¬àYä[ö‹ ^¬à[ö‹Àò€\‹”\›òY
+	‹]õ‹õKYõ€›\ã[[ö‹… N¬à€€ú›][\œV◊N¬àYäŸôÀôõ€›\óÿ€€ùX›Ÿ[XZ[
+Z][\Àú\⁄
+	œHôYèWõXZ[Œâ Ÿ\ÿ ŸôÀôõ€›\óÿ€€ùX›Ÿ[XZ[
+J…◊èê€€ùX›ÿOâ N¬àYäŸôÀôõ€›\ó€Yÿ[›\õ
+Z][\Àú\⁄
+	œHôYèWâ Ÿ\ÿ ŸôÀôõ€›\ó€Yÿ[›\õ
+J…◊à\ôŸ]Wóÿõ[ö◊àô[Wõõ€‹[ô\àõ‹ôYô\úô\óèìY[ù[€ú»0ÍYÿ[\œÿOâ N¬àYäŸôÀôõ€›\ó‹ö]òXﬁW›\õ
+Z][\Àú\⁄
+	œHôYèWâ Ÿ\ÿ ŸôÀôõ€›\ó‹ö]òXﬁW›\õ
+J…◊à\ôŸ]Wóÿõ[ö◊àô[Wõõ€‹[ô\àõ‹ôYô\úô\óèê€€ôöY[ùX[]0ÍOÿOâ N¬àYäŸôÀôõ€›\ó›\õ\◊›\õ
+Z][\Àú\⁄
+	œHôYèWâ Ÿ\ÿ ŸôÀôõ€›\ó›\õ\◊›\õ
+J…◊à\ôŸ]Wóÿõ[ö◊àô[Wõõ€‹[ô\àõ‹ôYô\úô\óèê—’H»—’èÿOâ N¬à[ö‹Àö[õô\íSZ][\Àöõ⁄[ä	… N¬àBüBò€€ú›Ÿ^OJ
+OOõô]»]J
+Kù“T”‘›ö[ô 
+Kú€XŸJL
+N»	
+	»››\ë]I Kùò[YO]Ÿ^J
+N¬ôù[ò›[€àYò][ôY⁄\›ò][€ëXY[ôSÿÿ[
+]T›ä^¬àYäY]T›ä\ô]\õà	…Œ¬à€€ú›[ô]»]J]T›ä…’LéååLå	 N¬àúŸ]]JôŸ]]J
+KLJN¬à€€ú›OYôŸ]ù[YX\ä
+KOT›ö[ô ôŸ][€ù
+
+JÃJKúY›\ù
+ã	Ã	 K^OT›ö[ô ôŸ]]J
+JKúY›\ù
+ã	Ã	 N¬àô]\õàJ…ÀI €J…ÀI Ÿ^J…’MŒå	Œ¬üBôù[ò›[€àôY⁄\›ò][€ëXY[ôR\€ ÿÿ[ò[YJ^¬àYä[ÿÿ[ò[YJ\ô]\õàù[¬à€€ú›[ô]»]Jÿÿ[ò[YJ…ŒåLå	 N¬àô]\õàù[Xô\ãö\—ö[ö]JôŸ][YJ
+JOŸù“T”‘›ö[ô 
+Nõù[¬üBôù[ò›[€àﬁ[ò‘ôY⁄\›ò][€ëXY[ôJ]TŸ[X›‹ãXY[ôTŸ[X›‹ä^¬à€€ú›]Q[I
+]TŸ[X›‹äKXY[ôQ[I
+XY[ôTŸ[X›‹äN¬àYäY]Q[YXY[ôQ[
+\ô]\õé¬à€€ú›\OJ
+OOûŸXY[ôQ[ùò[YOYYò][ôY⁄\›ò][€ëXY[ôSÿÿ[
+]Q[ùò[YJ_N¬à]Q[òY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀ\JN¬àYä]Q[ùò[YIâàYXY[ôQ[ùò[YJX\J
+N¬üBúﬁ[ò‘ôY⁄\›ò][€ëXY[ôJ	»››\ë]IÀ	»››\îôY⁄\›ò][€ëXY[ôI N¬úﬁ[ò‘ôY⁄\›ò][€ëXY[ôJ	»€XY›YTŸ\‹⁄[€ë]IÀ	»€XY›YTŸ\‹⁄[€îôY⁄\›ò][€ëXY[ôI N¬Çò€€ú›QêUS’ëSïQW”QUO^¬à	€XYHõ€›ò[€XâŒûÿ⁄]Nâ—X€‹…À\Nâ”›]€‹âÀ›\úŒâ”[àMöLå⁄»X\àMZLå⁄»Y\àMLå⁄»ô]KUô[àMZLå⁄»ÿ[HMLå⁄»[HMZLå	ﬂKà	ÿ\ô[òHX\ù[ö\]YH»\ô[òH^H€âŒûÿ⁄]Nâ‘ÿ⁄1d€⁄\âÀ\Nâ“[ô€‹âÀ›\úŒâ—[ùö\õ€àZLåöÃ⁄ãÕ…ﬂBüN¬ôù[ò›[€àô[ùYSY]J ^‹ô]\õàQêUS’ëSïQW”QUV‘›ö[ô œÀõò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+W_ù[Bò\ﬁ[ò»ù[ò›[€à[ú›\ôQYò][‹‹ù’ô[ùY\ 
+^¬àYäTÀö\‘›\\êYZ[ä\ô]\õé¬àÀ»\»€€\^\»€€ù0Í\€‹õXZ\»YZ[ö\›∞Í\»\àH›\\àYZ[ãÇàÀ»€àôH‹∞ÍYH\»Y]^H0Í[[€ú›ò][€à]YH›\à[ôH[ú›[][€à›[[Y[ùöYKàÀ»Yö[à]I›[à€€\^H›\ö[pÍHõ€€ùZ\ô[Y[ùôH€⁄]ò[XZ\»ôX‹∞ÍpÍH]Hõÿ⁄Z[à⁄\ôŸ[Y[ùÇàYä
+Àú‹‹ù–€€\^\ﬂ◊JKõ[ô›
+\ô]\õé¬à€€ú›ÿ[ùYVﬁ€ò[YNâ”XYHõ€›ò[€XâÀ⁄]Nâ—X€‹…À]⁄\Œñ…’\úòZ[àIÀ	’\úòZ[àâÀ	’\úòZ[à…◊_K€ò[YNâ–\ô[òHX\ù[ö\]YH»\ô[òH^H€âÀ⁄]Nâ‘ÿ⁄1d€⁄\âÀ]⁄\Œñ…’\úòZ[àIÀ	’\úòZ[àâÀ	’\úòZ[à…À	’\úòZ[à	◊_WN¬à]⁄[ôŸYYò[ŸN¬àõ‹ä€€ú›àŸàÿ[ùY
+^€]œJÀú‹‹ù–€€\^\ﬂ◊JKôö[ô
+Oî›ö[ô õò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+OOO]ãõò[YKù”›Ÿ\êÿ\ŸJ
+JN⁄YäX ^ÿ€€ú›‹ôX]YX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊ÿ€€\^	À‹ÿX›[€éâÿ‹ôX]IÀ€ò[YNùãõò[YKÿ⁄]Nùãò⁄]KÿX›]ôNùùY_JN⁄Yä‹ôX]Yô\úõ‹ä^ÿ€€ú€€Kùÿ\õä	‹ŸYY€€\^	Àãõò[YK‹ôX]Yô\úõ‹äNÿ€€ù[ùY_X⁄[ôŸY]ùYNÿ€€ú›úèX]ÿZ]ÿãúú 	ŸŸ]‹‹‹ù◊›ô[ùY\… N⁄Yä\úãô\úõ‹ä^‘Àú‹‹ù–€€\^\œP\úò^Kö\–\úò^Júãô]OÀò€€\^\ O‹úãô]Kò€€\^\Œñ◊N‘Àú‹‹ù‘]⁄\œP\úò^Kö\–\úò^Júãô]OÀú]⁄\ O‹úãô]Kú]⁄\Œñ◊NﬂXœJÀú‹‹ù–€€\^\ﬂ◊JKôö[ô
+Oî›ö[ô õò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+OOO]ãõò[YKù”›Ÿ\êÿ\ŸJ
+JNﬂZYäX X€€ù[ùYNÿ€€ú››\úô[ùJÀú‹‹ù‘]⁄\ﬂ◊JKôö[\äOî›ö[ô ò€€\^⁄Y
+OOOT›ö[ô ÀöY
+JNŸõ‹ä€€ú›]⁄Ÿàãú]⁄\ ^⁄YäX›\úô[ùú€€YJOî›ö[ô õò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+OOO\]⁄ù”›Ÿ\êÿ\ŸJ
+JJ^ÿ€€ú›úèX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊‹]⁄	À‹ÿX›[€éâÿ‹ôX]IÀÿ€€\^⁄YòÀöY€ò[YNú]⁄ÿX›]ôNùùY_JN⁄Yä\úãô\úõ‹äX⁄[ôŸY]ùYNﬂ__BàYä⁄[ôŸY
+^ÿ€€ú›úèX]ÿZ]ÿãúú 	ŸŸ]‹‹‹ù◊›ô[ùY\… N⁄Yä\úãô\úõ‹ä^‘Àú‹‹ù–€€\^\œP\úò^Kö\–\úò^Júãô]OÀò€€\^\ O‹úãô]Kò€€\^\Œñ◊N‘Àú‹‹ù‘]⁄\œP\úò^Kö\–\úò^Júãô]OÀú]⁄\ O‹úãô]Kú]⁄\Œñ◊N‹ô[ô\ïô[ùYTŸ[X›‹ú 
+N‹ô[ô\î›\\êYZ[ïô[ùY\ 
+Nﬂ_BüBÇò\ﬁ[ò»ù[ò›[€àÿY‹‹ù’ô[ùY\ ]]‘ŸYY]ùYJ^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹‹‹ù◊›ô[ùY\… N¬àYä\úõ‹ä^ÿ€€ú€€Kùÿ\õä	‹‹‹ù»ô[ùY\…À\úõ‹äN‹ô]\õüBàÀú‹‹ù–€€\^\œP\úò^Kö\–\úò^J]OÀò€€\^\ OŸ]Kò€€\^\Œñ◊N¬àÀú‹‹ù‘]⁄\œP\úò^Kö\–\úò^J]OÀú]⁄\ OŸ]Kú]⁄\Œñ◊N¬àô[ô\ïô[ùYTŸ[X›‹ú 
+N¬àYäÀö\‘›\\êYZ[ä\ô[ô\î›\\êYZ[ïô[ùY\ 
+N¬àYä]]‘ŸYY	âîÀö\‘›\\êYZ[äX]ÿZ][ú›\ôQYò][‹‹ù’ô[ùY\ 
+N¬üBôù[ò›[€à€€\^Xô[
+Y
+^¬à€€ú›œTÀú‹‹ù–€€\^\Àôö[ô
+OûöYOOZY
+N‹ô]\õàœ ÿÀõò[YKÀò⁄]WKôö[\äõ€€X[äKöõ⁄[ä	»8†(à	 JNâ–€€\^IŒ¬üBôù[ò›[€à]⁄ò[YJY
+^‹ô]\õàÀú‹‹ù‘]⁄\Àôö[ô
+OûöYOOZY
+OÀõò[Y_	’\úòZ[âﬂBôù[ò›[€àô[ô\ïô[ùYTŸ[X›‹ú 
+^¬à€€ú›X›]ôP€€\^\œTÀú‹‹ù–€€\^\Àôö[\äOûòX›]ôHOOYò[ŸJN¬à€€ú›‹[€úœIœ‹[€àò[YOHàèê⁄⁄\⁄\àH€€\^O€‹[€èâ ÿX›]ôP€€\^\ÀõX\
+œOâœ‹[€àò[YOHâ ÿÀöY
+…»èâ Ÿ\ÿ €€\^Xô[
+ÀöY
+JJ…œ€‹[€èâ Köõ⁄[ä	… N¬àYä	
+	»››\ê€€\^	 J^…
+	»››\ê€€\^	 Kö[õô\íS[‹[€úŒ‹ô[ô\ï›\õò[Y[ù]⁄⁄⁄XŸ\ 
+NﬂBàYä	
+	»€XY›YTŸ\‹⁄[€ê€€\^	 J^…
+	»€XY›YTŸ\‹⁄[€ê€€\^	 Kö[õô\íS[‹[€úŒ‹ô[ô\ìXY›YT]⁄Ÿ[X›
+
+NﬂBàô[ô\ìX]⁄]⁄Ÿ[X›
+
+N¬üBôù[ò›[€àô[ô\ï›\õò[Y[ù]⁄⁄⁄XŸ\ 
+^¬à€€ú›õﬁI
+	»››\î]⁄⁄⁄XŸ\… N⁄YäXõﬁ
+\ô]\õé¬à€€ú›⁄YI
+	»››\ê€€\^	 OÀùò[Y_	…Œ¬à€€ú›]⁄\œTÀú‹‹ù‘]⁄\Àôö[\äOûòX›]ôHOOYò[ŸIâûò€€\^⁄YOOX⁄Y
+N¬àõﬁö[õô\íS\]⁄\Àõ[ô›à»	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ãXõ›€Nçúèï\úòZ[ú»∞Í\Ÿ\ù∞Í\»
+X^[][H OŸ]èâ ‹]⁄\ÀõX\
+OâœXô[€\‹œHú^Y\àõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ù€X\ô⁄[éç\èè[ú]€\‹œHù›\î]⁄⁄X⁄»à\OHò⁄X⁄ÿõﬁàò[YOHâ ‹öY
+…»à›[OHù⁄Yò]]»èè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèè‹‹[èè€Xô[â Köõ⁄[ä	… Bàà	œ]à€\‹œHõ]]Yèê⁄⁄\⁄\»8†&XXõ‹ô[à€€\^H\‹‹ÿ[ùH\úòZ[ú»X›YúÀèŸ]èâŒ¬àõﬁú]Y\ûTŸ[X›‹ê[
+	Àù›\î]⁄⁄X⁄… Kôõ‹ëXX⁄
+⁄Oò⁄õ€ò⁄[ôŸOJ
+OOû¬à€€ú›⁄X⁄ŸYVÀããòõﬁú]Y\ûTŸ[X›‹ê[
+	Àù›\î]⁄⁄X⁄Œò⁄X⁄ŸY	 WN¬àYä⁄X⁄ŸYõ[ô›å ^ÿ⁄ò⁄X⁄ŸYYò[ŸN›ÿ\›
+	”X^[][H»\úòZ[ú»›\à[à›\õõ⁄Kâ NﬂBàJN¬üBôù[ò›[€àô[ô\ìXY›YT]⁄Ÿ[X›
+
+^¬à€€ú›Ÿ[I
+	»€XY›YTŸ\‹⁄[€î]⁄	 N⁄Yä\Ÿ[
+\ô]\õé¬à€€ú›⁄YI
+	»€XY›YTŸ\‹⁄[€ê€€\^	 OÀùò[Y_	…Œ¬à€€ú›]⁄\œTÀú‹‹ù‘]⁄\Àôö[\äOûòX›]ôHOOYò[ŸIâûò€€\^⁄YOOX⁄Y
+N¬àŸ[ö[õô\íSIœ‹[€àò[YOHàèê⁄⁄\⁄\àH\úòZ[è€‹[€èâ ‹]⁄\ÀõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬üBôù[ò›[€àô[ô\ìX]⁄]⁄Ÿ[X›
+
+^¬à€€ú›Ÿ[I
+	»‹]⁄	 N⁄Yä\Ÿ[
+\ô]\õé¬à€€ú›X›\úô[ù›\ä
+N¬à]]⁄\œV◊N¬àYäÀúô\Ÿ\ùôY‹]⁄⁄YœÀõ[ô›
+\]⁄\œTÀú‹‹ù‘]⁄\Àôö[\äOùúô\Ÿ\ùôY‹]⁄⁄YÀö[ò€Y\ öY
+JN¬àYä\]⁄\Àõ[ô›
+\]⁄\œTÀú‹‹ù‘]⁄\Àôö[\äOúòX›]ôHOOYò[ŸJN¬àŸ[ö[õô\íSIœ‹[€àò[YOHàèï\úòZ[è€‹[€èâ ‹]⁄\ÀõX\
+Oâœ‹[€àò[YOHâ Ÿ\ÿ õò[YJJ…»èâ Ÿ\ÿ õò[YJJ…»8†(à	 Ÿ\ÿ €€\^Xô[
+ò€€\^⁄Y
+JJ…œ€‹[€èâ Köõ⁄[ä	… N¬üBÇôù[ò›[€à‹›ö\ú›ò[YJ
+^¬à€€ú›OTÀúŸ\‹⁄[€èÀù\Ÿ\é¬àYä\–YZ[ä
+IâîÀòYZ[îõŸö[OÀôö\ú›€ò[YJ^¬àô]\õà›ö[ô ÀòYZ[îõŸö[Kôö\ú›€ò[YJKùö[J
+Kú‹]
+◊ À VÃN¬àBà€€ú›Y]OÀù\Ÿ\ó€Y]Y]_ﬂN¬à€€ú›ò]œJYôö\ú›€ò[Y_Yô⁄]ô[ó€ò[Y_Yõò[Y_Yôù[€ò[Y_	… Kùö[J
+N¬àYäò] \ô]\õàò]Àú‹]
+◊ À VÃN¬àÀ»ôHò[XZ\»òXúö\]Y\àH∞Í[õ€H\Z\»	ÿYô\‹ŸHK[XZ[
+^àKõ›Z\€€àOàJKÇàÀ»⁄H]X›[à∞Í[õ€HHõŸö[âŸ\›\‹€öXõK][\Ÿ\à[àXÿ›YZ[ô]]ôKÇàô]\õà	Ë⁄IŒ¬üBôù[ò›[€àô[ô\í‹›Ÿ[€€YJ
+^¬à€€ú›]OI
+	»⁄‹›Ÿ[€€YU]I K[XZ[I
+	»⁄‹›Ÿ[€€YQ[XZ[	 KöY⁄œI
+	»ÿ€€‹ô”^TöY⁄… N¬àYä]J]]Kù^€€ù[ùI¸'‰b»õ€öõ›\à	 ⁄‹›ö\ú›ò[YJ
+J…»IŒ¬àYä[XZ[
+Y[XZ[ù^€€ù[ùI–€€õôX›0ÍH]ôX»à	  ÀúŸ\‹⁄[€èÀù\Ÿ\èÀô[XZ[	Ÿ[XZ[[ô\‹€öXõI N¬àYä\öY⁄ \ô]\õé¬àYäZ\–€€‹ô 
+J^¬àöY⁄Àò€\‹”\›òY
+	⁄Y[â N¬àöY⁄Àö[õô\íSI…Œ¬àô]\õé¬àBàöY⁄Àò€\‹”\›úô[[›ôJ	⁄Y[â N¬à€€ú›YúœV¬à…ÿÿ[óŸ[ù\ó‹ÿ€‹ô\…À	¯¶ØHÿZ\⁄\à\»ÿ€‹ô\»[ô[ù\»X]⁄…◊Kà…ÿÿ[óŸŸ[ô\ò]W›X[\…À	¸'‰iHÍ[∞Í\ô\à\»0Í\]Z\\…◊Kà…ÿÿ[óÿ‹ôX]W››\õò[Y[ù…À	¸'‰·H‹∞ÍY\à\»›\õõ⁄\…◊Kà…ÿÿ[ó›öY]◊‹^Y\ú…À	¸'‰iõ⁄\à\»õ›Y]\ú…◊Kà…ÿÿ[óÿY€Y[Xô\ú…À	¯ß•HZõ›]\à\»Y[Xúô\…◊Kà…ÿÿ[óŸ[]W€Y[Xô\ú…À	¸'Â‰{Ó#»›\ö[Y\à\»Y[Xúô\…◊Kà…ÿÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\ú…À	¸'Â%»[ùö]\à\»€À[‹ôÿ[ö\ÿ]]\ú…◊BàN¬à€€ú›‹ò[ùYYYúÀôö[\ä
+⁄Ÿ^WJOOàHTÀõ^T\õZ\‹⁄[€úœÀñ⁄Ÿ^WJN¬à€€ú›[\Z\’[\‹ò\ûPYZ[ä
+N¬àöY⁄Àö[õô\íSBà	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸéòôéHèâ ¬à	œ]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éÿ[Y€ãZ][\ŒòŸ[ù\éŸÿ\éŸõ^]‹ò\ù‹ò\èâ ¬à	œ]èèèº'Â$Y\»]]‹ö\ÿ][€úœÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹èëõ⁄]»Xÿ€‹ô0Í\»\à8†&XYZ[ö\›ò]]\èŸ]èèŸ]èâ ¬à	œ‹[à€\‹œHô›Y\›XòYŸHèâ  [\…–YZ[à[\‹òZ\ôIŒâ–€ÀYŸ\›[€õòZ\ôI J…œ‹‹[èâ ¬à	œŸ]èâ ¬à	œ]à›[OHõX\ô⁄[ã]‹åLèâ ¬à
+‹ò[ùYõ[ô›Ÿ‹ò[ùYõX\
+
+ÀXô[JOOâœ‹[à€\‹œHô›Y\›XòYŸHà›[OHõX\ô⁄[éå‹\‹ÿòX⁄Ÿ‹õ›[ôàŸMŸçôXŒÿ€€‹éàÃLçòåÕèâ €Xô[
+…œ‹‹[èâ Köõ⁄[ä	… Nâœ‹[à€\‹œHõ]]Yèê]X›[ôH]]‹ö\ÿ][€à\ùX›[pÍôKè‹‹[èâ J¬à	œŸ]èâ ¬à
+Àõ^T\õZ\‹⁄[€úœÀòÿ[óŸ[ù\ó‹ÿ€‹ô\œ…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹é\è∏ß!HH]^ÿZ\⁄\à][ŸYöY\à\»ÿ€‹ô\»[ô[ù\»X]⁄»[à€›\úÀèŸ]èâŒâ… J¬à	œŸ]èâŒ¬üBÇôù[ò›[€àŸ]öY] ä^¬à€€ú›ô]ö[›\’öY]œTÀõ\›öY]Œ¬àYäèOOI‹\õZ\‹⁄[€ú……âàZ\–YZ[ä
+J]èI⁄€YIŒ¬àYäèOOI‹^Y\ú……âö\–€€‹ô 
+IâàZ\’[\‹ò\ûPYZ[ä
+IâàTÀõ^T\õZ\‹⁄[€úÀòÿ[ó›öY]◊‹^Y\ú ]èI⁄€YIŒ¬àYäèOOI››\õò[Y[ù……âàTÀù€‹ö‹‹XŸQôX]\ô\Àù›\õò[Y[ù◊Ÿ[òXõY
+]èI⁄€YIŒ¬àYäèOOI€XY›YI…âàTÀù€‹ö‹‹XŸQôX]\ô\ÀõXY›YWŸ[òXõY
+]èI⁄€YIŒ¬àYäèOOI‹ò[ö⁄[ô……âàTÀù€‹ö‹‹XŸQôX]\ô\Àúò[ö⁄[ô‹◊Ÿ[òXõY
+]èI⁄€YIŒ¬àYäèOOI€X]⁄\……âö\–€€‹ô 
+IâàZ\’[\‹ò\ûPYZ[ä
+IâàTÀõ^T\õZ\‹⁄[€úÀòÿ[óŸ[ù\ó‹ÿ€‹ô\ ]èI⁄€YIŒ¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùöY]… Kôõ‹ëXX⁄
+Oûò€\‹”\›ùŸŸ€J	ÿX›]ôIÀöYOOI›öY]ÀI ›äJN¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXâ Kôõ‹ëXX⁄
+Oûò€\‹”\›ùŸŸ€J	ÿX›]ôIÀô]\Ÿ]ùöY]œOO]äJN¬à€€ú›X›]ôUXèYÿ›[Y[ùú]Y\ûTŸ[X›‹ä	ÀùXãòX›]ôI N¬àYäX›]ôUXââù⁄[ô›ÀõX]⁄YYXJ	 X^]⁄YççL
+I KõX]⁄\ ^¬àô\]Y\›[ö[X][€ëúò[YJ
+
+OOòX›]ôUXãúÿ‹õ€[ù’öY] ÿôZ]ö[‹éâ‹€[€›	Àõÿ⁄Œâ€ôX\ô\›	À[õ[ôNâÿŸ[ù\âﬂJJN¬àBàYäèOOI›X[\… ^¬àYäô]ö[›\’öY]»OOI›X[\……âàTÀùX[P€€\]][€íY	âîÀòX›]ôU›\ââîÀù›\õò[Y[ùÀú€€YJOî›ö[ô öY
+OOOT›ö[ô ÀòX›]ôU›\äJJTÀùX[P€€\]][€íYTÀòX›]ôU›\é¬àô[ô\ïX[\ 
+N¬àYäô]ö[›\’öY]»OOI›X[\……âîÀùX[P€€\]][€íY	âä\–YZ[ì‹ 
+_
+\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸŸ[ô\ò]W›X[\ JJ^¬à€€ú››\õò[Y[ùYTÀùX[P€€\]][€íY¬àﬁ[ò’›\õò[Y[ù›Xú›]]\ ›\õò[Y[ùY
+Kù[ä\ﬁ[ò 
+OOû¬àYä›ö[ô ÀòX›]ôU›\äHOOT›ö[ô ›\õò[Y[ùY
+J\ô]\õé¬à]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ïX[\ 
+N¬àJKòÿ]⁄
+\úõ‹èOò€€ú€€Kùÿ\õä	‹›Xú›]]Hﬁ[ò⁄õ€ö^ò][€âÀ\úõ‹äJN¬àBàBàYäèOOI‹ò[ö⁄[ô… \ô[ô\îò[ö⁄[ô 
+N¬àÀõ\›öY]œ]é¬àYä…⁄€YIÀ	€^\^Y\âÀ	‹^Y\ú…À	‹\õZ\‹⁄[€ú…À	››\õò[Y[ù…À	›X[\…À	€X]⁄\…À	€XY›YIÀ	ÿ€€€\âÀ	‹ò[ö⁄[ô…À	‹⁄[\K\›ŸI◊Kö[ò€Y\ äIâàTÀúXõX”[ŸJ^›⁄[ô›Àú›ŸTYŸUöY]–€€ù^^‹YŸNâÿ\â ›üNŸÿ›[Y[ùô\‹]⁄]ô[ù
+ô]»]ô[ù
+	‹›ŸNúYŸK]öY]… JNﬂBüBÇãÀ»ò]öYÿ][€à]X⁄0ÍYH[[pÍYX][Y[ùà[Hô\›Hõ€ò›[€õô[HpÍõYH⁄H[ôBãÀ»]]ôH\ùYHH	⁄[ö]X[\ÿ][€àô[ò€€ùôH[ôH\úô]\ãÇôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…ÀOOû¬à€€ú›XèYKù\ôŸ]ò€‹Ÿ\›
+	ÀùXâ N¬àYäXà	âàXãô]\Ÿ]ùöY] ^¬àKúô]ô[ùYò][
+
+N¬àYäXãô\ÿXõYXãò€\‹”\›ò€€ùZ[ú 	Ÿ\ÿXõY]Xâ J\ô]\õé¬àŸ]öY] Xãô]\Ÿ]ùöY] N»ô]\õé¬àBà€€ú›€œYKù\ôŸ]ò€‹Ÿ\›
+	÷Ÿ]KY€◊I N¬àYä€»	âà€Àô]\Ÿ]ô€ ^»Kúô]ô[ùYò][
+
+N»Ÿ]öY] €Àô]\Ÿ]ô€ N»BüJN¬õ]ôX€›ô\ûS[ŸOK›\O\ôX€›ô\ûK⁄Kù\›
+ÿÿ][€ãö\⁄
+€ÿÿ][€ãúŸX\ò⁄
+N¬ò€€ú›T’Tì[ÿÿ][€ãõ‹öY⁄[ä€ÿÿ][€ãú]ò[YKú›Xú›ö[ô ÿÿ][€ãú]ò[YKõ\›[ô^Ÿä	À… JÃJN¬ò€€ú›\õ\ò[\œ[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+N¬õ]XõX’⁄Ÿ[ëúõ€U\õ]\õ\ò[\ÀôŸ]
+	‹XõX… N¬ò€€ú›^[Y[ù\⁄’⁄Ÿ[ëúõ€U\õJ
+
+OOû¬à€€ú›úõ€U\õJ\õ\ò[\ÀôŸ]
+	‹^Y\⁄… _	… Kùö[J
+N¬àYäúõ€U\õ
+^¬àû^‹Ÿ\‹⁄[€î›‹òYŸKúŸ]][J	‹›ŸW‹^Y\⁄◊›⁄Ÿ[âÀúõ€U\õ
+NﬂXÿ]⁄
+ ^ﬂBàû^ÿ€€ú›O[ô]»Tì
+ÿÿ][€ãöôYäN›KúŸX\ò⁄\ò[\Àô[]J	‹^Y\⁄… N›KúŸX\ò⁄\ò[\ÀúŸ]
+	‹^Y\⁄◊‹Ÿ\‹⁄[€âÀ	ÃI N⁄\›‹ûKúô\XŸT›]JﬂK	…ÀKù‘›ö[ô 
+JNﬂXÿ]⁄
+ ^ﬂBàô]\õàúõ€U\õ¬àBàYä\õ\ò[\ÀôŸ]
+	‹^Y\⁄◊‹Ÿ\‹⁄[€â OOOIÃI ^¬àû^‹ô]\õà
+Ÿ\‹⁄[€î›‹òYŸKôŸ]][J	‹›ŸW‹^Y\⁄◊›⁄Ÿ[â _	… Kùö[J
+NﬂXÿ]⁄
+ ^‹ô]\õà	…ŒﬂBàBàô]\õà	…Œ¬üJJ
+N¬ò€€ú›⁄‹ù€ŸQúõ€U\õJ\õ\ò[\ÀôŸ]
+	‹… _	… Kùö[J
+Kù’\\êÿ\ŸJ
+N¬ò€€ú›^[Y[ù⁄‹ù€ŸQúõ€U\õJ\õ\ò[\ÀôŸ]
+	‹^I _	… Kùö[J
+Kù’\\êÿ\ŸJ
+N¬ò€€ú›[ùö]RYúõ€U\õ]\õ\ò[\ÀôŸ]
+	⁄[ùö]I N¬ò€€ú›[ùö]Q[XZ[úõ€U\õJ\õ\ò[\ÀôŸ]
+	Ÿ[XZ[	 _	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬ôù[ò›[€à\–YZ[ä
+^‹ô]\õàÀù€‹ö‹‹XŸOÀúõ€OOOIÿYZ[âﬂBôù[ò›[€à\–€€‹ô 
+^‹ô]\õàÀù€‹ö‹‹XŸOÀúõ€OOOIÿ€€‹ôÿ[ö^ô\âﬂBôù[ò›[€à\’[\‹ò\ûPYZ[ä
+^¬àYäZ\–€€‹ô 
+_TÀõ^T\õZ\‹⁄[€úœÀù[\‹ò\ûWÿYZ[ó›[ù[
+\ô]\õàò[ŸN¬àô]\õàô]»]JÀõ^T\õZ\‹⁄[€úÀù[\‹ò\ûWÿYZ[ó›[ù[
+KôŸ][YJ
+Oë]Kõõ› 
+N¬üBôù[ò›[€à\–YZ[ì‹ 
+^‹ô]\õà\–YZ[ä
+_\’[\‹ò\ûPYZ[ä
+_Bôù[ò›[€àõ‹õX]Xô[
+
+^‹ô]\õàÀôõ‹õX]OOI⁄⁄[ô◊€Ÿó‹]⁄	œ…‘õ⁄HH\úòZ[âŒäÀôõ‹õX]OOI€XY›YIœ…”Y›YIŒâ–€\‹⁄\]YI _Bôù[ò›[€àôY⁄\›ò][€ì[ö 
+^¬àYä]TÀù€‹ö‹‹XŸOÀúXõX◊›⁄Ÿ[ä\ô]\õà	…Œ¬àYäú⁄‹ùÿ€ŸJ\ô]\õàT’Tì
+…œ‹œI Ÿ[ò€ŸUTíP€€\€ô[ù
+›ö[ô ú⁄‹ùÿ€ŸJKù’\\êÿ\ŸJ
+JN¬àYäôõ‹õX]OOI€XY›YI ^¬àô]\õàT’Tì
+…œ‹XõXœI Ÿ[ò€ŸUTíP€€\€ô[ù
+Àù€‹ö‹‹XŸKúXõX◊›⁄Ÿ[äJ……ùöY]œ[XY›YK\Ÿ\‹⁄[€âõXY›YOI Ÿ[ò€ŸUTíP€€\€ô[ù
+õXY›YW⁄Y	… J……ù›\õò[Y[ùI Ÿ[ò€ŸUTíP€€\€ô[ù
+öY
+N¬àBàô]\õàT’Tì
+…œ‹XõXœI Ÿ[ò€ŸUTíP€€\€ô[ù
+Àù€‹ö‹‹XŸKúXõX◊›⁄Ÿ[äJ……ùöY]œ]›\õò[Y[ù	ù›\õò[Y[ùI Ÿ[ò€ŸUTíP€€\€ô[ù
+öY
+N¬üBôù[ò›[€àXY›YTôY⁄\›ò][€ì[ö 
+^¬àYä[TÀù€‹ö‹‹XŸOÀúXõX◊›⁄Ÿ[ä\ô]\õà	…Œ¬àô]\õàT’Tì
+…œ‹XõXœI Ÿ[ò€ŸUTíP€€\€ô[ù
+Àù€‹ö‹‹XŸKúXõX◊›⁄Ÿ[äJ……ùöY]œ[XY›YIõXY›YOI Ÿ[ò€ŸUTíP€€\€ô[ù
+öY
+N¬üBôù[ò›[€àŸX\€€îXõX‘ò[ö⁄[ô”[ö 
+^¬àYäTÀù€‹ö‹‹XŸOÀúXõX◊›⁄Ÿ[ä\ô]\õà	…Œ¬à€€ú›ŸX\€€èTÀúŸX\€€úÀôö[ô
+Oûö\◊ÿX›]ôJ_ÀúŸX\€€ú÷ÃN¬à€€ú›[öŸYTÀù›\õò[Y[ùÀôö[ô
+OûúŸX\€€ó⁄YOO\ŸX\€€èÀöY	âûôõ‹õX]OOI€XY›YI…âûú⁄‹ùÿ€ŸJN¬àYä[öŸYÀú⁄‹ùÿ€ŸJ\ô]\õàT’Tì
+…‹ÿZ\€€ãœ‹œI Ÿ[ò€ŸUTíP€€\€ô[ù
+›ö[ô [öŸYú⁄‹ùÿ€ŸJKù’\\êÿ\ŸJ
+JN¬à€€ú›O[ô]»TìŸX\ò⁄\ò[\ ‹XõXŒîÀù€‹ö‹‹XŸKúXõX◊›⁄Ÿ[üJN¬àYäŸX\€€èÀöY
+\KúŸ]
+	‹ŸX\€€âÀŸX\€€ãöY
+N¬àô]\õàT’Tì
+…‹ŸX\€€ãö[… ‹Kù‘›ö[ô 
+N¬üBôù[ò›[€àÿ[ëY]›\úô[ùX]⁄\ 
+^ÿ€€ú›X›\úô[ù›\ä
+N‹ô]\õàH]	âàú›]\»OOIŸö[ö\⁄Y	»	âà
+\–YZ[ì‹ 
+_
+\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸ[ù\ó‹ÿ€‹ô\ J_Bôù[ò›[€àÿ[ìX[òYŸSX]⁄›ùX›\ôJ
+^ÿ€€ú›X›\úô[ù›\ä
+N‹ô]\õàH]	âàú›]\»OOIŸö[ö\⁄Y	»	âà\–YZ[ì‹ 
+_Bôù[ò›[€àXZŸQ\ÿXõYX›[€êù]€äXô[]J^¬à€€ú›èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿãù^€€ù[ù[Xô[ÿãô\ÿXõY]ùYNÿãúŸ]]öXù]J	ÿ\öXKY\ÿXõY	À	›ùYI N¬àãò€\‹”ò[YOIŸ[ôŸ\à\ÿXõYXX›[€âŒÿãú›[Kõ‹X⁄]OIÀåŒ	Œÿãú›[Kôö[\èIŸ‹ò^\ÿÿ[JJIŒÿãú›[Kò›\ú€‹èI€õ›X[›ŸY	Œ¬àãù]O]]_	–X›[€àõ€à]]‹ö\ÍYIŒ‹ô]\õàé¬üBôù[ò›[€à\T\õZ\‹⁄[€ú 
+^¬à€€ú›YZ[èZ\–YZ[ä
+N¬à€€ú›€€‹ôœZ\–€€‹ô 
+N¬à€€ú›YZ[ì‹œZ\–YZ[ì‹ 
+N¬à€€ú›‹ôÿ[ö^ô\ìÿ⁄ŸYHHTÀõ‹ôÿ[ö^ô\êXÿŸ\‹œÀúô\]Z\ô\◊‹›Xúÿ‹ö\[€é¬àYä‹ôÿ[ö^ô\ìÿ⁄ŸY
+^¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXú»ùXâ Kôõ‹ëXX⁄
+[Oûÿ€€ú›èY[ô]\Ÿ]ùöY]ŒŸ[ú›[Kô\‹^OJèOOI⁄€YIﬂèOOI€^\^Y\â O……Œâ€õ€ôIŒﬂJN¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KY€◊I Kôõ‹ëXX⁄
+[Oûÿ€€ú›èY[ô]\Ÿ]ô€Œ⁄YäââùàOOI⁄€YI…âùàOOI€^\^Y\â Y[ú›[Kô\‹^OI€õ€ôIŒﬂJN¬àô]\õé¬àBà€€ú›ÿ[ê‹ôX]U›\õò[Y[ùXYZ[ì‹ﬂ
+€€‹ô…âîÀõ^T\õZ\‹⁄[€úÀòÿ[óÿ‹ôX]W››\õò[Y[ù N¬à€€ú›ŸX\€€êÿ\ôI
+	»‹ŸX\€€êYZ[êÿ\ô	 N⁄YäŸX\€€êÿ\ô
+\ŸX\€€êÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀXYZ[ì‹ﬂTÀúŸX\€€êYZ[ì‹[äN¬à€€ú››\õò[Y[ùÿ\ôI
+	»››\õò[Y[ùYZ[êÿ\ô	 N⁄Yä›\õò[Y[ùÿ\ô
+]›\õò[Y[ùÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀXÿ[ê‹ôX]U›\õò[Y[ùTÀù›\õò[Y[ù‹ôX]S‹[äN¬à€€ú›ô]’›\õò[Y[ùŸŸ€OI
+	»€ô]’›\õò[Y[ùŸŸ€I N⁄Yäô]’›\õò[Y[ùŸŸ€J[ô]’›\õò[Y[ùŸŸ€Kò€\‹”\›ùŸŸ€J	⁄Y[âÀXÿ[ê‹ôX]U›\õò[Y[ù
+N¬à€€ú›ŸX\€€îŸ][ô‹’ŸŸ€OI
+	»‹ŸX\€€îŸ][ô‹’ŸŸ€I N⁄YäŸX\€€îŸ][ô‹’ŸŸ€J\ŸX\€€îŸ][ô‹’ŸŸ€Kò€\‹”\›ùŸŸ€J	⁄Y[âÀXYZ[ì‹ N¬à€€ú›][ô[òŸPÿ\ôI
+	»ÿ][ô[òŸPYZ[êÿ\ô	 N⁄Yä][ô[òŸPÿ\ô
+X][ô[òŸPÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀJYZ[ì‹ﬂ€€‹ô JN¬à€€ú›X[\–ÿ\ôI
+	»›X[\–YZ[êÿ\ô	 N⁄YäX[\–ÿ\ô
+]X[\–ÿ\ôò€\‹”\›úô[[›ôJ	⁄Y[â N¬à€€ú›X[P€€ùõ€œI
+	»›X[SX[òYŸ[Y[ù€€ùõ€… N¬à€€ú›ÿ[ìX[òYŸUX[\œXYZ[ì‹ﬂ
+€€‹ô…âîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸŸ[ô\ò]W›X[\ N¬àYäX[P€€ùõ€ ]X[P€€ùõ€Àò€\‹”\›ùŸŸ€J	⁄Y[âÀXÿ[ìX[òYŸUX[\ N¬à€€ú›X]⁄‹ôX]Pÿ\ôI
+	»€X]⁄‹ôX]PYZ[êÿ\ô	 N⁄YäX]⁄‹ôX]Pÿ\ô
+[X]⁄‹ôX]Pÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀXYZ[ì‹ N¬à€€ú›€€\]][€ë[òXõYHHJÀù€‹ö‹‹XŸQôX]\ô\Àù›\õò[Y[ù◊Ÿ[òXõYÀù€‹ö‹‹XŸQôX]\ô\ÀõXY›YWŸ[òXõY
+N¬à€€ú›\ô[èX€€\]][€ë[òXõY	âàHTÀù€‹ö‹‹XŸQôX]\ô\Àù\ô⁄[óŸ[òXõY¬à€€ú›‹^Y\ë[òXõYX€€\]][€ë[òXõY	âàHTÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY	âàHTÀù€‹ö‹‹XŸQôX]\ô\Àù‹‹^Y\óŸ[òXõY¬à€€ú›‹^Y\êÿ\ôI
+	»ÿYZ[ï‹^Y\êÿ\ô	 N⁄Yä‹^Y\êÿ\ô
+]‹^Y\êÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀ]‹^Y\ë[òXõY
+N¬à	
+	»›\ô[ï›\õò[Y[ù‹ôX]I OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ]\ô[üXYZ[ì‹ N¬à	
+	»›\ô[ìXY›YP‹ôX]I OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ]\ô[üXYZ[ì‹ N¬à	
+	»›\ô[êYZ[êÿ\ô	 OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ]\ô[üXYZ[ì‹ N¬à€€ú›X]⁄Xê[›ŸYXYZ[ì‹ﬂ
+€€‹ô…âîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸ[ù\ó‹ÿ€‹ô\ N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXñŸ]K]öY]œHõX]⁄\»óI Kôõ‹ëXX⁄
+[Oû¬à[ú›[Kô\‹^O[X]⁄Xê[›ŸY……Œâ€õ€ôIŒ¬à[ô\ÿXõYH[X]⁄Xê[›ŸY¬à[ù]O[X]⁄Xê[›ŸY…‘ÿZ\⁄\à\»X]⁄…Œâ–]X›[ôH]]‹ö\ÿ][€àHÿZ\⁄YH\»ÿ€‹ô\…Œ¬àJN¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KY€œHõX]⁄\»óI Kôõ‹ëXX⁄
+[Oô[ú›[Kô\‹^O[X]⁄Xê[›ŸY……Œâ€õ€ôI N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀòYZ[ã\\õZ\‹⁄[€úÀ]Xâ Kôõ‹ëXX⁄
+[Oû¬à[ò€\‹”\›úô[[›ôJ	⁄Y[â N¬à[ò€\‹”\›ùŸŸ€J	Ÿ\ÿXõY]XâÀXYZ[äN¬à[ô\ÿXõYHXYZ[é¬à[úŸ]]öXù]J	ÿ\öXKY\ÿXõY	ÀXYZ[è…›ùYIŒâŸò[ŸI N¬à[ù]OXYZ[è…—Í\ô\à\»]]‹ö\ÿ][€ú…Œâ‘∞Í\Ÿ\ù∞ÍH0Ë8†&XYZ[ö\›ò]]\âŒ¬àJN¬à€€ú›\õUöY]œI
+	»›öY]À\\õZ\‹⁄[€ú… N⁄Yä\õUöY]…âàXYZ[ä\\õUöY]Àò€\‹”\›úô[[›ôJ	ÿX›]ôI N¬à€€ú›XÿŸ\‹œI
+	»ÿYZ[êXÿŸ\‹–ÿ\ô	 N⁄YäXÿŸ\‹ XXÿŸ\‹Àò€\‹”\›ùŸŸ€J	⁄Y[âÀJYZ[ü€€‹ô JN¬à€€ú›[ùö]P€€ùõ€œI
+	»ÿYZ[í[ùö]P€€ùõ€… N⁄Yä[ùö]P€€ùõ€ Z[ùö]P€€ùõ€Àò€\‹”\›ùŸŸ€J	⁄Y[âÀJYZ[ü
+€€‹ô…âîÀõ^T\õZ\‹⁄[€úÀòÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\ú JJN¬à€€ú›XÿŸ\‹”YŸ[ôI
+	»ÿYZ[êXÿŸ\‹”YŸ[ô	 N⁄YäXÿŸ\‹”YŸ[ô
+XXÿŸ\‹”YŸ[ôò€\‹”\›ùŸŸ€J	⁄Y[âÀXYZ[äN¬à€€ú›^Y\êYÿ\ôI
+	»‹^Y\ú“[ú]	 OÀò€‹Ÿ\›
+	Àòÿ\ô	 N¬àYä^Y\êYÿ\ô
+\^Y\êYÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀ€€‹ô…âàTÀõ^T\õZ\‹⁄[€úÀòÿ[óÿY€Y[Xô\ú N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXñŸ]K]öY]œHù›\õò[Y[ù»óI Kôõ‹ëXX⁄
+[Oô[ú›[Kô\‹^OTÀù€‹ö‹‹XŸQôX]\ô\Àù›\õò[Y[ù◊Ÿ[òXõY……Œâ€õ€ôI N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXñŸ]K]öY]œHõXY›YHóI Kôõ‹ëXX⁄
+[Oô[ú›[Kô\‹^OTÀù€‹ö‹‹XŸQôX]\ô\ÀõXY›YWŸ[òXõY……Œâ€õ€ôI N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXñŸ]K]öY]œHò€€€\àóI Kôõ‹ëXX⁄
+[Oûÿ€€ú›ö\⁄XõOXYZ[ââù\ô[éŸ[ò€\‹”\›ùŸŸ€J	⁄Y[âÀ]ö\⁄XõJNŸ[ú›[Kô\‹^O]ö\⁄XõO……Œâ€õ€ôIŒﬂJN¬àYäXYZ[ü]\ô[äI
+	»›öY]ÀX€€€\â OÀò€\‹”\›úô[[›ôJ	ÿX›]ôI N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXñŸ]K]öY]œHúò[ö⁄[ô»óI Kôõ‹ëXX⁄
+[Oô[ú›[Kô\‹^OTÀù€‹ö‹‹XŸQôX]\ô\Àúò[ö⁄[ô‹◊Ÿ[òXõY……Œâ€õ€ôI N¬à€€ú›ò][ô‹—[òXõYHHTÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXñŸ]K]öY]œHú^Y\ú»óI Kôõ‹ëXX⁄
+[Oû¬à€€ú›ö\⁄XõOXYZ[ü\’[\‹ò\ûPYZ[ä
+_
+€€‹ô…âîÀõ^T\õZ\‹⁄[€úÀòÿ[ó›öY]◊‹^Y\ú N¬à[ú›[Kô\‹^O]ö\⁄XõO……Œâ€õ€ôIŒ¬à[ù^€€ù[ù\ò][ô‹—[òXõY…“õ›Y]\ú»»õ›\…Œâ“õ›Y]\ú…Œ¬àJN¬à€€ú›^Y\ú’]OI
+	»‹^Y\ú’öY]’]I N⁄Yä^Y\ú’]J\^Y\ú’]Kù^€€ù[ù\ò][ô‹—[òXõY…“õ›Y]\ú»»õ›\…Œâ“õ›Y]\ú…Œ¬à€€ú›^Y\ú“[ùõœI
+	»‹^Y\ú’öY]“[ùõ… N⁄Yä^Y\ú“[ùõ \^Y\ú“[ùõÀö[õô\íS\ò][ô‹—[òXõYà…–€€ú›[H\»Y[Xúô\»H‹õ›\H]]\ú»0Í]ò[X][€úÀàèêYZ[ö\›ò]]\à]€ÀYŸ\›[€õòZ\ô\œÿèà]]ô[ùõ›\à\»õ›Y]\ú»»H[ﬁY[õôH›Z]Hõ›Y]\à‹∞ËòŸH0Ë€€àQ’‚Kâ¬àâ”\›H\»Y[Xúô\»H‹õ›\Kà\»X›[€ú»H[ŸYöXÿ][€à›H›\ô\‹⁄[€à0Í\[ô[ù\»õ⁄]»Xÿ€‹ô0Í\»\à8†&XYZ[ö\›ò]]\ãâŒ¬à	
+	»‹^Y\ú‘ò][ô“[ùõ… OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ\ò][ô‹—[òXõY
+N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KY€œHù›\õò[Y[ù»óI Kôõ‹ëXX⁄
+èOûÿãù^€€ù[ùJYZ[ì‹ﬂ
+€€‹ô…âîÀõ^T\õZ\‹⁄[€úÀòÿ[óÿ‹ôX]W››\õò[Y[ù JO…¸'‰·Hõ›]ôX]H›\õõ⁄IŒâ¸'‰·H›\õõ⁄\»»\›‹ö\]YIﬂJN¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KY€œHú^Y\ú»óI Kôõ‹ëXX⁄
+èOû¬à€€ú›ö\⁄XõOXYZ[ü\’[\‹ò\ûPYZ[ä
+_
+€€‹ô…âîÀõ^T\õZ\‹⁄[€úÀòÿ[ó›öY]◊‹^Y\ú N¬àãú›[Kô\‹^O]ö\⁄XõO……Œâ€õ€ôIŒ¬àãù^€€ù[ù\ò][ô‹—[òXõY…¸'‰iHõ›Y]\ú»»õ›\…Œâ¸'‰iHõ›Y]\ú…Œ¬àJN¬üBÇôù[ò›[€à⁄›‘ôX€›ô\ûQõ‹õJ
+^¬àôX€›ô\ûS[ŸO]ùYN¬à	
+	»ÿ]]	 Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à	
+	»€XZ[â Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»‹XõX’öY]… Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»€Ÿ⁄[êÿ\ô	 Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»‹ô\Ÿ]\‹›€‹ôÿ\ô	 Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬üBôù[ò›[€àúöY[ôP]]\úõ‹ä\úõ‹ä^¬à€€ú›OJ\úõ‹èÀõY\‹ÿYŸ_›ö[ô \úõ‹ü	… JKù”›Ÿ\êÿ\ŸJ
+N¬àYäKö[ò€Y\ 	‹ò]H[Z]	 JHô]\õà	’õ‹H[X[ô\»8†&YK[XZ[à][ô»[ùö\õ€àH]\ôH]ò[ùH∞ÍY\‹ÿ^Y\ãâŒ¬àYäKö[ò€Y\ 	⁄[ùò[YŸ⁄[à‹ôY[ùX[… JHô]\õà	—[XZ[›H[›H\‹ŸH[ò€‹úôX›âŒ¬àYäKö[ò€Y\ 	Ÿ^\ôY	 JHô]\õà	–ŸHY[àH^\∞ÍKà[X[ôH[àõ›]ôX]HY[àH∞ÍX›\0Í\ò][€ãâŒ¬àô]\õà\úõ‹èÀõY\‹ÿYŸ_	’[ôH\úô]\à\››\ùô[ùYKâŒ¬üBò\ﬁ[ò»ù[ò›[€à]]›]J
+^¬àû^ÿ€€ú›ŸôœX]ÿZ]ÿãúú 	ŸŸ]‹]õ‹õW‹XõX◊‹Ÿ][ô‹… N⁄YäXŸôÀô\úõ‹ââòŸôÀô]JTÀú]õ‹õTŸ][ô‹œ^ÀããîÀú]õ‹õTŸ][ô‹ÀããòŸôÀô]_N‹ô[ô\î]õ‹õQõ€›\ä
+NﬂXÿ]⁄
+ŸJ^ﬂBà€€ú›€€úŸ[ù[òXõYHHTÀú]õ‹õTŸ][ô‹Àò€€úŸ[ùŸÿ]WŸ[òXõY¬à	
+	»‹⁄Y€ù\€€úŸ[ùõ›… OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀX€€úŸ[ù[òXõY
+N¬àYä^[Y[ù⁄‹ù€ŸQúõ€U\õ
+^¬àû^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ô\€€ôW‹^[Y[ùŸ\⁄◊‹⁄‹ù€[ö…À‹ÿ€ŸNú^[Y[ù⁄‹ù€ŸQúõ€U\õJN¬àYä\úõ‹ä]õ›»\úõ‹é¬àYäY]OÀù⁄Ÿ[ä]õ›»ô]»\úõ‹ä	”Y[à8†&Y[òÿZ\‹Ÿ[Y[ù[ùò[YH›H^\∞ÍKâ N¬à]ÿZ]õ€›^[Y[ù\⁄ ]Kù⁄Ÿ[äN¬àXÿ]⁄
+J^¬à	
+	»ÿ]]	 Kò€\‹”\›òY
+	⁄Y[â N…
+	»€XZ[â Kò€\‹”\›òY
+	⁄Y[â N…
+	»‹XõX’öY]… Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à	
+	»‹XõX’öY]… Kö[õô\íSIœXY\à€\‹œHù‹èèOè[Y»‹òœHããŸò]öX€€ãúôœ›èMLà€\‹œHòúò[ô[X\ö»à[Hî’‚Hèî’‚H’TìêSQSïKÕO⁄Oè⁄XY\èè]à€\‹œHòÿ\ôèèèìY[à8†&Y[òÿZ\‹Ÿ[Y[ù[ô\‹€öXõO⁄èè€\‹œHõ]]Yèâ Ÿ\ÿ KõY\‹ÿYŸ_JJ…œ‹èŸ]èâŒ¬àBàô]\õé¬àBàYä^[Y[ù\⁄’⁄Ÿ[ëúõ€U\õ
+^¬à]ÿZ]õ€›^[Y[ù\⁄ ^[Y[ù\⁄’⁄Ÿ[ëúõ€U\õ
+N¬àô]\õé¬àBàYä⁄‹ù€ŸQúõ€U\õ	âà\XõX’⁄Ÿ[ëúõ€U\õ
+^¬àû^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ô\€€ôW‹XõX◊››\õò[Y[ù‹⁄‹ù€[ö…À‹ÿ€ŸNú⁄‹ù€ŸQúõ€U\õJN¬àYä\úõ‹ä]õ›»\úõ‹é¬àYäY]OÀúXõX◊›⁄Ÿ[üY]OÀù›\õò[Y[ù⁄Y
+]õ›»ô]»\úõ‹ä	”Y[à€›\ù[ùò[YH›H^\∞ÍKâ N¬àXõX’⁄Ÿ[ëúõ€U\õY]KúXõX◊›⁄Ÿ[é¬à\õ\ò[\ÀúŸ]
+	‹XõX…À]KúXõX◊›⁄Ÿ[äN¬à\õ\ò[\ÀúŸ]
+	››\õò[Y[ù	À]Kù›\õò[Y[ù⁄Y
+N¬à\õ\ò[\ÀúŸ]
+	›öY]…À]KùöY]ﬂ	››\õò[Y[ù	 N¬àYä]KõXY›YW⁄Y
+]\õ\ò[\ÀúŸ]
+	€XY›YIÀ]KõXY›YW⁄Y
+N¬àÀ»ŸY\Hö\⁄XõH‹œHTì[ò⁄[ôŸY»õ€›XõX»ôXY»Hô\€€ôY€€ù^ô[›ÀÇà⁄[ô›Àó◊‹›ŸTô\€€ôY⁄‹ù[öœ^¬à›\õò[Y[ùî›ö[ô ]Kù›\õò[Y[ù⁄Y
+KàöY]Œî›ö[ô ]KùöY]ﬂ	››\õò[Y[ù	 KàXY›YNô]KõXY›YW⁄Y‘›ö[ô ]KõXY›YW⁄Y
+Nâ…¬àN¬àXÿ]⁄
+J^¬à	
+	»ÿ]]	 Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»€XZ[â Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»‹XõX’öY]… Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à	
+	»‹XõX’öY]… Kö[õô\íSIœXY\à€\‹œHù‹èèOè[Y»‹òœHããŸò]öX€€ãúôœ›èMLà€\‹œHòúò[ô[X\ö»à[Hî’‚Hèî’‚H’TìêSQSïKÕO⁄Oè⁄XY\èè]à€\‹œHòÿ\ôèèèìY[à[ô\‹€öXõO⁄èè€\‹œHõ]]Yèâ Ÿ\ÿ KõY\‹ÿYŸ_JJ…œ‹èŸ]èâŒ¬àô]\õé¬àBàBàYäXõX’⁄Ÿ[ëúõ€U\õ
+^¬à]ÿZ]õ€›XõX XõX’⁄Ÿ[ëúõ€U\õ
+N¬àô]\õé¬àBà€€ú›Ÿ]_OX]ÿZ]ÿãò]]ôŸ]Ÿ\‹⁄[€ä
+N¬àÀúŸ\‹⁄[€èY]KúŸ\‹⁄[€é¬àYäÀúŸ\‹⁄[€èÀù\Ÿ\èÀöY
+]⁄[ô›Àî’—Rõ›\õò[Ÿ\‹⁄[€èÀäÿãÀúŸ\‹⁄[€ãù\Ÿ\ãöY
+N¬à€€ú›ÿ]]õ›öY\è[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+KôŸ]
+	‹õ›öY\â N¬àYäTÀúŸ\‹⁄[€ââäÿ]]õ›öY\èOOIŸ€€Ÿ€Iﬂÿ]]õ›öY\èOOIÿ\I J^¬à€€ú›O[ô]»Tì
+ÿÿ][€ãöôYäN›KúŸX\ò⁄\ò[\Àô[]J	‹õ›öY\â N⁄\›‹ûKúô\XŸT›]JﬂK	…ÀKù‘›ö[ô 
+JN¬à]ÿZ]›\ù€ÿ⁄X[]]
+ÿ]]õ›öY\äN‹ô]\õé¬àBàYäÀúŸ\‹⁄[€ââõô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+Kö\ 	€ÿ]]	 J^ÿ€€ú›O[ô]»Tì
+ÿÿ][€ãöôYäN›KúŸX\ò⁄\ò[\Àô[]J	€ÿ]]	 N⁄\›‹ûKúô\XŸT›]JﬂK	…ÀKù‘›ö[ô 
+JNﬂBàYäôX€›ô\ûS[ŸJ^‹⁄›‘ôX€›ô\ûQõ‹õJ
+N‹ô]\õüBà	
+	»€Ÿ⁄[êÿ\ô	 Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à	
+	»‹ô\Ÿ]\‹›€‹ôÿ\ô	 Kò€\‹”\›òY
+	⁄Y[â N¬à€€ú›Ÿ⁄[ë[XZ[úõ€U\õ[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+KôŸ]
+	Ÿ[XZ[	 N¬àYäŸ⁄[ë[XZ[úõ€U\õ	âàI
+	»Ÿ[XZ[	 Kùò[YJI
+	»Ÿ[XZ[	 Kùò[YO[Ÿ⁄[ë[XZ[úõ€U\õ¬à€€ú›[ô[ôœI
+	»⁄[ùö]S[ô[ô–ÿ\ô	 N¬àYä[ô[ô ^¬à[ô[ôÀò€\‹”\›ùŸŸ€J	⁄Y[âÀZ[ùö]RYúõ€U\õ
+N¬àYä[ùö]RYúõ€U\õ
+^¬à	
+	»⁄[ùö]S[ô[ô’^	 Kö[õô\íSI’H\»0Í]0ÍH[ùö]0ÍH€€[YHèò€À[‹ôÿ[ö\ÿ]]\èÿèãâ  [ùö]Q[XZ[úõ€U\õ…»][\ŸH8†&XYô\‹ŸHèâ Ÿ\ÿ [ùö]Q[XZ[úõ€U\õ
+J…œÿèãâŒâ… N¬àYä[ùö]Q[XZ[úõ€U\õ	âàI
+	»Ÿ[XZ[	 Kùò[YJI
+	»Ÿ[XZ[	 Kùò[YOZ[ùö]Q[XZ[úõ€U\õ¬àBàBà	
+	»ÿ]]	 Kò€\‹”\›ùŸŸ€J	⁄Y[âÀHTÀúŸ\‹⁄[€äN¬à	
+	»€XZ[â Kò€\‹”\›ùŸŸ€J	⁄Y[âÀTÀúŸ\‹⁄[€äN¬àYäÀúŸ\‹⁄[€ä^¬àû^¬à€€ú›€€úŸ[ùX€€úŸ[ù[òXõYÿ]ÿZ]ÿãúú 	ŸŸ]€^W‹›ŸWÿ€€úŸ[ù‹›]\… NûŸ\úõ‹éõù[]NûÿXÿŸ\YùùY__N¬àYä€€úŸ[ù[òXõY	âàX€€úŸ[ùô\úõ‹ââò€€úŸ[ùô]OÀòXÿŸ\YOO]ùYJ^¬à	
+	»€XZ[â Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»ÿ]]	 Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»ÿ€€úŸ[ùÿ]I OÀò€\‹”\›úô[[›ôJ	⁄Y[â N¬àô]\õé¬àBà]ÿZ]ÿãúú 	Ÿ[ú›\ôW€^WŸ€ÿò[‹^Y\ó‹õŸö[IÀ‹Ÿ\‹^W€ò[YNõù[JN¬à]ÿZ]õ€›
+
+N¬àXÿ]⁄
+\úõ‹ä^›ÿ\›
+	–€€õô^[€à“ÀXZ\»⁄\ôŸ[Y[ù[\‹‹⁄XõHà	  \úõ‹èÀõY\‹ÿYŸ_\úõ‹äJ_BàBüBâ
+	»€Ÿ⁄[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›[XZ[I
+	»Ÿ[XZ[	 Kùò[YKùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬àYä[ùö]Q[XZ[úõ€U\õ	âô[XZ[OOZ[ùö]Q[XZ[úõ€U\õ
+\ô]\õàÿ\›
+	–Ÿ]H[ùö]][€à\›∞Í]ùYH›\à	 ⁄[ùö]Q[XZ[úõ€U\õ
+N¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãò]]ú⁄Y€í[ï⁄]\‹›€‹ô
+Ÿ[XZ[\‹›€‹ôâ
+	»‹\‹›€‹ô	 Kùò[Y_JN¬à\úõ‹è›ÿ\›
+úöY[ôP]]\úõ‹ä\úõ‹äJNò]]›]J
+N¬üN¬â
+	»‹⁄Y€ù\	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›[XZ[I
+	»Ÿ[XZ[	 Kùò[YKùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬àYäÀú]õ‹õTŸ][ô‹Àò€€úŸ[ùŸÿ]WŸ[òXõY	âàI
+	»‹⁄Y€ù\€€úŸ[ù	 OÀò⁄X⁄ŸY
+\ô]\õàÿ\›
+	’H⁄\»XÿŸ\\à\»€€ô][€ú»’‚H›\õò[Y[ù›\à‹∞ÍY\à€à€€\Kâ N¬àYä[ùö]Q[XZ[úõ€U\õ	âô[XZ[OOZ[ùö]Q[XZ[úõ€U\õ
+\ô]\õàÿ\›
+	’][\ŸH8†&XYô\‹ŸHK[XZ[[ô\]pÍYH[ú»8†&Z[ùö]][€àà	 ⁄[ùö]Q[XZ[úõ€U\õ
+N¬à€€ú›ôY\ôX›Z[ùö]RYúõ€U\õ–T’Tì
+…œ⁄[ùö]OI Ÿ[ò€ŸUTíP€€\€ô[ù
+[ùö]RYúõ€U\õ
+J……ô[XZ[I Ÿ[ò€ŸUTíP€€\€ô[ù
+[XZ[
+NêT’Tì¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãò]]ú⁄Y€ï\
+Ÿ[XZ[\‹›€‹ôâ
+	»‹\‹›€‹ô	 Kùò[YK‹[€úŒûŸ[XZ[ôY\ôX›ŒúôY\ôX›]NîÀú]õ‹õTŸ][ô‹Àò€€úŸ[ùŸÿ]WŸ[òXõYﬁ‹›ŸWÿ€€úŸ[ùÿXÿŸ\YùùYK›ŸW›\õ\◊›ô\ú⁄[€éâÃåçãLKLKXô]IÀ›ŸW‹ö]òXﬁW›ô\ú⁄[€éâÃåçãLKLKXô]IﬂNûﬂ__JN¬àYä\úõ‹ä\ô]\õàÿ\›
+úöY[ôP]]\úõ‹ä\úõ‹äJN¬àÿ\›
+]KúŸ\‹⁄[€è…–€€\H‹∞ÍpÍKà€àQ’‚H\›ò]X⁄0ÍH0Ë€à[XZ[âŒâ–€€\H‹∞ÍpÍHà∞Í\öYöYH€à[XZ[Z\»ôX€€õôX›K]⁄H]ôX»HpÍõYHYô\‹ŸKà€àQ’‚HŸ\òHô]õ›]∞ÍH]]€X]\]Y[Y[ùâ N¬üN¬â
+	»ÿ]]€€Ÿ€I Kõ€ò€X⁄œJ
+OOú›\ù€ÿ⁄X[]]
+	Ÿ€€Ÿ€I N¬â
+	»ÿ]]\I Kõ€ò€X⁄œJ
+OOú›\ù€ÿ⁄X[]]
+	ÿ\I N¬ò\ﬁ[ò»ù[ò›[€à›\ù€ÿ⁄X[]]
+õ›öY\ä^¬à€€ú›ôY\ôX›œPT’Tì
+…œ€ÿ]]Y€ôIŒ¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãò]]ú⁄Y€í[ï⁄]–]]
+‹õ›öY\ã‹[€úŒû‹ôY\ôX›ﬂ_JN¬àYä\úõ‹ä]ÿ\›
+	–€€õô^[€à	  õ›öY\èOOIŸ€€Ÿ€Iœ…—€€Ÿ€IŒâ–\I J…»[ô\‹€öXõH›\àH[€Y[ùà	 ŸúöY[ôP]]\úõ‹ä\úõ‹äJN¬üBâ
+	»Ÿõ‹ô€›\‹›€‹ô	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›[XZ[I
+	»Ÿ[XZ[	 Kùò[YKùö[J
+N¬àYäY[XZ[
+\ô]\õàÿ\›
+	—[ùôH8†&XXõ‹ô€àYô\‹ŸH[XZ[â N¬à	
+	»Ÿõ‹ô€›\‹›€‹ô	 Kô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãò]]úô\Ÿ]\‹›€‹ôõ‹ë[XZ[
+[XZ[‹ôY\ôX›ŒêT’TìJN¬à	
+	»Ÿõ‹ô€›\‹›€‹ô	 Kô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+úöY[ôP]]\úõ‹ä\úõ‹äJN¬àÿ\›
+	—[XZ[[ùõﬁpÍKà›]úôHHY[àôpÈ›H›\à⁄⁄\⁄\à[àõ›]ôX]H[›H\‹ŸKâ N¬üN¬â
+	»›\]T\‹›€‹ô	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›OI
+	»€ô]‘\‹›€‹ô	 Kùò[YKèI
+	»ÿ€€ôö\õSô]‘\‹›€‹ô	 Kùò[YN¬àYäKõ[ô›
+\ô]\õàÿ\›
+	”H[›H\‹ŸH⁄]€€ù[ö\à]H[⁄[ú»ÿ\òX›0Íô\Àâ N¬àYäHOO\ä\ô]\õàÿ\›
+	”\»]^[›»H\‹ŸHôH€‹úô\‹€ô[ù\Àâ N¬à	
+	»›\]T\‹›€‹ô	 Kô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãò]]ù\]U\Ÿ\ä‹\‹›€‹ôú_JN¬à	
+	»›\]T\‹›€‹ô	 Kô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+úöY[ôP]]\úõ‹ä\úõ‹äJN¬àôX€›ô\ûS[ŸOYò[ŸN¬à	
+	»€ô]‘\‹›€‹ô	 Kùò[YOI…Œ…
+	»ÿ€€ôö\õSô]‘\‹›€‹ô	 Kùò[YOI…Œ¬à\›‹ûKúô\XŸT›]JﬂK	…Àÿÿ][€ãú]ò[YJN¬àÿ\›
+	”[›H\‹ŸH[ŸYöpÍH]ôX»›XÿÍÀâ N¬à]ÿZ]]]›]J
+N¬üN¬â
+	»€Ÿ€›]	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ]ÿZ]ÿãò]]ú⁄Y€ì›]
+
+N€ÿÿ][€ãúô[ÿY
+
+_N¬â
+	»ÿ€€úŸ[ùŸ€›]	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ]ÿZ]ÿãò]]ú⁄Y€ì›]
+
+N€ÿÿ][€ãúô[ÿY
+
+_N¬â
+	»ÿXÿŸ\YÿXﬁP€€úŸ[ù	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäI
+	»€YÿXﬁP€€úŸ[ù⁄X⁄… OÀò⁄X⁄ŸY
+\ô]\õàÿ\›
+	–€ÿ⁄HHÿ\ŸH›\à€€ôö\õY\à€àXÿ€‹ôâ N¬à€€ú›èI
+	»ÿXÿŸ\YÿXﬁP€€úŸ[ù	 Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿXÿŸ\ÿ›\úô[ù‹›ŸW›\õ\… N¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à	
+	»ÿ€€úŸ[ùÿ]I OÀò€\‹”\›òY
+	⁄Y[â N…
+	»€XZ[â Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à]ÿZ]õ€›
+
+N›ÿ\›
+	–€€ô][€ú»XÿŸ\0ÍY\»8ß!I N¬üN¬ÇÇÇôù[ò›[€àô[ô\î›\\êYZ[ïô[ùY\ 
+^¬à€€ú›õﬁI
+	»‹ÿUô[ùYS\›	 N⁄YäXõﬁ
+\ô]\õé¬àõﬁö[õô\íSI…Œ¬à€€ú›€€\^\œJÀú‹‹ù–€€\^\ﬂ◊JKú€XŸJ
+Kú€‹ù
+
+KäOOäKú€‹ù€‹ô\ü
+KJãú€‹ù€‹ô\ü
+_›ö[ô Kõò[YJKõÿÿ[P€€\\ôJ›ö[ô ãõò[YJJJN¬àYäX€€\^\Àõ[ô›
+^ÿõﬁö[õô\íSIœ€\‹œHõ]]Yèê]X›[à€€\^H[úôY⁄\›∞ÍKè‹âŒ‹ô]\õüBà€€\^\Àôõ‹ëXX⁄
+œOû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\âŒŸú›[KõX\ô⁄[êõ›€OIÃLú	Œ¬à€€ú›]⁄\œJÀú‹‹ù‘]⁄\ﬂ◊JKôö[\äOúò€€\^⁄YOOXÀöY
+N¬àö[õô\íSBà	œ]à€\‹œHô‹öYÃ»èâ ¬à	œ[ú]]KX€€\^[ò[YHò[YOHâ Ÿ\ÿ Àõò[YJJ…»àXŸZ€\èHìõ€HH€€\^Hèâ ¬à	œ[ú]]KX€€\^X⁄]Hò[YOHâ Ÿ\ÿ Àò⁄]_	… J…»àXŸZ€\èHïö[H»€€[][ôHèâ …œ]à€\‹œHô‹öYÃàèè[ú]]KX€€\^\›[ô^H\OHõù[Xô\ààZ[èHåà›\HåçHàò[YOHâ  ù[Xô\äÀõ€ú⁄]W‹›[ô^W‹öXŸWÿŸ[ùﬂ
+KÃL
+J…»àXŸZ€\èHë[X[ò⁄H8†´èè[ú]]KX€€\^]ŸYZŸ^H\OHõù[Xô\ààZ[èHåà›\HåçHàò[YOHâ  ù[Xô\äÀõ€ú⁄]W›ŸYZŸ^W‹öXŸWÿŸ[ùﬂ
+KÃL
+J…»àXŸZ€\èHîŸ[XZ[ôH8†´èèŸ]èâ ¬à	œXô[€\‹œHú^Y\àõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ùèè[ú]]KX€€\^XX›]ôH\OHò⁄X⁄ÿõﬁà›[OHù⁄Yò]]»à	  ÀòX›]ôHOOYò[ŸO…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èêX›Yè‹‹[èè€Xô[â ¬à	œŸ]èâ ¬à
+ô[ùYSY]J O…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç‹‹Y[ôŒéLÿòX⁄Ÿ‹õ›[ôàŸçŸòôéÿõ‹ô\ã\òY]\ŒåLèèèâ Ÿ\ÿ ô[ùYSY]J Kù\JJ…œÿèà8†(à	 Ÿ\ÿ ô[ùYSY]J Kö›\ú J…œŸ]èâŒâ… J¬à	œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹éŸõ^]‹ò\ù‹ò\èèù]€à]KX€€\^\ÿ]ôH€\‹œHúö[X\ûHèº'‰Øà[úôY⁄\›ô\àH€€\^Oÿù]€èèù]€à]KX€€\^Y[]H€\‹œHô[ôŸ\àèî›\ö[Y\èÿù]€èèŸ]èâ ¬à	œ]à›[OHöZY⁄å\ÿòX⁄Ÿ‹õ›[ôàŸNXŸYé€X\ô⁄[éåLúèèŸ]èâ ¬à	œèï\úòZ[úœÿèè]à]K\]⁄[\››[OHõX\ô⁄[ã]‹éèèŸ]èâ ¬à	œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹éèè[ú]]K[ô]À\]⁄XŸZ€\èHìõ€HHõ›]ôX]H\úòZ[àà›[OHôõ^åHèèù]€à]KXY\]⁄ä»\úòZ[èÿù]€èèŸ]èâŒ¬à€€ú›\›Yú]Y\ûTŸ[X›‹ä	÷Ÿ]K\]⁄[\›I N¬à\›ö[õô\íS\]⁄\ÀõX\
+Oâœ]à€\‹œHúõ›»^Y\àà]K\]⁄ZYHâ ‹öY
+…»à›[OHõX\ô⁄[éç\èè[ú]]K\]⁄[ò[YHò[YOHâ Ÿ\ÿ õò[YJJ…»à›[OHôõ^åHèèXô[€\‹œHúõ›»à›[OHôÿ\ç\èè[ú]]K\]⁄XX›]ôH\OHò⁄X⁄ÿõﬁà›[OHù⁄Yò]]»à	  òX›]ôHOOYò[ŸO…ÿ⁄X⁄ŸY	Œâ… J…œàX›Yè€Xô[èù]€à]K\]⁄\ÿ]ôOë[úôY⁄\›ô\èÿù]€èèù]€à]K\]⁄Y[]H€\‹œHô[ôŸ\àèî›\ö[Y\èÿù]€èèŸ]èâ Köõ⁄[ä	… _	œ]à€\‹œHõ]]Yèê]X›[à\úòZ[ãèŸ]èâŒ¬àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€\^\ÿ]ôWI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊ÿ€€\^	À‹ÿX›[€éâ›\]IÀ⁄YòÀöY€ò[YNôú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€\^[ò[YWI Kùò[YKùö[J
+Kÿ⁄]Nôú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€\^X⁄]WI Kùò[YKùö[J
+_ù[ÿX›]ôNôú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€\^XX›]ôWI Kò⁄X⁄ŸYJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N›ÿ\›
+	–€€\^HZ\»0Ëõ›\à8ß!I N¬àN¬àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€\^Y[]WI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJ	‘›\ö[Y\à0ÍYö[ö]]ô[Y[ùH€€\^H0™»	 ÿÀõò[YJ…»0Æ»… J\ô]\õé¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊ÿ€€\^	À‹ÿX›[€éâŸ[]IÀ⁄YòÀöYJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N›ÿ\›
+	–€€\^H›\ö[pÍKâ N¬àN¬àú]Y\ûTŸ[X›‹ä	÷Ÿ]KXY\]⁄I Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ò[YOYú]Y\ûTŸ[X›‹ä	÷Ÿ]K[ô]À\]⁄I Kùò[YKùö[J
+N⁄Yä[ò[YJ\ô]\õàÿ\›
+	“[ô\]YHHõ€HH\úòZ[ãâ N¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊‹]⁄	À‹ÿX›[€éâÿ‹ôX]IÀÿ€€\^⁄YòÀöY€ò[YNõò[YKÿX›]ôNùùY_JN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N›ÿ\›
+	’\úòZ[àZõ›]0ÍH8ß!I N¬àN¬à\›ú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K\]⁄ZYI Kôõ‹ëXX⁄
+õ›œOû¬à€€ú›Y\õ›Àô]\Ÿ]ú]⁄Y¬àõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]K\]⁄\ÿ]ôWI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊‹]⁄	À‹ÿX›[€éâ›\]IÀ⁄YúYÿ€€\^⁄YòÀöY€ò[YNúõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]K\]⁄[ò[YWI Kùò[YKùö[J
+KÿX›]ôNúõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]K\]⁄XX›]ôWI Kò⁄X⁄ŸYJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N›ÿ\›
+	’\úòZ[àZ\»0Ëõ›\à8ß!I N¬àN¬àõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]K\]⁄Y[]WI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJ	‘›\ö[Y\à0ÍYö[ö]]ô[Y[ùŸH\úòZ[à… J\ô]\õé¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊‹]⁄	À‹ÿX›[€éâŸ[]IÀ⁄YúYJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N›ÿ\›
+	’\úòZ[à›\ö[pÍKâ N¬àN¬àJN¬àõﬁò\[ô⁄[
+
+N¬àJN¬üBò\ﬁ[ò»ù[ò›[€àÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸŸ]›€‹ö‹‹XŸ\◊›çI N¬àYä\úõ‹ä^›ÿ\›
+\úõ‹ãõY\‹ÿYŸJN‹ô]\õüBàÀú›\\ï€‹ö‹‹XŸ\œP\úò^Kö\–\úò^J]JOŸ]Nñ◊N¬à€€ú›Xÿ€›[ùXÿŸ\‹Ÿ\œX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸŸ]ÿXÿ€›[ù›€‹ö‹‹XŸWÿXÿŸ\‹Ÿ\… N¬àÀú›\\êXÿ€›[ùXÿŸ\‹Ÿ\œXXÿ€›[ùXÿŸ\‹Ÿ\Àô\úõ‹è÷◊Nä\úò^Kö\–\úò^JXÿ€›[ùXÿŸ\‹Ÿ\Àô]JOÿXÿ€›[ùXÿŸ\‹Ÿ\Àô]Nñ◊JN¬à€€ú›ô\]Y\›œX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸŸ]ÿ€€‹ôÿ[ö^ô\ó‹][›W‹ô\]Y\›… N¬àÀú›\\ê€€‹ô‘][›Tô\]Y\›œ\ô\]Y\›Àô\úõ‹è÷◊Nä\úò^Kö\–\úò^Jô\]Y\›Àô]JO‹ô\]Y\›Àô]Nñ◊JN¬à€€ú›^Y\úœX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸŸ]‹^Y\ú◊Ÿ\ôX›‹ûW›å… N¬àÀú›\\î^Y\úœ\^Y\úÀô\úõ‹è÷◊Nä\úò^Kö\–\úò^J^Y\úÀô]JO‹^Y\úÀô]Nñ◊JN¬à€€ú›⁄Y€ù\ô\]Y\›œX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸŸ]‹^Y\ó‹⁄Y€ù\‹ô\]Y\›… N¬àÀú›\\î⁄Y€ù\ô\]Y\›œ\⁄Y€ù\ô\]Y\›Àô\úõ‹è÷◊Nä\úò^Kö\–\úò^J⁄Y€ù\ô\]Y\›Àô]JO‹⁄Y€ù\ô\]Y\›Àô]Nñ◊JN¬à€€ú›\‹]\œX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸŸ]⁄Y[ù]WŸ\‹]\… N¬àÀú›\\íY[ù]Q\‹]\œY\‹]\Àô\úõ‹è÷◊Nä\úò^Kö\–\úò^J\‹]\Àô]JOŸ\‹]\Àô]Nñ◊JN¬à€€ú›]õ‹õOX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸŸ]‹]õ‹õW‹Ÿ][ô‹… N¬àYä\]õ‹õKô\úõ‹ââú]õ‹õKô]JTÀú]õ‹õTŸ][ô‹œ^ÀããîÀú]õ‹õTŸ][ô‹Àããú]õ‹õKô]_N÷÷…‹ÿQõ€›\ê€€\[ûIÀ	Ÿõ€›\óÿ€€\[ûW€ò[YI◊K…‹ÿQõ€›\ë[XZ[	À	Ÿõ€›\óÿ€€ùX›Ÿ[XZ[	◊K…‹ÿQõ€›\ìYÿ[^	À	Ÿõ€›\ó€Yÿ[›^	◊K…‹ÿQõ€›\ìYÿ[\õ	À	Ÿõ€›\ó€Yÿ[›\õ	◊K…‹ÿQõ€›\îö]òXﬁU\õ	À	Ÿõ€›\ó‹ö]òXﬁW›\õ	◊K…‹ÿQõ€›\ï\õ\’\õ	À	Ÿõ€›\ó›\õ\◊›\õ	◊WKôõ‹ëXX⁄
+
+⁄K◊JOOû⁄Yä	
+	»… ⁄JJI
+	»… ⁄JKùò[YOTÀú]õ‹õTŸ][ô‹÷⁄◊_	…ﬂJN⁄Yä	
+	»‹ÿQõ€›\ë[òXõY	 JI
+	»‹ÿQõ€›\ë[òXõY	 Kò⁄X⁄ŸYTÀú]õ‹õTŸ][ô‹Àôõ€›\óŸ[òXõYOOYò[ŸN‹ô[ô\î]õ‹õQõ€›\ä
+N¬à€€ú›€€úŸ[ùŸŸ€OI
+	»‹ÿP€€úŸ[ùÿ]Q[òXõY	 N⁄Yä€€úŸ[ùŸŸ€JX€€úŸ[ùŸŸ€Kò⁄X⁄ŸYHHTÀú]õ‹õTŸ][ô‹Àò€€úŸ[ùŸÿ]WŸ[òXõY¬à€€ú›€€úŸ[ùXô[I
+	»‹ÿP€€úŸ[ùÿ]SXô[	 N⁄Yä€€úŸ[ùXô[
+X€€úŸ[ùXô[ù^€€ù[ùTÀú]õ‹õTŸ][ô‹Àò€€úŸ[ùŸÿ]WŸ[òXõY…’ö\⁄XõH»ÿõYÿ]⁄\ôIŒâ”X\‹]pÍIŒ¬àô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àô[ô\î›\\êYZ[î^Y\ú 
+N¬àô[ô\î›\\êYZ[î⁄Y€ù\ô\]Y\› 
+N¬àô[ô\î›\\êYZ[íY[ù]Q\‹]\ 
+N¬üBôù[ò›[€à^Y\êX›]ò][€ì[ö ⁄Ÿ[ä^‹ô]\õà	⁄ŒãÀ‹›Ÿ]›\õò[Y[ùôúãœÿX›]ò]OI Ÿ[ò€ŸUTíP€€\€ô[ù
+⁄Ÿ[ü	… NﬂBôù[ò›[€à⁄Y€ù\[ùö]SY\‹ÿYŸJä^‹ô]\õà	‘ÿ[]	  ãô\‹^W€ò[Y_	… J…»<'‰b◊óï€à[úÿ‹ö\[€à’‚H›\õò[Y[ù\›∞ÍùKàX›]ôH€à€€\H]ôX»ŸHY[àóâ ‹^Y\êX›]ò][€ì[ö ãòX›]ò][€ó›⁄Ÿ[äJ…◊óêŸHY[à\›\ú€€õô[à[ôHõ⁄\»H€€\HX›]∞ÍKH›\úò\»ô]õ›]ô\à€àQ’‚H]\»\ôõ‹õX[òŸ\ÀâŒﬂBôù[ò›[€àô[ô\î›\\êYZ[î⁄Y€ù\ô\]Y\› 
+^¬à€€ú›õﬁI
+	»‹ÿT⁄Y€ù\ô\]Y\›”\›	 N⁄YäXõﬁ
+\ô]\õé¬à€€ú›õ›‹œJÀú›\\î⁄Y€ù\ô\]Y\›ﬂ◊JKôö[\äèOúãú›]\œOOI‹[ô[ô… N¬à€€ú›[I
+	»‹ÿT⁄Y€ù\ô\]Y\›–€›[ù	 N⁄Yä[
+\[ù^€€ù[ù\õ›‹Àõ[ô›
+…»[à][ùIŒ¬àYä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ]à€\‹œHõ]]Yèê]X›[ôH[X[ôH8†&Z[úÿ‹ö\[€à[à][ùKèŸ]èâŒ‹ô]\õéﬂBàõﬁö[õô\íS\õ›‹ÀõX\
+èOû¬à€€ú›[öœ\^Y\êX›]ò][€ì[ö ãòX›]ò][€ó›⁄Ÿ[äK\Ÿœ\⁄Y€ù\[ùö]SY\‹ÿYŸJäN¬à€€ú›XZ[›XöôX›Y[ò€ŸUTíP€€\€ô[ù
+	–X›]ò][€àH€à€€\H’‚H›\õò[Y[ù	 N¬à€€ú›XZ[õŸOY[ò€ŸUTíP€€\€ô[ù
+\Ÿ N¬à€€ú›ÿT€ôOT›ö[ô ãú€ôW€ù[Xô\ü	… Kúô\XŸJ÷◊åNWKŸÀ	… N¬à€€ú›ÿRôYè]ÿT€ôO…⁄ŒãÀ›ÿKõYK… ›ÿT€ôJ…œ›^I Ÿ[ò€ŸUTíP€€\€ô[ù
+\Ÿ Nâ…Œ¬àô]\õà	œ]à€\‹œHúÿK\⁄Y€ù\\ô\]Y\›èâ ¬à	œ]à€\‹œHúÿK\⁄Y€ù\\ô\]Y\›[XZ[àèèèâ Ÿ\ÿ ãô\‹^W€ò[YJJ…œÿèè]à€\‹œHõ]]Yèº'‰È»	 Ÿ\ÿ ãô[XZ[
+J ãú€ôW€ù[Xô\è…»8†(à<'‰ÏH	 Ÿ\ÿ ãú€ôW€ù[Xô\äNâ… J…œŸ]èè]à€\‹œHú€X[]]Yèë[X[ô0ÍHH	 €ô]»]Jãò‹ôX]Yÿ]
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâ J…œŸ]èèŸ]èâ ¬à	œ]à€\‹œHúÿKXX›]ò][€ã[[ö»èè‹[èìY[à8†&XX›]ò][€è‹‹[èè€ŸOâ Ÿ\ÿ [ö J…œÿ€ŸOèŸ]èâ ¬à	œ]à€\‹œHúÿK\⁄Y€ù\XX›[€ú»èâ ¬à	œù]€à\OHòù]€àà]KX€‹K\⁄Y€ù\[[öœHâ Ÿ\ÿ ãöY
+J…»èº'‰‚»€‹Y\àHY[èÿù]€èâ ¬à	œH€\‹œHòù]€õZŸHàôYèHõXZ[Œâ Ÿ[ò€ŸUTíP€€\€ô[ù
+ãô[XZ[
+J…œ‹›XöôX›I €XZ[›XöôX›
+……òõŸOI €XZ[õŸJ…»è∏ß"{Ó#»∞Í\\ô\à8†&YK[XZ[ÿOâ ¬à
+ÿRôYè…œH€\‹œHòù]€õZŸHÿHà\ôŸ]Hóÿõ[ö»àô[Hõõ€‹[ô\ààôYèHâ Ÿ\ÿ ÿRôYäJ…»èº'‰´⁄]–\ÿOâŒâœù]€à\OHòù]€àà\ÿXõY]OHê]X›[à0Í[0Í\€ôHô[úŸZY€∞ÍHèº'‰´⁄]–\ÿù]€èâ J¬à	œù]€à\OHòù]€àà]KX€‹K\⁄Y€ù\[Y\‹ÿYŸOHâ Ÿ\ÿ ãöY
+J…»èº'‰ÁH€‹Y\àHY\‹ÿYŸOÿù]€èâ ¬à	œù]€à\OHòù]€àà]K\ôYŸ[ô\ò]K\⁄Y€ù\Hâ Ÿ\ÿ ãöY
+J…»è∏°Æ»õ›]ôX]HY[èÿù]€èâ ¬à	œŸ]èèŸ]èâŒ¬àJKöõ⁄[ä	… N¬üBÇôù[ò›[€àô[ô\î›\\êYZ[íY[ù]Q\‹]\ 
+^¬à€€ú›õﬁI
+	»‹ÿRY[ù]Q\‹]\”\›	 N⁄YäXõﬁ
+\ô]\õéÿ€€ú›õ›‹œTÀú›\\íY[ù]Q\‹]\ﬂ◊Nÿ€€ú›[I
+	»‹ÿRY[ù]Q\‹]P€›[ù	 N⁄Yä[
+\[ù^€€ù[ù\õ›‹Àõ[ô›
+…»]YŸI  õ›‹Àõ[ô›åO…‹…Œâ… N¬àYä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ]à€\‹œHõ]]Yèê]X›[à€€ôõ]8†&ZY[ù]0ÍH[à][ùKèŸ]èâŒ‹ô]\õéﬂBàõﬁö[õô\íS\õ›‹ÀõX\
+èOâœ]à€\‹œHöY[ù]KY\‹]K\õ›»èè]èèèâ Ÿ\ÿ ãú^Y\ó€ò[YJJ…œÿèè]à€\‹œHõ]]Yèâ Ÿ\ÿ ãù€‹ö‹‹XŸW€ò[YJJ…»8†(à⁄Y€ò[0ÍHH	 €ô]»]Jãò‹ôX]Yÿ]
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâ J…œŸ]èè]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç\èèèê€€\H0ÍZ∞ËpÍHèÿèà	 Ÿ\ÿ ãò€€ôõX›‹^Y\ó⁄Y	¯†%	 J…»8†(à	 Ÿ\ÿ ãò€€ôõX›Ÿ[XZ[	¯†%	 J…œúèèèìõ›]ôX]H[X[ô]\àèÿèà	 Ÿ\ÿ ãò€Z[X[ù‹^Y\ó⁄Y	¯†%	 J…»8†(à	 Ÿ\ÿ ãò€Z[X[ùŸ[XZ[	¯†%	 J…œŸ]èèŸ]èè]à€\‹œHöY[ù]KY\‹]KXX›[€ú»èèù]€à]K\ô\€€ôKZY[ù]OHô^\›[ô◊›ò[Yà]KX€Z[KZYHâ Ÿ\ÿ ãò€Z[W⁄Y
+J…»èëÿ\ô\àH€€\H^\›[ùÿù]€èèù]€à]K\ô\€€ôKZY[ù]OHò€Z[X[ù›ò[Yà]KX€Z[KZYHâ Ÿ\ÿ ãò€Z[W⁄Y
+J…»èïò[Y\àH[X[ô]\èÿù]€èèù]€à]K\ô\€€ôKZY[ù]OHõõ◊Ÿúò]Yà]KX€Z[KZYHâ Ÿ\ÿ ãò€Z[W⁄Y
+J…»èì]ô\àHõÿÿYŸHÿ[ú»XZ\€€èÿù]€èèŸ]èèŸ]èâ Köõ⁄[ä	… N¬üBÇôù[ò›[€àô[ô\î›\\êYZ[î^Y\ú 
+^¬à€€ú›õﬁI
+	»‹ÿT^Y\ú”\›	 N⁄YäXõﬁ
+\ô]\õé¬à€€ú›[TÀú›\\î^Y\úﬂ◊N¬à€€ú›OJ	
+	»‹ÿTŸX\ò⁄^Y\â OÀùò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬à€€ú›õ›‹œX[ôö[\äèOà\_‹ãô\‹^W€ò[YKãúXõX◊‹^Y\ó⁄Yãô[XZ[ãú€ôW€ù[Xô\ããö€YWÿ\ôXWKú€€YJèOî›ö[ô ü	… Kù”›Ÿ\êÿ\ŸJ
+Kö[ò€Y\ JJJN¬à€€ú›[I
+	»‹ÿT^Y\ú–€›[ù[	 N⁄Yä[
+\[ù^€€ù[ùX[õ[ô›
+…»õŸö[	  [õ[ô›åO…‹…Œâ… N¬à€€ú››]œI
+	»‹ÿT^Y\î›]… N⁄Yä›] \›]Àö[õô\íSBà	œ]èè‹[èº'‰i‹‹[èèèâ ÿ[õ[ô›
+…œÿèè€X[íY[ù]0Í\»’‚O‹€X[èŸ]èâ »à	œ]èè‹[è∏ß!O‹‹[èèèâ ÿ[ôö[\äèOúãò€€úŸ[ùÿXÿŸ\Y
+Kõ[ô›
+…œÿèè€X[ê€€úŸ[ù[Y[ù»0Ëõ›\è‹€X[èŸ]èâ »à	œ]èè‹[è∏£Ïœ‹‹[èèèâ ÿ[ôö[\äèOà\ãò€€úŸ[ùÿXÿŸ\Y
+Kõ[ô›
+…œÿèè€X[∞‡∞ÍY›[\ö\Ÿ\è‹€X[èŸ]èâ »à	œ]èè‹[èº'„#O‹‹[èèèâ ÿ[ôö[\äèOúãô\ÿ€›ô\òXõJKõ[ô›
+…œÿèè€X[ë\‹€öXõ\»[õùXZ\ôO‹€X[èŸ]èâŒ¬àõﬁö[õô\íSI…Œ¬àYä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ]à€\‹œHõ]]Yèê]X›[àõ›Y]\àôH€‹úô\‹€ô0ËHôX⁄\ò⁄KèŸ]èâŒ‹ô]\õéﬂBàõﬁö[õô\íS\õ›‹ÀõX\
+èOûÿ€€ú›[ö‹œP\úò^Kö\–\úò^Jãú›Yôó€[ö‹ O‹ãú›Yôó€[ö‹Œñ◊N‹ô]\õà	œ]à€\‹œHúÿK\^Y\ã\õ›»èâ ¬à	œ]à€\‹œHúÿK\^Y\ã[XZ[àèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ùŸÿ\ç‹Ÿõ^]‹ò\ù‹ò\èèèâ Ÿ\ÿ ãô\‹^W€ò[Y_	“õ›Y]\à’‚I J…œÿèè‹[à€\‹œHú^Y\ãZY[Z[öHèâ Ÿ\ÿ ãúXõX◊‹^Y\ó⁄Y	¯†%	 J…œ‹‹[èè‹[à€\‹œHô›Y\›XòYŸH	  ãò€€úŸ[ùÿXÿŸ\Y…ÿ€€úŸ[ù[⁄…Œâÿ€€úŸ[ù\[ô[ô… J…»èâ  ãò€€úŸ[ùÿXÿŸ\Y…–””î—SïSQSï“…Œâ‡êSQTâ J…œ‹‹[èè‹[à€\‹œHô›Y\›XòYŸHY[ù]KI Ÿ\ÿ ãöY[ù]W‹›]\ﬂ	ÿX›]ôI J…»èâ  
+ãöY[ù]W‹›]\ﬂ	ÿX›]ôI OOOIÿX›]ôIœ…“QSïU0‚H“…ŒäãöY[ù]W‹›]\œOOI‹ô]öY]…œ…’∞‚TíQíP–US”âŒâ‘’T‘SëI JJ…œ‹‹[èèŸ]èâ »à	œ]à€\‹œHõ]]Yèº'‰È»	 Ÿ\ÿ ãô[XZ[	¯†%	 J ãú€ôW€ù[Xô\è…»8†(à<'‰ÏH	 Ÿ\ÿ ãú€ôW€ù[Xô\äNâ… J ãö€YWÿ\ôXO…»8†(à<'‰„H	 Ÿ\ÿ ãö€YWÿ\ôXJNâ… J…œŸ]èèŸ]èâ »à	œ]à€\‹œHúÿK\^Y\ã[Y]Hèè‹[èèèâ ”ù[Xô\äãô‹õ›\◊ÿ€›[ù
+J…œÿèà‹õ›\J O‹‹[èè‹[èèèâ ”ù[Xô\äãõÿÿ[‹õŸö[\◊ÿ€›[ù
+J…œÿèàõŸö[
+ HpÍJ O‹‹[èè‹[èâ  ãö\◊‹XõXœ…¸'„$XõX…Œâ¸'Â$àö]∞ÍI J…œ‹‹[èè‹[èâ  ãô\ÿ€›ô\òXõO…¸'Â#à[õùXZ\ôIŒâ–[õùXZ\ôH0Í\ÿX›]∞ÍI J…œ‹‹[èèŸ]èâ »à
+[ö‹Àõ[ô›…œ]à€\‹œHúÿK\›Yôã[[ö‹»èèèº'Â%»XZ\€€à‹ôÿ[ö\ÿ]]\à»Y[XúôOÿèâ €[ö‹ÀõX\
+Oâœ]à€\‹œHúÿK\›Yôã[[ö»èè‹[èèèâ Ÿ\ÿ ú^Y\ó€ò[YJJ…œÿèà8†(à	 Ÿ\ÿ ù€‹ö‹‹XŸW€ò[YJJ…»€X[ä	 Ÿ\ÿ úõ€JJ… O‹€X[è‹‹[èèù]€à€\‹œHô[ôŸ\àà]K\ÿK][õ[öÀ\›Yôà]K]€‹ö‹‹XŸKZYHâ Ÿ\ÿ ù€‹ö‹‹XŸW⁄Y
+J…»à]K]\Ÿ\ãZYHâ Ÿ\ÿ ù\Ÿ\ó⁄Y
+J…»à]K\^Y\ãZYHâ Ÿ\ÿ ú^Y\ó⁄Y
+J…»à]K\^Y\ã[ò[YOHâ Ÿ\ÿ ú^Y\ó€ò[YJJ…»èë0Í[Y\èÿù]€èèŸ]èâ Köõ⁄[ä	… J…œŸ]èâŒâ… J¬à
+ãò€€úŸ[ùÿXÿŸ\Yÿ]…œ]à€\‹œHú€X[]]Yèê€€úŸ[ù[Y[ùà	 €ô]»]Jãò€€úŸ[ùÿXÿŸ\Yÿ]
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâ J…œŸ]èâŒâ… J¬à	œŸ]èâﬂJKöõ⁄[ä	… N¬üBÇôù[ò›[€àô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+^¬à€€ú›õﬁI
+	»‹ÿU€‹ö‹‹XŸS\›	 N⁄YäXõﬁ
+\ô]\õé¬à€€ú›OJ	
+	»‹ÿTŸX\ò⁄€‹ö‹‹XŸI OÀùò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬à€€ú›[ŸOI
+	»‹ÿU€‹ö‹‹XŸQö[\â OÀùò[Y_	ÿ[	Œ¬à€€ú›[TÀú›\\ï€‹ö‹‹XŸ\ﬂ◊N¬à€€ú›X]⁄\”[ŸO]œOû¬à€€ú›ZYV…‹›[ô\ô	À	‹õ…◊Kö[ò€Y\ ›ö[ô Àú›Xúÿ‹ö\[€ó‹[ü	ŸúôYI J_H]Àú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY¬à€€ú›öX[HH]ÀùöX[Ÿ[ô◊ÿ]	âõô]»]JÀùöX[Ÿ[ô◊ÿ]
+Oõô]»]J
+N¬àYä[ŸOOOI‹ZY	 \ô]\õàZY¬àYä[ŸOOOI›öX[	 \ô]\õàöX[	âà\ZY¬àYä[ŸOOOIŸúôYI \ô]\õà\ZY¬àYä[ŸOOOI€][I ^¬à€€ú›OJÀú›\\êXÿ€›[ùXÿŸ\‹Ÿ\ﬂ◊JKôö[\äOî›ö[ô ù\Ÿ\ó⁄Y
+OOOT›ö[ô Àõ›€ô\ó›\Ÿ\ó⁄Y
+JN¬àô]\õàKôö[\äOûúõ€OOOIÿYZ[â Kõ[ô›å_Kôö[\äOûúõ€OOOIÿ€€‹ôÿ[ö^ô\â Kõ[ô›å¬àBàYä[ŸOOOI‹›\‹[ôY	 \ô]\õà]ÀúXõX◊Ÿ[òXõY¬àô]\õàùYN¬àN¬à€€ú›õ›‹œX[ôö[\äœOõX]⁄\”[ŸJ Iâä\_à›ö[ô Àù€‹ö‹‹XŸW€ò[Y_	… Kù”›Ÿ\êÿ\ŸJ
+Kö[ò€Y\ J_à›ö[ô Àõ›€ô\óŸ[XZ[	… Kù”›Ÿ\êÿ\ŸJ
+Kö[ò€Y\ J_à›ö[ô ÀòYZ[óŸö\ú›€ò[Y_	… Kù”›Ÿ\êÿ\ŸJ
+Kö[ò€Y\ J_à›ö[ô ÀòYZ[ó€\›€ò[Y_	… Kù”›Ÿ\êÿ\ŸJ
+Kö[ò€Y\ J_à›ö[ô ÀòYZ[ó‹€ô_	… Kù”›Ÿ\êÿ\ŸJ
+Kö[ò€Y\ JJJN¬Çà€€ú››€ô\úœ[ô]»X\
+
+Nÿ[ôõ‹ëXX⁄
+œOõ›€ô\úÀúŸ]
+›ö[ô Àõ›€ô\ó›\Ÿ\ó⁄Y
+K JN¬à€€ú›XÿŸ\‹‘õ›‹œTÀú›\\êXÿ€›[ùXÿŸ\‹Ÿ\ﬂ◊N¬à€€ú›XÿŸ\‹–ûU\Ÿ\è[ô]»X\
+
+N¬àXÿŸ\‹‘õ›‹Àôõ‹ëXX⁄
+OOûÿ€€ú›œT›ö[ô Kù\Ÿ\ó⁄Y	… N⁄YäXXÿŸ\‹–ûU\Ÿ\ãö\  JXXÿŸ\‹–ûU\Ÿ\ãúŸ]
+À◊JNÿXÿŸ\‹–ûU\Ÿ\ãôŸ]
+ Kú\⁄
+JNﬂJN¬àYä	
+	»‹ÿU›[‹XŸ\… JI
+	»‹ÿU›[‹XŸ\… Kù^€€ù[ùX[õ[ô›¬àYä	
+	»‹ÿPX›]ôT‹XŸ\… JI
+	»‹ÿPX›]ôT‹XŸ\… Kù^€€ù[ùX[ôö[\äœOùÀúXõX◊Ÿ[òXõY
+Kõ[ô›¬àYä	
+	»‹ÿT›\‹[ôY‹XŸ\… JI
+	»‹ÿT›\‹[ôY‹XŸ\… Kù^€€ù[ùX[ôö[\äœOà]ÀúXõX◊Ÿ[òXõY
+Kõ[ô›¬àYä	
+	»‹ÿU›[^Y\ú… JI
+	»‹ÿU›[^Y\ú… Kù^€€ù[ùX[úôYXŸJ
+ã OOõä”ù[Xô\äÀòX›]ôW‹^Y\úﬂ
+K
+N¬àYä	
+	»‹ÿU›[€€\]][€ú… JI
+	»‹ÿU›[€€\]][€ú… Kù^€€ù[ùX[úôYXŸJ
+ã OOõä”ù[Xô\äÀù›\õò[Y[ùÿ€›[ù
+J”ù[Xô\äÀõXY›YWÿ€›[ù
+K
+N¬àYä	
+	»‹ÿTZY‹XŸ\… JI
+	»‹ÿTZY‹XŸ\… Kù^€€ù[ùX[ôö[\äœOñ…‹›[ô\ô	À	‹õ…◊Kö[ò€Y\ ›ö[ô Àú›Xúÿ‹ö\[€ó‹[ü	ŸúôYI J_Àú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY
+Kõ[ô›¬àYä	
+	»‹ÿU›[‹ôÿ[ö^ô\ú… JI
+	»‹ÿU›[‹ôÿ[ö^ô\ú… Kù^€€ù[ù[›€ô\úÀú⁄^ôN¬àYä	
+	»‹ÿS][S‹ôÿ[ö^ô\ú… JI
+	»‹ÿS][S‹ôÿ[ö^ô\ú… Kù^€€ù[ùVÀããõ›€ô\úÀöŸ^\ 
+WKôö[\äZYOû¬à€€ú›OXXÿŸ\‹–ûU\Ÿ\ãôŸ]
+ZY
+_◊N¬àô]\õàKôö[\äOûúõ€OOOIÿYZ[â Kõ[ô›å_Kôö[\äOûúõ€OOOIÿ€€‹ôÿ[ö^ô\â Kõ[ô›å¬àJKõ[ô›¬Çàõﬁö[õô\íSI…Œ¬àYä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ€\‹œHõ]]Yèâ  O…–]X›[à\‹XŸHôH€‹úô\‹€ô0ËHôX⁄\ò⁄KâŒâ–]X›[à\‹XŸH[ú»ŸHö[ôKâ J…œ‹âŒ‹ô]\õüBÇà€€ú››€ô\êõŸY\œ[ô]»X\
+
+N¬à€€ú›[ú›\ôS›€ô\ë‹õ›\]œOû¬à€€ú›Ÿ^OT›ö[ô Àõ›€ô\ó›\Ÿ\ó⁄YÀõ›€ô\óŸ[XZ[	›[ö€õ›€â N¬àYä›€ô\êõŸY\Àö\ Ÿ^JJ\ô]\õà›€ô\êõŸY\ÀôŸ]
+Ÿ^JN¬à€€ú›XÿŸ\‹Ÿ\œXXÿŸ\‹–ûU\Ÿ\ãôŸ]
+›ö[ô Àõ›€ô\ó›\Ÿ\ó⁄Y
+J_◊N¬à€€ú›YZ[ö\›\ôYXXÿŸ\‹Ÿ\Àôö[\äOOòKúõ€OOOIÿYZ[â N¬à€€ú›€”X[òYŸYXXÿŸ\‹Ÿ\Àôö[\äOOòKúõ€OOOIÿ€€‹ôÿ[ö^ô\â N¬à€€ú››€ôYSù[Xô\äÀõ›€ô\ó€›€ôY‹‹XŸ\ﬂ
+K[Z]Sù[Xô\äÀõ›€ô\óŸúôYW›€‹ö‹‹XŸW€[Z]JN¬à€€ú›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]Z[… NŸÀò€\‹”ò[YOI‹ÿK[›€ô\ãY‹õ›\	ŒŸÀõ‹[èHH\_[ŸOOOI€][IŒ¬à€€ú›\‹^OJ›ÀòYZ[óŸö\ú›€ò[YKÀòYZ[ó€\›€ò[YWKôö[\äõ€€X[äKöõ⁄[ä	»	 _Àõ›€ô\óŸ[XZ[	”‹ôÿ[ö\ÿ]]\â N¬à€€ú›XÿŸ\‹“[Iœ]à€\‹œHúÿKXXÿ€›[ùXXÿŸ\‹À[X\èè]à€\‹œHúÿKXXÿŸ\‹ÀX€€[[àèèèº'‰dH‹õ›\\»YZ[ö\›∞Í\œÿèâ  YZ[ö\›\ôYõ[ô›ÿYZ[ö\›\ôYõX\
+OOâœ‹[èè›õ€ôœâ Ÿ\ÿ Kù€‹ö‹‹XŸW€ò[YJJ…œ‹›õ€ôœè€X[â  Kö\◊€›€ô\è…‘õ‹öpÍ]Z\ôIŒâ–YZ[ö\›ò]]\â J…œ‹€X[è‹‹[èâ Köõ⁄[ä	… Nâœ‹[à€\‹œHõ]]Yèê]X›[è‹‹[èâ J…œŸ]èè]à€\‹œHúÿKXXÿŸ\‹ÀX€€[[àèèèº'ÊË;Ó#»‹õ›\\»€ÀYÍ\∞Í\œÿèâ  €”X[òYŸYõ[ô›ÿ€”X[òYŸYõX\
+OOâœ‹[èè›õ€ôœâ Ÿ\ÿ Kù€‹ö‹‹XŸW€ò[YJJ…œ‹›õ€ôœè€X[ê€ÀYŸ\›[€õòZ\ôH[ö\]Y[Y[ù‹€X[è‹‹[èâ Köõ⁄[ä	… Nâœ‹[à€\‹œHõ]]Yèê]X›[è‹‹[èâ J…œŸ]èèŸ]èâŒ¬àÀö[õô\íSIœ›[[X\ûOè‹[èèèº'‰i	 Ÿ\ÿ \‹^JJ…œÿèè€X[â Ÿ\ÿ Àõ›€ô\óŸ[XZ[	… J…œ‹€X[è‹‹[èè‹[à€\‹œHúÿK[›€ô\ãXòYŸ\»èè[Oº'‰dH	 ÿYZ[ö\›\ôYõ[ô›
+…»YZ[ö\›∞ÍI  YZ[ö\›\ôYõ[ô›åO…‹…Œâ… J…œŸ[Oè[Oº'ÊË;Ó#»	 ÿ€”X[òYŸYõ[ô›
+…»€ÀYÍ\∞ÍI  €”X[òYŸYõ[ô›åO…‹…Œâ… J…œŸ[Oè[H€\‹œHâ  [Z]åO…‹‹X⁄X[	Œâ… J…»èê‹∞ÍX][€ú»‹ò]Z]\»à	 €›€ôY
+…»»	 €[Z]
+…œŸ[Oè‹‹[èè‹›[[X\ûOâ ÿXÿŸ\‹“[
+…œ]à€\‹œHúÿK[›€ô\ã]€€»èè]èèèì[Z]HH‹õ›\\»‹∞ÍpÍ\»‹ò]Z][Y[ùÿèè]à€\‹œHõ]]Y€X[èì\»‹õ›\\»ÓHŸH€€\H\›Ÿ][[Y[ù€ÀYŸ\›[€õòZ\ôHôH€€\[ùò[XZ\»[ú»Ÿ]H[Z]KèŸ]èèŸ]èè[ú]]K[›€ô\ã[[Z]\OHõù[Xô\ààZ[èHåHàX^HåLàò[YOHâ €[Z]
+…»èè[ú]]K[›€ô\ã[õ›Hò[YOHâ Ÿ\ÿ Àõ›€ô\ó€[Z]€õ›_	… J…»àXŸZ€\èHì[›Yà»õ›H[ù\õôHèèù]€à]K[›€ô\ã\ÿ]ôOº'‰Øà]]‹ö\Ÿ\èÿù]€èèŸ]èè]à€\‹œHúÿK[›€ô\ã]€‹ö‹‹XŸ\»èèŸ]èâŒ¬à€€ú›õŸOYÀú]Y\ûTŸ[X›‹ä	ÀúÿK[›€ô\ã]€‹ö‹‹XŸ\… N¬àÀú]Y\ûTŸ[X›‹ä	÷Ÿ]K[›€ô\ã\ÿ]ôWI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ùèYÀú]Y\ûTŸ[X›‹ä	÷Ÿ]K[›€ô\ã\ÿ]ôWI Kò[SX]õX^
+Kù[Xô\äÀú]Y\ûTŸ[X›‹ä	÷Ÿ]K[›€ô\ã[[Z]I Kùò[YJ_JKõ›OYÀú]Y\ûTŸ[X›‹ä	÷Ÿ]K[›€ô\ã[õ›WI Kùò[YKùö[J
+N¬àùãô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]€‹ôÿ[ö^ô\óŸúôYW›€‹ö‹‹XŸW€[Z]	À‹›\Ÿ\ó⁄YùÀõ›€ô\ó›\Ÿ\ó⁄Y€[Z]ùò[€õ›Nõõ›_ù[JNÿùãô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN›ÿ\›
+	”[Z]H‹ôÿ[ö\ÿ]]\àZ\ŸH0Ëõ›\à8ß!I Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àN¬àõﬁò\[ô⁄[
+ N€›€ô\êõŸY\ÀúŸ]
+Ÿ^KõŸJN‹ô]\õàõŸN¬àN¬Çàõ›‹Àôõ‹ëXX⁄
+œOû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹ÿK]€‹ö‹‹XŸKXÿ\ô	Œ¬à€€ú›‹ôX]Y]Àò‹ôX]Yÿ]€ô]»]JÀò‹ôX]Yÿ]
+Kù”ÿÿ[Q]T›ö[ô 	ŸúãQîâ Nâ¯†%	Œ¬àö[õô\íSBà	œ]à€\‹œHúõ›»à›[OHò[Y€ãZ][\Œôõ^\›\ùŸÿ\åLúŸõ^]‹ò\ù‹ò\èâ ¬à	œ‹[à›[OHôõ^åN€Z[ã]⁄Yåååèâ ¬à	œ]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ùŸÿ\éŸõ^]‹ò\ù‹ò\èèà›[OHôõ€ù\⁄^ôNåKåô[Hèâ Ÿ\ÿ Àù€‹ö‹‹XŸW€ò[YJJ…œÿèè‹[à€\‹œHô›Y\›XòYŸHèâ  ÀúXõX◊Ÿ[òXõY…–P’QâŒâ‘’T‘SëI J…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèº'‰iYZ[ö\›ò]]\ààèâ Ÿ\ÿ 
+›ÀòYZ[óŸö\ú›€ò[YKÀòYZ[ó€\›€ò[YWKôö[\äõ€€X[äKöõ⁄[ä	»	 _Àõ›€ô\óŸ[XZ[	”õ€àô[úŸZY€∞ÍI JJ…œÿèèŸ]èâ ¬à	œ]à€\‹œHõ]]Yèº'‰È»	 Ÿ\ÿ Àõ›€ô\óŸ[XZ[	—[XZ[[ô\‹€öXõI J ÀòYZ[ó‹€ôO…»8†(à<'‰ÏH	 Ÿ\ÿ ÀòYZ[ó‹€ôJNâ… J…œŸ]èâ ¬à	œ]à€\‹œHõ]]Yèê‹∞ÍpÍHH	 Ÿ\ÿ ‹ôX]Y
+J…œŸ]èâ ¬à	œ‹‹[èâ ¬à	œŸ]èâ ¬à	œ]à€\‹œHô‹öYÃ»à›[OHõX\ô⁄[ã]‹åLúèâ ¬à	œ]à€\‹œHú^Y\àèè]à€\‹œHõ]]YèìY[Xúô\»X›YúœŸ]èèèâ ”ù[Xô\äÀòX›]ôW‹^Y\úﬂ
+J…œÿèèŸ]èâ ¬à	œ]à€\‹œHú^Y\àèè]à€\‹œHõ]]Yèê€ÀYŸ\›[€õòZ\ô\œŸ]èèèâ ”ù[Xô\äÀòX›]ôWÿ€€‹ôÿ[ö^ô\úﬂ
+J…»»	 ”ù[Xô\äÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+J…œÿèè]à€\‹œHõ]]Y€X[èâ ”ù[Xô\äÀòò\ŸW€X^ÿ€€‹ôÿ[ö^ô\úﬂ
+J…»Ÿôô\ù
+ H
+»	 ”ù[Xô\äÀúZYÿ€€‹ôÿ[ö^ô\úﬂ
+J…»X⁄]0ÍJ OŸ]èèŸ]èâ ¬à	œ]à€\‹œHú^Y\àèè]à€\‹œHõ]]Yèê€€\0Í]][€úœŸ]èèèâ ”ù[Xô\äÀù›\õò[Y[ùÿ€›[ù
+J…»›\õõ⁄J
+H8†(à	 ”ù[Xô\äÀõXY›YWÿ€›[ù
+J…»Y›YJ OÿèèŸ]èâ ¬à	œŸ]èâ ¬à	œ]à›[OHöZY⁄å\ÿòX⁄Ÿ‹õ›[ôàŸNXŸYé€X\ô⁄[éåMèèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃàèâ ¬à	œXô[è‹[à€\‹œHõ]]Yèìõ€HH8†&Y\‹XŸO‹‹[èè[ú]]K\ÿK[ò[YHò[YOHâ Ÿ\ÿ Àù€‹ö‹‹XŸW€ò[YJJ…»èè€Xô[â ¬à	œXô[è‹[à€\‹œHõ]]Yèë[XZ[YZ[ö\›ò]]\è‹‹[èè[ú]ôXY€õHò[YOHâ Ÿ\ÿ Àõ›€ô\óŸ[XZ[	… J…»à›[OHõ‹X⁄]NãçÕHèè€Xô[â ¬à	œŸ]èâ ¬à	œ]à€\‹œHô‹öYÃ»à›[OHõX\ô⁄[ã]‹åLèâ ¬à	œXô[è‹[à€\‹œHõ]]Yèî∞Í[õ€HYZ[ö\›ò]]\è‹‹[èè[ú]]K\ÿKYö\ú›[ò[YHò[YOHâ Ÿ\ÿ ÀòYZ[óŸö\ú›€ò[Y_	… J…»àXŸZ€\èHî∞Í[õ€Hèè€Xô[â ¬à	œXô[è‹[à€\‹œHõ]]Yèìõ€HYZ[ö\›ò]]\è‹‹[èè[ú]]K\ÿK[\›[ò[YHò[YOHâ Ÿ\ÿ ÀòYZ[ó€\›€ò[Y_	… J…»àXŸZ€\èHìõ€Hèè€Xô[â ¬à	œXô[è‹[à€\‹œHõ]]Yèï0Í[0Í\€ôHYZ[ö\›ò]]\è‹‹[èè[ú]]K\ÿK\€ôH\OHù[à[ú][ŸOHù[àò[YOHâ Ÿ\ÿ ÀòYZ[ó‹€ô_	… J…»àXŸZ€\èHï0Í[0Í\€ôHèè€Xô[â ¬à	œŸ]èâ ¬à	œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹éèèù]€à]K\ÿK\ÿ]ôK\õŸö[Oº'‰Øà[úôY⁄\›ô\àõ€H»∞Í[õ€Oÿù]€èè‹[à€\‹œHõ]]Yèì[ŸYöYH[ö\]Y[Y[ù8†&ZY[ù]0ÍHYôöX⁄0ÍYHH8†&XYZ[ö\›ò]]\ãÿ[ú»⁄[ôŸ\à€€à€€\HH€€õô^[€ãè‹‹[èèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃ»à›[OHõX\ô⁄[ã]‹åLèâ ¬à	œXô[è‹[à€\‹œHõ]]Yèê€ÀYŸ\›[€õòZ\ô\»Ÿôô\ù»\àH›\\àYZ[è‹‹[èè[ú]]K\ÿK[X^\OHõù[Xô\ààZ[èHåàX^HåLàò[YOHâ ”ù[Xô\ä
+Àòò\ŸW€X^ÿ€€‹ôÿ[ö^ô\ú»œ»
+H
+J…»èè€X[€\‹œHõ]]Yèî¯†&XZõ›][ù]^XÿÍ»X⁄]0Í\»\àH€Y[ùè‹€X[è€Xô[â ¬à	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸåôçÿõ‹ô\ãX€€‹éàÿòôçŸèèèº'„†H	 ”ù[Xô\äÀòò\ŸW€X^ÿ€€‹ôÿ[ö^ô\úﬂ
+J…»Ÿôô\ù
+ H8†(à<'‰¨»	 ”ù[Xô\äÀúZYÿ€€‹ôÿ[ö^ô\úﬂ
+J…»X⁄]0ÍJ Oÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèêÿ\X⁄]0ÍH›[Hÿ[›[0ÍYH]]€X]\]Y[Y[ùà	 ”ù[Xô\äÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+J…»€ÀYŸ\›[€õòZ\ôJ KèŸ]èèŸ]èâ ¬à	œXô[€\‹œHú^Y\àõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ùèè[ú]]K\ÿK\XõX»\OHò⁄X⁄ÿõﬁà›[OHù⁄Yò]]»à	  ÀúXõX◊Ÿ[òXõY…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èèèë\‹XŸHX›Yèÿèè‹‹[èè€Xô[â ¬à	œŸ]èâ ¬à	œ]à€\‹œHúÿK\Ÿ][ô‹ÀXõÿ⁄»èâ ¬à	œ]à€\‹œHúÿKXõÿ⁄À]]Hèè]èèèº'ÈÍH[Ÿ[\»	à0Í\[ô[òŸ\œÿèè‹[èì\»‹[€ú»€€ù]]€X]\]Y[Y[ù€›\0ÍY\»‹ú‹]x†&X]X›[à[Ÿ[H€€\0Í]][€à∏†&Y\›X›Yãè‹‹[èèŸ]èèŸ]èâ ¬à	œ]à€\‹œHúÿK[[Ÿ[KY‹öYèâ ¬à	œXô[€\‹œHúÿK[[Ÿ[K]ŸŸ€Hèè[ú]]K\ÿK]›\õò[Y[ù\OHò⁄X⁄ÿõﬁà	  Àù›\õò[Y[ù◊Ÿ[òXõY…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èèèº'„·à›\õõ⁄Oÿèè€X[ì[Ÿ[H€€\0Í]][€àö[ò⁄\[‹€X[è‹‹[èè€Xô[â ¬à	œXô[€\‹œHúÿK[[Ÿ[K]ŸŸ€Hèè[ú]]K\ÿK[XY›YH\OHò⁄X⁄ÿõﬁà	  ÀõXY›YWŸ[òXõY…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èèèº'„‡HY›YOÿèè€X[ì[Ÿ[H€€\0Í]][€à∞ÍX›\úô[ù‹€X[è‹‹[èè€Xô[â ¬à	œXô[€\‹œHúÿK[[Ÿ[K]ŸŸ€H\[ô[ùèè[ú]]K\ÿK\ò[ö⁄[ô‹»\OHò⁄X⁄ÿõﬁà	  Àúò[ö⁄[ô‹◊Ÿ[òXõY…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èèè∏¶ØHù]]\ú»»\‹Ÿ]\úœÿèè€X[îô\]ZY\ù›\õõ⁄H›HY›YO‹€X[è‹‹[èè€Xô[â ¬à	œŸ]èâ ¬à	œ]à€\‹œHúÿK[[öŸY[‹[€ú»èâ ¬à	œ]à€\‹œHúÿK[[öŸY[‹[€à‹èè‹[è∏´d‹‹[èè]èèèï‹^Y\à	àõ›\»HX]⁄ÿèè€X[í[ò€\»]ôX»’SëTë]ìÀàô\]ZY\ù[à[Ÿ[H€€\0Í]][€àX›Yãè‹€X[èŸ]èè›õ€ô»]K\ÿK]‹\›]\œâ  Àù‹‹^Y\óŸ[òXõY…–P’QâŒâ“SêP’Qâ J…œ‹›õ€ôœèŸ]èâ ¬à	œ]à€\‹œHúÿK[[öŸY[‹[€à\ôèè‹[èº'„nœ‹‹[èè]èèèåŸHZK][\œÿèè€X[í[ò€\ŸH]ôX»ìÀàô\]ZY\ù[à[Ÿ[H€€\0Í]][€àX›Yãè‹€X[èŸ]èè›õ€ô»]K\ÿK]\ô\›]\œâ  Àù\ô⁄[óŸ[òXõY…–P’QâŒâ“SêP’Qâ J…œ‹›õ€ôœèŸ]èâ ¬à	œ]à€\‹œHúÿK[[öŸY[‹[€àô]öY]»èè‹[èº'ÂÏ˚Ó#œ‹‹[èè]èèèïò[Y][€à€€Xõ‹ò]]ôH\»0Í\]Z\\œÿèè€X[í[ò€\ŸH]ôX»’SëTë‘ìÀà\»€ÀYŸ\›[€õòZ\ô\»∞Í\Ÿ[ù»]]ô[ùò[Y\à›H[X[ô\à[àõ›]ôX]H\òYŸH[ô[ùàè‹€X[èŸ]èè›õ€ôœâ  ÀùX[W‹ô]öY]◊Ÿ[òXõY…–P’QâŒâ“SêP’Qâ J…œ‹›õ€ôœèŸ]èâ ¬à	œŸ]èâ ¬à	œŸ]èâ ¬à	œ]à€\‹œHúÿKX€€[Y\ò⁄X[Xõÿ⁄»èâ ¬à	œ]à€\‹œHúÿKXõÿ⁄À]]Hèè]èèèº'‰£àŸôúôH€€[Y\ò⁄X[Oÿèè‹[èìH⁄⁄^H8†&[ŸôúôH[›H]]€X]\]Y[Y[ù\»[Ÿ[\»ô[Z][Kè‹‹[èèŸ]èè‹[à€\‹œHúÿK\[ãX⁄\	 Ÿ\ÿ ›ö[ô Àú›Xúÿ‹ö\[€ó‹[ü	ŸúôYI JJ…»èâ Ÿ\ÿ ›ö[ô Àú›Xúÿ‹ö\[€ó‹[ü	ŸúôYI Kù’\\êÿ\ŸJ
+JJ…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃàà›[OHõX\ô⁄[ã]‹åLúèèXô[è‹[à€\‹œHõ]]YèìŸôúôO‹‹[èèŸ[X›]K\ÿK\[èè‹[€àò[YOHôúôYHà	  
+Àú›Xúÿ‹ö\[€ó‹[ü	ŸúôYI OOOIŸúôYIœ…‹Ÿ[X›Y	Œâ… J…œëîëQH8†%Ÿ\›[€à\‹Ÿ[ùY[O€‹[€èè‹[€àò[YOHú›[ô\ôà	  Àú›Xúÿ‹ö\[€ó‹[èOOI‹›[ô\ô	œ…‹Ÿ[X›Y	Œâ… J…œî’SëTë8†%‹^Y\à[ò€\œ€‹[€èè‹[€àò[YOHúõ»à	  Àú›Xúÿ‹ö\[€ó‹[èOOI‹õ…œ…‹Ÿ[X›Y	Œâ… J…œîì»8†%‹^Y\à
+»ŸHZK][\œ€‹[€èè‹Ÿ[X›è€Xô[èXô[€\‹œHúÿK\‹X⁄X[]ŸŸ€Hèè[ú]]K\ÿK\‹X⁄X[XXÿŸ\‹»\OHò⁄X⁄ÿõﬁà	  Àú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èèèº'„†HXÿÍ»‹0ÍX⁄X[ÿèè€X[ë0ÍXõ‹]YH\»‹[€ú»ô[Z][H›\à0Í[[»»[Xò\‹ÿY]\ãè‹€X[è‹‹[èè€Xô[èŸ]èèXô[€\‹œHúÿK\‹X⁄X[]ŸŸ€HX[K\ô]öY]ÀY⁄Yùèè[ú]]K\ÿK]X[K\ô]öY]ÀY⁄Yù\OHò⁄X⁄ÿõﬁà	  ÀùX[W‹ô]öY]◊Ÿ⁄YùY…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èèèº'ÂÏ˚Ó#»Ÿôúö\àò[Y][€àH\òYŸOÿèè€X[êX›]ôH[ö\]Y[Y[ùŸ]H‹[€àpÍõYHÿ[ú»Xõ€õô[Y[ù^X[ùè‹€X[è‹‹[èè€Xô[â ¬à	œ]à€\‹œHúÿK[Ÿôô\ã[X\èè‹[èëîëQHèêò\ŸOÿèè‹‹[èè‹[èî’SëTëèä»‹^Y\èÿèè‹‹[èè‹[èîì»èä»‹^Y\à
+»ŸHZK][\œÿèè‹‹[èèŸ]èâ ¬à
+Àù\‹òYW‹ô\]Y\›Yÿ]…œ]à€\‹œHúÿK]\‹òYKX[\ùèèèº'Â%[X[ôH8†&]\‹òYHôpÈ›YOÿèè‹[èâ €ô]»]JÀù\‹òYW‹ô\]Y\›Yÿ]
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâ J…œ‹‹[èèŸ]èâŒâ… J¬à	œŸ]èâ »Çà	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åMÿòX⁄Ÿ‹õ›[ôàŸôôòYåÿõ‹ô\éå\€€YŸåôŒXHèâ ¬à	œèº'Â!ò[úŸ∞Í\ô\àHŸ\›[€à0Ë[à]]ôHYZ[ö\›ò]]\èÿèâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[éç\LèìHõ›]ôX]H€€\H⁄]0ÍZ∞Ë^\›\ãà\∞Í»ò[Y][€ã[]öY[ù[[pÍYX][Y[ùYZ[ö\›ò]]\àö[ò⁄\[HŸ]\‹XŸKèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃàèè[ú]]K\ÿK]ò[úŸô\ãY[XZ[\OHô[XZ[àXŸZ€\èHë[XZ[Hõ›]ô[YZ[ö\›ò]]\àèè[ú]]K\ÿK]ò[úŸô\ã\€ôH\OHù[à[ú][ŸOHù[àXŸZ€\èHï0Í[0Í\€ôHHõ›]ô[YZ[ö\›ò]]\àèèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃàà›[OHõX\ô⁄[ã]‹éèè[ú]]K\ÿK]ò[úŸô\ãYö\ú›XŸZ€\èHî∞Í[õ€HHõ›]ô[YZ[ö\›ò]]\àèè[ú]]K\ÿK]ò[úŸô\ã[\›XŸZ€\èHìõ€HHõ›]ô[YZ[ö\›ò]]\àèèŸ]èâ ¬à	œXô[€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ù€X\ô⁄[ã]‹åLèè[ú]]K\ÿKZŸY\[€\OHò⁄X⁄ÿõﬁà›[OHù⁄Yò]]»èè‹[èê€€úŸ\ùô\à8†&X[ò⁄Y[àYZ[ö\›ò]]\à€€[YH€À[‹ôÿ[ö\ÿ]]\è‹‹[èè€Xô[â ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èî⁄[õ€ã€€àXÿÍ»0ËŸ]\‹XŸHŸ\òH0Í\ÿX›]∞ÍKà€€à€€\H][\ÿ]]\à∏†&Y\›ò[XZ\»›\ö[pÍKèŸ]èâ ¬à	œù]€à]K\ÿK]ò[úŸô\à€\‹œHô[ôŸ\àà›[OHõX\ô⁄[ã]‹åLèïò[úŸ∞Í\ô\à8†&XYZ[ö\›ò][€èÿù]€èâ ¬à	œŸ]èâŒ¬ÇàôYúô\⁄€‹ö‹‹XŸQ\[ô[òﬁURJ
+N¬à€€ú›õŸö[Tÿ]ôOYú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\ÿ]ôK\õŸö[WI N¬àõŸö[Tÿ]ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àõŸö[Tÿ]ôKô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó›\]WÿYZ[ó‹õŸö[IÀ¬à›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄YàŸö\ú›€ò[YNôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿKYö\ú›[ò[YWI Kùò[YKùö[J
+_ù[à€\›€ò[YNôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK[\›[ò[YWI Kùò[YKùö[J
+_ù[à‹€ôNôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\€ôWI Kùò[YKùö[J
+_ù[àJN¬àõŸö[Tÿ]ôKô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	”õ€H]∞Í[õ€HH8†&XYZ[ö\›ò]]\àZ\»0Ëõ›\à8ß!I N¬à]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àN¬Çà€€ú›X›[€úœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NÿX›[€úÀò€\‹”ò[YOI‹õ›…ŒÿX›[€úÀú›[KõX\ô⁄[ï‹IÃLú	ŒÿX›[€úÀú›[Kôõ^‹ò\I›‹ò\	Œ¬Çà€€ú›ÿ]ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹ÿ]ôKò€\‹”ò[YOI‹ö[X\ûIŒ‹ÿ]ôKù^€€ù[ùI¸'‰Øà[úôY⁄\›ô\âŒ¬àÿ]ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›X^Sù[Xô\äú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK[X^I Kùò[YJ_¬à€€ú›ò[YOYú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK[ò[YWI Kùò[YKùö[J
+N¬àYä[ò[YJ\ô]\õàÿ\›
+	”Hõ€HH8†&Y\‹XŸH\›ÿõYÿ]⁄\ôKâ N¬àÿ]ôKô\ÿXõY]ùYN¬à]èX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹ô[ò[YW›€‹ö‹‹XŸIÀ‹›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄Y€ò[YNõò[Y_JN¬àYä\ãô\úõ‹ä\èX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó›\]WÿYZ[ó‹õŸö[IÀ¬à›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄YàŸö\ú›€ò[YNôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿKYö\ú›[ò[YWI Kùò[YKùö[J
+_ù[à€\›€ò[YNôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK[\›[ò[YWI Kùò[YKùö[J
+_ù[à‹€ôNôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\€ôWI Kùò[YKùö[J
+_ù[àJN¬àYä\ãô\úõ‹ä\èX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]ÿ€€[Y\ò⁄X[ÿXÿŸ\‹◊›åâÀ‹›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄Y‹›Xúÿ‹ö\[€ó‹[éôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\[óI Kùò[YK‹‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõYôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\‹X⁄X[XXÿŸ\‹◊I Kò⁄X⁄ŸYJN¬àYä\ãô\úõ‹ä\èX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]›€‹ö‹‹XŸW€‹[€ú◊›åâÀ¬à›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄Yà€X^ÿ€€‹ôÿ[ö^ô\úŒìù[Xô\äÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+Kà€X^ÿ€€‹ôÿ[ö^ô\ú◊ÿÿ\ìù[Xô\äÀõX^ÿ€€‹ôÿ[ö^ô\ú◊ÿÿ\L
+Kà››\õò[Y[ù◊Ÿ[òXõYôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]›\õò[Y[ùI Kò⁄X⁄ŸYà€XY›YWŸ[òXõYôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK[XY›YWI Kò⁄X⁄ŸYà‹ò[ö⁄[ô‹◊Ÿ[òXõYôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\ò[ö⁄[ô‹◊I Kò⁄X⁄ŸYà‹XõX◊Ÿ[òXõYôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\XõX◊I Kò⁄X⁄ŸYàJN¬àYä\ãô\úõ‹ä\èX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]›X[W‹ô]öY]◊Ÿ⁄Yù	À‹›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄YŸ[òXõYàHYú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]X[K\ô]öY]ÀY⁄YùI OÀò⁄X⁄ŸYJN¬àYä\ãô\úõ‹ä\èX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸ‹ò[ùÿ€€‹ôÿ[ö^ô\ó‹€›…À‹›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄Yÿò\ŸW€X^ÿ€€‹ôÿ[ö^ô\úŒõX^JN¬àÿ]ôKô\ÿXõYYò[ŸN⁄Yäãô\úõ‹ä\ô]\õàÿ\›
+ãô\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	—\‹XŸHZ\»0Ëõ›\à8ß!I Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àN¬Çà€€ú›€‹OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿ€‹Kù^€€ù[ùI¸'‰È»€‹Y\à[XZ[YZ[âŒ¬à€‹Kõ€ò€X⁄œX\ﬁ[ò 
+OOû›û^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+Àõ›€ô\óŸ[XZ[	… N›ÿ\›
+	—[XZ[YZ[ö\›ò]]\à€‹pÍH8ß!I _Xÿ]⁄
+J^›ÿ\›
+	–€‹YH[\‹‹⁄XõI __N¬Çà€€ú›ŸŸ€OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N›ŸŸ€Kù^€€ù[ù]ÀúXõX◊Ÿ[òXõY…¯£Ó›\‹[ôôIŒâ¯•≠à∞ÍXX›]ô\âŒ¬àYäÀúXõX◊Ÿ[òXõY
+]ŸŸ€Kò€\‹”ò[YOIŸ[ôŸ\âŒ¬àŸŸ€Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ô\òè]ÀúXõX◊Ÿ[òXõY…‹›\‹[ôôIŒâ‹∞ÍXX›]ô\âŒ¬àYäX€€ôö\õJ	–€€ôö\õY\àà	 ›ô\òä…»8†&Y\‹XŸH0™»	 ›Àù€‹ö‹‹XŸW€ò[YJ…»0Æ»… J\ô]\õé¬àŸŸ€Kô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]›€‹ö‹‹XŸW€‹[€ú◊›åâÀ¬à›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄Yà€X^ÿ€€‹ôÿ[ö^ô\úŒìù[Xô\äÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+Kà€X^ÿ€€‹ôÿ[ö^ô\ú◊ÿÿ\ìù[Xô\äÀõX^ÿ€€‹ôÿ[ö^ô\ú◊ÿÿ\L
+Kà››\õò[Y[ù◊Ÿ[òXõYàH]Àù›\õò[Y[ù◊Ÿ[òXõYà€XY›YWŸ[òXõYàH]ÀõXY›YWŸ[òXõYà‹ò[ö⁄[ô‹◊Ÿ[òXõYàH]Àúò[ö⁄[ô‹◊Ÿ[òXõYà‹XõX◊Ÿ[òXõYà]ÀúXõX◊Ÿ[òXõYàJN¬àŸŸ€Kô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+ÀúXõX◊Ÿ[òXõY…—\‹XŸH›\‹[ôKâŒâ—\‹XŸH∞ÍXX›]∞ÍH8ß!I Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àN¬Çà€€ú›ò[úŸô\êùèYú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]ò[úŸô\óI N¬àò[úŸô\êùãõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›[XZ[Yú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]ò[úŸô\ãY[XZ[I Kùò[YKùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬à€€ú›ö\ú›Yú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]ò[úŸô\ãYö\ú›I Kùò[YKùö[J
+N¬à€€ú›\›Yú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]ò[úŸô\ã[\›I Kùò[YKùö[J
+N¬à€€ú›€ôOYú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]ò[úŸô\ã\€ôWI Kùò[YKùö[J
+N¬à€€ú›ŸY\Yú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿKZŸY\[€I Kò⁄X⁄ŸY¬àYäY[XZ[
+\ô]\õàÿ\›
+	“[ô\]YH8†&Y[XZ[Hõ›]ô[YZ[ö\›ò]]\ãâ N¬à€€ú›\‹^OVŸö\ú›\›Kôö[\äõ€€X[äKöõ⁄[ä	»	 _[XZ[¬à€€ú›\ŸœI’êSî—ëTï8†&PQRSíT’êUS”óóë\‹XŸHà	 ›Àù€‹ö‹‹XŸW€ò[YJ…◊êYZ[ö\›ò]]\àX›Y[à	  Àõ›€ô\óŸ[XZ[	¯†%	 J…◊ìõ›]ô[YZ[ö\›ò]]\àà	 Ÿ\‹^J…»
+	 Ÿ[XZ[
+… Wóâ  ŸY\…”8†&X[ò⁄Y[àYZ[ö\›ò]]\àô\›\òH€À[‹ôÿ[ö\ÿ]]\ãâŒâ”8†&XXÿÍ»H8†&X[ò⁄Y[àYZ[ö\›ò]]\à0ËŸ]\‹XŸHŸ\òH0Í\ÿX›]∞ÍKâ J…◊óê€€ôö\õY\àHò[úŸô\ù…Œ¬àYäX€€ôö\õJ\Ÿ J\ô]\õé¬à€€ú›\Y\õ€\
+	‘›\àÍX›\ö\Ÿ\àHò[úŸô\ùÿZ\⁄\»^X›[Y[ùêSî—ëTëTâ N¬àYä\YOOI’êSî—ëTëTâ \ô]\õàÿ\›
+	’ò[úŸô\ù[õù[0ÍKâ N¬àò[úŸô\êùãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó›ò[úŸô\ó›€‹ö‹‹XŸWÿYZ[âÀ¬à›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄Yà€ô]◊€›€ô\óŸ[XZ[ô[XZ[àŸö\ú›€ò[YNôö\ú›ù[à€\›€ò[YNõ\›ù[à‹€ôNú€ô_ù[à⁄ŸY\‹ô]ö[›\◊ÿ\◊ÿ€€‹ôÿ[ö^ô\éöŸY\àJN¬àò[úŸô\êùãô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	–YZ[ö\›ò][€àò[úŸ∞Í\∞ÍYH]ôX»›XÿÍ»8ß!I N¬à]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àN¬Çà€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸ[ò€\‹”ò[YOIŸ[ôŸ\âŒŸ[ù^€€ù[ùI¸'Â‰H›\ö[Y\à8†&Y\‹XŸIŒ¬à[õ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›⁄œX€€ôö\õJ	‘’TëT‘“S”à0‚QíSíUUëWóî›\ö[Y\à8†&Y\‹XŸH0™»	 ›Àù€‹ö‹‹XŸW€ò[YJ…»0Æ»]›]\»Ÿ\»€õ∞ÍY\»‹‹ù]ô\»◊óìH€€\HH€€õô^[€àH8†&XYZ[ö\›ò]]\àôHŸ\òH\»›\ö[pÍKâ N¬àYä[⁄ \ô]\õé¬à€€ú›\Y\õ€\
+	‘›\à€€ôö\õY\ãÿZ\⁄\»^X›[Y[ùHõ€HH8†&Y\‹XŸHóâ ›Àù€‹ö‹‹XŸW€ò[YJN¬àYä\YOO]Àù€‹ö‹‹XŸW€ò[YJ\ô]\õàÿ\›
+	‘›\ô\‹⁄[€à[õù[0ÍYHàõ€H[ò€‹úôX›â N¬à[ô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸ[]W›€‹ö‹‹XŸIÀ‹›€‹ö‹‹XŸW⁄YùÀù€‹ö‹‹XŸW⁄YJN¬à[ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	—\‹XŸH›\ö[pÍH0ÍYö[ö]]ô[Y[ùâ Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àN¬ÇàX›[€úÀò\[ô
+ÿ]ôK€‹KŸŸ€K[
+NŸò\[ô⁄[
+X›[€ú NŸ[ú›\ôS›€ô\ë‹õ›\
+ Kò\[ô⁄[
+
+N¬àJN¬üBò\ﬁ[ò»ù[ò›[€à[ö]›\\êYZ[ä
+^¬à€€ú›\›Y[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+KôŸ]
+	›\›››\õò[Y[ù	 N¬àYä\›Y
+^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW›\›››\õò[Y[ù	À‹››\õò[Y[ù⁄Yù\›YÿX›[€éâ€‹[âﬂJN¬àYä\úõ‹üY]OÀù€‹ö‹‹XŸW⁄Y
+^›ÿ\›
+\úõ‹èÀõY\‹ÿYŸ_	’›\õõ⁄H\›[ô\‹€öXõKâ N‹ô]\õàùYNﬂBàÀù\›YZ[ê€€ù^Y]N‘Àö\‘›\\êYZ[èYò[ŸN‹ô]\õàò[ŸN¬àBà€€ú›€Z[OX]ÿZ]ÿãúú 	ÿ€Z[W‹]õ‹õW‹›\\óÿYZ[â N¬àYä€Z[Kô\úõ‹äX€€ú€€Kùÿ\õä	ÿ€Z[H›\\àYZ[âÀ€Z[Kô\úõ‹äN¬à€€ú›⁄X⁄œX]ÿZ]ÿãúú 	⁄\◊‹]õ‹õW‹›\\óÿYZ[â N¬àÀö\‘›\\êYZ[èHX⁄X⁄Àô\úõ‹ââò⁄X⁄Àô]OOO]ùYN¬àYäTÀö\‘›\\êYZ[ä\ô]\õàò[ŸN¬à	
+	»‹›\\êYZ[î[ô[	 Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à	
+	»›€‹ö‹‹XŸTŸ]\	 Kò€\‹”\›òY
+	⁄Y[â N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùöY]ÀùXú… Kôõ‹ëXX⁄
+[Oô[ò€\‹”\›òY
+	⁄Y[â JN¬à	
+	»›€‹ö‹‹XŸSò[YI Kù^€€ù[ùI‘›\\àYZ[ö\›ò]]\àHH]Yõ‹õYIŒ¬à]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬à]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N¬àôYúô\⁄›\\êYZ[ê‹ôX]Q\[ô[ò⁄Y\ 
+N¬àô]\õàùYN¬üBôÿ›[Y[ùòY]ô[ù\›[ô\ä	⁄[ú]	ÀOOû¬àYäKù\ôŸ]ÀöYOOI‹ÿTŸX\ò⁄€‹ö‹‹XŸI \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àYäKù\ôŸ]ÀöYOOI‹ÿTŸX\ò⁄^Y\â \ô[ô\î›\\êYZ[î^Y\ú 
+N¬üJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬à€€ú›òèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\ô\€€ôKZY[ù]WI N⁄Yäòä^ÿ€€ú›Xô[\òãô]\Ÿ]úô\€€ôRY[ù]OOOIŸ^\›[ô◊›ò[Y	œ…Ÿÿ\ô\àH€€\H0ÍZ∞ËpÍIŒúòãô]\Ÿ]úô\€€ôRY[ù]OOOIÿ€Z[X[ù›ò[Y	œ…ÿ]öXùY\àHõ›Y]\à]Hõ›]ôX]H[X[ô]\âŒâ€]ô\àHõÿÿYŸHÿ[ú»[ŸYöY\àHXZ\€€âŒ⁄YäX€€ôö\õJ	–€€ôö\õY\àà	 €Xô[
+…»… J\ô]\õé‹òãô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹ô\€€ôW⁄Y[ù]WŸ\‹]IÀ‹ÿ€Z[W⁄Yúòãô]\Ÿ]ò€Z[RY‹ô\€€][€éúòãô]\Ÿ]úô\€€ôRY[ù]_JN‹òãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN›ÿ\›
+	–€€ôõ]8†&ZY[ù]0ÍHòZ]0ÍH8ß!I Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N‹ô]\õéﬂBàYäYKù\ôŸ]ÀõX]⁄\œÀä	÷Ÿ]K\ÿK][õ[öÀ\›YôóI J\ô]\õé¬à€€ú›èYKù\ôŸ]ÿ€€ú›^Y\ìò[YOXãô]\Ÿ]ú^Y\ìò[Y_	ÿŸHõ›Y]\âŒ¬àYäX€€ôö\õJ	—0Í[Y\à0ÍYö[ö]]ô[Y[ù0™»	 ‹^Y\ìò[YJ…»0Æ»HŸH€€\H‹ôÿ[ö\ÿ]]\à»Ÿ\»›]\›\]Y\»ô\›\õ€ù[ú»H‹õ›\HXZ\»ôHŸ\õ€ù\»ò]X⁄0ÍY\»0ËŸ]Q’‚Kâ J\ô]\õé¬àãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó›[õ[ö◊‹›Yôó‹^Y\âÀ‹›€‹ö‹‹XŸW⁄Yòãô]\Ÿ]ù€‹ö‹‹XŸRY›\Ÿ\ó⁄Yòãô]\Ÿ]ù\Ÿ\íY‹^Y\ó⁄Yòãô]\Ÿ]ú^Y\íYJN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	”XZ\€€à›\ö[pÍYH\àH›\\àYZ[ãâ Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬üJN¬ôù[ò›[€àôYúô\⁄›\\êYZ[ê‹ôX]Q\[ô[ò⁄Y\ 
+^¬à€€ú›€€\]][€èHHJ	
+	»‹ÿU›\õò[Y[ù[òXõY	 OÀò⁄X⁄ŸY	
+	»‹ÿSXY›YQ[òXõY	 OÀò⁄X⁄ŸY
+N¬à€€ú›ò[ö⁄[ô‹œI
+	»‹ÿTò[ö⁄[ô‹—[òXõY	 N⁄Yäò[ö⁄[ô‹ ^‹ò[ö⁄[ô‹Àô\ÿXõYHX€€\]][€é⁄YäX€€\]][€ä\ò[ö⁄[ô‹Àò⁄X⁄ŸYYò[ŸNﬂBà€€ú›[èI
+	»‹ÿSô]‘[â OÀùò[Y_	ŸúôYIÀô]öY]œI
+	»‹ÿSô]‘[îô]öY]… N¬àYäô]öY] ^ÿ€€ú›X\^ŸúôYNñ…—îëQIÀ	’‹^Y\à]ŸHZK][\»õ€à[ò€\Àâ◊K›[ô\ôñ…‘’SëTë	À	’‹^Y\à	àõ›\»HX]⁄[ò€\Àâ◊KõŒñ…‘ì…À	’‹^Y\ãõ›\»HX]⁄]ŸHZK][\»[ò€\Àâ◊_Nÿ€€ú›O[X\‹[óN‹ô]öY]Àö[õô\íSIœèâ €VÃJ…œÿèè‹[èâ €VÃWJ €€\]][€è……Œâ»X›]ôH›\õõ⁄H›HY›YH›\à][\Ÿ\à\»‹[€ú»pÍY\Àâ J…œ‹‹[èâŒﬂBüBôù[ò›[€àôYúô\⁄€‹ö‹‹XŸQ\[ô[òﬁURJÿ\ô
+^¬àYäXÿ\ô
+\ô]\õé¬à€€ú›€€\]][€èHHJÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]›\õò[Y[ùI OÀò⁄X⁄ŸYÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK[XY›YWI OÀò⁄X⁄ŸY
+N¬à€€ú›ò[öœXÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\ò[ö⁄[ô‹◊I N⁄Yäò[ö ^‹ò[öÀô\ÿXõYHX€€\]][€é⁄YäX€€\]][€ä\ò[öÀò⁄X⁄ŸYYò[ŸNﬂBà€€ú›[èXÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\[óI OÀùò[Y_	ŸúôYIÀ‹X⁄X[HHXÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK\‹X⁄X[XXÿŸ\‹◊I OÀò⁄X⁄ŸY¬à€€ú›‹[›ŸYX€€\]][€ââä‹X⁄X[[èOOI‹›[ô\ô	ﬂ[èOOI‹õ… N¬à€€ú›\ô[›ŸYX€€\]][€ââä‹X⁄X[[èOOI‹õ… N¬à€€ú›‹Xÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]‹\›]\◊I N⁄Yä‹
+^›‹ù^€€ù[ù]‹[›ŸY…–P’QâŒâ“SêP’QâŒ›‹ò€\‹”\›ùŸŸ€J	€€âÀ‹[›ŸY
+NﬂBà€€ú›\ôXÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ÿK]\ô\›]\◊I N⁄Yä\ô
+^›\ôù^€€ù[ù]\ô[›ŸY…–P’QâŒâ“SêP’QâŒ›\ôò€\‹”\›ùŸŸ€J	€€âÀ\ô[›ŸY
+NﬂBüBôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀ\ﬁ[ò»OOû¬àYäKù\ôŸ]ÀöYOOI››\ê€€\^	 \ô[ô\ï›\õò[Y[ù]⁄⁄⁄XŸ\ 
+N¬àYäKù\ôŸ]ÀöYOOI€XY›YTŸ\‹⁄[€ê€€\^	 \ô[ô\ìXY›YT]⁄Ÿ[X›
+
+N¬àYäKù\ôŸ]ÀöYOOI‹ÿTÿ]ôQõ€›\â ^ÿ€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYNÿ€€ú›O^‹Ÿ[òXõYâ
+	»‹ÿQõ€›\ë[òXõY	 OÀò⁄X⁄ŸYOOYò[ŸKÿ€€\[ûW€ò[YNâ
+	»‹ÿQõ€›\ê€€\[ûI OÀùò[YKùö[J
+_ù[€Yÿ[›^â
+	»‹ÿQõ€›\ìYÿ[^	 OÀùò[YKùö[J
+_ù[ÿ€€ùX›Ÿ[XZ[â
+	»‹ÿQõ€›\ë[XZ[	 OÀùò[YKùö[J
+_ù[€Yÿ[›\õâ
+	»‹ÿQõ€›\ìYÿ[\õ	 OÀùò[YKùö[J
+_ù[‹ö]òXﬁW›\õâ
+	»‹ÿQõ€›\îö]òXﬁU\õ	 OÀùò[YKùö[J
+_ù[›\õ\◊›\õâ
+	»‹ÿQõ€›\ï\õ\’\õ	 OÀùò[YKùö[J
+_ù[Nÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹ÿ]ôWŸõ€›\âÀJNÿãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àú]õ‹õTŸ][ô‹œ^ÀããîÀú]õ‹õTŸ][ô‹Àõ€›\óŸ[òXõYúKúŸ[òXõYõ€›\óÿ€€\[ûW€ò[YNúKúÿ€€\[ûW€ò[YKõ€›\ó€Yÿ[›^úKú€Yÿ[›^õ€›\óÿ€€ùX›Ÿ[XZ[úKúÿ€€ùX›Ÿ[XZ[õ€›\ó€Yÿ[›\õúKú€Yÿ[›\õõ€›\ó‹ö]òXﬁW›\õúKú‹ö]òXﬁW›\õõ€›\ó›\õ\◊›\õúKú›\õ\◊›\õN‹ô[ô\î]õ‹õQõ€›\ä
+N›ÿ\›
+	‘YYHYŸHZ\»0Ëõ›\à8ß!I N‹ô]\õéﬂZYäKù\ôŸ]ÀöYOOI‹ÿTô]öY]—õ€›\â ^ÿ€€ú›èI
+	»‹ÿQõ€›\îô]öY]… Nÿãò€\‹”\›ùŸŸ€J	⁄Y[â Nÿãö[õô\íSIœ]à€\‹œHúôXY€õK[õ›Hèèèî›ùX›\ôH€€úŸZ[0ÍYHèÿèàòZ\€€à€ÿ⁄X[H
+»€€ùX›
+»Y[ú»Y[ù[€ú»0ÍYÿ[\»»€€ôöY[ùX[]0ÍH»—’KP—’ãàÿ\ôHH^H€›\ù]ô[ùõ⁄YHô\ú»\»YŸ\»0ÍYpÍY\ÀèŸ]èâŒ‹ô]\õéﬂZYäKù\ôŸ]ÀöYOOI‹ÿP€€úŸ[ùÿ]Q[òXõY	 ^ÿ€€ú›[òXõYYKù\ôŸ]ò⁄X⁄ŸYÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]ÿ€€úŸ[ùŸÿ]IÀ‹Ÿ[òXõYô[òXõYJN⁄Yä\úõ‹ä^ŸKù\ôŸ]ò⁄X⁄ŸYHY[òXõY‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJ_TÀú]õ‹õTŸ][ô‹Àò€€úŸ[ùŸÿ]WŸ[òXõYY[òXõYÿ€€ú›I
+	»‹ÿP€€úŸ[ùÿ]SXô[	 N⁄Yä
+[ù^€€ù[ùY[òXõY…’ö\⁄XõH»ÿõYÿ]⁄\ôIŒâ”X\‹]pÍIŒ›ÿ\›
+[òXõY…–€€úŸ[ù[Y[ùYôöX⁄0ÍH]^õ›Y]\ú»8ß!IŒâ–€€úŸ[ù[Y[ùX\‹]pÍH›\à\»õ›Y]\úÀâ NﬂBàYä…‹ÿU›\õò[Y[ù[òXõY	À	‹ÿSXY›YQ[òXõY	À	‹ÿSô]‘[â◊Kö[ò€Y\ Kù\ôŸ]ÀöY
+J\ôYúô\⁄›\\êYZ[ê‹ôX]Q\[ô[ò⁄Y\ 
+N¬àYäKù\ôŸ]ÀõX]⁄\œÀä	÷Ÿ]K\ÿK]›\õò[Y[ùKŸ]K\ÿK[XY›YWKŸ]K\ÿK\[óKŸ]K\ÿK\‹X⁄X[XXÿŸ\‹◊I J\ôYúô\⁄€‹ö‹‹XŸQ\[ô[òﬁURJKù\ôŸ]ò€‹Ÿ\›
+	ÀúÿK]€‹ö‹‹XŸKXÿ\ô	 JN¬üJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬à€€ú›ÿUXèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\ÿK]XóI N¬àYäÿUXä^¬à€€ú›ŸX›[€è\ÿUXãô]\Ÿ]úÿUXéŸÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K\ÿK]XóI Kôõ‹ëXX⁄
+èOòãò€\‹”\›ùŸŸ€J	ÿX›]ôIÀèOO\ÿUXäJN¬à	
+	»‹ÿT‹XŸ\‘ŸX›[€â OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀŸX›[€àOOI‹‹XŸ\… N…
+	»‹ÿT^Y\ú‘ŸX›[€â OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀŸX›[€àOOI‹^Y\ú… N¬àYäŸX›[€èOOI‹^Y\ú… \ô[ô\î›\\êYZ[î^Y\ú 
+N‹ô]\õé¬àBà€€ú›€‹S[ö–ùèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]KX€‹K\⁄Y€ù\[[ö◊I N¬àYä€‹S[ö–ùä^ÿ€€ú›èJÀú›\\î⁄Y€ù\ô\]Y\›ﬂ◊JKôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô €‹S[ö–ùãô]\Ÿ]ò€‹T⁄Y€ù\[ö JN⁄Yää^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+^Y\êX›]ò][€ì[ö ãòX›]ò][€ó›⁄Ÿ[äJN›ÿ\›
+	”Y[à8†&XX›]ò][€à€‹pÍH8ß!I Nﬂ\ô]\õéﬂBà€€ú›€‹S\Ÿ–ùèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]KX€‹K\⁄Y€ù\[Y\‹ÿYŸWI N¬àYä€‹S\Ÿ–ùä^ÿ€€ú›èJÀú›\\î⁄Y€ù\ô\]Y\›ﬂ◊JKôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô €‹S\Ÿ–ùãô]\Ÿ]ò€‹T⁄Y€ù\Y\‹ÿYŸJJN⁄Yää^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+⁄Y€ù\[ùö]SY\‹ÿYŸJäJN›ÿ\›
+	”Y\‹ÿYŸH€‹pÍH8ß!I Nﬂ\ô]\õéﬂBà€€ú›ôYŸ[êùèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\ôYŸ[ô\ò]K\⁄Y€ù\I N¬àYäôYŸ[êùä^⁄YäX€€ôö\õJ	–‹∞ÍY\à[àõ›]ôX]HY[à»8†&X[ò⁄Y[àôHõ€ò›[€õô\òH\Àâ J\ô]\õé‹ôYŸ[êùãô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹ôYŸ[ô\ò]W‹^Y\ó‹⁄Y€ù\€[ö…À‹‹ô\]Y\›⁄YúôYŸ[êùãô]\Ÿ]úôYŸ[ô\ò]T⁄Y€ù\JN‹ôYŸ[êùãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N›ÿ\›
+	”õ›]ôX]HY[àÍ[∞Í\∞ÍH8ß!I N‹ô]\õéﬂBàYäKù\ôŸ]Àô]\Ÿ]ÀúÿP\õ›ôP€€‹ô‘ô\]Y\›
+^¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹ô\€€ôWÿ€€‹ôÿ[ö^ô\ó‹][›W‹ô\]Y\›	À‹‹ô\]Y\›⁄Yòãô]\Ÿ]úÿP\õ›ôP€€‹ô‘ô\]Y\›ÿ\õ›ôNùùY_JN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	—[X[ôHXÿŸ\0ÍYH8ß!I Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N‹ô]\õé¬àBàYäKù\ôŸ]Àô]\Ÿ]ÀúÿTôZôX›€€‹ô‘ô\]Y\›
+^¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹ô\€€ôWÿ€€‹ôÿ[ö^ô\ó‹][›W‹ô\]Y\›	À‹‹ô\]Y\›⁄Yòãô]\Ÿ]úÿTôZôX›€€‹ô‘ô\]Y\›ÿ\õ›ôNôò[Ÿ_JN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	—[X[ôHôYù\ÍYKâ Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N‹ô]\õé¬àBàYäKù\ôŸ]ÀöYOOI‹ÿTôYúô\⁄	 X]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àYäKù\ôŸ]ÀöYOOI‹ÿTôYúô\⁄ô[ùY\… X]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N¬àYäKù\ôŸ]ÀöYOOI‹ÿPY€€\^	 ^¬à€€ú›ò[YOI
+	»‹ÿSô]–€€\^ò[YI Kùò[YKùö[J
+K⁄]OI
+	»‹ÿSô]–€€\^⁄]I Kùò[YKùö[J
+N¬àYä[ò[YJ\ô]\õàÿ\›
+	“[ô\]YHHõ€HH€€\^Kâ N¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó€X[òYŸW‹‹‹ù◊ÿ€€\^	À‹ÿX›[€éâÿ‹ôX]IÀ€ò[YNõò[YKÿ⁄]Nò⁄]_ù[ÿX›]ôNùùY_JN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à	
+	»‹ÿSô]–€€\^ò[YI Kùò[YOI…Œ…
+	»‹ÿSô]–€€\^⁄]I Kùò[YOI…Œ¬à]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N›ÿ\›
+	–€€\^HZõ›]0ÍH8ß!I N¬àBàYäKù\ôŸ]ÀöYOOI‹ÿP‹ôX]U€‹ö‹‹XŸI ^¬à€€ú›ò[YOI
+	»‹ÿU€‹ö‹‹XŸSò[YI Kùò[YKùö[J
+K[XZ[I
+	»‹ÿS›€ô\ë[XZ[	 Kùò[YKùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬àYä[ò[Y_Y[XZ[
+\ô]\õàÿ\›
+	“[ô\]YHHõ€HH8†&Y\‹XŸH]8†&YK[XZ[H€€àYZ[ö\›ò]]\ãâ N¬à€€ú›ö\ú›I
+	»‹ÿS›€ô\ëö\ú›ò[YI Kùò[YKùö[J
+K\›I
+	»‹ÿS›€ô\ì\›ò[YI Kùò[YKùö[J
+K€ôOI
+	»‹ÿS›€ô\î€ôI Kùò[YKùö[J
+N¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYN¬à€€ú›‹ôX]YX]ÿZ]ÿãúú 	‹›\\óÿYZ[óÿ‹ôX]W›€‹ö‹‹XŸWŸõ‹óÿYZ[âÀ¬à€ò[YNõò[YK€›€ô\óŸ[XZ[ô[XZ[à€X^ÿ€€‹ôÿ[ö^ô\úŒìX]õX^
+X]õZ[äLù[Xô\ä	
+	»‹ÿSX^€€‹ô… Kùò[YJ_
+JKà››\õò[Y[ù◊Ÿ[òXõYâ
+	»‹ÿU›\õò[Y[ù[òXõY	 Kò⁄X⁄ŸYà€XY›YWŸ[òXõYâ
+	»‹ÿSXY›YQ[òXõY	 Kò⁄X⁄ŸYà‹ò[ö⁄[ô‹◊Ÿ[òXõYâ
+	»‹ÿTò[ö⁄[ô‹—[òXõY	 Kò⁄X⁄ŸYàJN¬àYä‹ôX]Yô\úõ‹ä^ÿãô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+‹ôX]Yô\úõ‹ãõY\‹ÿYŸJ_Bà€€ú›õŸö[OX]ÿZ]ÿãúú 	‹›\\óÿYZ[ó›\]WÿYZ[ó‹õŸö[IÀ¬à›€‹ö‹‹XŸW⁄Yò‹ôX]Yô]KŸö\ú›€ò[YNôö\ú›ù[€\›€ò[YNõ\›ù[‹€ôNú€ô_ù[àJN¬àYäõŸö[Kô\úõ‹ä^ÿãô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+	—\‹XŸH‹∞ÍpÍKXZ\»öX⁄HYZ[ö\›ò]]\à0Ë€€\0Í]\àà	 ‹õŸö[Kô\úõ‹ãõY\‹ÿYŸJ_Bà€€ú›[èI
+	»‹ÿSô]‘[â OÀùò[Y_	ŸúôYIŒ¬à]€€[Y\ò⁄X[X]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]ÿ€€[Y\ò⁄X[ÿXÿŸ\‹◊›åâÀ‹›€‹ö‹‹XŸW⁄Yò‹ôX]Yô]K‹›Xúÿ‹ö\[€ó‹[éú[ã‹‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõYôò[Ÿ_JN¬à€€ú›⁄YùYSX]õX^
+X]õZ[äLù[Xô\ä	
+	»‹ÿSX^€€‹ô… Kùò[YJ_
+JN¬àYäX€€[Y\ò⁄X[ô\úõ‹äX€€[Y\ò⁄X[X]ÿZ]ÿãúú 	‹›\\óÿYZ[ó‹Ÿ]›€‹ö‹‹XŸW€‹[€ú◊›åâÀ‹›€‹ö‹‹XŸW⁄Yò‹ôX]Yô]K€X^ÿ€€‹ôÿ[ö^ô\úŒô⁄YùY€X^ÿ€€‹ôÿ[ö^ô\ú◊ÿÿ\åL››\õò[Y[ù◊Ÿ[òXõYâ
+	»‹ÿU›\õò[Y[ù[òXõY	 Kò⁄X⁄ŸY€XY›YWŸ[òXõYâ
+	»‹ÿSXY›YQ[òXõY	 Kò⁄X⁄ŸY‹ò[ö⁄[ô‹◊Ÿ[òXõYâ
+	»‹ÿTò[ö⁄[ô‹—[òXõY	 Kò⁄X⁄ŸY‹XõX◊Ÿ[òXõYùùY_JN¬àYäX€€[Y\ò⁄X[ô\úõ‹äX€€[Y\ò⁄X[X]ÿZ]ÿãúú 	‹›\\óÿYZ[óŸ‹ò[ùÿ€€‹ôÿ[ö^ô\ó‹€›…À‹›€‹ö‹‹XŸW⁄Yò‹ôX]Yô]Kÿò\ŸW€X^ÿ€€‹ôÿ[ö^ô\úŒô⁄YùYJN¬àãô\ÿXõYYò[ŸN⁄Yä€€[Y\ò⁄X[ô\úõ‹ä\ô]\õàÿ\›
+	—\‹XŸH‹∞ÍpÍKXZ\»€€ôöY›\ò][€à€€[Y\ò⁄X[H0Ë∞Í\öYöY\àà	 ÿ€€[Y\ò⁄X[ô\úõ‹ãõY\‹ÿYŸJN¬à	
+	»‹ÿU€‹ö‹‹XŸSò[YI Kùò[YOI…Œ…
+	»‹ÿS›€ô\ë[XZ[	 Kùò[YOI…Œ…
+	»‹ÿS›€ô\ëö\ú›ò[YI Kùò[YOI…Œ…
+	»‹ÿS›€ô\ì\›ò[YI Kùò[YOI…Œ…
+	»‹ÿS›€ô\î€ôI Kùò[YOI…Œ¬àÿ\›
+	—\‹XŸHYZ[ö\›ò]]\à‹∞ÍpÍH8ß!I Nÿ]ÿZ]ÿY›\\êYZ[ï€‹ö‹‹XŸ\ 
+N¬àBüJN¬ÇÇò\ﬁ[ò»ù[ò›[€àÿY\ô[ëù[ô 
+^¬àYäTÀù€‹ö‹‹XŸ_Z\–YZ[ä
+_TÀù€‹ö‹‹XŸQôX]\ô\Àù\ô⁄[óŸ[òXõY
+^‘Àù\ô[ëù[ôœV◊N‹ô[ô\ï\ô[ëù[ô 
+N‹ô]\õéﬂBà€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]ÿYZ[ó›\ô⁄[óŸù[ô…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN¬àYä\úõ‹ä^›ÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àù\ô[ëù[ôœV◊NﬂY[ŸHÀù\ô[ëù[ôœP\úò^Kö\–\úò^J]JOŸ]Nñ◊N¬àô[ô\ï\ô[ëù[ô 
+N¬üBôù[ò›[€àô[ô\ï\ô[ëù[ô 
+^¬à€€ú›õﬁI
+	»ÿ€€€\ëù[ô”\›	 N⁄YäXõﬁ
+\ô]\õé¬à€€ú›õ›‹œTÀù\ô[ëù[ôﬂ◊N¬àYä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ]à€\‹œHõ]]Yèê]X›[à›ÍHX›Yà0ËYZ[ö\›ô\à›\àH€X⁄pÍôKèŸ]èâŒ‹ô]\õéﬂBàõﬁö[õô\íS\õ›‹ÀõX\
+
+ãJOOûÿ€€ú›\ôŸ]Sù[Xô\äãù\ôŸ]ÿ[[›[ùÿŸ[ùﬂ
+K€€X›YSù[Xô\äãò€€X›Yÿ[[›[ùÿŸ[ùﬂ
+K›]\ôŸ]”X]õZ[äLX]úõ›[ô
+€€X›Y›\ôŸ]
+åL
+JNå‹ô]\õà	œ]à€\‹œHò€€€\ãYù[ôà]KX€€€\ã\õ›œHâ Ÿ\ÿ ãù›\õò[Y[ù⁄Y
+J…»èè]à€\‹œHò€€€\ãYù[ôZXYèè]èèèâ Ÿ\ÿ ãù›\õò[Y[ù€ò[Y_	‘›ÍI J…œÿèè]à€\‹œHõ]]Yèº'‰·H	 Ÿ\ÿ ãù›\õò[Y[ùŸ]_	… J…»8†(à	  ãôõ‹õX]OOI€XY›YIœ…‘›ÍHHY›YIŒâ’›\õõ⁄I J…œŸ]èèŸ]èè‹[à€\‹œHò€€€\ã\›]\»	 Ÿ\ÿ ãú›]\ﬂ	ŸòYù	 J…»èâ Ÿ\ÿ ›ö[ô ãú›]\ﬂ	ŸòYù	 Kù’\\êÿ\ŸJ
+JJ…œ‹‹[èèŸ]èè]à€\‹œHò€€€\ã\õŸ‹ô\‹»èè‹[à›[OHù⁄Yâ ‹›
+……Hèè‹‹[èèŸ]èè]à€\‹œHõ]]Y€X[à›[OHõX\ô⁄[ã]‹ç\èê€€X›0ÍHàèâ Ÿ]\õ–Ÿ[ù €€X›Y
+J…œÿèâ  \ôŸ]…»»ÿöôX›Yà	 Ÿ]\õ–Ÿ[ù \ôŸ]
+Nâ»8†(à]X›[àÿöôX›Yà0ÍYö[öI J…œŸ]èè]à€\‹œHô‹öYÃàèèXô[è‹[à€\‹œHõ]]Yèî›]]‹‹[èèŸ[X›]KX€€€\ã\›]\œè‹[€àò[YOHôòYùà	  ãú›]\œOOIŸòYù	œ…‹Ÿ[X›Y	Œâ… J…œêúõ›Z[€è€‹[€èè‹[€àò[YOHõ‹[àà	  ãú›]\œOOI€‹[âœ…‹Ÿ[X›Y	Œâ… J…œì›]ô\ùO€‹[€èè‹[€àò[YOHú]\ŸYà	  ãú›]\œOOI‹]\ŸY	œ…‹Ÿ[X›Y	Œâ… J…œë[à]\ŸO€‹[€èè‹[€àò[YOHò€‹ŸYà	  ãú›]\œOOIÿ€‹ŸY	œ…‹Ÿ[X›Y	Œâ… J…œê€0Ì\∞ÍYO€‹[€èè‹Ÿ[X›è€Xô[èXô[è‹[à€\‹œHõ]]Yèî€€][€àHÿY€õ›O‹‹[èèŸ[X›]KX€€€\ã\õ›öY\èè‹[€àò[YOHàèê⁄⁄\⁄\è€‹[€èâ ÷…‘ô]õ€]	À	”Y]⁄IÀ	‘^T[	À	‘›[Y\öXIÀ	–]]ôI◊KõX\
+Oâœ‹[€à	  ãúõ›öY\èOO^…‹Ÿ[X›Y	Œâ… J…œâ ﬁ
+…œ€‹[€èâ Köõ⁄[ä	… J…œ‹Ÿ[X›è€Xô[èXô[è‹[à€\‹œHõ]]YèìY[àHÿY€õ›O‹‹[èè[ú]]KX€€€\ã[[ö»\OHù\õàXŸZ€\èHöŒãÀÀããààò[YOHâ Ÿ\ÿ ãú^[Y[ù€[öﬂ	… J…»èè€Xô[èXô[è‹[à€\‹œHõ]]Yèî\ùX⁄\][€à€€úŸZ[0ÍYH
+8†´
+O‹‹[èè[ú]]KX€€€\ã\›YŸŸ\›Y\OHõù[Xô\ààZ[èHåà›\HåçLàò[YOHâ  ù[Xô\äãú›YŸŸ\›Yÿ[[›[ùÿŸ[ùﬂ
+KÃL
+J…»èè€Xô[èXô[è‹[à€\‹œHõ]]YèìÿöôX›Yà
+8†´
+O‹‹[èè[ú]]KX€€€\ã]\ôŸ]\OHõù[Xô\ààZ[èHåà›\HåçLàò[YOHâ  \ôŸ]ÃL
+J…»èè€Xô[èXô[è‹[à€\‹œHõ]]Yèì[€ù[ù€€X›0ÍH
+8†´
+O‹‹[èè[ú]]KX€€€\ãX€€X›Y\OHõù[Xô\ààZ[èHåà›\HåçLàò[YOHâ  €€X›YÃL
+J…»èè€Xô[èŸ]èèXô[›[OHõX\ô⁄[ã]‹åLèè‹[à€\‹œHõ]]Yèìõ›HYZ[è‹‹[èè^\ôXH]KX€€€\ã[õ›\»õ›‹œHåààXŸZ€\èHë^àõ⁄\‹€€úÀ€XŸKô\\Àããàèâ Ÿ\ÿ ãõõ›\ﬂ	… J…œ›^\ôXOè€Xô[èXô[€\‹œHú^Y\àõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ù€X\ô⁄[ã]‹åLèè[ú]]KX€€€\ã\⁄\ôH\OHò⁄X⁄ÿõﬁà›[OHù⁄Yò]]»à	  ãú⁄\ôWŸ[òXõY…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èèèî\ùYŸ\àHY[à]^õ›Y]\úœÿèè]à€\‹œHõ]]YèìH\ùYŸH∏†&Y\›‹‹⁄XõH]YH⁄H[àY[à»\›ô[úŸZY€∞ÍKèŸ]èè‹‹[èè€Xô[â  ãú^[Y[ù€[öœ…œ]à€\‹œHò€€€\ã[[öÀ\ô]öY]»à›[OHõX\ô⁄[ã]‹ç‹èº'Â%»	 Ÿ\ÿ ãú^[Y[ù€[ö J…œŸ]èâŒâ… J…œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹åLèèù]€à€\‹œHúö[X\ûHà]K\ÿ]ôKX€€€\èº'‰Øà[úôY⁄\›ô\èÿù]€èâ  ãú^[Y[ù€[öœ…œù]€à]KX€‹KX€€€\ã[[öœê€‹Y\àHY[èÿù]€èâŒâ… J…œŸ]èèŸ]èâﬂJKöõ⁄[ä	… N¬üBôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬àYäKù\ôŸ]ÀöYOOI‹ôYúô\⁄€€€\ëù[ô… ^ÿ]ÿZ]ÿY\ô[ëù[ô 
+N‹ô]\õéﬂBà€€ú›õ›œYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]KX€€€\ã\õ›◊I N⁄Yä\õ› \ô]\õé¬àYäKù\ôŸ]ÀõX]⁄\œÀä	÷Ÿ]KX€‹KX€€€\ã[[ö◊I J^ÿ€€ú›[öœ\õ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã[[ö◊I OÀùò[YKùö[J
+N⁄Yä[[ö \ô]\õé›û^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+[ö N›ÿ\›
+	”Y[àHÿY€õ›H€‹pÍH8ß!I _Xÿ]⁄
+ŸJ^›ÿ\›
+	–€‹YH[\‹‹⁄XõI _\ô]\õéﬂBàYäKù\ôŸ]ÀõX]⁄\œÀä	÷Ÿ]K\ÿ]ôKX€€€\óI J^ÿ€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYNÿ€€ú›Ÿ[ùœ^OìX]úõ›[ô
+X]õX^
+ù[Xô\äÀùò[Y_
+JJåL
+Nÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó‹ÿ]ôW›\ô⁄[óŸù[ô	À‹››\õò[Y[ù⁄Yúõ›Àô]\Ÿ]ò€€€\îõ›À‹›]\Œúõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã\›]\◊I Kùò[YK‹õ›öY\éúõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã\õ›öY\óI Kùò[Y_ù[‹^[Y[ù€[öŒúõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã[[ö◊I Kùò[YKùö[J
+_ù[›\ôŸ]ÿ[[›[ùÿŸ[ùŒòŸ[ù õ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã]\ôŸ]I JKÿ€€X›Yÿ[[›[ùÿŸ[ùŒòŸ[ù õ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ãX€€X›YI JK‹›YŸŸ\›Yÿ[[›[ùÿŸ[ùŒòŸ[ù õ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã\›YŸŸ\›YI JK€õ›\Œúõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã[õ›\◊I Kùò[YKùö[J
+_ù[‹⁄\ôWŸ[òXõYúõ›Àú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€€\ã\⁄\ôWI Kò⁄X⁄ŸYJNÿãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN›ÿ\›
+	–ÿY€õ›HZ\ŸH0Ëõ›\à8ß!I Nÿ]ÿZ]ÿY\ô[ëù[ô 
+N‹ô]\õéﬂBüJN¬ò\ﬁ[ò»ù[ò›[€àÿY^T^Y\ë\⁄õÿ\ô
+
+^¬àYäTÀúŸ\‹⁄[€ä^‘Àú^Y\ë\⁄õÿ\ô[ù[‹ô]\õàù[ﬂBà€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]€^WŸ€ÿò[‹^Y\óŸ\⁄õÿ\ô›åâ N¬àYä\úõ‹ä^ÿ€€ú€€Kùÿ\õä	Ÿ€ÿò[^Y\à\⁄õÿ\ô	À\úõ‹äN‘Àú^Y\ë\⁄õÿ\ô[ù[‹ô]\õàù[ﬂBàÀú^Y\ë\⁄õÿ\ôY]_ù[¬àô[ô\ì^T^Y\íXä
+N¬àô]\õàÀú^Y\ë\⁄õÿ\ô¬üBôù[ò›[€àô[ô\î›ŸRY[ù]T€›\òŸJ
+^¬à€€ú›õﬁI
+	»€^T›ŸR\›‹ûTô\›[	 N⁄YäXõﬁ
+\ô]\õéÿ€€ú›œTÀú›ŸRY[ù]T€›\òŸN⁄Yä\ ^ÿõﬁö[õô\íSI…Œ‹ô]\õéﬂX€€ú›õ›‹œP\úò^Kö\–\úò^JÀú^Y\ú O‹Àú^Y\úŒñ◊N¬àõﬁö[õô\íSIœ]à€\‹œHú›ŸKZ\›‹ûK\ô\›[èè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\éŸõ^]‹ò\ù‹ò\èè]èèèâ Ÿ\ÿ Àõò[Y_	‘›ÍI J…œÿèè]à€\‹œHõ]]Yèâ Ÿ\ÿ Àù€‹ö‹‹XŸW€ò[Y_	… J Àô]O…»8†(à	 Ÿ\ÿ Àô]JNâ… J…»8†(àQ	 Ÿ\ÿ Àò€Ÿ_	… J…œŸ]èèŸ]èè‹[à€\‹œHô›Y\›XòYŸHèâ  Àú€›\òŸW›\OOOI€XY›YIœ…”Q’QIŒâ’’Tìì“I J…œ‹‹[èèŸ]èè]à€\‹œHõ]]Y€X[à›[OHõX\ô⁄[ã]‹éèîÍ[X›[€õôH[ö\]Y[Y[ù€àõ‹ôHõ€Kà\»[ôõ‹õX][€ú»ö]∞ÍY\»\»]]ô\»õ›Y]\ú»ôH€€ù\»YôöX⁄0ÍY\ÀèŸ]èè]à€\‹œHú›ŸKZ\›‹ûK\^Y\ú»èâ ‹õ›‹ÀõX\
+Oâœ]à€\‹œHú^Y\àèè]èèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Y€X[èâ  õ[öŸY›◊€YO…—0ÍZ∞ËpÍH0Ë€à€€\IŒäò[ôXYW€[öŸY…“Y[ù]0ÍH0ÍZ∞Ëô]ô[ô\]pÍYIŒâ—\‹€öXõH›\àXZ\€€â JJ…œŸ]èèŸ]èâ  õ[öŸY›◊€YO…œ‹[à€\‹œHõ[öŸY[⁄»è∏ß$»p‚O‹‹[èâŒâœù]€à	  ò[ôXYW€[öŸY…›]OHï[ôH[X[ôH0ÍX€[ò⁄\òH[ôH∞Í\öYöXÿ][€à8†&ZY[ù]0ÍHâŒâ… J…»]KX€Z[KZ\›‹ûK\^Y\èHâ Ÿ\ÿ ú^Y\ó⁄Y
+J…»èê¯†&Y\›[⁄Oÿù]€èâ J…œŸ]èâ Köõ⁄[ä	… J…œŸ]èèŸ]èâŒ¬üBÇôù[ò›[€à^Y\î^[Y[ùù]€ä ^¬àYä[œÀú^Y\ó⁄Y[œÀúXõX◊›⁄Ÿ[ä\ô]\õà	…Œ¬àô]\õà	œù]€à€\‹œHúö[X\ûHà]K\^Y\ã\^OHåHà]K\^Y\ãZYHâ Ÿ\ÿ Àú^Y\ó⁄Y
+J…»à]K\XõXÀ]⁄Ÿ[èHâ Ÿ\ÿ ÀúXõX◊›⁄Ÿ[äJ…»à]K]›\õò[Y[ùZYHâ Ÿ\ÿ Àù›\õò[Y[ù⁄Y
+J…»èº'‰¨»^Y\à]€€ôö\õY\èÿù]€èâŒ¬üBôù[ò›[€àô[ô\ì^T^Y\íXä
+^¬à€€ú›‹ôX]OI
+	»€^T^Y\ê‹ôX]Pÿ\ô	 K\⁄I
+	»€^T^Y\ë\⁄õÿ\ô	 KY[ù]OI
+	»€^T^Y\íY[ù]I N¬àYäX‹ôX]_Y\⁄
+\ô]\õéÿ€€ú›TÀú^Y\ë\⁄õÿ\ô¬à‹ôX]Kò€\‹”\›ùŸŸ€J	⁄Y[âÀHYÀúõŸö[JNŸ\⁄ò€\‹”\›ùŸŸ€J	⁄Y[âÀYÀúõŸö[JN¬àYäYÀúõŸö[J^⁄YäY[ù]J^⁄Y[ù]Kò€\‹”\›òY
+	⁄Y[â N⁄Y[ù]Kö[õô\íSI…Œﬂ\ô]\õéﬂBà€€ú›YúõŸö[K›Yú›]ﬂﬂN¬àYäY[ù]J^⁄Y[ù]Kò€\‹”\›úô[[›ôJ	⁄Y[â N⁄Y[ù]Kö[õô\íSIœ‹[à€\‹œHú^Y\ãZYXòYŸHèâ Ÿ\ÿ úXõX◊‹^Y\ó⁄Y
+J…œ‹‹[èè‹[à€\‹œHõ]]YèíQõ›Y]\à\õX[ô[ù‹‹[èâŒﬂBàYä	
+	»€^T^Y\îXõX“Y	 JI
+	»€^T^Y\îXõX“Y	 Kù^€€ù[ù\úXõX◊‹^Y\ó⁄Y¬àYä	
+	»€^T^Y\ìò[YI Iâôÿ›[Y[ùòX›]ôQ[[Y[ùOOI
+	»€^T^Y\ìò[YI JI
+	»€^T^Y\ìò[YI Kùò[YO\ô\‹^W€ò[Y_	…Œ¬àYä	
+	»€^T^Y\ê\ôXI Iâôÿ›[Y[ùòX›]ôQ[[Y[ùOOI
+	»€^T^Y\ê\ôXI JI
+	»€^T^Y\ê\ôXI Kùò[YO\ö€YWÿ\ôX_	…Œ¬àYä	
+	»€^T^Y\îXõX… JI
+	»€^T^Y\îXõX… Kò⁄X⁄ŸYHH\ö\◊‹XõXŒ¬àYä	
+	»€^T^Y\ë\ÿ€›ô\òXõI J^…
+	»€^T^Y\ë\ÿ€›ô\òXõI Kò⁄X⁄ŸYHH\ô\ÿ€›ô\òXõN…
+	»€^T^Y\ë\ÿ€›ô\òXõI Kô\ÿXõYH\ö\◊‹XõXŒﬂBàYä	
+	»€^T^Y\ìõ›YûI J^…
+	»€^T^Y\ìõ›YûI Kò⁄X⁄ŸYHH\õõ›YûW›\€€Z[ô◊‹›Ÿ\Œ…
+	»€^T^Y\ìõ›YûI Kô\ÿXõYYò[ŸNﬂBà€€ú›ò][ôœ\›úò][ôœO[ù[…¯†%	Œìù[Xô\ä›úò][ô Kù—ö^Y
+JJ…ÀÕIŒ¬àYä	
+	»€^T^Y\î›]… JI
+	»€^T^Y\î›]… Kö[õô\íSV÷…¸'„Á˚Ó#…À	—‹õ›\\…À›ô‹õ›\ﬂK…¸'„´âÀ	‘›Í\»õ›pÍ\…À›ù›\õò[Y[ùﬂK…¯¶ØIÀ	”X]⁄…À›õX]⁄\ﬂK…¯ß!IÀ	’öX›⁄\ô\…À›ù⁄[úﬂK…¸'„·âÀ	’õ‹0ÍY\…À›ùõ‹Y\ﬂK…¸'ÈaIÀ	–ù]…À›ô€ÿ[ﬂK…¸'„´…À	‘\‹Ÿ\…À›ò\‹⁄\›ﬂK…¯´d	À	”õ›IÀò][ô◊WKõX\
+Oâœ]èè‹[èâ ﬁÃJ…œ‹‹[èè€X[â ﬁÃWJ…œ‹€X[èèâ ﬁÃóJ…œÿèèŸ]èâ Köõ⁄[ä	… N¬à€€ú›ò]—‹õ›\œP\úò^Kö\–\úò^Jô‹õ›\ OŸô‹õ›\Œñ◊KŸY[ë‹õ›\œ[ô]»Ÿ]
+
+N¬à€€ú›‹õ›\œ\ò]—‹õ›\Àôö[\ä
+ÀJOOûÿ€€ú›YT›ö[ô Àù€‹ö‹‹XŸW⁄YÀöY	… Kùö[J
+Kò[YOT›ö[ô Àù€‹ö‹‹XŸW€ò[Y_Àõò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+KŸ^OZY…⁄Yâ ⁄Yäò[YO…€ò[YNâ €ò[YNâ‹õ›Œâ ⁄JN⁄YäŸY[ë‹õ›\Àö\ Ÿ^JJ\ô]\õàò[ŸN‹ŸY[ë‹õ›\ÀòY
+Ÿ^JN‹ô]\õàùY_JN¬àYä	
+	»€^T^Y\ë‹õ›\… J^¬à]‹õ›\[Y‹õ›\Àõ[ô›Ÿ‹õ›\ÀõX\
+œOâœ]à€\‹œHú^Y\àèèèâ Ÿ\ÿ Àù€‹ö‹‹XŸW€ò[YJJ…œÿèè]à€\‹œHõ]]YèîõŸö[ÿÿ[à	 Ÿ\ÿ Àú^Y\ó€ò[YJJ Àö\◊Ÿ‹õ›\€Y[Xô\è…»8†(àY[XúôIŒâ»8†(à[ùö]0ÍI J…œŸ]èèŸ]èâ Köõ⁄[ä	… Nâœ]à€\‹œHõ]]Yèê]X›[àõŸö[H‹õ›\Hô[pÍH›\àH[€Y[ùèŸ]èâŒ¬àYäÀù€‹ö‹‹XŸIâä\–YZ[ä
+_\–€€‹ô 
+JJ^¬à€€ú›[öŸY^Y\èJÀú^Y\úﬂ◊JKôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô Àõ^S[öŸY^Y\íY	… JN¬àYä[öŸY^Y\ä^¬à€€ú››\ë‹õ›\œY‹õ›\Àôö[\äœOî›ö[ô Àù€‹ö‹‹XŸW⁄YÀöY	… HOOT›ö[ô Àù€‹ö‹‹XŸKöY	… JN¬à€€ú››\í[[›\ë‹õ›\ÀõX\
+œOâœ]à€\‹œHú^Y\àèèèâ Ÿ\ÿ Àù€‹ö‹‹XŸW€ò[YJJ…œÿèè]à€\‹œHõ]]YèîõŸö[ÿÿ[à	 Ÿ\ÿ Àú^Y\ó€ò[YJJ Àö\◊Ÿ‹õ›\€Y[Xô\è…»8†(àY[XúôIŒâ»8†(à[ùö]0ÍI J…œŸ]èèŸ]èâ Köõ⁄[ä	… N¬à‹õ›\[Iœ]à€\‹œHú^Y\à›ŸK\Ÿ[ã[[öÀ[⁄»èè]èèèº'Í™à	 Ÿ\ÿ Àù€‹ö‹‹XŸKõò[Y_	—‹õ›\HX›Y[	 J…œÿèè]à€\‹œHõ]]Yèï€à€€\H‹ôÿ[ö\ÿ]]\à\›pÍH]HY[XúôHèâ Ÿ\ÿ [öŸY^Y\ãõò[YJJ…œÿèãàŸ\»›\õõ⁄\À›]»]õ›\»][\Ÿ[ùXZ[ù[ò[ùHpÍõYHQ’‚Hèâ Ÿ\ÿ úXõX◊‹^Y\ó⁄Y
+J…œÿèãàèêŸ]HXZ\€€à\›ô\úõ›Z[0ÍYOÿèà»Ÿ][H›\\àYZ[à]]H›\ö[Y\ãèŸ]èèŸ]èè‹[à€\‹œHô›Y\›XòYŸHèìp‚O‹‹[èèŸ]èâ €›\í[¬àY[Ÿ^¬à€€ú›ÿ[ôY]\œJÀú^Y\úﬂ◊JKôö[\äOûòX›]ôHOOYò[ŸIâûö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJN¬à‹õ›\[Iœ]à€\‹œHú^Y\à›ŸK\Ÿ[ã[[öÀXÿ\ôèè]à›[OHôõ^åHèèèº'Â%»ô[Y\à[€à€€\H‹ôÿ[ö\ÿ]]\à0Ë[€àY[XúôHõ›Y]\èÿèè]à€\‹œHõ]]Yèê⁄⁄\⁄\»€àõ€H[ú»ŸH‹õ›\Kà€àQ’‚H	 Ÿ\ÿ úXõX◊‹^Y\ó⁄Y
+J…»›Z]úòH[‹ú»]]€X]\]Y[Y[ù\»[úÿ‹ö\[€ú»]^›\õõ⁄\»[à€›\ú»]ù]\úÀèŸ]èè]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹éŸÿ\éèèŸ[X›YHõ^T^Y\îŸ[ìY[Xô\àà›[OHôõ^åHèè‹[€àò[YOHàèê⁄⁄\⁄\à[€àõŸö[Y[Xúôx†)è€‹[€èâ ÿÿ[ôY]\ÀõX\
+Oâœ‹[€àò[YOHâ Ÿ\ÿ öY
+J…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… J…œ‹Ÿ[X›èù]€àYHõ^T^Y\îŸ[ì[ö»à€\‹œHúö[X\ûHèê¯†&Y\›[⁄Oÿù]€èèŸ]èèŸ]èèŸ]èâ Ÿ‹õ›\[¬àBàBà	
+	»€^T^Y\ë‹õ›\… Kö[õô\íSY‹õ›\[¬àBà€€ú›[ùö]\œP\úò^Kö\–\úò^Jö[ùö]\ OŸö[ùö]\Œñ◊N¬àYä	
+	»€^T^Y\í[ùö]\… JI
+	»€^T^Y\í[ùö]\… Kö[õô\íSZ[ùö]\Àõ[ô›⁄[ùö]\ÀõX\
+OOâœ]à€\‹œHú^Y\àèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\éŸõ^]‹ò\ù‹ò\èè]èèèâ Ÿ\ÿ Kù€‹ö‹‹XŸW€ò[YJJ…»8†(à	 Ÿ\ÿ Kù›\õò[Y[ù€ò[Y_	‘›ÍI J…œÿèè]à€\‹œHõ]]Yèâ Ÿ\ÿ Kù›\õò[Y[ùŸ]_	… J Kú›\ù›[YO…»8†(à	 Ÿ\ÿ ›ö[ô Kú›\ù›[YJKú€XŸJJJNâ… J Kùô[ùYO…»8†(à	 Ÿ\ÿ Kùô[ùYJNâ… J…œŸ]èâ  KõY\‹ÿYŸO…œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç\èâ Ÿ\ÿ KõY\‹ÿYŸJJ…œŸ]èâŒâ… J…œŸ]èè‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›ö[ô Kú›]\ﬂ	‹[ô[ô… Kù’\\êÿ\ŸJ
+JJ…œ‹‹[èèŸ]èâ  Kú›]\œOOI‹[ô[ô…œ…œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹éèèù]€à€\‹œHúö[X\ûHà]K\^Y\ãZ[ùö]KXXÿŸ\Hâ ⁄KöY
+…»è∏ß!HXÿŸ\\èÿù]€èèù]€à]K\^Y\ãZ[ùö]KYX€[ôOHâ ⁄KöY
+…»èîôYù\Ÿ\èÿù]€èèŸ]èâŒâ… J…œŸ]èâ Köõ⁄[ä	… Nâœ]à€\‹œHõ]]Yèê]X›[ôH[ùö]][€ãèŸ]èâŒ¬à€€ú›^T›Ÿ\œP\úò^Kö\–\úò^Jõ^W‹›Ÿ\ OŸõ^W‹›Ÿ\Œñ◊N¬àYä	
+	»€^T^Y\ì^T›Ÿ\… JI
+	»€^T^Y\ì^T›Ÿ\… Kö[õô\íS[^T›Ÿ\Àõ[ô›€^T›Ÿ\ÀõX\
+œOâœ]à€\‹œHú^Y\àèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\åLŸõ^]‹ò\ù‹ò\èè]èèèâ Ÿ\ÿ Àù€‹ö‹‹XŸW€ò[YJJ…»8†(à	 Ÿ\ÿ Àù›\õò[Y[ù€ò[Y_	‘›ÍI J…œÿèè]à€\‹œHõ]]Yèº'‰·H	 Ÿ\ÿ Àù›\õò[Y[ùŸ]_	… J Àú›\ù›[YO…»8†(à	 Ÿ\ÿ ›ö[ô Àú›\ù›[YJKú€XŸJJJNâ… J…»8†(à<'‰„H	 Ÿ\ÿ Àùô[ùY_	”Y]H0Ë€€ôö\õY\â J…œŸ]èèŸ]èè‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›ö[ô ÀúôY⁄\›ò][€ó‹›]\ﬂ	ÿ€€ôö\õpÍI Kúô\XŸJ	◊…À	»	 Kù’\\êÿ\ŸJ
+JJ…œ‹‹[èèŸ]èâ  ÀúôY⁄\›ò][€ó‹›]\œOOI‹^[Y[ù‹[ô[ô…œ…œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹é\èâ ‹^Y\î^[Y[ùù]€ä J…œŸ]èâŒâ… J ù[Xô\äÀù\ô⁄[ó‹YŸWÿŸ[ùﬂ
+Oå…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çúèº'È‚à€€ùöXù][€àŸHZK][\»[õõ€òÍYHà	 Ÿ]\õ–Ÿ[ù Àù\ô⁄[ó‹YŸWÿŸ[ù J…œŸ]èâŒâ… J…œŸ]èâ Köõ⁄[ä	… Nâœ]à€\‹œHõ]]Yèê]X›[à›ÍH0Ëô[ö\ãèŸ]èâŒ¬à€€ú›ô\\œP\úò^Kö\–\úò^Júô\]Y\› OŸúô\]Y\›Œñ◊N¬àYä	
+	»€^T^Y\îô\]Y\›… JI
+	»€^T^Y\îô\]Y\›… Kö[õô\íS\ô\\Àõ[ô›‹ô\\ÀõX\
+èOâœ]à€\‹œHú^Y\àèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\åLŸõ^]‹ò\ù‹ò\èè]èèèâ Ÿ\ÿ ãù€‹ö‹‹XŸW€ò[YJJ…»8†(à	 Ÿ\ÿ ãù›\õò[Y[ù€ò[Y_	‘›ÍI J…œÿèè]à€\‹œHõ]]Yèâ Ÿ\ÿ ãù›\õò[Y[ùŸ]_	… J ãú›\ù›[YO…»8†(à	 Ÿ\ÿ ›ö[ô ãú›\ù›[YJKú€XŸJJJNâ… J…œŸ]èèŸ]èè‹[à€\‹œHô›Y\›XòYŸHèâ  ãú›]\œOOI‹[ô[ô…œ…—SàUSïIŒúãú›]\œOOIÿXÿŸ\Y	œ…–P–—T0‚QIŒâ‘ëQïT‚QI J…œ‹‹[èèŸ]èâ  ãõY\‹ÿYŸO…œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹çúèâ Ÿ\ÿ ãõY\‹ÿYŸJJ…œŸ]èâŒâ… J ãúôY⁄\›ò][€ó‹›]\œOOI‹^[Y[ù‹[ô[ô…œ…œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹é\èâ ‹^Y\î^[Y[ùù]€ääJ…œŸ]èâŒâ… J…œŸ]èâ Köõ⁄[ä	… Nâœ]à€\‹œHõ]]Yèê]X›[ôH[X[ôH[ùõﬁpÍYKèŸ]èâŒ¬à€€ú›õÿ›\‘›ŸO[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+KôŸ]
+	⁄õ⁄[î›ŸI Nÿ€€ú›‹J\úò^Kö\–\úò^Jù\€€Z[ô◊‹›Ÿ\ O÷Àããôù\€€Z[ô◊‹›Ÿ\◊Nñ◊JKú€‹ù
+
+KäOOî›ö[ô Kù›\õò[Y[ù⁄Y
+OOOT›ö[ô õÿ›\‘›ŸJOÀLNî›ö[ô ãù›\õò[Y[ù⁄Y
+OOOT›ö[ô õÿ›\‘›ŸJOÃNå
+N¬àYä	
+	»€^T^Y\ì‹‹ù[ö]Y\… JI
+	»€^T^Y\ì‹‹ù[ö]Y\… Kö[õô\íS[‹õ[ô›€‹õX\
+œOûÿ€€ú›[ŸO[Àô\ÿ€›ô\ûW€[ŸOOOI‹XõX…œ…‘PìP»8†(àSî–‘íTS”àTëP’IŒâ‘’TàSPSëIŒÿ€€ú›ôYOSù[Xô\äÀô[ùûWŸôYWÿŸ[ùﬂ
+Nÿ€€ú›^[Y[ù[Àô^\õò[‹^[Y[ù‹ô\]Z\ôY…œ]à€\‹œHú^Y\ã[‹‹ù[ö]K\öXŸHèº'‰¨»ZY[Y[ù[àY€ôHô\]Z\»8†(à€€ôö\õX][€à]]€X]\]YOŸ]èâŒâœ]à€\‹œHú^Y\ã[‹‹ù[ö]K\öXŸHúôYHè∏ß$»]X›[àZY[Y[ù[àY€ôH[\‹ÍH]Hõ›Y]\à^\õôOŸ]èâŒÿ€€ú›\ô[Àù\ô⁄[óŸ[òXõY…œXô[€\‹œHú^Y\ã\YŸHèè‹[èº'È‚àŸHZK][\œ‹‹[èè[ú]\OHõù[Xô\ààZ[èHåà›\HåçLà]K\YŸKYõ‹èHâ €Àù›\õò[Y[ù⁄Y
+…»àXŸZ€\èHê€€ùöXù][€à8†´àò[YOHâ  ù[Xô\äÀò€€€\ó‹›YŸŸ\›YÿŸ[ùﬂ
+KÃL	… J…»èè€Xô[âŒâ…Œ‹ô]\õà	œ]à€\‹œHú^Y\à^Y\ã[‹‹ù[ö]Hèè‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ [ŸJJ…œ‹‹[èèœâ Ÿ\ÿ Àù€‹ö‹‹XŸW€ò[YJJ…»8†(à	 Ÿ\ÿ Àù›\õò[Y[ù€ò[Y_	‘›ÍI J…œ⁄œè]à€\‹œHõ]]Yèº'‰·H	 Ÿ\ÿ Àù›\õò[Y[ùŸ]_	… J Àú›\ù›[YO…»8†(à	 Ÿ\ÿ ›ö[ô Àú›\ù›[YJKú€XŸJJJNâ… J…œŸ]èè]à€\‹œHõ]]Yèº'‰„H	 Ÿ\ÿ Àùô[ùY_	”Y]H0Ë€€ôö\õY\â J…»8†(à	 ”ù[Xô\äÀúô[XZ[ö[ô◊‹XŸ\ﬂ
+J…»XŸJ Hô\›[ùJ OŸ]èâ ‹^[Y[ù
+›\ô
+ Àô\ÿ€›ô\ûW€[ŸOOOI‹XõX…œ…œù]€à€\‹œHúö[X\ûHà]K\^Y\ãY\ôX›Zõ⁄[èHâ €Àù›\õò[Y[ù⁄Y
+…»à›[OHõX\ô⁄[ã]‹åLè∏¶®HôH\ùX⁄\Oÿù]€èâŒâœ^\ôXH]K\ô\]Y\›[Y\‹ÿYŸKYõ‹èHâ €Àù›\õò[Y[ù⁄Y
+…»àõ›‹œHåààXŸZ€\èHìY\‹ÿYŸH0Ë8†&[‹ôÿ[ö\ÿ]]\à
+òX›[]YäHà›[OHõX\ô⁄[ã]‹åLèè›^\ôXOèù]€à€\‹œHúö[X\ûHà]K\^Y\ã\ô\]Y\›Zõ⁄[èHâ €Àù›\õò[Y[ù⁄Y
+…»à›[OHõX\ô⁄[ã]‹éèº'Êb»[X[ô\à0Ë\ùX⁄\\èÿù]€èâ J…œŸ]èâﬂJKöõ⁄[ä	… Nâœ]à€\‹œHõ]]Yèê]X›[àõ›]ôX]H›ÍH0ËYôöX⁄\à›\àH[€Y[ùèŸ]èâŒ¬üBôù[ò›[€àô[ô\î^Y\ë\ôX›‹ûPÿ\ô
+
+^¬à€€ú›ÿ\ôI
+	»‹^Y\ë\ôX›‹ûPÿ\ô	 N⁄YäXÿ\ô
+\ô]\õé¬àÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\–YZ[ä
+JN¬àYäZ\–YZ[ä
+J\ô]\õé¬à€€ú›Ÿ[I
+	»‹^Y\ë\ôX›‹ûU›\õò[Y[ù	 N⁄YäŸ[
+^ÿ€€ú›ŸY\\Ÿ[ùò[YNÿ€€ú››\úœJÀù›\õò[Y[ùﬂ◊JKôö[\äOùú›]\»OOIŸö[ö\⁄Y	 N‹Ÿ[ö[õô\íSIœ‹[€àò[YOHàèê⁄⁄\⁄\àH›ÍH0Ë€€\0Í]\∏†)è€‹[€èâ ››\úÀõX\
+Oâœ‹[€àò[YOHâ ›öY
+…»èâ Ÿ\ÿ õò[Y_ù›\õò[Y[ùŸ]JJ…»8†(à	 Ÿ\ÿ ù›\õò[Y[ùŸ]JJ…œ€‹[€èâ Köõ⁄[ä	… N⁄YäÀããúŸ[õ‹[€ú◊Kú€€YJœOõÀùò[YOOOZŸY\
+J\Ÿ[ùò[YOZŸY\ﬂBà€€ú›õﬁI
+	»‹^Y\ë\ôX›‹ûTô\›[… N⁄YäXõﬁ
+\ô]\õé¬à€€ú›õ›‹œTÀú^Y\ë\ôX›‹û_◊N¬àYä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ]à€\‹œHõ]]Yèì[òŸH[ôHôX⁄\ò⁄H›\à€€ú›[\à\»õ›Y]\ú»XõX‹»\‹€öXõ\ÀèŸ]èâŒ‹ô]\õéﬂBàõﬁö[õô\íS\õ›‹ÀõX\
+èOâœ]à€\‹œHú^Y\à\ôX›‹ûK\^Y\àèè]à›[OHôõ^åHèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ùŸÿ\éŸõ^]‹ò\ù‹ò\èèèâ Ÿ\ÿ ãô\‹^W€ò[YJJ…œÿèè‹[à€\‹œHú^Y\ãZY[Z[öHèâ Ÿ\ÿ ãúXõX◊‹^Y\ó⁄Y
+J…œ‹‹[èèŸ]èè]à€\‹œHõ]]Yèâ Ÿ\ÿ ãö€YWÿ\ôX_	÷õ€ôHõ€àô[úŸZY€∞ÍYI J…»8†(à	 ”ù[Xô\äãô‹õ›\◊ÿ€›[ù
+J…»‹õ›\J H8†(à	 ”ù[Xô\äãù›\õò[Y[ù◊ÿ€›[ù
+J…»›ÍJ OŸ]èè]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹çè∏¶ØH	 ”ù[Xô\äãõX]⁄\◊ÿ€›[ù
+J…»X]⁄»8†(à<'ÈaH	 ”ù[Xô\äãô€ÿ[◊ÿ€›[ù
+J…»ù]»8†(à<'„´»	 ”ù[Xô\äãò\‹⁄\›◊ÿ€›[ù
+J…»\‹Ÿ\…  ãúò][ô»O[ù[…»8†(à8´d	 ”ù[Xô\äãúò][ô Kù—ö^Y
+JJ…ÀÕIŒâ… J…œŸ]èèŸ]èèù]€à€\‹œHúö[X\ûHà]KY\ôX›‹ûKZ[ùö]OHâ ‹ãô€ÿò[‹^Y\ó⁄Y
+…»èí[ùö]\à]H›ÍOÿù]€èèŸ]èâ Köõ⁄[ä	… N¬üBÇôù[ò›[€àô[ô\êYZ[î^Y\îô\]Y\› 
+^¬à€€ú›ÿ\ôI
+	»‹^Y\î\ùX⁄\][€îô\]Y\›–ÿ\ô	 KõﬁI
+	»‹^Y\î\ùX⁄\][€îô\]Y\›… N⁄YäXÿ\ôXõﬁ
+\ô]\õéÿÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\–YZ[ä
+JN⁄YäZ\–YZ[ä
+J\ô]\õé¬à€€ú›õ›‹œTÀú^Y\îô\]Y\›ﬂ◊N⁄Yä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ]à€\‹œHõ]]Yèê]X›[ôH[X[ôHH\ùX⁄\][€à›\àH[€Y[ùèŸ]èâŒ‹ô]\õéﬂBàõﬁö[õô\íS\õ›‹ÀõX\
+èOâœ]à€\‹œHú^Y\àô\]Y\›\õ›»èè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\åLŸõ^]‹ò\ù‹ò\èè]èè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ùŸÿ\ç‹Ÿõ^]‹ò\ù‹ò\èèèâ Ÿ\ÿ ãô\‹^W€ò[YJJ…œÿèè‹[à€\‹œHú^Y\ãZY[Z[öHèâ Ÿ\ÿ ãúXõX◊‹^Y\ó⁄Y
+J…œ‹‹[èèŸ]èè]à€\‹œHõ]]Yèâ Ÿ\ÿ ãö€YWÿ\ôX_	÷õ€ôHõ€àô[úŸZY€∞ÍYI J…»8†(à	 Ÿ\ÿ ãù›\õò[Y[ù€ò[Y_	‘›ÍI J…»8†(à	 Ÿ\ÿ ãù›\õò[Y[ùŸ]_	… J…œŸ]èèŸ]èè‹[à€\‹œHô›Y\›XòYŸHèâ  ãú›]\œOOI‹[ô[ô…œ…—SàUSïIŒúãú›]\œOOIÿXÿŸ\Y	œ…–P–—T0‚QIŒâ‘ëQïT‚QI J…œ‹‹[èèŸ]èâ  ãõY\‹ÿYŸO…œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç‹èº'‰´	 Ÿ\ÿ ãõY\‹ÿYŸJJ…œŸ]èâŒâ… J ù[Xô\äãù\ô⁄[ó‹YŸWÿŸ[ùﬂ
+Oå…œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç\èº'È‚à€€ùöXù][€à[õõ€òÍYHà	 Ÿ]\õ–Ÿ[ù ãù\ô⁄[ó‹YŸWÿŸ[ù J…œŸ]èâŒâ… J ãô^\õò[‹^[Y[ù‹ô\]Z\ôY…œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç\èº'‰¨»ZY[Y[ù^YÍHà	 Ÿ]\õ–Ÿ[ù ãô[ùûWŸôYWÿŸ[ù J ãú^[Y[ù‹ôXYO…»8†(à∞Íù	Œâ»8†(à€€ôöY›\ò][€àô\]Z\ŸI J…œŸ]èâŒâ… J ãú›]\œOOI‹[ô[ô…œ…œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹é\èèù]€à€\‹œHúö[X\ûHà]K\ô\]Y\›XXÿŸ\Hâ ‹ãúô\]Y\›⁄Y
+…»è∏ß!HXÿŸ\\èÿù]€èèù]€à]K\ô\]Y\›YX€[ôOHâ ‹ãúô\]Y\›⁄Y
+…»èîôYù\Ÿ\èÿù]€èèŸ]èâŒâ… J…œŸ]èâ Köõ⁄[ä	… N¬üBôù[ò›[€àô[ô\ï€‹ö‹‹XŸT›⁄]⁄\ä
+^¬à€€ú›Ÿ[I
+	»›€‹ö‹‹XŸT›⁄]⁄\â N⁄Yä\Ÿ[
+\ô]\õé¬à€€ú›õ›‹œTÀõY[Xô\ú⁄\ﬂ◊N¬àŸ[ò€\‹”\›ùŸŸ€J	⁄Y[âÀõ›‹Àõ[ô›äN¬àYäõ›‹Àõ[ô›ä^‹Ÿ[ö[õô\íSI…Œ‹ô]\õéﬂBà€€ú›YZ[úœ\õ›‹Àôö[\äèOúãúõ€OOOIÿYZ[â N¬à€€ú›€€‹ô‹œ\õ›‹Àôö[\äèOúãúõ€HOOIÿYZ[â N¬à][I…Œ¬àYäYZ[úÀõ[ô›
+Z[
+œIœ‹‹õ›\Xô[Hº'‰dHY\»‹õ›\\»8†%YZ[ö\›ò]]\àèâ ÿYZ[úÀõX\
+èOâœ‹[€àò[YOHâ Ÿ\ÿ ãù€‹ö‹‹XŸW⁄Y
+J…»â  ›ö[ô ãù€‹ö‹‹XŸW⁄Y
+OOOT›ö[ô Àù€‹ö‹‹XŸOÀöY
+O…»Ÿ[X›Y	Œâ… J…œº'‰dH	 Ÿ\ÿ ãù€‹ö‹‹XŸ\œÀõò[Y_	—\‹XŸH’‚I J…»8†%YZ[ö\›ò]]\è€‹[€èâ Köõ⁄[ä	… J…œ€‹‹õ›\âŒ¬àYä€€‹ô‹Àõ[ô›
+Z[
+œIœ‹‹õ›\Xô[Hº'ÊË;Ó#»‹õ›\\»]YHôH€ÀYÍôHèâ ÿ€€‹ô‹ÀõX\
+èOâœ‹[€àò[YOHâ Ÿ\ÿ ãù€‹ö‹‹XŸW⁄Y
+J…»â  ›ö[ô ãù€‹ö‹‹XŸW⁄Y
+OOOT›ö[ô Àù€‹ö‹‹XŸOÀöY
+O…»Ÿ[X›Y	Œâ… J…œº'ÊË;Ó#»	 Ÿ\ÿ ãù€‹ö‹‹XŸ\œÀõò[Y_	—\‹XŸH’‚I J…»8†%€ÀYŸ\›[€õòZ\ôO€‹[€èâ Köõ⁄[ä	… J…œ€‹‹õ›\âŒ¬àŸ[ö[õô\íSZ[¬àŸ[ù]OI–⁄\]YH‹õ›\H€€úŸ\ùôHŸ\»õ‹ô\»õ›Y]\úÀ€€\0Í]][€úÀõ⁄]»]∞ÍY€YŸ\ÀâŒ¬üBôù[ò›[€àô[ô\ì‹ôÿ[ö^ô\êXÿŸ\‹–ò[õô\ä
+^¬à€€ú›õﬁI
+	»€‹ôÿ[ö^ô\êXÿŸ\‹–ò[õô\â N⁄YäXõﬁ
+\ô]\õé¬à€€ú›OTÀõ‹ôÿ[ö^ô\êXÿŸ\‹Œ¬àYäTÀù€‹ö‹‹XŸ_XJ^ÿõﬁò€\‹”\›òY
+	⁄Y[â Nÿõﬁö[õô\íSI…Œ‹ô]\õéﬂBàYäKùöX[ÿX›]ôJ^¬àõﬁò€\‹”\›úô[[›ôJ	⁄Y[âÀ	Ÿ^\ôY	 N¬àõﬁö[õô\íSIœ]èèèº'„†H\‹ÿZH‹ôÿ[ö\ÿ]]\à8†(à	 ”ù[Xô\äKô^\◊‹ô[XZ[ö[ôﬂ
+J…»õ›\â  ù[Xô\äKô^\◊‹ô[XZ[ö[ôﬂ
+OåO…‹…Œâ… J…»ô\›[ù	  ù[Xô\äKô^\◊‹ô[XZ[ö[ôﬂ
+OåO…‹…Œâ… J…œÿèè‹[èï›]\»\»‹[€ú»€€ù0ÍXõ‹]pÍY\»[ô[ùåõ›\úÀà[ú›Z]K⁄⁄\⁄\»[àXõ€õô[Y[ù›\à€€ù[ùY\à0Ë‹ôÿ[ö\Ÿ\ãè‹‹[èèŸ]èèù]€à\OHòù]€àà]KY€œHö€YHèë0ÍXõ‹]Y\à›]HHZ\‹ÿ[òŸH’‚H8°§èÿù]€èâŒ¬àô]\õé¬àBàYäKúô\]Z\ô\◊‹›Xúÿ‹ö\[€ä^¬àõﬁò€\‹”\›úô[[›ôJ	⁄Y[â Nÿõﬁò€\‹”\›òY
+	Ÿ^\ôY	 N¬àõﬁö[õô\íSIœ]èèè∏£Ï»€à\‹ÿZH‹ôÿ[ö\ÿ]]\à\›\õZ[∞ÍOÿèè‹[èï\»€õ∞ÍY\»€€ù€€úŸ\ù∞ÍY\»[àX›\ôHŸ][Kà⁄⁄\⁄\»[ôHõ‹õ][H’‚H›\àô\ô[ôôH8†&[‹ôÿ[ö\ÿ][€ãè‹‹[èèŸ]èèù]€à\OHòù]€ààYHùöX[⁄€‹ŸT[àà€\‹œHúö[X\ûHèïõ⁄\à\»õ‹õ][\»’‚Oÿù]€èâŒ¬àô]\õé¬àBàõﬁò€\‹”\›òY
+	⁄Y[â Nÿõﬁö[õô\íSI…Œ¬üBò\ﬁ[ò»ù[ò›[€àÿY€òõÿ\ô[ô‘›]\ 
+^¬à€€ú›èX]ÿZ]ÿãúú 	ŸŸ]€^W€€òõÿ\ô[ô◊‹›]\… N¬àÀõ€òõÿ\ô[ô‘›]\œ\ãô\úõ‹è€ù[äãô]_ù[
+N¬àô]\õàÀõ€òõÿ\ô[ô‘›]\Œ¬üBôù[ò›[€à‹[ì‹ôÿ[ö^ô\îŸ]\
+\OIŸ‹õ›\	 ^¬à	
+	»ÿXÿ€›[ù€òõÿ\ô[ô… OÀò€\‹”\›òY
+	⁄Y[â N¬à	
+	»›€‹ö‹‹XŸTŸ]\	 OÀò€\‹”\›úô[[›ôJ	⁄Y[â N¬à€€ú›òY[œYÿ›[Y[ùú]Y\ûTŸ[X›‹ä	⁄[ú]€ò[YOHõ‹ôÿ[ö^ô\ï\HóV›ò[YOHâ  \OOOI‹õ…œ…‹õ…ŒâŸ‹õ›\	 J…»óI N⁄YäòY[ \òY[Àò⁄X⁄ŸY]ùYN¬à€€ú›[úI
+	»€ô]’€‹ö‹‹XŸI N⁄Yä[ú	âàZ[úùò[YJZ[úùò[YO]\OOOI‹õ…œ…”[€à‹ôÿ[ö\ÿ][€à’‚IŒâ”[€à‹õ›\H’‚IŒ¬àŸ][Y[›]
+
+
+OOö[úÀôõÿ›\ 
+KL
+N¬üBôù[ò›[€à⁄›–Xÿ€›[ù€òõÿ\ô[ô 
+^¬à	
+	»ÿXÿ€›[ù€òõÿ\ô[ô… OÀò€\‹”\›úô[[›ôJ	⁄Y[â N¬à	
+	»›€‹ö‹‹XŸTŸ]\	 OÀò€\‹”\›òY
+	⁄Y[â N¬üBôù[ò›[€àô[ô\ê€€‹ô”‹ôÿ[ö^ô\ê›J
+^¬à€€ú›ÿ\ôI
+	»ÿ€€‹ô”‹ôÿ[ö^ô\ê›I N⁄YäXÿ\ô
+\ô]\õé¬àÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\–€€‹ô 
+JN¬üBÇò\ﬁ[ò»ù[ò›[€àõ€›
+
+^¬à]ÿZ]ÿY[ùö]\ 
+N¬àYä]ÿZ][ö]›\\êYZ[ä
+J\ô]\õé¬à€€ú››\úô[ù\Ÿ\íYTÀúŸ\‹⁄[€èÀù\Ÿ\èÀöY¬àYäX›\úô[ù\Ÿ\íY
+\ô]\õàÿ\›
+	‘Ÿ\‹⁄[€à][\ÿ]]\à[ùõ›]òXõKâ N¬à]ÿZ]ÿY€òõÿ\ô[ô‘›]\ 
+N¬à]Y[Xô\ú⁄\]Y\ûO\ÿãôúõ€J	›€‹ö‹‹XŸW€Y[Xô\ú… BàúŸ[X›
+	›€‹ö‹‹XŸW⁄Yõ€K€‹ö‹‹XŸ\ ò[YKXõX◊›⁄Ÿ[ãXõX◊Ÿ[òXõYò][ô◊Ÿ‹õ›\€ò[YJI Bàô\J	›\Ÿ\ó⁄Y	À›\úô[ù\Ÿ\íY
+Bàô\J	ÿX›]ôIÀùYJBàõ[Z]
+L
+N¬àYäÀù\›YZ[ê€€ù^
+[Y[Xô\ú⁄\]Y\ûO[Y[Xô\ú⁄\]Y\ûKô\J	›€‹ö‹‹XŸW⁄Y	ÀÀù\›YZ[ê€€ù^ù€‹ö‹‹XŸW⁄Y
+N¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]Y[Xô\ú⁄\]Y\ûN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÀõY[Xô\ú⁄\œP\úò^Kö\–\úò^J]JOŸ]Nñ◊N¬àYäTÀõY[Xô\ú⁄\Àõ[ô›
+^¬àÀù€‹ö‹‹XŸO[ù[‘Àõ‹ôÿ[ö^ô\êXÿŸ\‹œ[ù[¬àô[ô\ï€‹ö‹‹XŸT›⁄]⁄\ä
+N‹ô[ô\ì‹ôÿ[ö^ô\êXÿŸ\‹–ò[õô\ä
+N¬à]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	ÀùXú»ùXâ Kôõ‹ëXX⁄
+Oùú›[Kô\‹^O]ô]\Ÿ]ùöY]œOOI€^\^Y\âœ……Œâ€õ€ôI N¬àŸ]öY] 	€^\^Y\â N¬à	
+	»›€‹ö‹‹XŸSò[YI Kù^€€ù[ùI”[€àõŸö[õ›Y]\à’‚IŒ¬àYäÀõ€òõÿ\ô[ô‘›]\œÀò€€\]Y
+^¬à	
+	»ÿXÿ€›[ù€òõÿ\ô[ô… OÀò€\‹”\›òY
+	⁄Y[â N¬à	
+	»›€‹ö‹‹XŸTŸ]\	 OÀò€\‹”\›òY
+	⁄Y[â N¬àY[ŸH⁄›–Xÿ€›[ù€òõÿ\ô[ô 
+N¬àô]\õé¬àBà€€ú›ô\]Y\›Y€‹ö‹‹XŸO[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+KôŸ]
+	›€‹ö‹‹XŸI N¬à€€ú››‹ôYTÀù\›YZ[ê€€ù^Àù€‹ö‹‹XŸW⁄Yô\]Y\›Y€‹ö‹‹XŸ_ÿÿ[›‹òYŸKôŸ]][J	‹›ŸW›€‹ö‹‹XŸW⁄Y	 N¬à€€ú›⁄‹Ÿ[èTÀõY[Xô\ú⁄\Àôö[ô
+Oî›ö[ô ù€‹ö‹‹XŸW⁄Y
+OOOT›ö[ô ›‹ôY
+J_ÀõY[Xô\ú⁄\÷ÃN¬àÀù€‹ö‹‹XŸO^⁄Yò⁄‹Ÿ[ãù€‹ö‹‹XŸW⁄Yò[YNò⁄‹Ÿ[ãù€‹ö‹‹XŸ\œÀõò[Y_	‘’‚H›\õò[Y[ùKÕIÀò][ô◊Ÿ‹õ›\€ò[YNò⁄‹Ÿ[ãù€‹ö‹‹XŸ\œÀúò][ô◊Ÿ‹õ›\€ò[Y_	…Àõ€Nò⁄‹Ÿ[ãúõ€KXõX◊›⁄Ÿ[éò⁄‹Ÿ[ãù€‹ö‹‹XŸ\œÀúXõX◊›⁄Ÿ[üù[XõX◊Ÿ[òXõYò⁄‹Ÿ[ãù€‹ö‹‹XŸ\œÀúXõX◊Ÿ[òXõYOOYò[Ÿ_N¬àYäTÀù\›YZ[ê€€ù^
+[ÿÿ[›‹òYŸKúŸ]][J	‹›ŸW›€‹ö‹‹XŸW⁄Y	ÀÀù€‹ö‹‹XŸKöY
+N¬à	
+	»›€‹ö‹‹XŸTŸ]\	 Kò€\‹”\›òY
+	⁄Y[â N…
+	»ÿXÿ€›[ù€òõÿ\ô[ô… OÀò€\‹”\›òY
+	⁄Y[â N¬à€€ú›XÿŸ\‹œX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸW€‹ôÿ[ö^ô\óÿXÿŸ\‹…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN¬àÀõ‹ôÿ[ö^ô\êXÿŸ\‹œXXÿŸ\‹Àô\úõ‹è€ù[äXÿŸ\‹Àô]_ù[
+N¬àô[ô\ï€‹ö‹‹XŸT›⁄]⁄\ä
+N‹ô[ô\ì‹ôÿ[ö^ô\êXÿŸ\‹–ò[õô\ä
+N¬à]ÿZ]ÿY‹‹ù’ô[ùY\ 
+N¬à]ÿZ]ÿY[
+
+N¬à]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N¬à	
+	»›€‹ö‹‹XŸSò[YI Kù^€€ù[ùTÀù€‹ö‹‹XŸKõò[YJ…»8†(à	  Àù€‹ö‹‹XŸKúõ€OOOIÿYZ[âœ…–YZ[ö\›ò]]\âŒä\’[\‹ò\ûPYZ[ä
+O…–€À[‹ôÿ[ö\ÿ]]\à8†(àYZ[à[\‹òZ\ôIŒâ–€À[‹ôÿ[ö\ÿ]]\â JN¬à\T\õZ\‹⁄[€ú 
+N‹ô[ô\ê€€‹ô”‹ôÿ[ö^ô\ê›J
+N‹›Xúÿ‹öXôTôX[[YJ
+N‹›\ùÿYôP\ﬁ[ò 
+N¬àYäÀù\›YZ[ê€€ù^
+^¬à€€ú›\ôŸ]TÀù›\õò[Y[ùÀôö[ô
+OùöYOOTÀù\›YZ[ê€€ù^ù›\õò[Y[ù⁄Y
+N¬àYä]\ôŸ]
+\ô]\õàÿ\›
+	’›\õõ⁄H\›[ùõ›]òXõH[ú»Ÿ]\‹XŸKâ N¬àÀòX›]ôU›\è]\ôŸ]öYÿ]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ê[
+
+N‹Ÿ]öY] 	››\õò[Y[ù… N¬àYäYÿ›[Y[ùôŸ][[Y[ùûRY
+	›\›YZ[îô]\õâ J^ÿ€€ú›OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿI NÿKöYI›\›YZ[îô]\õâŒÿKöôYèIÀŸõ‹ú‹ÿYZ[ã…ŒÿKù^€€ù[ùI¯°§ô]›\à]H›\\àYZ[âŒÿKò€\‹”ò[YOIÿùâŒŸÿ›[Y[ùôŸ][[Y[ùûRY
+	›€‹ö‹‹XŸSò[YI KòYù\äJNﬂBàY[Ÿ^ÿ€€ú››\ù[ŸO[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+KôŸ]
+	‹›\ù	 N⁄Yä›\ù[ŸOOOI‹^Y\â \Ÿ]öY] 	€^\^Y\â NŸ[ŸHYä›\ù[ŸOOOI⁄€YI \Ÿ]öY] 	⁄€YI NﬂBüBâ
+	»ÿ‹ôX]U€‹ö‹‹XŸI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ùèI
+	»ÿ‹ôX]U€‹ö‹‹XŸI Nÿ€€ú›ò[YOI
+	»€ô]’€‹ö‹‹XŸI OÀùò[YKùö[J
+N¬àYä[ò[YJ\ô]\õàÿ\›
+	“[ô\]YHHõ€HH€à‹õ›\H›HH€à‹ôÿ[ö\ÿ][€ãâ N¬à€€ú›\OYÿ›[Y[ùú]Y\ûTŸ[X›‹ä	⁄[ú]€ò[YOHõ‹ôÿ[ö^ô\ï\HóNò⁄X⁄ŸY	 OÀùò[Y_	Ÿ‹õ›\	Œ¬àùãô\ÿXõY]ùYNÿùãù^€€ù[ùI–‹∞ÍX][€∏†)âŒ¬àû^¬à€€ú›Ÿ]Nù€‹ö‹‹XŸRY\úõ‹üOX]ÿZ]ÿãúú 	ÿ‹ôX]W€‹ôÿ[ö^ô\ó›€‹ö‹‹XŸW›öX[	À‹€ò[YNõò[YK€‹ôÿ[ö^ô\ó›\Nù\_JN¬àYä\úõ‹ä]õ›»\úõ‹é⁄Yä]€‹ö‹‹XŸRY
+]õ›»ô]»\úõ‹ä	“[\‹‹⁄XõHH‹∞ÍY\à8†&Y\‹XŸKâ N¬àÿÿ[›‹òYŸKúŸ]][J	‹›ŸW›€‹ö‹‹XŸW⁄Y	À€‹ö‹‹XŸRY
+N¬àÿ\›
+	—\‹XŸH‹∞ÍpÍH8†(à\»à[⁄\»8†&Y\‹ÿZH€€[Y[òŸ[ùXZ[ù[ò[ù<'„†I N¬à]ÿZ]õ€›
+
+N‹Ÿ]öY] 	⁄€YI N¬àXÿ]⁄
+\úõ‹ä^›ÿ\›
+úöY[ôP]]\úõ‹ä\úõ‹äJ_Bàö[ò[^ÿùãô\ÿXõYYò[ŸNÿùãù^€€ù[ùHê‹∞ÍY\à[€à\‹XŸH]0Í[X\úô\à8†&Y\‹ÿZHüBüN¬â
+	»ÿÿ[òŸ[€‹ö‹‹XŸTŸ]\	 OÀòY]ô[ù\›[ô\ä	ÿ€X⁄…À
+
+OOû¬à	
+	»›€‹ö‹‹XŸTŸ]\	 OÀò€\‹”\›òY
+	⁄Y[â N¬àYäTÀù€‹ö‹‹XŸIâàTÀõ€òõÿ\ô[ô‘›]\œÀò€€\]Y
+\⁄›–Xÿ€›[ù€òõÿ\ô[ô 
+N¬üJN¬â
+	»›€‹ö‹‹XŸT›⁄]⁄\â OÀòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû€ÿÿ[›‹òYŸKúŸ]][J	‹›ŸW›€‹ö‹‹XŸW⁄Y	ÀKù\ôŸ]ùò[YJN€ÿÿ][€ãúô[ÿY
+
+NﬂJN¬ÇÇôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬à€€ú›[ù[ùYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K[€òõÿ\ô[ôÀZ[ù[ùI OÀô]\Ÿ]õ€òõÿ\ô[ô“[ù[ù¬àYä[ù[ùOOI‹^Y\â ^¬à€€ú›èYKù\ôŸ]ò€‹Ÿ\›
+	÷Ÿ]K[€òõÿ\ô[ôÀZ[ù[ùI Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿ€€\]W€^W€€òõÿ\ô[ô…À‹⁄[ù[ùâ‹^Y\âﬂJNÿãô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àõ€òõÿ\ô[ô‘›]\œ^ÀããäÀõ€òõÿ\ô[ô‘›]\ﬂﬂJK€€\]YùùYKö[X\ûW⁄[ù[ùâ‹^Y\âﬂN¬à	
+	»ÿXÿ€›[ù€òõÿ\ô[ô… OÀò€\‹”\›òY
+	⁄Y[â N…
+	»›€‹ö‹‹XŸTŸ]\	 OÀò€\‹”\›òY
+	⁄Y[â N‹Ÿ]öY] 	€^\^Y\â N›ÿ\›
+	‘õŸö[õ›Y]\àX›]∞ÍH8¶ØI N‹ô]\õé¬àBàYä[ù[ùOOI€‹ôÿ[ö^ô\â ^€‹[ì‹ôÿ[ö^ô\îŸ]\
+	Ÿ‹õ›\	 N‹ô]\õéﬂBàYäKù\ôŸ]ÀöYOOIÿôX€€YS‹ôÿ[ö^ô\âﬂKù\ôŸ]ÀöYOOIÿ€€‹ô–‹ôX]S›€ï€‹ö‹‹XŸI ^€‹[ì‹ôÿ[ö^ô\îŸ]\
+	Ÿ‹õ›\	 N…
+	»›€‹ö‹‹XŸTŸ]\	 OÀúÿ‹õ€[ù’öY] ÿôZ]ö[‹éâ‹€[€›	Àõÿ⁄Œâ‹›\ù	ﬂJN‹ô]\õéﬂBàYäKù\ôŸ]ÀöYOOI›öX[⁄€‹ŸT[â ^‹Ÿ]öY] 	⁄€YI N‹Ÿ][Y[›]
+
+
+OOâ
+	»⁄€YQX€‹ﬁ\›[Pÿ\ô	 OÀúÿ‹õ€[ù’öY] ÿôZ]ö[‹éâ‹€[€›	Àõÿ⁄Œâ‹›\ù	ﬂJKL
+N‹ô]\õéﬂBüJN¬Çò\ﬁ[ò»ù[ò›[€àÿY[ùö]\ 
+^¬à€€ú›õﬁI
+	»⁄[ùö]S\›	 Nÿõﬁö[õô\íSI…Œ¬à€€ú›\Ÿ\ë[XZ[JÀúŸ\‹⁄[€èÀù\Ÿ\èÀô[XZ[	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬àYä]\Ÿ\ë[XZ[
+^…
+	»⁄[ùö]Põﬁ	 Kò€\‹”\›òY
+	⁄Y[â N‹ô]\õüBà€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãôúõ€J	›€‹ö‹‹XŸW⁄[ùö]\… BàúŸ[X›
+	⁄Y[XZ[õ€K€‹ö‹‹XŸW⁄Y^[Y[ù‹ô\‹€ú⁄Xö[]K^[Y[ù‹›]\À€‹ö‹‹XŸ\ ò[YJI Bàö\ 	ÿXÿŸ\Yÿ]	Àù[
+Bàö[ZŸJ	Ÿ[XZ[	À\Ÿ\ë[XZ[
+N¬àYä\úõ‹ä^…
+	»⁄[ùö]Põﬁ	 Kò€\‹”\›òY
+	⁄Y[â N‹ô]\õüBà]Z[ôOJ]_◊JKôö[\äOOäKô[XZ[	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+OOO]\Ÿ\ë[XZ[
+N¬àYä[ùö]RYúõ€U\õ
+[Z[ôO[Z[ôKú€‹ù
+
+KäOOäKöYOOZ[ùö]RYúõ€U\õÀLNå
+KJãöYOOZ[ùö]RYúõ€U\õÀLNå
+JN¬à	
+	»⁄[ùö]Põﬁ	 Kò€\‹”\›ùŸŸ€J	⁄Y[âÀ[Z[ôKõ[ô›
+N¬àZ[ôKôõ‹ëXX⁄
+OOû¬àÀ»HZY[ùö]][€à\»]»›€à⁄X⁄€›]»ô]ô\à⁄›»HúôYHXÿŸ\[òŸHX›[€ãÇàYäKúõ€OOOIÿ€€‹ôÿ[ö^ô\â…âöKú^[Y[ù‹ô\‹€ú⁄Xö[]OOOI⁄[ùö]YI ^¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹›ŸK\Ÿ[ú^KZ[ùö]IŒŸô]\Ÿ]úŸ[ú^R[ùö]OZKöY¬àù^€€ù[ùI–⁄\ôŸ[Y[ùH€à[ùö]][€à€ÀYŸ\›[€õòZ\ôx†)âŒÿõﬁò\[ô⁄[
+
+N‹ô]\õé¬àBà€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\âŒ¬àö[õô\íSIœèí[ùö]][€à0ËôZõ⁄[ôôH	 Ÿ\ÿ Kù€‹ö‹‹XŸ\œÀõò[Y_	‘’‚H’TìêSQSïKÕI J…œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèê€€õôX›0ÍH]ôX»	 Ÿ\ÿ \Ÿ\ë[XZ[
+J…Àà€\]YH⁄KY\‹€›\»›\à]ô[ö\à€À[‹ôÿ[ö\ÿ]]\ãèŸ]èâŒ¬à€€ú›èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿãù^€€ù[ùI¯ß!HXÿŸ\\à8†&Z[ùö]][€âŒÿãò€\‹”ò[YOI‹ö[X\ûIŒÿãú›[KõX\ô⁄[ï‹IŒ	Œ¬àãõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿXÿŸ\›€‹ö‹‹XŸW⁄[ùö]IÀ‹⁄[ùö]W⁄YöKöYJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àYäKù€‹ö‹‹XŸW⁄Y
+[ÿÿ[›‹òYŸKúŸ]][J	‹›ŸW›€‹ö‹‹XŸW⁄Y	ÀKù€‹ö‹‹XŸW⁄Y
+N¬à\›‹ûKúô\XŸT›]JﬂK	…ÀT’Tì
+N¬àÿ\›
+	“[ùö]][€àXÿŸ\0ÍYH8ß!I N¬à]ÿZ]õ€›
+
+N‹Ÿ]öY] 	⁄€YI N¬àN¬àò\[ô⁄[
+äNÿõﬁò\[ô⁄[
+
+BàJN¬à⁄[ô›Àî’—P€€‹ôÿ[ö^ô\í[ùö]\œÀúôYúô\⁄
+
+N¬üBò\ﬁ[ò»ù[ò›[€àÿY[
+
+^¬àYäTÀù€‹ö‹‹XŸJ\ô]\õéÿ€€ú›œTÀù€‹ö‹‹XŸKöY€]é¬àÀòYZ[îõŸö[O[ù[¬àYä\–YZ[ä
+J^¬à€€ú›\X]ÿZ]ÿãôúõ€J	›€‹ö‹‹XŸWÿYZ[ó‹õŸö[\… KúŸ[X›
+	Ÿö\ú›€ò[YK\›€ò[YI Kô\J	›€‹ö‹‹XŸW⁄Y	À Kô\J	›\Ÿ\ó⁄Y	ÀÀúŸ\‹⁄[€èÀù\Ÿ\èÀöY
+KõX^XôT⁄[ô€J
+N¬àYäX\ô\úõ‹ââò\ô]JTÀòYZ[îõŸö[OX\ô]N¬àBàèX]ÿZ]ÿãôúõ€J	›€‹ö‹‹XŸW€Y[Xô\ú… KúŸ[X›
+	›\Ÿ\ó⁄Yõ€KX›]ôI Kô\J	›€‹ö‹‹XŸW⁄Y	À N‘ÀõY[Xô\úœ\ãô]_◊N¬àèX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸWÿ€€‹ôÿ[ö^ô\óÿ€›[ù	À‹›€‹ö‹‹XŸW⁄YùﬂJN‘Àò€€‹ô–€›[ùSù[Xô\äãô]_
+N¬à€€ú›ÿOX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸW€‹ôÿ[ö^ô\óÿXÿŸ\‹…À‹›€‹ö‹‹XŸW⁄YùﬂJN⁄Yä[ÿKô\úõ‹äTÀõ‹ôÿ[ö^ô\êXÿŸ\‹œ[ÿKô]_ù[‹ô[ô\ì‹ôÿ[ö^ô\êXÿŸ\‹–ò[õô\ä
+N¬àèX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸWŸôX]\ô\◊›åâÀ‹›€‹ö‹‹XŸW⁄YùﬂJN¬àYäãô\úõ‹ä^¬à€€ú€€Kô\úõ‹ä	ŸŸ]›€‹ö‹‹XŸWŸôX]\ô\◊›åâÀãô\úõ‹äN¬àÿ\›
+	“[\‹‹⁄XõHH∞Í\öYöY\à\»[Ÿ[\»HŸ]\‹XŸKàôX⁄\ôŸHHYŸKâ N¬àY[Ÿ^¬à€€ú›èP\úò^Kö\–\úò^Jãô]JO‹ãô]VÃNúãô]N¬àYääTÀù€‹ö‹‹XŸQôX]\ô\œ^ÀããîÀù€‹ö‹‹XŸQôX]\ô\ÀããôüN¬àBà€€ú›€€[Y\ò⁄X[X]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸWÿ€€[Y\ò⁄X[ÿXÿŸ\‹…À‹›€‹ö‹‹XŸW⁄YùﬂJN¬àYäX€€[Y\ò⁄X[ô\úõ‹ä^ÿ€€ú›œP\úò^Kö\–\úò^J€€[Y\ò⁄X[ô]JOÿ€€[Y\ò⁄X[ô]VÃNò€€[Y\ò⁄X[ô]N⁄Yä TÀò€€[Y\ò⁄X[XÿŸ\‹œ^ÀããîÀò€€[Y\ò⁄X[XÿŸ\‹ÀããòﬂNﬂBàYäÀò€€[Y\ò⁄X[XÿŸ\‹Àú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY
+^‘Àù€‹ö‹‹XŸQôX]\ô\œ^ÀããîÀù€‹ö‹‹XŸQôX]\ô\À›\õò[Y[ù◊Ÿ[òXõYùùYKXY›YWŸ[òXõYùùYKò[ö⁄[ô‹◊Ÿ[òXõYùùYK\ô⁄[óŸ[òXõYùùYK^Y\ó‹ò][ô‹◊Ÿ[òXõYùùYK‹‹^Y\óŸ[òXõYùùYKX]⁄‹ò][ô‹◊Ÿ[òXõYùùYKX[W‹ô]öY]◊Ÿ[òXõYùùY_NﬂBàÀòö[[ô‘›]\œ[ù[‘Àõ‹ôÿ[ö^ô\îŸ][ô‹œ[ù[‘Àú^Y\îô\]Y\›œV◊N¬àYä\–YZ[ä
+J^¬àèX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸWÿö[[ô◊‹›]\…À‹›€‹ö‹‹XŸW⁄YùﬂJN¬àYä\ãô\úõ‹ä^ÿ€€ú›èP\úò^Kö\–\úò^Jãô]JO‹ãô]VÃNúãô]N‘Àòö[[ô‘›]\œXüù[ﬂBàèX]ÿZ]ÿãúú 	ŸŸ]€^W€‹ôÿ[ö^ô\ó‹Ÿ][ô‹…À‹›€‹ö‹‹XŸW⁄YùﬂJN⁄Yä\ãô\úõ‹äTÀõ‹ôÿ[ö^ô\îŸ][ô‹œ\ãô]_ù[¬àèX]ÿZ]ÿãúú 	€\››€‹ö‹‹XŸW‹^Y\ó‹ô\]Y\›…À‹›€‹ö‹‹XŸW⁄YùﬂJN⁄Yä\ãô\úõ‹äTÀú^Y\îô\]Y\›œP\úò^Kö\–\úò^Jãô]JO‹ãô]Nñ◊N¬àBàÀõ^Tò][ô‹œV◊N¬àYä\–YZ[ä
+J^¬àÀõ^T\õZ\‹⁄[€úœ^ÿÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\úŒùùYKÿ[óŸ[ù\ó‹ÿ€‹ô\ŒùùYKÿ[óÿY€Y[Xô\úŒùùYKÿ[óŸ[]W€Y[Xô\úŒùùYKÿ[óÿ‹ôX]W››\õò[Y[ùŒùùYKÿ[ó›öY]◊‹^Y\úŒùùYKÿ[óŸŸ[ô\ò]W›X[\ŒùùYK[\‹ò\ûWÿYZ[ó›[ù[õù[N¬àèX]ÿZ]ÿãôúõ€J	›€‹ö‹‹XŸW⁄[ùö]\… KúŸ[X›
+	⁄Y[XZ[õ€KXÿŸ\Yÿ]‹ôX]Yÿ]	 Kô\J	›€‹ö‹‹XŸW⁄Y	À Kõ‹ô\ä	ÿ‹ôX]Yÿ]	Àÿ\ÿŸ[ô[ôŒôò[Ÿ_JN‘Àö[ùö]\œ\ãô]_◊N¬àèX]ÿZ]ÿãúú 	ÿYZ[óŸŸ]ÿ€€‹ôÿ[ö^ô\ó‹\õZ\‹⁄[€ú…À‹›€‹ö‹‹XŸW⁄YùﬂJN‘Àò€€‹ô‹œ\ãô]_◊N¬àY[ŸHYä\–€€‹ô 
+J^¬àÀö[ùö]\œV◊N‘Àò€€‹ô‹œV◊N¬àèX]ÿZ]ÿãúú 	ŸŸ]€^Wÿ€€‹ôÿ[ö^ô\ó‹\õZ\‹⁄[€ú…À‹›€‹ö‹‹XŸW⁄YùﬂJN¬àYäãô\úõ‹äX€€ú€€Kô\úõ‹ä	‹\õZ\‹⁄[€ú»€€‹ôÿ[ö\ÿ]]\âÀãô\úõ‹äN¬à€€ú›\P\úò^Kö\–\úò^Jãô]JO ãô]VÃ_ù[
+Núãô]N¬àÀõ^T\õZ\‹⁄[€úœ^ÿÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\úŒôò[ŸKÿ[óŸ[ù\ó‹ÿ€‹ô\Œôò[ŸKÿ[óÿY€Y[Xô\úŒôò[ŸKÿ[óŸ[]W€Y[Xô\úŒôò[ŸKÿ[óÿ‹ôX]W››\õò[Y[ùŒôò[ŸKÿ[ó›öY]◊‹^Y\úŒùùYKÿ[óŸŸ[ô\ò]W›X[\Œôò[ŸKÿ[óŸŸ[ô\ò]W›X[Wÿ€Ÿ\Œôò[ŸKÿ[óŸY]‹^Y\ó‹\ú€€ò[⁄[ôõŒôò[ŸK[\‹ò\ûWÿYZ[ó›[ù[õù[ããä\ﬂJ_N¬àYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+^¬àèX]ÿZ]ÿãúú 	ŸŸ]€^W‹^Y\ó‹⁄⁄[‹ò][ô‹…À‹›€‹ö‹‹XŸW⁄YùﬂJN¬àYä\ãô\úõ‹äTÀõ^Tò][ô‹œP\úò^Kö\–\úò^Jãô]JO‹ãô]Nñ◊N¬àBàY[Ÿ^‘Àö[ùö]\œV◊N‘Àò€€‹ô‹œV◊NﬂBàYä\–YZ[ä
+J^¬àèX]ÿZ]ÿãúú 	ŸŸ]ÿYZ[ó›€‹ö‹‹XŸW‹^Y\ú…À‹›€‹ö‹‹XŸW⁄YùﬂJN‘Àú^Y\úœ\ãô]_◊N¬àèX]ÿZ]ÿãúú 	ŸŸ]€X[òYŸ\ó‹^Y\óÿ€€ùX›…À‹›€‹ö‹‹XŸW⁄YùﬂJN‘Àò€€ùX›œ\ãô\úõ‹è÷◊Näãô]_◊JN¬àYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+^¬àèX]ÿZ]ÿãúú 	ŸŸ]ÿYZ[ó‹^Y\ó‹⁄⁄[‹ô]öY]‹…À‹›€‹ö‹‹XŸW⁄YùﬂJN‘Àú⁄⁄[ô]öY]‹œ\ãô\úõ‹è÷◊Näãô]_◊JN¬àèX]ÿZ]ÿãúú 	ŸŸ]€^W‹^Y\ó‹⁄⁄[‹ò][ô‹…À‹›€‹ö‹‹XŸW⁄YùﬂJN⁄Yä\ãô\úõ‹äTÀõ^Tò][ô‹œP\úò^Kö\–\úò^Jãô]JO‹ãô]Nñ◊N¬àY[Ÿ^‘Àú⁄⁄[ô]öY]‹œV◊N‘Àõ^Tò][ô‹œV◊NﬂBàèX]ÿZ]ÿãúú 	ŸŸ]€X[òYŸ\ó‹^Y\ó›X[Wÿ€Ÿ\…À‹›€‹ö‹‹XŸW⁄YùﬂJN‘ÀùX[P€Ÿ\œ\ãô\úõ‹è÷◊Näãô]_◊JN¬àY[Ÿ^¬àYä\–€€‹ô 
+J^¬àèX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸW‹^Y\ú◊‹ÿYôIÀ‹›€‹ö‹‹XŸW⁄YùﬂJN¬àYäãô\úõ‹ä^ÿ€€ú€€Kô\úõ‹ä	‹^Y\ú»ÿYôIÀãô\úõ‹äN‘Àú^Y\úœV◊N›ÿ\›
+	“[\‹‹⁄XõHH⁄\ôŸ\àH\›H\»õ›Y]\úÀâ _Bà[ŸHÀú^Y\úœP\úò^Kö\–\úò^Jãô]JO‹ãô]Nñ◊N¬àYäÀõ^T\õZ\‹⁄[€úÀòÿ[óŸY]‹^Y\ó‹\ú€€ò[⁄[ôõ ^¬àèX]ÿZ]ÿãúú 	ŸŸ]€X[òYŸ\ó‹^Y\óÿ€€ùX›…À‹›€‹ö‹‹XŸW⁄YùﬂJN‘Àò€€ùX›œ\ãô\úõ‹è÷◊Näãô]_◊JN¬àY[ŸHÀò€€ùX›œV◊N¬àYäÀõ^T\õZ\‹⁄[€úÀòÿ[óŸŸ[ô\ò]W›X[Wÿ€Ÿ\ ^¬àèX]ÿZ]ÿãúú 	ŸŸ]€X[òYŸ\ó‹^Y\ó›X[Wÿ€Ÿ\…À‹›€‹ö‹‹XŸW⁄YùﬂJN‘ÀùX[P€Ÿ\œ\ãô\úõ‹è÷◊Näãô]_◊JN¬àY[ŸHÀùX[P€Ÿ\œV◊N¬àY[ŸH‘Àú^Y\úœV◊N‘Àò€€ùX›œV◊N‘ÀùX[P€Ÿ\œV◊NﬂBàÀú⁄⁄[ô]öY]‹œV◊N¬àBàYä\–YZ[ä
+_\–€€‹ô 
+J^¬àYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+^¬àèX]ÿZ]ÿãúú 	ŸŸ]‹^Y\ó‹⁄⁄[ÿYŸ‹ôYÿ]\…À‹›€‹ö‹‹XŸW⁄YùﬂJN¬àÀú⁄⁄[YŸ‹ôYÿ]\œ\ãô\úõ‹è÷◊Nä\úò^Kö\–\úò^Jãô]JO‹ãô]Nñ◊JN¬àY[ŸHÀú⁄⁄[YŸ‹ôYÿ]\œV◊N¬àèX]ÿZ]ÿãúú 	ŸŸ]€^W€[öŸY‹^Y\ó⁄Y	À‹›€‹ö‹‹XŸW⁄YùﬂJN¬àÀõ^S[öŸY^Y\íY\ãô\úõ‹è€ù[äãô]_ù[
+N¬àY[ŸH‘Àú⁄⁄[YŸ‹ôYÿ]\œV◊N‘Àõ^S[öŸY^Y\íY[ù[ﬂBàYä\–YZ[ä
+J^¬à€€ú›\èX]ÿZ]ÿãúú 	ŸŸ]€^Wÿ€€‹ôÿ[ö^ô\ó‹][›W‹ô\]Y\›	À‹›€‹ö‹‹XŸW⁄YùﬂJN¬àÀò€€‹ô‘][›Tô\]Y\›\\ãô\úõ‹è€ù[ä\ãô]_ù[
+N¬àY[ŸHÀò€€‹ô‘][›Tô\]Y\›[ù[¬àèX]ÿZ]ÿãôúõ€J	‹ŸX\€€ú… KúŸ[X›
+	 â Kô\J	›€‹ö‹‹XŸW⁄Y	À Kõ‹ô\ä	‹›\ù◊€€âÀÿ\ÿŸ[ô[ôŒôò[Ÿ_JN‘ÀúŸX\€€úœ\ãô]_◊N¬àèX]ÿZ]ÿãôúõ€J	€XY›Y\… KúŸ[X›
+	 â Kô\J	›€‹ö‹‹XŸW⁄Y	À Kõ‹ô\ä	ÿ‹ôX]Yÿ]	Àÿ\ÿŸ[ô[ôŒôò[Ÿ_JN‘ÀõXY›Y\œ\ãô]_◊N¬àYäÀõXY›Y\Àõ[ô›
+^¬à€€ú›YœTÀõXY›Y\ÀõX\
+OûöY
+N¬àèX]ÿZ]ÿãôúõ€J	€XY›YW‹^Y\ú… KúŸ[X›
+	 â Kö[ä	€XY›YW⁄Y	ÀY N‘ÀõXY›YT^Y\úœ\ãô]_◊N¬àY[ŸHÀõXY›YT^Y\úœV◊N¬àYäTÀòX›]ôSXY›YJ^ÿ€€ú›[TÀõXY›Y\Àôö[ô
+Oõú›]\œOOIÿX›]ôI _ÀõXY›Y\÷ÃN‘ÀòX›]ôSXY›YOX[ÀöYù[ﬂBàèX]ÿZ]ÿãôúõ€J	››\õò[Y[ù… KúŸ[X›
+	 â Kô\J	›€‹ö‹‹XŸW⁄Y	À Kõ‹ô\ä	››\õò[Y[ùŸ]IÀÿ\ÿŸ[ô[ôŒôò[Ÿ_JN‘Àù›\õò[Y[ùœ\ãô]_◊N¬àYäTÀòX›]ôU›\ä^ÿ€€ú›ô^TÀù›\õò[Y[ùÀôö[ô
+Oùú›]\»OOIŸö[ö\⁄Y	 N‘ÀòX›]ôU›\è[ô^€ô^öYõù[ﬂBà]ÿZ]ÿY›\õò[Y[ù
+
+N¬à€€ú›Y][ô‘ô]öY]œYÿ›[Y[ùòX›]ôQ[[Y[ùÀò€‹Ÿ\›Àä	Àú^Y\ã\⁄⁄[\ô]öY]… N¬àYäYY][ô‘ô]öY] \ô[ô\ê[
+
+N¬üBò\ﬁ[ò»ù[ò›[€àÿY›\õò[Y[ù
+
+^¬à€€ú›X›\úô[ù›\ä
+N⁄Yä]
+^‘Àù^Y\úœV◊N‘ÀùX[\œV◊N‘ÀùX[T^Y\úœV◊N‘ÀõX]⁄\‹⁄Y€õY[ùœV◊N‘ÀõX]⁄\œV◊N‘Àô€ÿ[œV◊N‘ÀùX[Pò[[òŸTÿ€‹ô\œV◊N‘ÀùX[Tô]öY]‘›]O[ù[‹ô]\õü[]é¬àèX]ÿZ]ÿãôúõ€J	››\õò[Y[ù‹^Y\ú… KúŸ[X›
+	 â Kô\J	››\õò[Y[ù⁄Y	ÀöY
+N‘Àù^Y\úœ\ãô]_◊N¬àèX]ÿZ]ÿãôúõ€J	›X[\… KúŸ[X›
+	 â Kô\J	››\õò[Y[ù⁄Y	ÀöY
+Kõ‹ô\ä	ÿ‹ôX]Yÿ]	 N‘ÀùX[\œ\ãô]_◊N¬à€€ú›YœTÀùX[\ÀõX\
+OûöY
+N⁄YäYÀõ[ô›
+^‹èX]ÿZ]ÿãôúõ€J	›X[W‹^Y\ú… KúŸ[X›
+	 â Kö[ä	›X[W⁄Y	ÀY N‘ÀùX[T^Y\úœ\ãô]_◊_Y[ŸHÀùX[T^Y\úœV◊N¬àèX]ÿZ]ÿãôúõ€J	€X]⁄\… KúŸ[X›
+	 â Kô\J	››\õò[Y[ù⁄Y	ÀöY
+Kõ‹ô\ä	€X]⁄€‹ô\â N‘ÀõX]⁄\œ\ãô]_◊N¬à€€ú›ZYœTÀõX]⁄\ÀõX\
+OûöY
+N¬àYäZYÀõ[ô›
+^¬àèX]ÿZ]ÿãôúõ€J	Ÿ€ÿ[… KúŸ[X›
+	 â Kö[ä	€X]⁄⁄Y	ÀZY Kõ‹ô\ä	ÿ‹ôX]Yÿ]	 N‘Àô€ÿ[œ\ãô]_◊N¬àèX]ÿZ]ÿãôúõ€J	€X]⁄‹^Y\óÿ\‹⁄Y€õY[ù… KúŸ[X›
+	 â Kö[ä	€X]⁄⁄Y	ÀZY N‘ÀõX]⁄\‹⁄Y€õY[ùœ\ãô]_◊N¬àY[Ÿ^‘Àô€ÿ[œV◊N‘ÀõX]⁄\‹⁄Y€õY[ùœV◊NﬂBà€€ú›ÿ€‹ôTô\œX]ÿZ]ÿãúú 	ŸŸ]››\õò[Y[ù›X[Wÿò[[òŸW‹ÿ€‹ô\…À‹››\õò[Y[ù⁄YùöYJN¬àÀùX[Pò[[òŸTÿ€‹ô\œ\ÿ€‹ôTô\Àô\úõ‹è÷◊Näÿ€‹ôTô\Àô]_◊JN¬àÀùX[Tô]öY]‘›]O[ù[¬àYäôõ‹õX]OOI€XY›YI…âîÀù€‹ö‹‹XŸQôX]\ô\ÀùX[W‹ô]öY]◊Ÿ[òXõY
+^¬à€€ú›ô]öY]‘ô\œX]ÿZ]ÿãúú 	ŸŸ]››\õò[Y[ù›X[W‹ô]öY]◊‹›]IÀ‹››\õò[Y[ù⁄YùöYJN¬àYä\ô]öY]‘ô\Àô\úõ‹äTÀùX[Tô]öY]‘›]O\ô]öY]‘ô\Àô]_ù[¬àBàô[ô\ìX]⁄]⁄Ÿ[X›
+
+N¬üBò€€ú›Të“Só‘VSQSï”S—Tœ^¬à]ô[ù€€õ[ôNâ‘ZY[Y[ù[àY€ôIÀà]ô[ùÿ\ô[òNâ‘ZY[Y[ù\ôX›0Ë8†&P\ô[òIÀà€€€\ó€€õ[ôNâ‘\ùX⁄\][€à[àY€ôH0ËH€X⁄pÍôIÀà€€€\óÿÿ\⁄â‘\ùX⁄\][€àXZ[à0ËXZ[â¬üN¬ôù[ò›[€à›\úô[ù›\ä
+^‹ô]\õàÀù›\õò[Y[ùÀôö[ô
+OûöYOOTÀòX›]ôU›\ä_Hù[ò›[€à
+Y
+^‹ô]\õàÀú^Y\úÀôö[ô
+OûöYOOZY
+_Hù[ò›[€àJY
+^‹ô]\õàÀùX[\Àôö[ô
+OûöYOOZY
+_BÇôù[ò›[€àX]⁄X[T^Y\íY X]⁄YX[RY
+^¬à€€ú›õ›‹œTÀõX]⁄\‹⁄Y€õY[ùÀôö[\äOOî›ö[ô KõX]⁄⁄Y
+OOOT›ö[ô X]⁄Y
+JN¬àYäõ›‹Àõ[ô›
+\ô]\õàõ›‹Àôö[\äOOî›ö[ô KùX[W⁄Y	… OOOT›ö[ô X[RY	… JKõX\
+OOòKú^Y\ó⁄Y
+N¬àô]\õàX[T^Y\íY X[RY
+N¬üBôù[ò›[€àò][ô—õ‹ìX]⁄^Y\äX]⁄^Y\íYX[RY€ÿ[õ›‹œTÀô€ÿ[ ^¬àYä[X]⁄]X[RY
+\ô]\õàù[¬à€€ú›œSù[Xô\äX]⁄ö€YW‹ÿ€‹ô_
+K\œSù[Xô\äX]⁄ò]ÿ^W‹ÿ€‹ô_
+N¬à€€ú›\“€YOT›ö[ô X[RY
+OOOT›ö[ô X]⁄ö€YW›X[W⁄Y
+K\–]ÿ^OT›ö[ô X[RY
+OOOT›ö[ô X]⁄ò]ÿ^W›X[W⁄Y
+N¬àYäZ\“€YIâàZ\–]ÿ^J\ô]\õàù[¬à€€ú››€èZ\“€YO⁄Œò\À‹Z\“€YOÿ\ŒöŒ¬à€€ú›Yôô\ô[òŸO[›€ã[‹¬à€€ú›ò\ŸOYYôô\ô[òŸOåèÕŒôYôô\ô[òŸOåÕéôYôô\ô[òŸOOOLÕNôYôô\ô[òŸOèKLèÕôYôô\ô[òŸOèKMOÃŒåé¬à€€ú›YœJ€ÿ[õ›‹ﬂ◊JKôö[\äœOî›ö[ô ÀõX]⁄⁄Y
+OOOT›ö[ô X]⁄öY
+JN¬à€€ú›€ÿ[œ[YÀôö[\äœOî›ö[ô Àúÿ€‹ô\ó‹^Y\ó⁄Y
+OOOT›ö[ô ^Y\íY
+IâàYÀö\◊€›€óŸ€ÿ[
+Kõ[ô›¬à€€ú›\‹⁄\›œ[YÀôö[\äœOî›ö[ô Àò\‹⁄\›\ó‹^Y\ó⁄Y	… OOOT›ö[ô ^Y\íY
+JKõ[ô›¬àô]\õà‹ò][ôŒìX]õZ[äLò\ŸJŸ€ÿ[  \‹⁄\› ãçJJKò\ŸK€ÿ[À\‹⁄\›Àô\›[õ›€èõ‹…’âŒä›€èOO[‹…”âŒâ—	 _N¬üBôù[ò›[€à‹^Y\ú—úõ€Q]JX]⁄õ›‹À€ÿ[õ›‹À\‹⁄Y€õY[ùõ›‹À^Y\îõ›‹À›\õò[Y[ùYœ[ù[
+^¬à€€ú›X]⁄X\[ô]»X\
+
+X]⁄õ›‹ﬂ◊JKôö[\äOOà]›\õò[Y[ùYﬂ›\õò[Y[ùYÀö\ Kù›\õò[Y[ù⁄Y
+JKõX\
+OOñ€KöYWJJN¬à€€ú››]œ[ô]»X\
+
+^Y\îõ›‹ﬂ◊JKõX\
+Oñ‹öY⁄YúöYò[YNúõò[YK›Y\›úö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸK›[åX]⁄\ŒåŒåNå]ôŒåWJJN¬à
+\‹⁄Y€õY[ùõ›‹ﬂ◊JKôõ‹ëXX⁄
+OOû¬à€€ú›O[X]⁄X\ôŸ]
+KõX]⁄⁄Y
+N⁄Yä[_XKùX[W⁄Y\›]Àö\ Kú^Y\ó⁄Y
+J\ô]\õé¬à€€ú›è\ò][ô—õ‹ìX]⁄^Y\äKKú^Y\ó⁄YKùX[W⁄Y€ÿ[õ›‹ N⁄Yä\ä\ô]\õé¬à€€ú›œ\›]ÀôŸ]
+Kú^Y\ó⁄Y
+N‹Àù›[
+œ\ãúò][ôŒ‹ÀõX]⁄\  Œ‹Àô œ\ãô€ÿ[Œ‹ÀòJœ\ãò\‹⁄\›Œ¬àJN¬àô]\õàÀããú›]Àùò[Y\ 
+WKôö[\äOûõX]⁄\ KõX\
+OäÀããû]ôŒûù›[ﬁõX]⁄\ﬂJJBàú€‹ù
+
+KäOOòãò]ôÀXKò]ôﬂãôÀXKôﬂãòKXKò_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬üBÇò\ﬁ[ò»ù[ò›[€àô[ô\îŸX\€€îÿ€‹ô\î›[[X\ûJ
+^¬à€€ú›õﬁI
+	»‹ŸX\€€îÿ€‹ô\î›[[X\ûI N⁄YäXõﬁ
+\ô]\õé¬à€€ú›X›]ôTŸX\€€èTÀúŸX\€€úÀôö[ô
+œOúÀö\◊ÿX›]ôJ_ÀúŸX\€€ú÷ÃN¬àYäXX›]ôTŸX\€€ä^ÿõﬁö[õô\íSIœ€\‹œHõ]]Yèê]X›[ôHÿZ\€€àX›]ôKè‹âŒ‹ô]\õüBà€€ú››\õò[Y[ùœTÀù›\õò[Y[ùÀôö[\äOùúŸX\€€ó⁄YOOXX›]ôTŸX\€€ãöY	âùôõ‹õX]OOI€XY›YI N¬à€€ú›Yœ]›\õò[Y[ùÀõX\
+OùöY
+N¬àYä]YÀõ[ô›
+^¬àõﬁö[õô\íSIœ]à€\‹œHúôXY€õK[õ›Hèèèâ Ÿ\ÿ X›]ôTŸX\€€ãõò[YJJ…œÿèè]à›[OHõX\ô⁄[ã]‹ç\èê]X›[à›\õõ⁄H∏†&Y\›ò]X⁄0ÍH0ËŸ]HÿZ\€€ãà\»›]\›\]Y\»\»›\õõ⁄\»‹ú»ÿZ\€€àô\›[ùö\⁄Xõ\»[ö\]Y[Y[ù[ú»⁄\]YH›\õõ⁄KèŸ]èèŸ]èâŒ¬àô]\õé¬àBà€€ú›Ÿ]NõX]⁄\À\úõ‹éõY_OX]ÿZ]ÿãôúõ€J	€X]⁄\… KúŸ[X›
+	 â Kö[ä	››\õò[Y[ù⁄Y	ÀY N¬àYäYJ]õ›»YN¬à€€ú›ZYœJX]⁄\ﬂ◊JKõX\
+OOõKöY
+N¬àYä[ZYÀõ[ô›
+^¬àõﬁö[õô\íSIœ]à€\‹œHúôXY€õK[õ›Hèèèâ Ÿ\ÿ X›]ôTŸX\€€ãõò[YJJ…œÿèè]à›[OHõX\ô⁄[ã]‹ç\èâ ››\õò[Y[ùÀõ[ô›
+…»›\õõ⁄I  ›\õò[Y[ùÀõ[ô›åO…‹…Œâ… J…»ò]X⁄0ÍI  ›\õò[Y[ùÀõ[ô›åO…‹…Œâ… J…ÀXZ\»]X›[àX]⁄[úôY⁄\›∞ÍKèŸ]èèŸ]èâŒ¬àô]\õé¬àBà€€ú›Ÿ]Nô€ÿ[À\úõ‹éôŸ_OX]ÿZ]ÿãôúõ€J	Ÿ€ÿ[… KúŸ[X›
+	 â Kö[ä	€X]⁄⁄Y	ÀZY N¬àYäŸJ]õ›»ŸN¬à€€ú››]œ[ô]»X\
+Àú^Y\úÀõX\
+OñﬁöY⁄YûöYò[YNûõò[YK\◊Ÿ‹õ›\€Y[Xô\éûö\◊Ÿ‹õ›\€Y[Xô\ãŒåNåWJJN¬à
+€ÿ[ﬂ◊JKôõ‹ëXX⁄
+œOû¬àYä›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J\›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ¬àYäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âú›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J\›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ Œ¬àJN¬à]ÿ€‹èVÀããú›]Àùò[Y\ 
+WKôö[\äOûô Kú€‹ù
+
+KäOOòãôÀXKôﬂãòKXKò_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]\‹œVÀããú›]Àùò[Y\ 
+WKôö[\äOûòJKú€‹ù
+
+KäOOòãòKXKò_ãôÀXKôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àÿ€‹èX€€\]][€îò[ö‹ ÿ€‹ã	Ÿ… Nÿ\‹œX€€\]][€îò[ö‹ \‹À	ÿI N¬Çà€€ú›ÿ€‹í[\ÿ€‹ãõX\
+Oâœ]à€\‹œHúò[ö»	  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›Xô[
+
+öY
+JJJ…œ‹‹[èâŒâ… J…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁô …»ù]	  ôœåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àù][úôY⁄\›∞ÍKè‹âŒ¬à€€ú›\‹“[X\‹ÀõX\
+Oâœ]à€\‹œHúò[ö»	  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›Xô[
+
+öY
+JJJ…œ‹‹[èâŒâ… J…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁòJ…»\‹ŸI  òOåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH\‹ŸH[úôY⁄\›∞ÍYKè‹âŒ¬Çàõﬁö[õô\íSBà	œ]à€\‹œHúôXY€õK[õ›Hèèèº'‰·H	 Ÿ\ÿ X›]ôTŸX\€€ãõò[YJJ…œÿèè]à›[OHõX\ô⁄[ã]‹ç\èâ ››\õò[Y[ùÀõ[ô›
+…»›\õõ⁄I  ›\õò[Y[ùÀõ[ô›åO…‹…Œâ… J…»ò]X⁄0ÍI  ›\õò[Y[ùÀõ[ô›åO…‹…Œâ… J…ÀàŸ][»Ÿ\»›\õõ⁄\»€€ù›[][0Í\»[ú»\»€\‹Ÿ[Y[ù»HÿZ\€€ãèŸ]èèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃàà›[OHõX\ô⁄[ã]‹åLèè]à€\‹œHú^Y\àèèè∏¶ØHù]]\ú»›[][0Í\œÿèè]à›[OHõX\ô⁄[ã]‹éèâ ‹ÿ€‹í[
+…œŸ]èèŸ]èè]à€\‹œHú^Y\àèèèº'„´»\‹Ÿ]\ú»›[][0Í\œÿèè]à›[OHõX\ô⁄[ã]‹éèâ ÿ\‹“[
+…œŸ]èèŸ]èèŸ]èâŒ¬üBÇôù[ò›[€à€€‹ô“[ùö]S[ö [ùä^¬àô]\õàT’Tì
+…œ⁄[ùö]OI Ÿ[ò€ŸUTíP€€\€ô[ù
+[ùãöY
+J……ô[XZ[I Ÿ[ò€ŸUTíP€€\€ô[ù
+[ùãô[XZ[	… N¬üBôù[ò›[€à€€‹ô“[ùö]SY\‹ÿYŸJ[ùä^¬à€€ú›[öœX€€‹ô“[ùö]S[ö [ùäN¬àô]\õà	¯¶ØH’‚H’TìêSQSïKÕWóâ ¬à	’H\»[ùö]0ÍH0ËôZõ⁄[ôôH’‚H›\õò[Y[ù[à[ù]YH€ÀYŸ\›[€õòZ\ôKóóâ ¬à	‘›\àX›]ô\à€àXÿÍ»óâ ¬à	ÃKà›]úôHHY[à⁄KY\‹€›\Àóâ ¬à	ÃãàZõ›]H[à[›H\‹ŸHZ\»€\]YH›\à0™»‹∞ÍYH€à€€\H0Æ»]ôX»8†&XYô\‹ŸHK[XZ[[ô\]pÍYKóâ ¬à	ÃÀà[ôHõ⁄\»€€õôX›0ÍKXÿŸ\H8†&Z[ùö]][€ãóóâ ¬à	¯¶®;Ó#»ST‘ïSïàôH[ŸYöYH\»8†&XYô\‹ŸHK[XZ[[ô\]pÍYKà8†&Z[ùö]][€à\›pÍYH0ËŸ]HYô\‹ŸHà	 ⁄[ùãô[XZ[
+…◊óâ ¬à	¸'„´»”à∞ÂWâ ¬à	—[ú»€à\‹XŸKH]^õ›[[Y[ù0Í]ò[Y\à\»õ›Y]\ú»]YHH€€õòZ\»›Yôö\ÿ[[Y[ùàH∏†&Y\»\»ÿõYÍHHõ›\à›]H[€ôHà⁄HHôH€€õòZ\»\»\‹Ÿ^à[àõ›Y]\ãôHHõ›H\Àóóâ ¬à	”\»0Í]ò[X][€ú»⁄]ô[ù0ÍùôHÿöôX›]ô\À[\\ùX[\»]òZ]\»ÿ[ú»€€òŸ\ù][€ãà[\»Ÿ\õ€ù‹õ⁄\ÍY\»]ôX»Ÿ[\»8†&X]]ô\»€ÀYŸ\›[€õòZ\ô\»Yö[à8†&[ÿù[ö\à[ôHö\⁄[€à\»€[ŸÍôH\»õ›Y]\ú»]8†&XZY\à’‚H›\õò[Y[ù0ËÍ[∞Í\ô\à\»0Í\]Z\\»[0ÍX]⁄\ô\»XZ\»ZY]^0Í\]Z[Xú∞ÍY\Àà8¶•ªÓ#◊óâ ¬à	¸'Â$à””ëíQSïPSU0‚Wâ ¬à	’€à∞ÌHH€ÀYŸ\›[€õòZ\ôK€õ›]]\àZ[ú⁄H]YH\»õ›\»[ô]öYY[\»⁄]ô[ùô\›\à€€ôöY[ùY[Àà\»]]ô\»0Í]ò[X]]\ú»ò]òZ[[ù0ÍYÿ[[Y[ùHX[öpÍôH[ô0Í\[ô[ùHYö[à8†&pÍ]ö]\à›]Hô\‹⁄[€à›H[ôõY[òŸKóóâ ¬à	¸'‰´‘ì’THíU∞‚HSQ‘êSWîôZõ⁄[ú»H‹õ›\Hö]∞ÍH\»€ÀYŸ\›[€õòZ\ô\Àà[Ÿ\ù[ö\]Y[Y[ù0Ë⁄Y€ò[\à[àõÿõ0ÍYKõ‹‹Ÿ\à[ôH[ŸYöXÿ][€à›H\ùYŸ\à[ôHY0ÍYH8†&X[pÍ[[‹ò][€àH’‚H›\õò[Y[ùà\»0ÍX⁄[ôŸ\»][ôõ‹õX][€ú»€€òŸ\õò[ù\»0Í]ò[X][€ú»ô\›[ù€€ôöY[ùY[Àóº'‰bHŒãÀ›õYK ﬁL⁄T€ç‹SïõS^ñ^óâ ¬à	‘⁄HH€›ZZ]\»8†&Z[\\]Y\à]ò[ùYŸH[ú»8†&[‹ôÿ[ö\ÿ][€à›H8†&pÍ]õ€][€àH’‚H›\õò[Y[ùò\õÿ⁄K]⁄H\ôX›[Y[ùH[⁄H[àö]∞ÍKà<'‰bº'„ÔWóâ ¬à	–Yô\‹ŸHH€€\Hà	 ⁄[ùãô[XZ[
+…◊óâ ¬à	”Y[à8†&Z[ùö]][€àóâ €[ö …◊óâ ¬à	”Y\ò⁄H›\à€àZYH<'‰bº'„Ôx¶Ø{Ó#…Œ¬üBôù[ò›[€àô[ô\êXÿŸ\‹ 
+^¬à€€ú›õﬁI
+	»€Y[Xô\ì\›	 N⁄YäXõﬁ
+\ô]\õé¬àYä\–€€‹ô 
+J^¬àõﬁö[õô\íSIœ]à€\‹œHú^Y\àèèèº'‰iH€À[‹ôÿ[ö\ÿ]]\úœÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èí[HHX›Y[[Y[ùèâ ‘Àò€€‹ô–€›[ù
+…œÿèà€À[‹ôÿ[ö\ÿ]]\â  Àò€€‹ô–€›[ùåO…‹…Œâ… J…»[ú»8†&Y\‹XŸKâ  Àõ^T\õZ\‹⁄[€úÀòÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\úœ…»H\»]]‹ö\ÍH0Ë[ùõﬁY\à\»[ùö]][€úÀâŒâ»Ÿ][[à][\ÿ]]\à]]‹ö\ÍH\à8†&XYZ[ö\›ò]]\à]][ùõﬁY\à[ôH[ùö]][€ãâ J…œŸ]èèŸ]èâŒ¬àYäÀõ\›‹ôX]Y[ùö]IâîÀõ^T\õZ\‹⁄[€úÀòÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\ú ^¬à€€ú›OTÀõ\›‹ôX]Y[ùö]N¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\âŒ¬àö[õô\íSIœèë\õöpÍôH[ùö]][€à‹∞ÍpÍYHà	 Ÿ\ÿ Kô[XZ[	… J…œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèë[ùõ⁄YHŸHY[à0ËH\ú€€õôH€€òŸ\õ∞ÍYKèŸ]èâŒ¬à€€ú›õ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹õ›Àò€\‹”ò[YOI‹õ›…Œ‹õ›Àú›[KõX\ô⁄[ï‹IŒ	Œ¬à€€ú›€‹OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿ€‹Kù^€€ù[ùI¸'Â%»€‹Y\àHY[âŒ¬à€€ú›ÿOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N›ÿKù^€€ù[ùI¸'‰Ïà⁄]–\	Œ›ÿKò€\‹”ò[YOI‹ö[X\ûIŒ¬à€€ú›[ùè^⁄YöKöY[XZ[öKô[XZ[N¬à€‹Kõ€ò€X⁄œX\ﬁ[ò 
+OOû›û^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+€€‹ô“[ùö]S[ö [ùäJN›ÿ\›
+	”Y[à€‹pÍH8ß!I _Xÿ]⁄
+J^›ÿ\›
+	–€‹YH[\‹‹⁄XõKâ __N¬àÿKõ€ò€X⁄œJ
+OOù⁄[ô›Àõ‹[ä	⁄ŒãÀ›ÿKõYKœ›^I Ÿ[ò€ŸUTíP€€\€ô[ù
+€€‹ô“[ùö]SY\‹ÿYŸJ[ùäJK	◊ÿõ[ö…À	€õ€‹[ô\â N¬àõ›Àò\[ô
+€‹KÿJNŸò\[ô⁄[
+õ› Nÿõﬁò\[ô⁄[
+
+N¬àBàô]\õé¬àBàYäZ\–YZ[ä
+J\ô]\õé¬à€€ú›X›]ôP€œTÀò€€‹ô‹Àôö[\äOûòX›]ôJN¬à€€ú››\‹[ôY€œTÀò€€‹ô‹Àôö[\äOà^òX›]ôJN¬à€€ú›[ô[ôœTÀö[ùö]\Àôö[\äOà^òXÿŸ\Yÿ]
+N¬à€€ú›õ]YOô€ô]»]J
+Kù”ÿÿ[Q]T›ö[ô 	ŸúãQîâ Nâ…Œ¬Çà€€ú›[OSù[Xô\äÀù€‹ö‹‹XŸQôX]\ô\ÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+Kÿ\Sù[Xô\äÀù€‹ö‹‹XŸQôX]\ô\ÀõX^ÿ€€‹ôÿ[ö^ô\ú◊ÿÿ\L
+N¬àõﬁö[õô\íSIœ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸçŸòôéèèèì[Z]HH€ÀYŸ\›[€õòZ\ô\œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èê]]‹ö\ÿ][€àX›Y[Hàèâ ÿX›]ôP€Àõ[ô›
+…»»	 €[J…œÿèãà\»XÿÍ»[ò€\»]\»XÿÍ»X⁄]0Í\»€€ù›[][0Í\»]]€X]\]Y[Y[ùèŸ]èâ  Àò€€‹ô‘][›Tô\]Y\›Àú›]\œOOI‹[ô[ô…œ…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çúÿ€€‹éàÿçLÃHè∏£Ï»[X[ôH[à][ùH›\à\‹Ÿ\à0Ëèâ ”ù[Xô\äÀò€€‹ô‘][›Tô\]Y\›úô\]Y\›Y€[Z][JJ…œÿèãèŸ]èâŒâœ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çúèêô\€⁄[àH\»8†&XXÿÍ»»Zõ›]K[\»\ôX›[Y[ù\Z\»8†&XXÿ›YZ[àX›]ò][€à]]€X]\]YH\∞Í»ZY[Y[ùèŸ]èâ J…œŸ]èâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ãXõ›€Néèèèâ ÿX›]ôP€Àõ[ô›
+…»»	 €[J…»€À[‹ôÿ[ö\ÿ]]\â  X›]ôP€Àõ[ô›åO…‹…Œâ… J…»X›Yâ  X›]ôP€Àõ[ô›åO…‹…Œâ… J…œÿèà8†(à	 ‹›\‹[ôY€Àõ[ô›
+…»›\‹[ôI  ›\‹[ôY€Àõ[ô›åO…‹…Œâ… J…»8†(à	 ‹[ô[ôÀõ[ô›
+…»[ùö]][€â  [ô[ôÀõ[ô›åO…‹…Œâ… J…»[à][ùOŸ]èâŒ¬ÇàÀò€€‹ô‹Àôõ‹ëXX⁄
+œOû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\âŒ¬à€€ú›[öŸYJÀú^Y\úﬂ◊JKôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô Àõ[öŸY‹^Y\ó⁄Y	… JN¬àö[õô\íSIœ]à€\‹œHúõ›»èè‹[à›[OHôõ^åHèèèâ Ÿ\ÿ Àô[XZ[	–€À[‹ôÿ[ö\ÿ]]\â J…œÿèè]à€\‹œHõ]]Yèê€À[‹ôÿ[ö\ÿ]]\à\Z\»H	 Ÿõ]
+Àò‹ôX]Yÿ]
+J…œŸ]èè‹‹[èè‹[à›[OHôõ€ù]ŸZY⁄çÃÿ€€‹éâ  ÀòX›]ôO…»ÃMNŸ	Œâ»ÿçLÃI J…»èâ  ÀòX›]ôO…¸'ÁËàX›YâŒâ¯£Ó;Ó#»›\‹[ôI J…œ‹‹[èèŸ]èâ ¬à	œ]à›[OHõX\ô⁄[ã]‹é\‹Y[ôŒåLÿõ‹ô\éå\€€Y	  [öŸY…»ÿçŸŒIŒâ»ŸôMŸçI J…Œÿõ‹ô\ã\òY]\ŒåLúÿòX⁄Ÿ‹õ›[ôâ  [öŸY…»ŸåôòYçâŒâ»ŸçŸòYôâ J…»èèèº'‰iY[XúôHH‹õ›\H\‹€ÿ⁄pÍOÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèâ  [öŸY…¯ß!H	 Ÿ\ÿ [öŸYõò[YJJ…»8†(àXZ\€€àX›]ôH]ôX»€€àQ’‚IŒâ–]X›[àY[XúôHò]X⁄0ÍKà\‹€ÿ⁄YH€€à€€\H]Hõ›Y]\à€‹úô\‹€ô[ù[ú»€à‹õ›\Kâ J…œŸ]èèŸ]èâŒ¬àYä[[öŸY
+^¬à€€ú›\ŸY[ô]»Ÿ]
+Àò€€‹ô‹ÀõX\
+Oûõ[öŸY‹^Y\ó⁄Y
+Kôö[\äõ€€X[äKõX\
+›ö[ô JN¬à€€ú›[Y⁄XõOJÀú^Y\úﬂ◊JKôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸIâà]\ŸYö\ ›ö[ô öY
+JJN¬à€€ú›[ö‘õ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N€[ö‘õ›Àò€\‹”ò[YOI‹õ›…Œ€[ö‘õ›Àú›[Kò‹‹’^I€X\ô⁄[ã]‹éÿ[Y€ãZ][\Œú›ô]⁄Ÿõ^]‹ò\ù‹ò\	Œ¬à€€ú›^Y\îŸ[X›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N‹^Y\îŸ[X›ú›[Kò‹‹’^IŸõ^åN€Z[ã]⁄YååL	Œ¬à^Y\îŸ[X›ö[õô\íSIœ‹[€àò[YOHàèê⁄⁄\⁄\àHY[XúôH€‹úô\‹€ô[ù8†)è€‹[€èâ Ÿ[Y⁄XõKõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬à€€ú›[ö–ù]€èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N€[ö–ù]€ãò€\‹”ò[YOI‹ö[X\ûIŒ€[ö–ù]€ãù^€€ù[ùI¸'Â%»ò]X⁄\àŸHY[XúôIŒ€[ö–ù]€ãô\ÿXõYHY[Y⁄XõKõ[ô›¬à[ö–ù]€ãõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›^Y\íY\^Y\îŸ[X›ùò[YN⁄Yä\^Y\íY
+\ô]\õàÿ\›
+	–⁄⁄\⁄\»8†&XXõ‹ôHY[XúôH€‹úô\‹€ô[ùâ N¬à€€ú›^Y\èY[Y⁄XõKôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô ^Y\íY
+JN¬àYäX€€ôö\õJ	‘ò]X⁄\à0ÍYö[ö]]ô[Y[ù	  Àô[XZ[	ÿŸH€À[‹ôÿ[ö\ÿ]]\â J…»0Ë	  ^Y\èÀõò[Y_	ÿŸHY[XúôI J…»◊óì\»›]\›\]Y\»Ÿ\õ€ù∞Í][öY\»€›\»HpÍõYHQ’‚Kâ J\ô]\õé¬à[ö–ù]€ãô\ÿXõY]ùYN‹^Y\îŸ[X›ô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó€[ö◊ÿ€€‹ôÿ[ö^ô\ó‹^Y\ó›åIÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY›\Ÿ\ó⁄YòÀù\Ÿ\ó⁄Y‹^Y\ó⁄Yú^Y\íYJN¬àYä\úõ‹ä^€[ö–ù]€ãô\ÿXõYYò[ŸN‹^Y\îŸ[X›ô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂBàÀõ[öŸY‹^Y\ó⁄Y\^Y\íY›ÿ\›
+	–€À[‹ôÿ[ö\ÿ]]\àò]X⁄0ÍH]HY[XúôH8ß!I N‹ô[ô\î\õZ\‹⁄[€ú 
+N‹ô[ô\êXÿŸ\‹ 
+N¬àN¬à[ö‘õ›Àò\[ô
+^Y\îŸ[X›[ö–ù]€äNŸò\[ô⁄[
+[ö‘õ› N¬àBà€€ú›X›[€úœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NÿX›[€úÀò€\‹”ò[YOI‹õ›…ŒÿX›[€úÀú›[KõX\ô⁄[ï‹IŒ	ŒÿX›[€úÀú›[Kôõ^‹ò\I›‹ò\	Œ¬à€€ú››\‹[ôYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹›\‹[ôù^€€ù[ùXÀòX›]ôO…¯£Ó;Ó#»›\‹[ôôIŒâ¯•≠ªÓ#»∞ÍXX›]ô\âŒ¬à›\‹[ôõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJÀòX›]ôO…‘›\‹[ôôHŸH€À[‹ôÿ[ö\ÿ]]\à»[\ôòH[[pÍYX][Y[ù8†&XXÿÍ»0Ë8†&Y\‹XŸKâŒâ‘∞ÍXX›]ô\àŸH€À[‹ôÿ[ö\ÿ]]\à… J\ô]\õé¬à›\‹[ôô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó‹Ÿ]ÿ€€‹ôÿ[ö^ô\óÿX›]ôIÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY›\Ÿ\ó⁄YòÀù\Ÿ\ó⁄YÿX›]ôNàXÀòX›]ô_JN¬à›\‹[ôô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+ÀòX›]ôO…–€À[‹ôÿ[ö\ÿ]]\à›\‹[ôKâŒâ–€À[‹ôÿ[ö\ÿ]]\à∞ÍXX›]∞ÍKâ N¬à]ÿZ]ÿY[
+
+N¬àN¬à€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸ[ò€\‹”ò[YOIŸ[ôŸ\à€X[ùâŒŸ[ù^€€ù[ùI¸'Â‰H›\ö[Y\âŒ¬à[õ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJ	‘›\ö[Y\à0ÍYö[ö]]ô[Y[ù	  Àô[XZ[	ÿŸH€À[‹ôÿ[ö\ÿ]]\â J…»H8†&[‹ôÿ[ö\ÿ][€à◊óí[∏†&X]\òH\»XÿÍ»0ËŸ]\‹XŸKâ J\ô]\õé¬à[ô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó‹ô[[›ôWÿ€€‹ôÿ[ö^ô\âÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY›\Ÿ\ó⁄YòÀù\Ÿ\ó⁄YJN¬à[ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	–€À[‹ôÿ[ö\ÿ]]\à›\ö[pÍKâ N¬à]ÿZ]ÿY[
+
+N¬àN¬àX›[€úÀò\[ô
+›\‹[ô[
+NŸò\[ô⁄[
+X›[€ú Nÿõﬁò\[ô⁄[
+
+N¬àJN¬Çà[ô[ôÀôõ‹ëXX⁄
+OOû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\âŒ¬àö[õô\íSIœ]à€\‹œHúõ›»èè‹[à›[OHôõ^åHèèèâ Ÿ\ÿ Kô[XZ[
+J…œÿèè]à€\‹œHõ]]Yèí[ùö]][€à‹∞ÍpÍYHH	 Ÿõ]
+Kò‹ôX]Yÿ]
+J…»8†(à]X›[àK[XZ[]]€X]\]YH∏†&Y\›[ùõﬁpÍKèŸ]èè‹‹[èè‹[à›[OHôõ€ù]ŸZY⁄çÃÿ€€‹éàÿçLÃHèº'ÁË[à][ùO‹‹[èèŸ]èâŒ¬à€€ú›X›[€úœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NÿX›[€úÀò€\‹”ò[YOI‹õ›…ŒÿX›[€úÀú›[KõX\ô⁄[ï‹IŒ	ŒÿX›[€úÀú›[Kôõ^‹ò\I›‹ò\	Œ¬à€€ú›€‹OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿ€‹Kù^€€ù[ùI¸'Â%»€‹Y\àHY[âŒ¬à€€ú›ÿOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N›ÿKù^€€ù[ùI¸'‰Ïà⁄]–\	Œ›ÿKò€\‹”ò[YOI‹ö[X\ûIŒ¬à€€ú›ÿ[òŸ[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿÿ[òŸ[ù^€€ù[ùI–[õù[\âŒÿÿ[òŸ[ò€\‹”ò[YOIŸ[ôŸ\à€X[ùâŒ¬à€‹Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›[öœX€€‹ô“[ùö]S[ö JN¬àû^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+[ö N›ÿ\›
+	”Y[à8†&Z[ùö]][€à€‹pÍH8ß!I _Xÿ]⁄
+J^›ÿ\›
+	“[\‹‹⁄XõHH€‹Y\à]]€X]\]Y[Y[ùâ _BàN¬àÿKõ€ò€X⁄œJ
+OOù⁄[ô›Àõ‹[ä	⁄ŒãÀ›ÿKõYKœ›^I Ÿ[ò€ŸUTíP€€\€ô[ù
+€€‹ô“[ùö]SY\‹ÿYŸJJJK	◊ÿõ[ö…À	€õ€‹[ô\â N¬àÿ[òŸ[õ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJê[õù[\àŸ]H[ùö]][€à»äJ\ô]\õé¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	›€‹ö‹‹XŸW⁄[ùö]\… Kô[]J
+Kô\J	⁄Y	ÀKöY
+Kô\J	›€‹ö‹‹XŸW⁄Y	ÀÀù€‹ö‹‹XŸKöY
+Kö\ 	ÿXÿŸ\Yÿ]	Àù[
+N¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	“[ùö]][€à[õù[0ÍYKâ Nÿ]ÿZ]ÿY[
+
+N¬àN¬àX›[€úÀò\[ô
+€‹KÿKÿ[òŸ[
+NŸò\[ô⁄[
+X›[€ú Nÿõﬁò\[ô⁄[
+
+N¬àJN¬ÇàYäTÀò€€‹ô‹Àõ[ô›	âà\[ô[ôÀõ[ô›
+Xõﬁö[õô\íS
+œIœ]à€\‹œHõ]]Yèê]X›[à€À[‹ôÿ[ö\ÿ]]\à›\àH[€Y[ùèŸ]èâŒ¬üBÇôù[ò›[€àô[ô\î›ö\Pö[[ô 
+^¬à€€ú›ÿ\ôI
+	»‹›ö\Pö[[ô–ÿ\ô	 N⁄YäXÿ\ô
+\ô]\õé¬àÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\–YZ[ä
+JN¬àYäZ\–YZ[ä
+J\ô]\õé¬à€€ú›èTÀòö[[ô‘›]\ﬂﬂK‹œTÀõ‹ôÿ[ö^ô\îŸ][ô‹ﬂﬂN¬à€€ú›€€õôX›YHHXãú›ö\Wÿ€€õôX›ÿXÿ€›[ù⁄YôXYOHHXãò€€õôX›ÿ⁄\ôŸ\◊Ÿ[òXõY¬àYä	
+	»€‹ôÿ[ö^ô\ìYÿ[›]\… JI
+	»€‹ôÿ[ö^ô\ìYÿ[›]\… Kùò[YO[‹ÀõYÿ[‹›]\ﬂ	⁄[ô]öYX[	Œ¬àYä	
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\€ôI Iâôÿ›[Y[ùòX›]ôQ[[Y[ùOOI
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\€ôI JI
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\€ôI Kùò[YO[‹Àù⁄]ÿ\ÿ€€ùX›‹€ô_	…Œ¬àYä	
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\‹õ›\	 Iâôÿ›[Y[ùòX›]ôQ[[Y[ùOOI
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\‹õ›\	 JI
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\‹õ›\	 Kùò[YO[‹Àù⁄]ÿ\Ÿ‹õ›\›\õ	…Œ¬àYä	
+	»€‹ôÿ[ö^ô\î^[Y[ù[Y⁄Xö[]I J^…
+	»€‹ôÿ[ö^ô\î^[Y[ù[Y⁄Xö[]I Kù^€€ù[ù[‹Àô^\õò[‹^[Y[ù‹ôXYO…¯ß!H‹ôÿ[ö\ÿ]]\àì»8†(àZY[Y[ù[àY€ôH]]‹ö\ÍIŒâ¸'‰i\ùX›[Y\à8†(àZY[Y[ù›\àXŸH[ö\]Y[Y[ù	Œ…
+	»€‹ôÿ[ö^ô\î^[Y[ù[Y⁄Xö[]I Kú›[KòòX⁄Ÿ‹õ›[ô[‹Àô^\õò[‹^[Y[ù‹ôXYO…»ŸŸòŸM…Œâ»ŸYYåôç…Œÿ€€ú›‹›I
+	»€‹ôÿ[ö^ô\î^[Y[ù[Y⁄Xö[]I Kú\ô[ù[[Y[ùÀú\ô[ù[[Y[ù⁄Yä‹›	âõ‹Àô^\õò[‹^[Y[ù‹ôXYIâàZ‹›ú]Y\ûTŸ[X›‹ä	ÀúõÀ\^[Y[ù]ÿ\õö[ô… J^ÿ€€ú›èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N€ãò€\‹”ò[YOI‹õÀ\^[Y[ù]ÿ\õö[ô…Œ€ãö[õô\íSIœè∏¶®;Ó#»[ôÿYŸ[Y[ù‹ôÿ[ö\ÿ]]\àìœÿèè]èì\»[úÿ‹ö\[€ú»∞ÍX[\ÍY\»öXH’‚H⁄]ô[ù0ÍùôH∞ÍY›[\ö\ÍY\»€€ôõ‹õpÍ[Y[ù]^€€ô][€ú»H€€\^Kà[à[\^pÍH›H]YŸH€€ôö\õpÍH]][ùòpÎõô\àH›\‹[ú⁄[€à[\‹òZ\ôH\»õ€ò›[€ú»HZY[Y[ùù\‹]x†&pË∞ÍY›[\ö\ÿ][€ãà\»[ò⁄Y[ù»›ö\H€€ùòZ]0Í\»Ÿ[€à\»õÿÍY\ô\»›ö\H\XÿXõ\ÀèŸ]èâŒ⁄‹›ò\[ô⁄[
+äNﬂ_Bà€€ú›^^OI
+	»››\ë^\õò[^[Y[ùô\]Z\ôY	 N⁄Yä^^J^Ÿ^^Kô\ÿXõYH[‹Àô^\õò[‹^[Y[ù‹ôXYN⁄Yä[‹Àô^\õò[‹^[Y[ù‹ôXYJY^^Kò⁄X⁄ŸYYò[ŸNﬂBà€€ú›^õ›OI
+	»››\ë^\õò[^[Y[ùõ›I N⁄Yä^õ›JY^õ›Kù^€€ù[ù[‹Àô^\õò[‹^[Y[ù‹ôXYO…‘›ö\H€€õôX›\›‹0Í\ò][€õô[àH]^^YŸ\àHZY[Y[ù[àY€ôH\»õ›Y]\ú»^\õô\ÀâŒâ‘›\à^YŸ\à[àZY[Y[ù^\õôHà[Ÿ[HZY[Y[ù»X›Yà
+»€€\H›ö\H€€õôX›€€\0Í[Y[ùò[Y0ÍKâŒ¬à€€ú›ŸŸ€OI
+	»‹›ö\T^[Y[ù’ŸŸ€I K]Z[œI
+	»‹›ö\Pö[[ô—]Z[… N¬àYäŸŸ€J^»Yä€€õôX›Y
+HŸŸ€Kò⁄X⁄ŸY]ùYN»]Z[œÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ]ŸŸ€Kò⁄X⁄ŸY
+N»Bà€€ú›òYŸOI
+	»‹›ö\T›]\–òYŸI N¬àYäòYŸJXòYŸKù^€€ù[ù\ôXYO…¸'ÁËàZY[Y[ù»X›Yú…Œä€€õôX›Y…¯¶®;Ó#»€€ôöY›\ò][€à0Ë\õZ[ô\âŒâ¯¶™àõ€à€€ôöY›\∞ÍI N¬à€€ú›[ò€€\]OI
+	»‹›ö\R[ò€€\]Uÿ\õö[ô… N⁄Yä[ò€€\]JZ[ò€€\]Kò€\‹”\›ùŸŸ€J	⁄Y[âÀJ€€õôX›Y	âà\ôXYJJN¬à€€ú›€YUÿ\õèI
+	»⁄€YT›ö\Uÿ\õö[ô… N⁄Yä€YUÿ\õäZ€YUÿ\õãò€\‹”\›ùŸŸ€J	⁄Y[âÀJ€€õôX›Y	âà\ôXYJJN¬à€€ú›[èXãú[óÿ€ŸOOOI‹õ◊Ÿ]âœ…‘ì»8†(à\›	Œî›ö[ô ãú[óÿ€Ÿ_	ŸúôYI Kù’\\êÿ\ŸJ
+N¬à	
+	»‹›ö\Pö[[ô‘›]\… Kö[õô\íSIœ]à€\‹œHô‹öYÃàèâ ¬à	œ]èè‹[à€\‹œHõ]]Yèëõ‹õ][O‹‹[èè]èèèâ Ÿ\ÿ [äJ…œÿèèŸ]èèŸ]èâ ¬à	œ]èè‹[à€\‹œHõ]]Yèê€€\H‹ôÿ[ö\ÿ]]\è‹‹[èè]èèèâ  €€õôX›Y…–€€õôX›0ÍIŒâ‡€€õôX›\â J…œÿèèŸ]èèŸ]èâ ¬à	œ]èè‹[à€\‹œHõ]]Yèë[òÿZ\‹Ÿ[Y[ùœ‹‹[èè]èèèâ  ôXYO…¯ß!H]]‹ö\Í\…Œä€€õôX›Y…¯¶®;Ó#»0‡ö[ò[\Ÿ\âŒâ¯£Ï»[à][ùI JJ…œÿèèŸ]èèŸ]èâ ¬à	œ]èè‹[à€\‹œHõ]]Yèïö\ô[Y[ùœ‹‹[èè]èèèâ  ãò€€õôX›‹^[›]◊Ÿ[òXõY…¯ß!H]]‹ö\Í\…Œä€€õôX›Y…¯¶®;Ó#»0‡ö[ò[\Ÿ\âŒâ¯£Ï»[à][ùI JJ…œÿèèŸ]èèŸ]èâ ¬à	œŸ]èâŒ¬à€€ú›ùèI
+	»‹›ö\P€€õôX›ùâ N⁄Yäùä^ÿùãù^€€ù[ùX€€õôX›Y	âà\ôXYO…¯¶®;Ó#»\õZ[ô\àH€€ôöY›\ò][€à›ö\IŒä€€õôX›Y…¸'Â%»Y]ôH0Ëõ›\à›ö\IŒâ¸'Â%»X›]ô\à\»ZY[Y[ù»›ö\I N»Yä€€õôX›Y	âà\ôXYJXùãú›[Kôõ€ùŸZY⁄IŒL	ŒﬂBüBò\ﬁ[ò»ù[ò›[€àôYúô\⁄›ö\P€€õôX››]\ ⁄›’ÿ\›]ùYJ^¬àYäZ\–YZ[ä
+_TÀù€‹ö‹‹XŸJ\ô]\õé¬à€€ú›ùèI
+	»‹›ö\TôYúô\⁄ùâ N⁄YäùäXùãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KX€€õôX›\›]\…ÀÿõŸNû›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY_JN¬àYäùäXùãô\ÿXõYYò[ŸN¬àYä\úõ‹ü]OÀô\úõ‹ä^⁄Yä⁄›’ÿ\›
+]ÿ\›
+]OÀô\úõ‹ü\úõ‹èÀõY\‹ÿYŸ_	“[\‹‹⁄XõHH∞Í\öYöY\à›ö\Kâ N‹ô]\õüBà€€ú›èX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸWÿö[[ô◊‹›]\…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN¬àYä\ãô\úõ‹ä^ÿ€€ú›èP\úò^Kö\–\úò^Jãô]JO‹ãô]VÃNúãô]N‘Àòö[[ô‘›]\œXüù[‹ô[ô\î›ö\Pö[[ô 
+NﬂBàYä⁄›’ÿ\›
+]ÿ\›
+]OÀò⁄\ôŸ\◊Ÿ[òXõY…‘›ö\H\›∞Íù0Ë[òÿZ\‹Ÿ\à8ß!IŒâ¯¶®;Ó#»›ö\H∏†&Y\›\»[ò€‹ôH∞Íùà\õZ[ôHH€€ôöY›\ò][€à›\àX›]ô\à\»ZY[Y[ùÀâ N¬üBÇôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À
+JOOû¬àYäKù\ôŸ]ÀöYOOI⁄€YT›ö\Qö[ö\⁄ùâ ^¬àŸ][Y[›]
+
+
+OOâ
+	»‹›ö\Pö[[ô–ÿ\ô	 OÀúÿ‹õ€[ù’öY] ÿôZ]ö[‹éâ‹€[€›	Àõÿ⁄Œâ‹›\ù	ﬂJKLå
+N¬àBüJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀ
+JOOû¬àYäKù\ôŸ]ÀöYOOI‹›ö\T^[Y[ù’ŸŸ€I ^¬à€€ú›]Z[œI
+	»‹›ö\Pö[[ô—]Z[… N¬à]Z[œÀò€\‹”\›ùŸŸ€J	⁄Y[âÀYKù\ôŸ]ò⁄X⁄ŸY
+N¬àYäYKù\ôŸ]ò⁄X⁄ŸY	âàÀòö[[ô‘›]\œÀú›ö\Wÿ€€õôX›ÿXÿ€›[ù⁄Y
+^¬àKù\ôŸ]ò⁄X⁄ŸY]ùYN»]Z[œÀò€\‹”\›úô[[›ôJ	⁄Y[â N¬àÿ\›
+	‘›ö\H\›0ÍZ∞Ëô[pÍH0ËŸH€€\KàH]^€€ù[ùY\à›HY]ôH0Ëõ›\àH€€ôöY›\ò][€ãâ N¬àBàBüJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò JOOû¬àYäKù\ôŸ]ÀöYOOI‹›ö\P€€õôX›ùâ ^¬àYäZ\–YZ[ä
+_TÀù€‹ö‹‹XŸJ\ô]\õé¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYNÿãù^€€ù[ùI”›]ô\ù\ôHH›ö\x†)âŒ¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KX€€õôX›[€òõÿ\ô[ô…ÀÿõŸNû¬à€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYàô]\õó›\õêT’Tì
+…œ‹›ö\O\ô]\õâÀàôYúô\⁄›\õêT’Tì
+…œ‹›ö\O\ôYúô\⁄	¬à_JN¬àãô\ÿXõYYò[ŸN‹ô[ô\î›ö\Pö[[ô 
+N¬àYä\úõ‹ü]OÀô\úõ‹ä\ô]\õàÿ\›
+]OÀô\úõ‹ü\úõ‹èÀõY\‹ÿYŸ_	“[\‹‹⁄XõH8†&[›]úö\à›ö\Kâ N¬àYä]OÀù\õ
+[ÿÿ][€ãöôYèY]Kù\õ¬àBàYäKù\ôŸ]ÀöYOOI‹›ö\TôYúô\⁄ùâ X]ÿZ]ôYúô\⁄›ö\P€€õôX››]\ ùYJN¬üJN¬Çôù[ò›[€àô[ô\î\õZ\‹⁄[€ú 
+^¬à€€ú›õﬁI
+	»‹\õZ\‹⁄[€ú”\›	 N⁄YäXõﬁ
+\ô]\õé¬àYäZ\–YZ[ä
+J^ÿõﬁö[õô\íSI…Œ‹ô]\õüBàYäTÀò€€‹ô‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ€\‹œHõ]]Yèê]X›[à€À[‹ôÿ[ö\ÿ]]\à0Ë\ò[pÍ]ô\ãè‹âŒ‹ô]\õüBàõﬁö[õô\íSIœ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ãXõ›€NåLúÿòX⁄Ÿ‹õ›[ôàŸçŸòYôéÿõ‹ô\ãX€€‹éàÿôôôôHèèèº'Â$]]‹ö\ÿ][€ú»\»€ÀYŸ\›[€õòZ\ô\œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èî\à0ÍYò]][àõ›]ôX]H€ÀYŸ\›[€õòZ\ôH]][ö\]Y[Y[ùèùõ⁄\àH\›H\»õ›Y]\ú»]\»0Í]ò[Y\èÿèãàH]^[ú›Z]HZHZõ›]\à8†&X]]ô\»õ⁄]»X⁄KàŸ]0ÍX‹ò[àôHŸHòYúòpÎò⁄]\»]]€X]\]Y[Y[ù[ô[ù\»[ŸYöXÿ][€úÀèŸ]èèŸ]èâŒ¬à€€ú›YúœV¬à…ÿÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\ú…À	“[ùö]\à\»€À[‹ôÿ[ö\ÿ]]\ú…À	‘]]‹∞ÍY\à]\ùYŸ\à[ôH[ùö]][€ãâ◊Kà…ÿÿ[óŸ[ù\ó‹ÿ€‹ô\…À	‘ÿZ\⁄\à\»ÿ€‹ô\»[ô[ù\»X]⁄…À	‘]][ŸYöY\à\»ÿ€‹ô\»]Zõ›]\ãÿ[õù[\à\»ù]»[ô[ù[à›\õõ⁄H[à€›\úÀâ◊Kà…ÿÿ[óÿY€Y[Xô\ú…À	–Zõ›]\à\»Y[Xúô\…À	‘]]Zõ›]\àHõ›]ôX]^õ›Y]\ú»0ËH\›Kâ◊KÇà…ÿÿ[óÿ‹ôX]W››\õò[Y[ù…À	–‹∞ÍY\à[àõ›]ôX]H›\õõ⁄IÀ	‘]]‹∞ÍY\à[àõ›]ôX]H›\õõ⁄H\Z\»8†&[€ô€]›\õõ⁄\Àâ◊Kà…ÿÿ[ó›öY]◊‹^Y\ú…À	’õ⁄\àH\›H\»õ›Y]\ú…À	–YôöX⁄H8†&[€ô€]õ›Y]\ú»]\õY]H€€ú›[\àH\›H]€õô\à[à]ö\»Hö]ôX]Kâ◊Kà…ÿÿ[óŸŸ[ô\ò]W›X[\…À	—Í[∞Í\ô\à\»0Í\]Z\\…À	‘]][òŸ\àHÍ[∞Í\ò][€à]]€X]\]YH\»0Í\]Z\\»0Í\]Z[Xú∞ÍY\»ÿ[ú»õ⁄\à\»ö]ôX]^ö]∞Í\»H8†&XYZ[ö\›ò]]\ãâ◊Kà…ÿÿ[óŸŸ[ô\ò]W›X[Wÿ€Ÿ\…À	—Í[∞Í\ô\à\»€Ÿ\»0Í\]Z\IÀ	‘]]Í[∞Í\ô\ã∞ÍYÍ[∞Í\ô\ãX›]ô\à›H0Í\ÿX›]ô\àH€ŸH0Í\]Z\H\ú€€õô[8†&][àõ›Y]\ãâ◊Kà…ÿÿ[óŸY]‹^Y\ó‹\ú€€ò[⁄[ôõ…À	”[ŸYöY\à\»[ôõ‹õX][€ú»\ú€€õô[\»\»õ›Y]\ú…À	‘]][ŸYöY\àHõ€KH›]]Y[XúôKŸ›Y\›Hò]X⁄[Y[ù›Y\›x†)à]Hù[pÍ\õ»H0Í[0Í\€ôKâ◊BàN¬àÀò€€‹ô‹Àôõ‹ëXX⁄
+œOû¬à€€ú›ÿ\ôYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â Nÿÿ\ôò€\‹”ò[YOI‹^Y\âŒÿÿ\ôú›[KõX\ô⁄[êõ›€OIÃLú	Œ¬àÿ\ôö[õô\íSIœ]à€\‹œHúõ›»èè‹[à›[OHôõ^åHèèèâ Ÿ\ÿ Àô[XZ[	–€À[‹ôÿ[ö\ÿ]]\â J…œÿèè]à€\‹œHõ]]Yèâ  ÀòX›]ôO…¸'ÁËàX›YâŒâ¯£Ó;Ó#»›\‹[ôI J…œŸ]èè‹‹[èèŸ]èâŒ¬à€€ú›[ö–õﬁYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N€[ö–õﬁú›[Kò‹‹’^I€X\ô⁄[ã]‹åL‹Y[ôŒåLÿõ‹ô\éå\€€YŸôMŸçNÿõ‹ô\ã\òY]\ŒåLúÿòX⁄Ÿ‹õ›[ôàŸçŸòYôâŒ¬à€€ú›[öŸYŸ[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N€[öŸYŸ[ô]\Ÿ]õ[öŸY^Y\èIÃIŒ€[öŸYŸ[ú›[Kù⁄YIÃL	IŒ¬à[öŸYŸ[ö[õô\íSIœ‹[€àò[YOHàèê]X›[àõ›Y]\àò]X⁄0ÍO€‹[€èâ ‘Àú^Y\úÀôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬à[öŸYŸ[ùò[YOXÀõ[öŸY‹^Y\ó⁄Y	…Œ¬àYäÀõ[öŸY‹^Y\ó⁄Y
+H[öŸYŸ[ô\ÿXõY]ùYN¬à[ö–õﬁö[õô\íSIœèº'‰i€€\H\‹€ÿ⁄pÍH0Ë[àõ›Y]\èÿèè]à€\‹œHõ]]Y€X[à›[OHõX\ô⁄[éç‹èâ  Àõ[öŸY‹^Y\ó⁄Y…¸'Â$àXZ\€€à0ÍYö[ö]]ôHàŸHY[XúôH][\ŸH0Í\€‹õXZ\»HpÍõYHQ’‚H]YHH€ÀYŸ\›[€õòZ\ôKàŸ][H›\\àYZ[à]]0Í[Y\àŸHõŸö[âŒâ“Y[ùYöYHHY[XúôH€‹úô\‹€ô[ù]H€ÀYŸ\›[€õòZ\ôKà¯†&Z[‹‹ÍH0ÍZ∞Ë[àQ’‚KŸ\»›]\›\]Y\»Ÿ\õ€ù]]€X]\]Y[Y[ùò]X⁄0ÍY\»0ËŸ]Qâ J…œŸ]èâŒ¬à[ö–õﬁò\[ô⁄[
+[öŸYŸ[
+Nÿÿ\ôò\[ô⁄[
+[ö–õﬁ
+N¬à€€ú›[ú›ùX›[€êõﬁYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	€Xô[	 N⁄[ú›ùX›[€êõﬁú›[Kò‹‹’^IŸ\‹^Nòõÿ⁄Œ€X\ô⁄[ã]‹åL‹Y[ôŒåLÿõ‹ô\éå\€€YŸŸMŸéÿõ‹ô\ã\òY]\ŒåLúÿòX⁄Ÿ‹õ›[ôàŸçŸòôé	Œ¬à[ú›ùX›[€êõﬁö[õô\íSIœèº'‰Ë»€€ú⁄Y€ôH\ú€€õò[\ÍYOÿèè]à€\‹œHõ]]Y€X[à›[OHõX\ô⁄[éç‹èïö\⁄XõH[ö\]Y[Y[ù\àŸH€ÀYŸ\›[€õòZ\ôH‹ú‹]x†&Z[\›€€õôX›0ÍKèŸ]èè^\ôXH]K\\ú€€ò[Z[ú›ùX›[€ú»X^[ô›Hååàõ›‹œHå»àXŸZ€\èHë^àÿúŸ\ùôH[àö[‹ö]0ÍH\»õ›]ôX]^õ›Y]\ú»]∞Í\öYöYH\»∞Í\Ÿ[òŸ\Ààèâ Ÿ\ÿ Àú\ú€€ò[⁄[ú›ùX›[€úﬂ	… J…œ›^\ôXOâŒ¬àÿ\ôò\[ô⁄[
+[ú›ùX›[€êõﬁ
+N¬àYúÀôõ‹ëXX⁄
+
+⁄Ÿ^KXô[[JOOû¬à€€ú›õ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	€Xô[	 N‹õ›Àò€\‹”ò[YOI‹õ›…Œ‹õ›Àú›[Köù\›YûP€€ù[ùIŸõ^\›\ù	Œ‹õ›Àú›[Kò[Y€í][\œIŸõ^\›\ù	Œ‹õ›Àú›[KõX\ô⁄[ï‹IÃL	Œ¬à€€ú›ÿèYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 Nÿÿãù\OIÿ⁄X⁄ÿõﬁ	Œÿÿãú›[Kù⁄YIÿ]]…Œÿÿãò⁄X⁄ŸYHHX÷⁄Ÿ^WNÿÿãô]\Ÿ]ú\õOZŸ^N¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹‹[â N›ú›[Kôõ^IÃIŒ›ö[õô\íSIœèâ €Xô[
+…œÿèè]à€\‹œHõ]]Yèâ ⁄[
+…œŸ]èâŒ¬àõ›Àò\[ô
+ÿã
+Nÿÿ\ôò\[ô⁄[
+õ› N¬àJN¬à€€ú›[\Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N›[\ò€\‹”ò[YOI‹^Y\âŒ›[\ú›[KõX\ô⁄[ï‹IÃLú	Œ›[\ú›[KòòX⁄Ÿ‹õ›[ôI»ŸôôéN	Œ¬à€€ú›[\X›]ôOXÀù[\‹ò\ûWÿYZ[ó›[ù[	âõô]»]JÀù[\‹ò\ûWÿYZ[ó›[ù[
+KôŸ][YJ
+Oë]Kõõ› 
+N¬à€€ú›ÿÿ[ò[YOXÀù[\‹ò\ûWÿYZ[ó›[ù[€ô]»]Jô]»]JÀù[\‹ò\ûWÿYZ[ó›[ù[
+KôŸ][YJ
+K[ô]»]J
+KôŸ][Y^õ€ôSŸôúŸ]
+
+Jçå
+Kù“T”‘›ö[ô 
+Kú€XŸJMäNâ…Œ¬à[\ö[õô\íSIœèº'‰dHõ⁄]»YZ[à[\‹òZ\ô\œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[éç\èë€õôH[\‹òZ\ô[Y[ù\»õ⁄]»HŸ\›[€àH›\õõ⁄Hà‹∞ÍY\ã›\õZ[ô\ã‹›\ö[Y\à[à›\õõ⁄KÍ\ô\à\»∞Í\Ÿ[òŸ\À0Í\]Z\\»]X]⁄Àà\»]]‹ö\ÿ][€ú»HÍX›\ö]0ÍHô\›[ù∞Í\Ÿ\ù∞ÍY\»0Ë8†&XYZ[ö\›ò]]\àö[ò⁄\[èŸ]èâ ¬à	œ]à€\‹œHúõ›»èè[ú]\OHô]][YK[ÿÿ[à]K][\XYZ[ã][ù[ò[YOHâ Ÿ\ÿ ÿÿ[ò[YJJ…»à›[OHôõ^åHèèù]€à\OHòù]€àà]KX€X\ã][\îô]\ô\èÿù]€èèŸ]èâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çúèâ  [\X›]ôO…¸'ÁËàX›Yàù\‹]x†&X]H	 €ô]»]JÀù[\‹ò\ûWÿYZ[ó›[ù[
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâ Nâ–]X›[àõ⁄]YZ[à[\‹òZ\ôHX›Yâ J…œŸ]èâŒ¬à[\ú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€X\ã][\I Kõ€ò€X⁄œJ
+OOû›[\ú]Y\ûTŸ[X›‹ä	÷Ÿ]K][\XYZ[ã][ù[I Kùò[YOI…ŒﬂN¬àÿ\ôò\[ô⁄[
+[\
+N¬Çà€€ú›ÿ]ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹ÿ]ôKò€\‹”ò[YOI‹ö[X\ûIŒ‹ÿ]ôKú›[KõX\ô⁄[ï‹IÃLú	Œ‹ÿ]ôKù^€€ù[ùI—[úôY⁄\›ô\à\»]]‹ö\ÿ][€ú…Œ¬àÿ]ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ò[œ^ﬂNÿÿ\ôú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K\\õWI Kôõ‹ëXX⁄
+ÿèOùò[÷ÿÿãô]\Ÿ]ú\õWOXÿãò⁄X⁄ŸY
+N¬à€€ú›[\[ú]Xÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K][\XYZ[ã][ù[I N¬à€€ú›[\[ù[][\[ú]	âù[\[ú]ùò[YO€ô]»]J[\[ú]ùò[YJKù“T”‘›ö[ô 
+Nõù[¬àYä[\[ù[	âõô]»]J[\[ù[
+KôŸ][YJ
+OQ]Kõõ› 
+J\ô]\õàÿ\›
+	–⁄⁄\⁄\»[ôH]HHö[àù]\ôH›\à\»õ⁄]»YZ[à[\‹òZ\ô\Àâ N¬àÿ]ôKô\ÿXõY]ùYN¬à€€ú›[öŸY^Y\íYXÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K[[öŸY\^Y\óI OÀùò[Y_ù[¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó‹ÿ]ôWÿ€€‹ôÿ[ö^ô\ó‹Ÿ][ô‹…À¬à›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY›\Ÿ\ó⁄YòÀù\Ÿ\ó⁄Yàÿÿ[ó⁄[ùö]NàH]ò[Àòÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\úÀÿÿ[ó‹ÿ€‹ô\ŒàH]ò[Àòÿ[óŸ[ù\ó‹ÿ€‹ô\Ààÿÿ[óÿYàH]ò[Àòÿ[óÿY€Y[Xô\úÀÿÿ[óŸ[]NàH]ò[Àòÿ[óŸ[]W€Y[Xô\úÀàÿÿ[óÿ‹ôX]W››\õò[Y[ùŒàH]ò[Àòÿ[óÿ‹ôX]W››\õò[Y[ùÀàÿÿ[ó›öY]◊‹^Y\úŒàH]ò[Àòÿ[ó›öY]◊‹^Y\úÀàÿÿ[óŸŸ[ô\ò]W›X[\ŒàH]ò[Àòÿ[óŸŸ[ô\ò]W›X[\Ààÿÿ[óŸŸ[ô\ò]W›X[Wÿ€Ÿ\ŒàH]ò[Àòÿ[óŸŸ[ô\ò]W›X[Wÿ€Ÿ\Ààÿÿ[óŸY]‹^Y\ó‹\ú€€ò[⁄[ôõŒàH]ò[Àòÿ[óŸY]‹^Y\ó‹\ú€€ò[⁄[ôõÀà€[öŸY‹^Y\ó⁄Yõ[öŸY^Y\íYà›[\‹ò\ûWÿYZ[ó›[ù[ù[\[ù[à‹\ú€€ò[⁄[ú›ùX›[€úŒòÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\\ú€€ò[Z[ú›ùX›[€ú◊I OÀùò[YKùö[J
+_ù[àJN¬àYä\úõ‹ä^‹ÿ]ôKô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂBàÿöôX›ò\‹⁄Y€äÀò[À€[öŸY‹^Y\ó⁄Yõ[öŸY^Y\íY[\‹ò\ûWÿYZ[ó›[ù[ù[\[ù[\ú€€ò[⁄[ú›ùX›[€úŒòÿ\ôú]Y\ûTŸ[X›‹ä	÷Ÿ]K\\ú€€ò[Z[ú›ùX›[€ú◊I OÀùò[YKùö[J
+_ù[JN¬àÀ»ô[]H€€ôöY›\ò][€àöXHHpÍõYH€›\òŸHî»]YHŸ[H][\ÍYH]H⁄\ôŸ[Y[ùÇàÀ»Ÿ[H0Í]ö]H\»0Í]]»[ò€⁄0Í\ô[ù»pÍ\»0Ë[ôHX›\ôHì»Yô∞Í\ô[ùHH	ÍX‹ö]\ôHîÀÇàû^¬à€€ú›Ÿ]Nôúô\⁄\›\úõ‹éôúô\⁄\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[óŸŸ]ÿ€€‹ôÿ[ö^ô\ó‹\õZ\‹⁄[€ú…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN¬àYäYúô\⁄\úõ‹ä^¬à€€ú›úô\⁄J\úò^Kö\–\úò^Júô\⁄\›
+OŸúô\⁄\›ñ◊JKôö[ô
+Oûù\Ÿ\ó⁄YOOXÀù\Ÿ\ó⁄Y
+N¬àYäúô\⁄
+SÿöôX›ò\‹⁄Y€äÀúô\⁄
+N¬àBàXÿ]⁄
+J^ÿ€€ú€€Kùÿ\õä	‹\õZ\‹⁄[€àô\öYöXÿ][€âÀJ_Bàÿ]ôKô\ÿXõYYò[ŸN¬àÿ]ôKù^€€ù[ùI¯ß$»[úôY⁄\›∞ÍIŒ¬àÿ\›
+	–]]‹ö\ÿ][€ú»[úôY⁄\›∞ÍY\»8ß!I N¬àŸ][Y[›]
+
+
+OOû⁄Yäÿ]ôKö\–€€õôX›Y
+\ÿ]ôKù^€€ù[ùI—[úôY⁄\›ô\à\»]]‹ö\ÿ][€ú…ŒﬂKLå
+N¬àN¬àÿ\ôò\[ô⁄[
+ÿ]ôJNÿõﬁò\[ô⁄[
+ÿ\ô
+N¬àJN¬üBôù[ò›[€àô[ô\ê[
+
+^¬àô[ô\í‹›Ÿ[€€YJ
+N¬àô[ô\í€YJ
+N¬àô[ô\îôY⁄\›\ôY^Y\ú–YZ[ä
+Kòÿ]⁄
+OOò€€ú€€Kô\úõ‹ä	‹ôY⁄\›\ôY^Y\ú…ÀJJN¬àô[ô\î^Y\ú 
+N¬àô[ô\î^Y\ë\ôX›‹ûPÿ\ô
+
+N‹ô[ô\êYZ[î^Y\îô\]Y\› 
+N¬àô[ô\ì^T^Y\íXä
+N¬àô[ô\î\õZ\‹⁄[€ú 
+N¬àô[ô\î›ö\Pö[[ô 
+N¬àô[ô\ï›\õò[Y[ù 
+N¬àô[ô\ïX[\ 
+N¬àô[ô\ìX]⁄\ 
+N¬àô[ô\ìXY›YJ
+Kòÿ]⁄
+OOò€€ú€€Kô\úõ‹ä	€XY›YIÀJJN¬à\T\õZ\‹⁄[€ú 
+N¬àô[ô\êXÿŸ\‹ 
+N¬àYä	
+	»‹XõX”[ö… IâîÀù€‹ö‹‹XŸOÀúXõX◊›⁄Ÿ[äI
+	»‹XõX”[ö… Kùò[YOPT’Tì
+…œ‹XõXœI ‘Àù€‹ö‹‹XŸKúXõX◊›⁄Ÿ[é»À»Y[àXõX»Í[∞Í\ò[H€€ú›[][€à»\»[úÿ‹ö\[€ú»][\Ÿ[ùôY⁄\›ò][€ì[ö 
+Bàô[ô\îò[ö⁄[ô 
+Kòÿ]⁄
+OOò€€ú€€Kô\úõ‹ä	‹ò[ö⁄[ô…ÀJJN¬àô[ô\îŸX\€€îÿ€‹ô\î›[[X\ûJ
+Kòÿ]⁄
+OOò€€ú€€Kô\úõ‹ä	‹ŸX\€€àò[ö⁄[ô…ÀJJN¬üBÇò\ﬁ[ò»ù[ò›[€àô[ô\îôY⁄\›\ôY^Y\ú–YZ[ä
+^¬à€€ú›ÿ\ôI
+	»‹ôY⁄\›\ôY^Y\ú–YZ[êÿ\ô	 N⁄YäXÿ\ô
+\ô]\õé¬à€€ú›X›\úô[ù›\ä
+N¬àÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀ]
+N¬àYä]
+\ô]\õé¬à€€ú›Xô[I
+	»‹ôY⁄\›\ôY^Y\ú–€€\]][€ìXô[	 N¬àYäXô[
+[Xô[ù^€€ù[ùJôõ‹õX]OOI€XY›YIœ…‘›ÍHHY›YHà	Œâ’›\õõ⁄Hà	 J õò[Y_ù›\õò[Y[ùŸ]JJ…»8†(à	 ›ù›\õò[Y[ùŸ]N¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹ôY⁄\›\ôY‹^Y\ú◊Ÿõ‹ó››\õò[Y[ù	À‹››\õò[Y[ù⁄YùöYJN¬à€€ú›õﬁI
+	»‹ôY⁄\›\ôY^Y\ú–YZ[ì\›	 KŸ[I
+	»€X[ùX[ôY⁄\›\ôY^Y\îŸ[X›	 N¬àYä\úõ‹ä^ÿõﬁö[õô\íSIœ€\‹œHõ]]Yèâ Ÿ\ÿ \úõ‹ãõY\‹ÿYŸJJ…œ‹âŒ‹ô]\õüBà€€ú›õ›‹œP\úò^Kö\–\úò^J]JOŸ]Nñ◊N¬à€€ú›ôY⁄\›\ôYYœ[ô]»Ÿ]
+õ›‹Àôö[\äèOúãúô\Ÿ[ù
+KõX\
+èOúãú^Y\ó⁄Y
+JN¬à€€ú›]òZ[XõOJÀú^Y\úﬂ◊JKôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸIâà\ôY⁄\›\ôYYÀö\ öY
+JKú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àYäŸ[
+\Ÿ[ö[õô\íSIœ‹[€àò[YOHàèêZõ›]\à[àY[XúôH[úÿ‹ö]X[ùY[[Y[ù€‹[€èâ ÿ]òZ[XõKõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬àYä\õ›‹Àõ[ô›
+^ÿõﬁö[õô\íSIœ€\‹œHõ]]Yèê]X›[àõ›Y]\à[úÿ‹ö]›\àH[€Y[ùè‹âŒ‹ô]\õüBàõﬁö[õô\íSI…Œ¬àõ›‹Àôö[\äèOúãúô\Ÿ[ù
+Kôõ‹ëXX⁄
+
+ãJOOû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\àõ›…ŒŸú›[KõX\ô⁄[êõ›€OIŒ	Œ¬àö[õô\íSIœà›[OHõZ[ã]⁄Yåéèâ  JÃJJ…Àèÿèè‹[à›[OHôõ^åHèâ Ÿ\ÿ ãú^Y\ó€ò[YJJ ãö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J…œ‹‹[èè‹[à€\‹œHô›Y\›XòYŸHèâ  ãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	ﬂãö\◊‹›Xú›]]O…‘ô[\pÈÿ[ù	Œâ–€€ôö\õpÍI J…œ‹‹[èâŒ¬à€€ú›ô[[›ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹ô[[›ôKò€\‹”ò[YOIŸ[ôŸ\âŒ‹ô[[›ôKù^€€ù[ùI‘ô]\ô\âŒ‹ô[[›ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJ	‘ô]\ô\à	 ‹ãú^Y\ó€ò[YJ…»HŸ]H[úÿ‹ö\[€à… J\ô]\õé¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹ô[[›ôW‹ôY⁄\›\ôY€Y[Xô\óŸúõ€W››\õò[Y[ù	À‹››\õò[Y[ù⁄YùöY‹^Y\ó⁄Yúãú^Y\ó⁄YJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àYäôõ‹õX]OOI€XY›YI…âîÀùX[\Àõ[ô›
+^¬àû^ÿ]ÿZ]ﬁ[ò’›\õò[Y[ù›Xú›]]\ öY
+_Xÿ]⁄
+ﬁ[ò—\úõ‹ä^‹ô]\õàÿ\›
+ﬁ[ò—\úõ‹ãõY\‹ÿYŸJ_BàBà]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\îôY⁄\›\ôY^Y\ú–YZ[ä
+N‹ô[ô\í€YJ
+N›ÿ\›
+	“[úÿ‹ö\[€àô]\∞ÍYKâ N¬àN¬àò\[ô⁄[
+ô[[›ôJNÿõﬁò\[ô⁄[
+
+N¬àJN¬üBÇôù[ò›[€àô[ô\í€YP€€‹ô’õ›\ 
+^¬à€€ú›ÿ\ôI
+	»⁄€YP€€‹ô’õ›\–ÿ\ô	 N¬à€€ú›õﬁI
+	»⁄€YP€€‹ô’õ›\… N¬àYäXÿ\ôXõﬁ
+\ô]\õé¬à€€ú›⁄›œZ\–YZ[ä
+N¬àÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀ\⁄› N¬àYä\⁄› \ô]\õé¬à€€ú›X›]ôOJÀò€€‹ô‹ﬂ◊JKôö[\äœOòÀòX›]ôHOOYò[ŸJN¬àYäXX›]ôKõ[ô›
+^¬àõﬁö[õô\íSIœ]à€\‹œHõ]]Yèê]X›[à€ÀYŸ\›[€õòZ\ôHX›Yà›\àH[€Y[ùèŸ]èâŒ¬àô]\õé¬àBà€€ú›ô]öY]‹œP\úò^Kö\–\úò^JÀú⁄⁄[ô]öY]‹ O‘Àú⁄⁄[ô]öY]‹Œñ◊N¬à€€ú›õ›‹œXX›]ôKõX\
+œOû¬à€€ú›[öŸYJÀú^Y\úﬂ◊JKôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô Àõ[öŸY‹^Y\ó⁄Y
+JN¬à€€ú›Xô[[[öŸYÀõò[Y_
+
+Àô[XZ[	–€ÀYŸ\›[€õòZ\ôI Kú‹]
+	–	 VÃJN¬à€€ú›Z[ôO\ô]öY]‹Àôö[\äèOî›ö[ô ãô]ò[X]‹ó›\Ÿ\ó⁄Y
+OOOT›ö[ô Àù\Ÿ\ó⁄Y
+Iâúãú^Y\ó⁄Y
+N¬à€€ú›õ›YYœVÀããõô]»Ÿ]
+Z[ôKõX\
+èOî›ö[ô ãú^Y\ó⁄Y
+JJWN¬à€€ú›õ›Y^Y\úœ]õ›YYÀõX\
+YOäÀú^Y\úﬂ◊JKôö[ô
+Oî›ö[ô öY
+OOOZY
+JKôö[\äõ€€X[äKú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YK	Ÿúâ JN¬à€€ú›X^SX]õX^
+
+Àú^Y\úﬂ◊JKôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸIâî›ö[ô öY
+HOOT›ö[ô Àõ[öŸY‹^Y\ó⁄Y	… JKõ[ô›
+N¬àô]\õà›\Ÿ\íYòÀù\Ÿ\ó⁄YXô[[XZ[òÀô[XZ[	…Àõ›Yùõ›YYÀõ[ô›X^õ›Y^Y\úﬂN¬àJKú€‹ù
+
+KäOOòãùõ›YXKùõ›YKõXô[õÿÿ[P€€\\ôJãõXô[	Ÿúâ JN¬àõﬁö[õô\íSIœ]à›[OHô\‹^Nô‹öYŸÿ\éèâ ‹õ›‹ÀõX\
+
+ãJOOû¬à€€ú››\ãõX^”X]õZ[äLX]úõ›[ô
+ãùõ›Y‹ãõX^
+åL
+JNå¬à€€ú›]Z[“YIÿ€€‹ô’õ›\—]Z[… ⁄N¬à€€ú›]Z[[\ãùõ›Y^Y\úÀõ[ô›‹ãùõ›Y^Y\úÀõX\
+Oâœ‹[à€\‹œHô›Y\›XòYŸHà›[OHõX\ô⁄[éå‹\‹Ÿ\‹^Nö[õ[ôKXõÿ⁄»èâ Ÿ\ÿ õò[YJJ…œ‹‹[èâ Köõ⁄[ä	… Nâœ‹[à€\‹œHõ]]Yèê]X›[àõ›Y]\à0Í]ò[pÍKè‹‹[èâŒ¬àô]\õà	œ]à€\‹œHú^Y\àà›[OHúY[ôŒåLLúèâ ¬à	œ]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éÿ[Y€ãZ][\ŒòŸ[ù\éŸÿ\åLèâ ¬à	œ]à›[OHõZ[ã]⁄Yåèèèâ Ÿ\ÿ ãõXô[
+J…œÿèâ  ãô[XZ[	âúãô[XZ[ú‹]
+	–	 VÃHOO\ãõXô[…œ]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNåLúèâ Ÿ\ÿ ãô[XZ[
+J…œŸ]èâŒâ… J…œŸ]èâ ¬à	œ]à›[OHù^X[Y€éúöY⁄›⁄]K\‹XŸNõõ›‹ò\èèà›[OHôõ€ù\⁄^ôNåNèâ ‹ãùõ›Y
+…œÿèè‹[à€\‹œHõ]]Yèàõ›I  ãùõ›YåO…‹…Œâ… J…œ‹‹[èè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNåLúèú›\à	 ‹ãõX^
+…»õ›Y]\â  ãõX^åO…‹…Œâ… J…œŸ]èèŸ]èâ ¬à	œŸ]èâ ¬à	œ]à›[OHöZY⁄çúÿòX⁄Ÿ‹õ›[ôàŸNXŸXNÿõ‹ô\ã\òY]\ŒéNN\€›ô\ôõ›ŒöY[é€X\ô⁄[ã]‹éèè]à›[OHöZY⁄åL	N›⁄Yâ ‹›
+……NÿòX⁄Ÿ‹õ›[ôàÿåŒåôNÿõ‹ô\ã\òY]\ŒéNN\èèŸ]èèŸ]èâ ¬à	œù]€à€\‹œHúŸX€€ô\ûHà\OHòù]€àà›[OHõX\ô⁄[ã]‹é‹Y[ôŒç‹Là]K]ŸŸ€KX€€‹ôÀ]õ›\œHâ Ÿ]Z[“Y
+…»èº'‰`{Ó#»õ⁄\à\»õ›Y]\ú»õ›0Í\»
+	 ‹ãùõ›Y
+… Oÿù]€èâ ¬à	œ]àYHâ Ÿ]Z[“Y
+…»à€\‹œHöY[àà›[OHõX\ô⁄[ã]‹é‹Y[ôÀ]‹éÿõ‹ô\ã]‹å\€€YŸNXŸXHèè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNåLú€X\ô⁄[ãXõ›€Nç\èíõ›Y]\ú»0Í]ò[pÍ\»\à	 Ÿ\ÿ ãõXô[
+J…»èŸ]èâ Ÿ]Z[[
+…œŸ]èâ ¬à	œŸ]èâŒ¬àJKöõ⁄[ä	… J…œŸ]èâŒ¬àõﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]ŸŸ€KX€€‹ôÀ]õ›\◊I Kôõ‹ëXX⁄
+ùèOòùãòY]ô[ù\›[ô\ä	ÿ€X⁄…À
+
+OOû¬à€€ú›\ôŸ]Yÿ›[Y[ùôŸ][[Y[ùûRY
+ùãô]\Ÿ]ùŸŸ€P€€‹ô’õ›\ N¬àYä]\ôŸ]
+\ô]\õé¬à€€ú›‹[ö[ôœ]\ôŸ]ò€\‹”\›ò€€ùZ[ú 	⁄Y[â N¬à\ôŸ]ò€\‹”\›ùŸŸ€J	⁄Y[âÀ[‹[ö[ô N¬à€€ú›€›[ùJ\ôŸ]ú]Y\ûTŸ[X›‹ê[
+	Àô›Y\›XòYŸI _◊JKõ[ô›¬àùãù^€€ù[ù[‹[ö[ôœ…¸'ÊbX\‹]Y\àH\›IŒâ¸'‰`{Ó#»õ⁄\à\»õ›Y]\ú»õ›0Í\»
+	 ÿ€›[ù
+… IŒ¬àJJN¬üBÇÇôù[ò›[€à€€‹ô’[ö]Ÿ[ù \ö[Ÿ
+^¬àô]\õà\ö[ŸOOIﬁYX\âœÃNNLåNNN¬üBôù[ò›[€à€€‹ô–ö[[ô‘\ö[Ÿ
+
+^¬àô]\õà	
+	»⁄€YP€€‹ô–ö[[ô‘\ö[Ÿ	 OÀùò[YOOOIﬁYX\âœ…ﬁYX\âŒâ€[€ù	Œ¬üBôù[ò›[€à]\õ–Ÿ[ù  ^‹ô]\õà
+ù[Xô\äﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]ŒåãX^[][QúòX›[€ëY⁄]ŒåüJJ…»8†´	ﬂBôù[ò›[€àôYúô\⁄€€‹ô‘\ò⁄\ŸTöXŸJ
+^¬à€€ú›[ú]I
+	»⁄€YP€€‹ô‘]I N¬à]OSX]õX^
+KX]õZ[äLX]ôõ€‹äù[Xô\ä[ú]Àùò[Y_JJ_JJN⁄Yä[ú]
+Z[ú]ùò[YO\N¬à€€ú›\ö[ŸX€€‹ô–ö[[ô‘\ö[Ÿ
+
+K[ö]X€€‹ô’[ö]Ÿ[ù \ö[Ÿ
+K›[][ö]
+úN¬à€€ú››Yôö^\\ö[ŸOOIﬁYX\âœ…Àÿ[âŒâÀ€[⁄\…Œ¬à€€ú›\ö[ŸXô[\\ö[ŸOOIﬁYX\âœ…‹\à[âŒâ‹\à[⁄\…Œ¬à€€ú›úô\]Y[òﬁSXô[\\ö[ŸOOIﬁYX\âœ…ŸòX›\ò][€à[õùY[IŒâŸòX›\ò][€àY[ú›Y[IŒ¬à€€ú›OI
+	»⁄€YP€€‹ô’[ö]öXŸI N⁄YäJ]Kù^€€ù[ùI’\öYà[ö]Z\ôHàHXÿÍ»0Í\]Z\H0Ë	 Ÿ]\õ–Ÿ[ù [ö]
+J…»	 ‹\ö[ŸXô[¬à€€ú›Xô[I
+	»⁄€YP€€‹ô’›[Xô[	 N⁄YäXô[
+[Xô[ù^€€ù[ù\\ö[ŸOOIﬁYX\âœ…’›[[õùY[	Œâ’›[Y[ú›Y[	Œ¬à€€ú›I
+	»⁄€YP€€‹ô’›[	 N⁄Yä
+]ö[õô\íSIœèâ Ÿ]\õ–Ÿ[ù ›[
+J‹›Yôö^
+…œÿèè]à€\‹œHõ]]Yèâ ‹J…»XÿÍ»0Â»	 Ÿ]\õ–Ÿ[ù [ö]
+J…»8†(à	 Ÿúô\]Y[òﬁSXô[
+…œŸ]èâŒ¬à€€ú›èI
+	»⁄€YPù^P€€‹ô… N⁄YäââàTÀò€€‹ô–⁄X⁄€›][ô[ô Xãö[õô\íSI¸'‰¨»Zõ›]\à	 ‹J…»XÿÍ»0Í\]Z\H8†%	 Ÿ]\õ–Ÿ[ù ›[
+J‹›Yôö^
+…»‹[è∏°§è‹‹[èâŒ¬üBò\ﬁ[ò»ù[ò›[€à€€ôö\õP€€‹ô–⁄X⁄€›]úõ€U\õ
+
+^¬à€€ú›[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+N¬àYäôŸ]
+	ÿ€€‹ô… HOOI‹›XÿŸ\‹…ﬂTÀúŸ\‹⁄[€üTÀù€‹ö‹‹XŸ_Z\–YZ[ä
+_Àò€€‹ô‘\ò⁄\ŸP€€ôö\õZ[ô \ô]\õé¬àÀò€€‹ô‘\ò⁄\ŸP€€ôö\õZ[ôœ]ùYN¬àû^¬àÀ»çNàHúõ›‹Ÿ\àô]ô\àX›]ò]\»ZYöY⁄Àà›ö\HŸXö€⁄»\»H€õH]]‹ö]KÇàÿ\›
+	‘ZY[Y[ùôpÈ›H8ß!HX›]ò][€àÍX›\ö\ÍYH[à€›\ú¯†)â N¬àõ‹ä]OL⁄OŒ⁄J  ^¬àYäJH]ÿZ]ô]»õ€Z\ŸJèOúŸ][Y[›]
+ãML
+JN¬à]ÿZ]ÿY[
+
+N¬àBà€€ú›O[ô]»Tì
+ÿÿ][€ãöôYäN›KúŸX\ò⁄\ò[\Àô[]J	ÿ€€‹ô… N›KúŸX\ò⁄\ò[\Àô[]J	ÿ€€‹ô◊‹Ÿ\‹⁄[€ó⁄Y	 N⁄\›‹ûKúô\XŸT›]JﬂK	…ÀKù‘›ö[ô 
+JN¬àÿ\›
+	”‹[€à0Í\]Z\Hﬁ[ò⁄õ€ö\ÍYH]ôX»›ö\H8ß!I N¬àXÿ]⁄
+\úä^¬à€€ú€€Kùÿ\õä\úäN¬àÿ\›
+	‘ZY[Y[ùôpÈ›Kà›ö\Hö[ò[\ŸH8†&XX›]ò][€à]]€X]\]Y[Y[ùâ N¬àYö[ò[^‘Àò€€‹ô‘\ò⁄\ŸP€€ôö\õZ[ôœYò[ŸNﬂBüBôù[ò›[€àô[ô\ëX€‹ﬁ\›[P€€[Y\ò⁄X[
+
+^¬à€€ú›X€‹ﬁ\›[Pÿ\ôI
+	»⁄€YQX€‹ﬁ\›[Pÿ\ô	 N¬àYäX€‹ﬁ\›[Pÿ\ô
+HX€‹ﬁ\›[Pÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\–YZ[ä
+JN¬à€€ú›\ò⁄\ŸPÿ\ôI
+	»⁄€YP€€‹ô”Ÿôô\êÿ\ô	 N¬àYä\ò⁄\ŸPÿ\ô	âàZ\–YZ[ä
+J\\ò⁄\ŸPÿ\ôò€\‹”\›òY
+	⁄Y[â N¬àYäZ\–YZ[ä
+JHô]\õé¬à€€ú›œTÀò€€[Y\ò⁄X[XÿŸ\‹ﬂﬂN¬à€€ú›OTÀõ‹ôÿ[ö^ô\êXÿŸ\‹ﬂﬂN¬à€€ú›öX[X›]ôOHHXKùöX[ÿX›]ôIâàXÀú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY¬à€€ú›\”ÿ⁄ŸY[Ÿ[\œV…‹^Y\ó‹ò][ô‹◊Ÿ[òXõY	À	›\ô⁄[óŸ[òXõY	À	››\õò[Y[ù◊Ÿ[òXõY	◊Kú€€YJŸ^OOàTÀù€‹ö‹‹XŸQôX]\ô\÷⁄Ÿ^WJN¬àõ‹ä€€ú›YŸà…»⁄€YP€€‹ô”Ÿôô\êÿ\ô	À	»⁄€YS[Ÿ[\—\ÿ€‹›\ôI◊J^ÿ€€ú›ŸX›[€èI
+Y
+N⁄YäŸX›[€ââúŸX›[€ãô]\Ÿ]ù€‹ö‹‹XŸHOOT›ö[ô Àù€‹ö‹‹XŸOÀöY	… J^‹ŸX›[€ãõ‹[èYò[ŸN‹ŸX›[€ãô]\Ÿ]ù€‹ö‹‹XŸOT›ö[ô Àù€‹ö‹‹XŸOÀöY	… Nﬂ_Bà€€ú›òYŸOI
+	»⁄€YT[êòYŸI N⁄YäòYŸJXòYŸKù^€€ù[ù]öX[X›]ôO 	—T‘–RH8†(à	 ”ù[Xô\äKô^\◊‹ô[XZ[ö[ôﬂ
+J…»â NäÀú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY…–P–‚»‘0‚P“PS8†(à	Œâ… J‘›ö[ô Àú›Xúÿ‹ö\[€ó‹[ü	ŸúôYI Kù’\\êÿ\ŸJ
+N¬à€€ú›‹X⁄X[I
+	»⁄€YT‹X⁄X[XÿŸ\‹”õ›XŸI N⁄Yä‹X⁄X[
+^‹‹X⁄X[ò€\‹”\›ùŸŸ€J	⁄Y[âÀXÀú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY
+N‹‹X⁄X[ö[õô\íSXÀú‹X⁄X[ÿXÿŸ\‹◊Ÿ[òXõY…œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸXŸôåŒÿõ‹ô\ãX€€‹éàŒôòL»èèèº'„†H]]‹ö\ÿ][€à‹0ÍX⁄X[H’‚HX›]ôOÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèï›\»\»[Ÿ[\»€€ù0ÍXõ‹]pÍ\»›\àòZ\ôH0ÍX€›]úö\àH€€][€ãÿ[ú»[ŸYöY\à€àXõ€õô[Y[ù€€[Y\ò⁄X[èŸ]èèŸ]èâŒâ…ŒﬂBà€€ú›öX[õ›XŸOI
+	»⁄€YUöX[öX⁄[ô”õ›XŸI N¬à€€ú›€€‹ô”Ÿôô\èI
+	»⁄€YP€€‹ô”Ÿôô\êÿ\ô	 N¬à€€ú›\‹òYPÿ\ôI
+	»⁄€YU\‹òYPÿ\ô	 N¬àYäöX[õ›XŸJ^¬àöX[õ›XŸKò€\‹”\›ùŸŸ€J	⁄Y[âÀ]öX[X›]ôJN¬àöX[õ›XŸKö[õô\íS]öX[X›]ôO…œ]à€\‹œHö€YK]öX[\›ö\èèèº'„†HŸôúôH0ÍX€›]ô\ùH0≠»	 ”ù[Xô\äKô^\◊‹ô[XZ[ö[ôﬂ
+J…»õ›\â  ù[Xô\äKô^\◊‹ô[XZ[ö[ôﬂ
+OåO…‹…Œâ… J…»ô\›[ù	  ù[Xô\äKô^\◊‹ô[XZ[ö[ôﬂ
+OåO…‹…Œâ… J…œÿèè‹[èîô]õ›]ôHH›]]H⁄\]YH‹[€à[ú»0™»õ⁄\àõ‹»[Ÿ[\»0ÆÀè‹‹[èè]Z[œè›[[X\ûOëÍ\ô\à[€à\‹ÿZO‹›[[X\ûOèù]€à\OHòù]€ààYHô[ôöX[‘^Hà€\‹œHúŸX€€ô\ûHèê\ú∞Íù\à[€à\‹ÿZH]õ⁄\à\»Ÿôúô\»^X[ù\œÿù]€èèŸ]Z[œèŸ]èâŒâ…Œ¬àBàYä€€‹ô”Ÿôô\äX€€‹ô”Ÿôô\ãò€\‹”\›ùŸŸ€J	⁄Y[âÀöX[X›]ôJN¬àYä\‹òYPÿ\ô
+]\‹òYPÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\”ÿ⁄ŸY[Ÿ[\ N¬à€€ú›Z[ùJY€äOOûÿ€€ú›[I
+Y
+N⁄YäY[
+\ô]\õéŸ[ô]\Ÿ]õ[Ÿ[T›]O[€è öX[X›]ôO…›öX[	ŒâÿX›]ôI Nâ€ÿ⁄ŸY	Œ€]›Y[ú]Y\ûTŸ[X›‹ä	÷Ÿ]K[[Ÿ[K\›]\◊I N⁄Yä\›
+^‹›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹›ô]\Ÿ]õ[Ÿ[T›]\œIÃIŒŸ[ò\[ô⁄[
+›
+Nﬂ\›ò€\‹”ò[YOI⁄€YK[[Ÿ[K\›]\…Œ‹›ù^€€ù[ù[€è öX[X›]ôO…¸'„†HŸôô\ù[ô[ù8†&Y\‹ÿZIŒâ¯ß$»[Ÿ[HX›Yâ Nâ˚Ô"»0‡0ÍXõ‹]Y\âŒﬂN¬àZ[ù
+	»ŸX€‘ò][ô‹”[Ÿ[IÀHTÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+N‹Z[ù
+	»ŸX€’\ô[ì[Ÿ[IÀHTÀù€‹ö‹‹XŸQôX]\ô\Àù\ô⁄[óŸ[òXõY
+N‹Z[ù
+	»ŸX€’›\õò[Y[ù[Ÿ[IÀHTÀù€‹ö‹‹XŸQôX]\ô\Àù›\õò[Y[ù◊Ÿ[òXõY
+N¬à€€ú›\I
+	»⁄€YTô\]Y\›\‹òYI N⁄Yä\
+^›\ù^€€ù[ùXÀù\‹òYW‹ô\]Y\›Yÿ]…¯£Ï»[X[ôH[ùõﬁpÍYIŒâ—[X[ô\à[ôHX›]ò][€âŒ›\ô\ÿXõYHHXÀù\‹òYW‹ô\]Y\›Yÿ]ﬂBàôYúô\⁄€€‹ô‘\ò⁄\ŸTöXŸJ
+N¬üBÇÇôù[ò›[€àô[ô\í€YJ
+^¬àô[ô\ëX€‹ﬁ\›[P€€[Y\ò⁄X[
+
+N¬àô[ô\ê€€‹ô”‹ôÿ[ö^ô\ê›J
+N¬àŸ][Y[›]
+€€ôö\õP€€‹ô–⁄X⁄€›]úõ€U\õ
+N¬à€€ú›€ô€⁄[ô’›\õò[Y[ùœTÀù›\õò[Y[ùÀôö[\äOûôõ‹õX]OOI€XY›YI…âûú›]\»OOIŸö[ö\⁄Y	 Kõ[ô›¬à€€ú›€ô€⁄[ô”XY›Y\œTÀõXY›Y\Àôö[\äOûú›]\»OOIŸö[ö\⁄Y	 Kõ[ô›¬à€€ú›‹õ›\Y[Xô\úœTÀú^Y\úÀôö[\äOûòX›]ôIâûö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKõ[ô›¬à€€ú›[›ŸY€€‹ôœSù[Xô\äÀù€‹ö‹‹XŸQôX]\ô\ÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+N¬à€€ú›X›]ôP€€‹ôœSù[Xô\äÀò€€‹ô–€›[ù
+N¬à€€ú›‹‘›]œI
+	»⁄€YU€‹ö‹‹XŸT›]… N¬àYä‹‘›] ^¬à‹‘›]Àö[õô\íSBà	œ]à€\‹œHö€YKZ‹HõYHèèèâ €€ô€⁄[ô’›\õò[Y[ù …œÿèè]à€\‹œHõ]]Yè∏¶ØH›\õõ⁄I  €ô€⁄[ô’›\õò[Y[ùœåO…‹…Œâ… J…»[à€›\úœŸ]èèŸ]èâ ¬à	œ]à€\‹œHö€YKZ‹H‹ôY[àèèèâ €€ô€⁄[ô”XY›Y\ …œÿèè]à€\‹œHõ]]Yèº'„‡HY›YI  €ô€⁄[ô”XY›Y\œåO…‹…Œâ… J…»[à€›\úœŸ]èèŸ]èâ ¬à	œ]à€\‹œHö€YKZ‹H‹ò[ôŸHèèèâ Ÿ‹õ›\Y[Xô\ú …œÿèè]à€\‹œHõ]]Yèº'‰iHY[XúôI  ‹õ›\Y[Xô\úœåO…‹…Œâ… J…»[ú»H‹õ›\OŸ]èèŸ]èâ ¬à
+\–YZ[ä
+O…œ]à€\‹œHö€YKZ‹Hö[€]èèèâ ÿX›]ôP€€‹ô …»»	 ÿ[›ŸY€€‹ô …œÿèè]à€\‹œHõ]]Yèº'È'H€ÀYŸ\›[€õòZ\ôI  [›ŸY€€‹ôœåO…‹…Œâ… J…»]]‹ö\ÍI  [›ŸY€€‹ôœåO…‹…Œâ… J…œŸ]èèŸ]èâŒâ… N¬àBà€€ú›][›PõﬁI
+	»⁄€YP€€‹ô‘][›Tô\]Y\›	 N¬àYä][›Põﬁ
+^¬à][›Põﬁö[õô\íSI…Œ¬àYä\–YZ[ä
+JH][›Põﬁö[õô\íSIœ]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNåLúèº'È'Hÿ\X⁄]0ÍHX›Y[Hàèâ ÿX›]ôP€€‹ô …»»	 ÿ[›ŸY€€‹ô …œÿèãà›\àZõ›]\à\»XÿÍÀ][\ŸHHŸX›[€àèì[€àXõ€õô[Y[ù	à‹[€ú»’‚OÿèãèŸ]èâŒ¬àBàô[ô\í€YP€€‹ô’õ›\ 
+N¬üBÇôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬àYäKù\ôŸ]ÀöYOOI⁄€YTô\]Y\›[‹ôP€€‹ô… ^¬à€€ú›èSù[Xô\ä	
+	»⁄€YTô\]Y\›Y€€‹ô”[Z]	 OÀùò[Y_
+N¬à€€ú››\úô[ùSù[Xô\äÀù€‹ö‹‹XŸQôX]\ô\ÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+N¬àYäSù[Xô\ãö\—ö[ö]Jä_èX›\úô[ù
+\ô]\õàÿ\›
+	–⁄⁄\⁄\»[ôH[Z]H›\0Í\öY]\ôH0Ë	 ÿ›\úô[ù
+…Àâ N¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ô\]Y\›€[‹ôWÿ€€‹ôÿ[ö^ô\ú…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY‹ô\]Y\›Y€[Z]õüJN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÀò€€‹ô‘][›Tô\]Y\›Y]_ù[‹ô[ô\í€YJ
+N›ÿ\›
+	—[X[ôH[ùõﬁpÍYH]H›\\àYZ[à8ß!I N¬àô]\õé¬àBàYäKù\ôŸ]ÀöYOOI‹ôYúô\⁄ôY⁄\›\ôY^Y\ú… X]ÿZ]ô[ô\îôY⁄\›\ôY^Y\ú–YZ[ä
+N¬àYäKù\ôŸ]ÀöYOOI€X[ùX[ôY⁄\›\î^Y\â ^¬à€€ú›X›\úô[ù›\ä
+Nÿ€€ú›YI
+	»€X[ùX[ôY⁄\›\ôY^Y\îŸ[X›	 OÀùò[YN¬àYä]
+\ô]\õàÿ\›
+	–]X›[ôH€€\0Í]][€àÍ[X›[€õ∞ÍYKâ N¬àYä\Y
+\ô]\õàÿ\›
+	–⁄⁄\⁄\»[àY[XúôHH‹õ›\Kâ N¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿY‹ôY⁄\›\ôY€Y[Xô\ó›◊››\õò[Y[ù	À‹››\õò[Y[ù⁄YùöY‹^Y\ó⁄YúYJN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àYäôõ‹õX]OOI€XY›YI…âîÀùX[\Àõ[ô›
+^¬àû^ÿ]ÿZ]ﬁ[ò’›\õò[Y[ù›Xú›]]\ öY
+_Xÿ]⁄
+ﬁ[ò—\úõ‹ä^‹ô]\õàÿ\›
+ﬁ[ò—\úõ‹ãõY\‹ÿYŸJ_BàBà]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\îôY⁄\›\ôY^Y\ú–YZ[ä
+N‹ô[ô\í€YJ
+N¬à€€ú›úô\⁄TÀù^Y\úÀôö[ô
+Oî›ö[ô ú^Y\ó⁄Y
+OOOT›ö[ô Y
+JN¬àÿ\›
+]OOOI›ÿZ]\›	ﬂúô\⁄Àö\◊‹›Xú›]]O…“õ›Y]\àZõ›]0ÍH€€[YHô[\pÈÿ[ù<'ÁË	Œâ“õ›Y]\àZõ›]0ÍH]^[úÿ‹ö]»8ß!I N¬àBàYäKù\ôŸ]ÀöYOOI€X[òYŸ\êY›Y\›	 ^¬à€€ú›X›\úô[ù›\ä
+Kò[YOI
+	»€X[òYŸ\ë›Y\›ò[YI OÀùò[YKùö[J
+N¬àYä]
+\ô]\õàÿ\›
+	–]X›[ôH€€\0Í]][€àÍ[X›[€õ∞ÍYKâ N¬àYä[ò[YJ\ô]\õàÿ\›
+	“[ô\]YHHõ€HH8†&Z[ùö]0ÍKâ N¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	€X[òYŸ\ó‹ôY⁄\›\ó››\õò[Y[ùŸ›Y\›	À‹››\õò[Y[ù⁄YùöYŸ›Y\›€ò[YNõò[Y_JN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à	
+	»€X[òYŸ\ë›Y\›ò[YI Kùò[YOI…Œ¬àYäôõ‹õX]OOI€XY›YI…âîÀùX[\Àõ[ô›
+^¬àû^ÿ]ÿZ]ﬁ[ò’›\õò[Y[ù›Xú›]]\ öY
+_Xÿ]⁄
+ﬁ[ò—\úõ‹ä^‹ô]\õàÿ\›
+ﬁ[ò—\úõ‹ãõY\‹ÿYŸJ_BàBà]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\îôY⁄\›\ôY^Y\ú–YZ[ä
+N‹ô[ô\í€YJ
+N‹ô[ô\ïX[\ 
+N¬à€€ú›úô\⁄TÀù^Y\úÀôö[ô
+Oî›ö[ô ú^Y\ó⁄Y
+OOOT›ö[ô ]OÀú^Y\ó⁄Y
+JN¬àÿ\›
+]OÀú›]\œOOI›ÿZ]\›	ﬂúô\⁄Àö\◊‹›Xú›]]O…“[ùö]0ÍHZõ›]0ÍH€€[YHô[\pÈÿ[ù<'ÁË	Œâ“[ùö]0ÍHZõ›]0ÍH8ß!I N¬àBüJN¬ÇÇôù[ò›[€à€‹ŸP€€‹ô”‹[€ú”X[òYŸ\ä
+^Ÿÿ›[Y[ùú]Y\ûTŸ[X›‹ä	Àú›ŸK[‹[€ã[[Ÿ[XòX⁄Ÿõ‹	 OÀúô[[›ôJ
+NﬂBôù[ò›[€à€€‹ô‘›Xî\ö[Ÿ[ô
+ ^¬àYä] \ô]\õà	…Œ¬àû^‹ô]\õàô]»]Jù[Xô\ä JåL
+Kù”ÿÿ[Q]T›ö[ô 	ŸúãQîâÀŸ^NâÃãYY⁄]	À[€ùâÃãYY⁄]	ÀYX\éâ€ù[Y\öX…ﬂJNﬂXÿ]⁄
+ ^‹ô]\õà	…ﬂBüBò\ﬁ[ò»ù[ò›[€à‹[ê€€‹ô”‹[€ú”X[òYŸ\ä
+^¬à€‹ŸP€€‹ô”‹[€ú”X[òYŸ\ä
+N¬à€€ú›öYŸŸ\èI
+	»⁄€YPÿ[òŸ[€€‹ô… N¬àYäöYŸŸ\ä^›öYŸŸ\ãô\ÿXõY]ùYN›öYŸŸ\ãù^€€ù[ùI–⁄\ôŸ[Y[ù\»‹[€ú¯†)âŒﬂBà€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KXÿ[òŸ[X€€‹ôÿ[ö^ô\ã\›Xúÿ‹ö\[€âÀÿõŸNû›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYX›[€éâ€\›	ﬂ_JN¬àYäöYŸŸ\ä^›öYŸŸ\ãô\ÿXõYYò[ŸN›öYŸŸ\ãù^€€ù[ùI—Í\ô\à»∞Í\⁄[Y\àY\»‹[€ú»0Í\]Z\IŒﬂBàYä\úõ‹ü]OÀô\úõ‹ä\ô]\õàÿ\›
+]OÀô\úõ‹ü\úõ‹èÀõY\‹ÿYŸ_	“[\‹‹⁄XõHH⁄\ôŸ\à\»‹[€úÀâ N¬à€€ú››XúœP\úò^Kö\–\úò^J]OÀú›Xúÿ‹ö\[€ú OŸ]Kú›Xúÿ‹ö\[€úŒñ◊N¬à€€ú››ô\õ^OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N€›ô\õ^Kò€\‹”ò[YOI‹›ŸK[‹[€ã[[Ÿ[XòX⁄Ÿõ‹	Œ¬à›ô\õ^Kö[õô\íSIœ]à€\‹œHú›ŸK[‹[€ã[[Ÿ[àõ€OHôX[Ÿ»à\öXK[[Ÿ[HùùYHà\öXK[Xô[YûOHò€€‹ô”‹[€ú’]Hèâ ¬à	œ]à€\‹œHú›ŸK[‹[€ã[[Ÿ[ZXYèè]èè»YHò€€‹ô”‹[€ú’]Hè∏¶¶{Ó#»Í\ô\àY\»‹[€ú»0Í\]Z\O⁄œèîÍ[X›[€õôH[ö\]Y[Y[ù\»‹[€ú»]YHH€›ZZ]\»\ú∞Íù\ãà\»]]ô\»ô\›[ùX›]ô\Àè‹èŸ]èèù]€à\OHòù]€àà€\‹œHú›ŸK[‹[€ã[[Ÿ[X€‹ŸHà\öXK[Xô[Hëô\õY\àè∞Âœÿù]€èèŸ]èâ ¬à	œ]à€\‹œHú›ŸK[‹[€ã[[Ÿ[XõŸHèâ ¬à
+›XúÀõ[ô›…œ]à€\‹œHú›ŸK[‹[€ã[\›èâ ‹›XúÀõX\
+
+JOOû¬à€€ú›[õùX[^ö[ù\ùò[OOIﬁYX\âÀ]OSX]õX^
+ù[Xô\äú]X[ù]_
+JK[ö]Sù[Xô\äù[ö]ÿ[[›[ùÿŸ[ùﬂ
+K›[\]Jù[ö]¬à€€ú›[ôX€€‹ô‘›Xî\ö[Ÿ[ô
+ò›\úô[ù‹\ö[ŸŸ[ô
+N¬à€€ú››]O^òÿ[òŸ[ÿ]‹\ö[ŸŸ[ô…‘ô[õ›]ô[[Y[ù0ÍZ∞Ë\ú∞Íù0ÍIŒä[õùX[…–[õùY[	Œâ”Y[ú›Y[	 N¬àô]\õà	œXô[€\‹œHú›ŸK[‹[€ã\õ›»èè[ú]\OHò⁄X⁄ÿõﬁà]KXÿ[òŸ[\›XèHâ Ÿ\ÿ ú›Xúÿ‹ö\[€ó⁄Y
+J…»à	  òÿ[òŸ[ÿ]‹\ö[ŸŸ[ô…Ÿ\ÿXõY	Œâ… J…œè]èè]à€\‹œHú›ŸK[‹[€ã\õ›À]]Hèâ ‹]J…»XÿÍ»0Í\]Z\I  ]OåO…‹…Œâ… J…»0≠»	 ‹›]J…œŸ]èè]à€\‹œHú›ŸK[‹[€ã\õ›À[Y]Hèâ  [õùX[…—òX›\ò][€à[õùY[IŒâ—òX›\ò][€àY[ú›Y[I J [õùX[	âô[ô…»0≠»X›Yàù\‹]x†&X]H	 Ÿ\ÿ [ô
+Nâ… J òÿ[òŸ[ÿ]‹\ö[ŸŸ[ô…»0≠»]X›[ôHX›[€à∞ÍXŸ\‹ÿZ\ôIŒâ… J…œŸ]èèŸ]èè]à€\‹œHú›ŸK[‹[€ã\õ›À\öXŸHèâ Ÿ]\õ–Ÿ[ù ›[
+J…œ€X[â  [õùX[…À»[âŒâÀ»[⁄\… J…œ‹€X[èŸ]èè€Xô[âŒ¬àJKöõ⁄[ä	… J…œŸ]èâŒâœ]à€\‹œHú›ŸK[‹[€ã[[Ÿ[Y[\Hèèèê]X›[ôH‹[€à0Í\]Z\H^X[ùHX›]ôKèÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èì\»XÿÍ»[ò€\»›HŸôô\ù»[ú»€à\‹XŸH’‚HôH€€ù\»€€òŸ\õ∞Í\ÀèŸ]èèŸ]èâ J¬à	œ]à€\‹œHú›ŸK[‹[€ã[[Ÿ[[õ›Hèèè∞‡ÿ]õ⁄\àèÿèà[ôH‹[€àY[ú›Y[HÍ[X›[€õ∞ÍYH\›\ú∞Íù0ÍYH[[pÍYX][Y[ùà›\à[ôH‹[€à[õùY[KŸ][Hô[õ›]ô[[Y[ù\›\ú∞Íù0ÍHà\»XÿÍ»ô\›[ùX›Yú»ù\‹]x†&pËHö[àHH0Í\ö[ŸH0ÍZ∞Ë^pÍYKèŸ]èâ ¬à	œŸ]èè]à€\‹œHú›ŸK[‹[€ã[[Ÿ[XX›[€ú»èèù]€à\OHòù]€àà€\‹œHúŸX€€ô\ûHà]KX€‹ŸK[‹[€úœëô\õY\èÿù]€èèù]€à\OHòù]€àà€\‹œHúö[X\ûH›ŸK[‹[€ãXÿ[òŸ[X€€ôö\õHà]KX€€ôö\õK[‹[€ú»\ÿXõYî∞Í\⁄[Y\àHÍ[X›[€èÿù]€èèŸ]èèŸ]èâŒ¬àÿ›[Y[ùòõŸKò\[ô⁄[
+›ô\õ^JN¬à€€ú›\]OJ
+OOûÿ€€ú›è[›ô\õ^Kú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KXÿ[òŸ[\›XóNò⁄X⁄ŸY	 Kõ[ô›ÿ€€ú›è[›ô\õ^Kú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€ôö\õK[‹[€ú◊I N⁄Yää^ÿãô\ÿXõY[èOOLÿãù^€€ù[ù[è…‘∞Í\⁄[Y\à	 €ä…»‹[€â  èåO…‹…Œâ… Nâ‘∞Í\⁄[Y\àHÍ[X›[€âŒﬂ_N¬à›ô\õ^Kú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KXÿ[òŸ[\›XóI Kôõ‹ëXX⁄
+OûòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀ\]JJN¬à›ô\õ^Kú]Y\ûTŸ[X›‹ä	Àú›ŸK[‹[€ã[[Ÿ[X€‹ŸI OÀòY]ô[ù\›[ô\ä	ÿ€X⁄…À€‹ŸP€€‹ô”‹[€ú”X[òYŸ\äN¬à›ô\õ^Kú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€‹ŸK[‹[€ú◊I OÀòY]ô[ù\›[ô\ä	ÿ€X⁄…À€‹ŸP€€‹ô”‹[€ú”X[òYŸ\äN¬à›ô\õ^KòY]ô[ù\›[ô\ä	ÿ€X⁄…À]èOû⁄Yä]ãù\ôŸ]OO[›ô\õ^JX€‹ŸP€€‹ô”‹[€ú”X[òYŸ\ä
+NﬂJN¬à›ô\õ^Kú]Y\ûTŸ[X›‹ä	÷Ÿ]KX€€ôö\õK[‹[€ú◊I OÀòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»]èOû¬à€€ú›YœVÀããõ›ô\õ^Kú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KXÿ[òŸ[\›XóNò⁄X⁄ŸY	 WKõX\
+Oûô]\Ÿ]òÿ[òŸ[›XäKôö[\äõ€€X[äN¬àYäZYÀõ[ô›
+\ô]\õé¬à€€ú›[õùX[Ÿ[X›Y\›XúÀú€€YJOöYÀö[ò€Y\ ú›Xúÿ‹ö\[€ó⁄Y
+Iâûö[ù\ùò[OOIﬁYX\â N¬à€€ú›\ŸœI–€€ôö\õY\àH∞Í\⁄[X][€àH	 ⁄YÀõ[ô›
+…»‹[€â  YÀõ[ô›åO…‹…Œâ… J…»Í[X›[€õ∞ÍYI  YÀõ[ô›åO…‹…Œâ… J…»…  [õùX[Ÿ[X›Y…◊óì\»‹[€ú»[õùY[\»ô\›\õ€ùX›]ô\»ù\‹]x†&pËHö[àH]\à0Í\ö[ŸH0ÍZ∞Ë^pÍYKâŒâ… N¬àYäX€€ôö\õJ\Ÿ J\ô]\õé¬à€€ú›èY]ãò›\úô[ù\ôŸ]ÿãô\ÿXõY]ùYNÿãù^€€ù[ùI‘∞Í\⁄[X][€à[à€›\ú¯†)âŒ¬à€€ú›Ÿ]Nòÿ[òŸ[]K\úõ‹éòÿ[òŸ[\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KXÿ[òŸ[X€€‹ôÿ[ö^ô\ã\›Xúÿ‹ö\[€âÀÿõŸNû›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYX›[€éâÿÿ[òŸ[	À›Xúÿ‹ö\[€ó⁄YŒöYﬂ_JN¬àYäÿ[òŸ[\úõ‹üÿ[òŸ[]OÀô\úõ‹ä^ÿãô\ÿXõYYò[ŸN›\]J
+N‹ô]\õàÿ\›
+ÿ[òŸ[]OÀô\úõ‹üÿ[òŸ[\úõ‹èÀõY\‹ÿYŸ_	“[\‹‹⁄XõHH∞Í\⁄[Y\àHÍ[X›[€ãâ NﬂBà€‹ŸP€€‹ô”‹[€ú”X[òYŸ\ä
+N¬à]ÿZ]ÿY[
+
+N‹ô[ô\í€YJ
+N¬àÿ\›
+ÿ[òŸ[]OÀõY\‹ÿYŸ_	‘∞Í\⁄[X][€à[úôY⁄\›∞ÍYH8ß!I N¬àJN¬üBÇôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬à€€ú››\ùèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]KX€€‹ôÀ\›\I N¬àYä›\ùä^ÿ€€ú›[ú]I
+	»⁄€YP€€‹ô‘]I N⁄Yä[ú]
+^⁄[ú]ùò[YOSX]õX^
+KX]õZ[äLX]ôõ€‹äù[Xô\ä[ú]ùò[Y_JJJ”ù[Xô\ä›\ùãô]\Ÿ]ò€€‹ô‘›\
+JJN‹ôYúô\⁄€€‹ô‘\ò⁄\ŸTöXŸJ
+Nﬂ\ô]\õéﬂBà€€ú›ö[[ô–ùèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]KX€€‹ôÀXö[[ô◊I N¬àYäö[[ô–ùä^¬à€€ú›\ö[ŸXö[[ô–ùãô]\Ÿ]ò€€‹ô–ö[[ôœOOIﬁYX\âœ…ﬁYX\âŒâ€[€ù	Œ¬à€€ú›Y[èI
+	»⁄€YP€€‹ô–ö[[ô‘\ö[Ÿ	 N⁄YäY[äZY[ãùò[YO\\ö[Ÿ¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]KX€€‹ôÀXö[[ô◊I Kôõ‹ëXX⁄
+ùèOûÿ€€ú›X›]ôOXùèOOXö[[ô–ùéÿùãò€\‹”\›ùŸŸ€J	ÿX›]ôIÀX›]ôJNÿùãúŸ]]öXù]J	ÿ\öXK\ô\‹ŸY	ÀX›]ôO…›ùYIŒâŸò[ŸI NﬂJN¬àôYúô\⁄€€‹ô‘\ò⁄\ŸTöXŸJ
+N¬àô]\õé¬àBàYäKù\ôŸ]ÀöYOOI⁄€YPÿ[òŸ[€€‹ô… ^¬àYäZ\–YZ[ä
+J\ô]\õàÿ\›
+	‘∞Í\Ÿ\ù∞ÍH0Ë8†&XYZ[ö\›ò]]\ãâ N¬à]ÿZ]‹[ê€€‹ô”‹[€ú”X[òYŸ\ä
+N¬àô]\õé¬àBà€€ú›\ò⁄\ŸPù]€èYKù\ôŸ]Àò€‹Ÿ\›Àä	»⁄€YPù^P€€‹ô… N¬àYä\ò⁄\ŸPù]€ä^¬àYäZ\–YZ[ä
+J\ô]\õàÿ\›
+	‘∞Í\Ÿ\ù∞ÍH0Ë8†&XYZ[ö\›ò]]\ãâ N¬àYäÀò€€‹ô–⁄X⁄€›][ô[ô \ô]\õé¬à€€ú›]OSX]õX^
+KX]õZ[äLX]ôõ€‹äù[Xô\ä	
+	»⁄€YP€€‹ô‘]I OÀùò[Y_JJ_JJN¬à€€ú›ö[[ô‘\ö[ŸX€€‹ô–ö[[ô‘\ö[Ÿ
+
+K€‹ö‹‹XŸRYTÀù€‹ö‹‹XŸKöY¬à€€ú›Ÿ^OV›€‹ö‹‹XŸRY]Kö[[ô‘\ö[ŸKöõ⁄[ä	Œâ N¬àYäÀò€€‹ô–⁄X⁄€›]ô\]Y\›ÀöŸ^HOOZŸ^JTÀò€€‹ô–⁄X⁄€›]ô\]Y\›^⁄Ÿ^KYò‹û\Àúò[ô€UURQ
+
+_N¬àÀò€€‹ô–⁄X⁄€›][ô[ôœ]ùYN‹\ò⁄\ŸPù]€ãô\ÿXõY]ùYN‹\ò⁄\ŸPù]€ãù^€€ù[ùI”›]ô\ù\ôHHZY[Y[ù8†)âŒ¬àû^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KX‹ôX]KX€€‹ôÿ[ö^ô\ãX⁄X⁄€›]	ÀÿõŸNû›€‹ö‹‹XŸW⁄Yù€‹ö‹‹XŸRY]X[ù]Nú]Kö[[ô◊‹\ö[Ÿòö[[ô‘\ö[Ÿô\]Y\›⁄YîÀò€€‹ô–⁄X⁄€›]ô\]Y\›öY_JN¬àYä\úõ‹ä^€]]Z[›û^Ÿ]Z[X]ÿZ]\úõ‹ãò€€ù^Àöú€€ä
+_Xÿ]⁄
+ ^ﬂ]õ›»ô]»\úõ‹ä]Z[Àô\úõ‹ü	”HZY[Y[ùôH]]\»0ÍùôH›]ô\ùà∞ÍY\‹ÿZYH[ú»[à[ú›[ùâ NﬂBàYä]OÀô\úõ‹ä]õ›»ô]»\úõ‹ä]Kô\úõ‹äN¬àYäY]OÀù\õ
+]õ›»ô]»\úõ‹ä	”Y[àHZY[Y[ù[ô\‹€öXõKâ N¬àÿÿ][€ãöôYèY]Kù\õ¬àXÿ]⁄
+\úõ‹ä^›ÿ\›
+\úõ‹ãõY\‹ÿYŸ_	“[\‹‹⁄XõH8†&[›]úö\àHZY[Y[ùâ NﬂBàö[ò[^‘Àò€€‹ô–⁄X⁄€›][ô[ôœYò[ŸN‹\ò⁄\ŸPù]€ãô\ÿXõYYò[ŸN‹ôYúô\⁄€€‹ô‘\ò⁄\ŸTöXŸJ
+NﬂBàô]\õé¬àBàYäKù\ôŸ]ÀöYOOIŸ[ôöX[‘^I ^¬àYäZ\–YZ[ä
+J\ô]\õàÿ\›
+	‘∞Í\Ÿ\ù∞ÍH0Ë8†&XYZ[ö\›ò]]\ãâ N¬àYäX€€ôö\õJ	”Y]ôHö[àXZ[ù[ò[ù0Ë€à\‹ÿZH‹ò]Z]◊óì\»õ€ò›[€ú»‹ôÿ[ö\ÿ]]\àô[Z][HôHŸ\õ€ù\»XÿŸ\‹⁄Xõ\»[ù]x†&X]X›[àXõ€õô[Y[ù∏†&Y\›X›YãàH›\úò\»[‹ú»€€ú›[\à\»Ÿôúô\»]\öYúÀàŸ]HX›[€à\›[[pÍYX]Kâ J\ô]\õé¬à€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYNÿãù^€€ù[ùI—ö[àH8†&Y\‹ÿZx†)âŒ¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	Ÿ[ô€^W€‹ôÿ[ö^ô\ó›öX[	À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN¬àYä\úõ‹ä^ÿãô\ÿXõYYò[ŸNÿãù^€€ù[ùI“ôHô]^\ú∞Íù\à[€à\‹ÿZH]õ⁄\à\»Ÿôúô\»^X[ù\…Œ‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂBàÀõ‹ôÿ[ö^ô\êXÿŸ\‹œY]_›öX[ÿX›]ôNôò[ŸKô\]Z\ô\◊‹›Xúÿ‹ö\[€éùùYK^\◊‹ô[XZ[ö[ôŒåN¬à]ÿZ]ÿY[
+
+N¬àô[ô\í€YJ
+N¬àÿ\›
+	—\‹ÿZH\õZ[∞ÍKà\»Ÿôúô\»^X[ù\»€€ùXZ[ù[ò[ùö\⁄Xõ\Àâ N¬àô]\õé¬àBàYäKù\ôŸ]ÀöYOOI⁄€YTô\]Y\›\‹òYI ^¬àYäZ\–YZ[ä
+J\ô]\õàÿ\›
+	‘∞Í\Ÿ\ù∞ÍH0Ë8†&XYZ[ö\›ò]]\ãâ N⁄YäX€€ôö\õJ	—[X[ô\à0ËòZ\ôH0Í]õ€Y\à€à\‹XŸH’‚H›\à0ÍXõ‹]Y\à\»[Ÿ[\»]ò[òÍ\»… J\ô]\õé¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹ô\]Y\››€‹ö‹‹XŸW›\‹òYIÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àò€€[Y\ò⁄X[XÿŸ\‹Àù\‹òYW‹ô\]Y\›Yÿ][ô]»]J
+Kù“T”‘›ö[ô 
+N‹ô[ô\í€YJ
+N›ÿ\›
+	—[X[ôH8†&pÍ]õ€][€à[ùõﬁpÍYH8ß!I N‹ô]\õé¬àBüJN¬ÇÇôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI⁄€YP€€‹ô‘]I \ôYúô\⁄€€‹ô‘\ò⁄\ŸTöXŸJ
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	⁄[ú]	ÀOOû⁄YäKù\ôŸ]ÀöYOOI⁄€YP€€‹ô‘]I \ôYúô\⁄€€‹ô‘\ò⁄\ŸTöXŸJ
+NﬂJN¬Çôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû¬àYäKù\ôŸ]ÀöYOOI€^T^Y\îXõX… ^¬à€€ú›€èYKù\ôŸ]ò⁄X⁄ŸY¬àYä	
+	»€^T^Y\ë\ÿ€›ô\òXõI J^»	
+	»€^T^Y\ë\ÿ€›ô\òXõI Kô\ÿXõYH[€é»Yä[€äI
+	»€^T^Y\ë\ÿ€›ô\òXõI Kò⁄X⁄ŸYYò[ŸN»BàYä	
+	»€^T^Y\ìõ›YûI JI
+	»€^T^Y\ìõ›YûI Kô\ÿXõYYò[ŸN¬àBüJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬àYäKù\ôŸ]ÀöYOOI€^T^Y\ê‹ôX]I ^¬à€€ú›ò[YOI
+	»€^T^Y\ê‹ôX]Sò[YI Kùò[YKùö[J
+N⁄Yä[ò[YJ\ô]\õàÿ\›
+	“[ô\]YH€àõ€H›H€àŸ]Y»õ›Y]\ãâ N¬àKù\ôŸ]ô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	Ÿ[ú›\ôW€^WŸ€ÿò[‹^Y\ó‹õŸö[IÀ‹Ÿ\‹^W€ò[YNõò[Y_JNŸKù\ôŸ]ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+	’€àQõ›Y]\à’‚H\›‹∞ÍpÍH8ß!I N‹ô]\õé¬àBàYäKù\ôŸ]ÀöYOOI€^T^Y\îÿ]ôI ^¬à€€ú›ò[YOI
+	»€^T^Y\ìò[YI Kùò[YKùö[J
+N⁄Yä[ò[YJ\ô]\õàÿ\›
+	’€àõ€Hõ›Y]\à\›ÿõYÿ]⁄\ôKâ N¬àKù\ôŸ]ô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	›\]W€^WŸ€ÿò[‹^Y\ó‹õŸö[IÀ‹Ÿ\‹^W€ò[YNõò[YK⁄\◊‹XõXŒâ
+	»€^T^Y\îXõX… Kò⁄X⁄ŸYŸ\ÿ€›ô\òXõNâ
+	»€^T^Y\ë\ÿ€›ô\òXõI Kò⁄X⁄ŸY€õ›YûW›\€€Z[ô◊‹›Ÿ\Œâ
+	»€^T^Y\ìõ›YûI Kò⁄X⁄ŸY⁄€YWÿ\ôXNâ
+	»€^T^Y\ê\ôXI Kùò[YKùö[J
+_ù[JNŸKù\ôŸ]ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+	‘õŸö[õ›Y]\àZ\»0Ëõ›\à8ß!I N‹ô]\õé¬àBàYäKù\ôŸ]ÀöYOOI€^T›ŸR\›‹ûTŸX\ò⁄	 ^¬à€€ú›€ŸOI
+	»€^T›ŸR\›‹ûP€ŸI OÀùò[YKùö[J
+N⁄YäX€ŸJ\ô]\õàÿ\›
+	“[ô\]YH8†&RQH›\õõ⁄H›HHHY›YKâ N¬àKù\ôŸ]ô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	Ÿö[ô‹›ŸW⁄Y[ù]W‹€›\òŸIÀ‹ÿ€ŸNò€Ÿ_JNŸKù\ôŸ]ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àú›ŸRY[ù]T€›\òŸOY]_ù[‹ô[ô\î›ŸRY[ù]T€›\òŸJ
+N‹ô]\õé¬àBà€€ú›€Z[R\›‹ûOYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]KX€Z[KZ\›‹ûK\^Y\óI N⁄Yä€Z[R\›‹ûJ^¬à€€ú›‹òœTÀú›ŸRY[ù]T€›\òŸN⁄Yä\‹ò \ô]\õéÿ€€ú›^Y\èJ‹òÀú^Y\úﬂ◊JKôö[ô
+Oî›ö[ô ú^Y\ó⁄Y
+OOOT›ö[ô €Z[R\›‹ûKô]\Ÿ]ò€Z[R\›‹ûT^Y\äJN¬àYäX€€ôö\õJ	–€€ôö\õY\à]YHH\»öY[à0™»	  ^Y\èÀõò[Y_	ÿŸHõ›Y]\â J…»0Æ»»Ÿ]HXZ\€€à\‹€ÿ⁄Y\òHŸ\»›]\›\]Y\»0Ë€à€€\H’‚Kâ J\ô]\õé¬à€Z[R\›‹ûKô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿ€Z[W‹›ŸW⁄Y[ù]W‹^Y\âÀ‹‹€›\òŸW›\Nú‹òÀú€›\òŸW›\K‹€›\òŸW⁄Yú‹òÀú€›\òŸW⁄Y‹^Y\ó⁄Yò€Z[R\›‹ûKô]\Ÿ]ò€Z[R\›‹ûT^Y\üJNÿ€Z[R\›‹ûKô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àYä]OÀú›]\œOOIŸ\‹]Y	 ^‘Àú›ŸRY[ù]T€›\òŸO[ù[‹ô[ô\î›ŸRY[ù]T€›\òŸJ
+Nÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N‹ô]\õàÿ\›
+	–€€ôõ]0Í]X›0ÍHà\»]^€€\\»€€ùXÍ\»[à∞Í\öYöXÿ][€ãà8†&pÍ\]Z\H’‚H]úòHò[ò⁄\ãâ NﬂBàÀú›ŸRY[ù]T€›\òŸO[ù[‹ô[ô\î›ŸRY[ù]T€›\òŸJ
+Nÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N⁄YäÀù€‹ö‹‹XŸJX]ÿZ]ÿY[
+
+N›ÿ\›
+	‘õŸö[0™»	  ]OÀú^Y\ó€ò[Y_	⁄õ›Y]\â J…»0Æ»ô[pÍH0Ë€à€€\H’‚H8ß!I N‹ô]\õé¬àBàYäKù\ôŸ]ÀöYOOI€^T^Y\îŸ[ì[ö… ^¬à€€ú›^Y\íYI
+	»€^T^Y\îŸ[ìY[Xô\â OÀùò[YN⁄Yä\^Y\íY
+\ô]\õàÿ\›
+	–⁄⁄\⁄\»€àõŸö[Y[XúôH[ú»H\›Kâ N¬à€€ú›^Y\èJÀú^Y\úﬂ◊JKôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô ^Y\íY
+JN¬àYäX€€ôö\õJ	‘ô[Y\à0ÍYö[ö]]ô[Y[ù€à€€\H’‚H]HY[XúôH0™»	  ^Y\èÀõò[Y_	‹Í[X›[€õ∞ÍI J…»0Æ»[ú»ŸH‹õ›\H… J\ô]\õé¬àKù\ôŸ]ô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	€[ö◊€^W€Y[Xô\ó‹^Y\ó›◊‹›ŸIÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY‹^Y\ó⁄Yú^Y\íYJNŸKù\ôŸ]ô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY[
+
+Nÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+	–€€\HpÍH0Ë0™»	  ]OÀú^Y\ó€ò[Y_^Y\èÀõò[Y_	€Y[XúôI J…»0Æ»8†(àQ	  ]OÀúXõX◊‹^Y\ó⁄Y	‘’‚I J…»8ß!I N‹ô]\õé¬àBàYäKù\ôŸ]ÀöYOOI€^T^Y\îôYúô\⁄	 ^ÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+	‘õŸö[X›X[\ÍH8ß!I N‹ô]\õéﬂBà€€ú›XÿŸ\YKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\^Y\ãZ[ùö]KXXÿŸ\I N⁄YäXÿŸ\
+^ÿXÿŸ\ô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ô\‹€ôŸ€ÿò[‹^Y\ó››\õò[Y[ù⁄[ùö]IÀ‹⁄[ùö]W⁄YòXÿŸ\ô]\Ÿ]ú^Y\í[ùö]PXÿŸ\ÿXÿŸ\ùùY_JNÿXÿŸ\ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+]OÀú›]\œOOI›ÿZ]\›	œ…“[ùö]][€àXÿŸ\0ÍYH8†(àH\»X›Y[[Y[ùô[\pÈÿ[ùâŒâ“[ùö]][€àXÿŸ\0ÍYH8ß!I N‹ô]\õéﬂBà€€ú›X€[ôOYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\^Y\ãZ[ùö]KYX€[ôWI N⁄YäX€[ôJ^ŸX€[ôKô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹ô\‹€ôŸ€ÿò[‹^Y\ó››\õò[Y[ù⁄[ùö]IÀ‹⁄[ùö]W⁄YôX€[ôKô]\Ÿ]ú^Y\í[ùö]QX€[ôKÿXÿŸ\ôò[Ÿ_JNŸX€[ôKô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+	“[ùö]][€àôYù\ÍYKâ N‹ô]\õéﬂBà€€ú›\ôX›YKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\^Y\ãY\ôX›Zõ⁄[óI N⁄Yä\ôX›
+^ÿ€€ú›YY\ôX›ô]\Ÿ]ú^Y\ë\ôX›õ⁄[éÿ€€ú›YŸQ[Yÿ›[Y[ùú]Y\ûTŸ[X›‹ä	÷Ÿ]K\YŸKYõ‹èHâ ›Y
+…»óI Nÿ€€ú›YŸOSX]úõ›[ô
+X]õX^
+ù[Xô\äYŸQ[Àùò[Y_
+JJåL
+NŸ\ôX›ô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	⁄õ⁄[óŸ\ÿ€›ô\òXõW››\õò[Y[ù	À‹››\õò[Y[ù⁄YùY›\ô⁄[ó‹YŸWÿŸ[ùŒúYŸ_JNŸ\ôX›ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN⁄Yä]OÀú^[Y[ù‹ô\]Z\ôY
+^ÿ€€ú›Ÿ]Nú^K\úõ‹éú_OX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KX‹ôX]KY[ùûKX⁄X⁄€›]	ÀÿõŸNû‹XõX◊›⁄Ÿ[éô]KúXõX◊›⁄Ÿ[ã›\õò[Y[ù⁄YùY^Y\ó⁄Yô]Kú^Y\ó⁄Y^Y\óŸ[XZ[îÀúŸ\‹⁄[€èÀù\Ÿ\èÀô[XZ[ù[›XÿŸ\‹◊›\õêT’Tì
+…œ‹^Y\î^[Y[ù\›XÿŸ\‹…Àÿ[òŸ[›\õêT’Tì
+…œ‹^Y\î^[Y[ùXÿ[òŸ[	ﬂ_JN⁄Yä_^OÀô\úõ‹ä\ô]\õàÿ\›
+^OÀô\úõ‹üOÀõY\‹ÿYŸ_	“[\‹‹⁄XõH8†&[›]úö\àHZY[Y[ùâ N⁄Yä^OÀù\õ
+^€ÿÿ][€ãöôYè\^Kù\õ‹ô]\õéﬂ_X]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+]OÀú›]\œOOI›ÿZ]\›	œ…“[úÿ‹ö\[€à[úôY⁄\›∞ÍYH8†(àH\»ô[\pÈÿ[ùâŒâ“[úÿ‹ö\[€à€€ôö\õpÍYH8ß!I N‹ô]\õéﬂBà€€ú›ô\]Y\›õ⁄[èYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\^Y\ã\ô\]Y\›Zõ⁄[óI N⁄Yäô\]Y\›õ⁄[ä^ÿ€€ú›Y\ô\]Y\›õ⁄[ãô]\Ÿ]ú^Y\îô\]Y\›õ⁄[éÿ€€ú›YŸQ[Yÿ›[Y[ùú]Y\ûTŸ[X›‹ä	÷Ÿ]K\YŸKYõ‹èHâ ›Y
+…»óI Nÿ€€ú›\Ÿ—[Yÿ›[Y[ùú]Y\ûTŸ[X›‹ä	÷Ÿ]K\ô\]Y\›[Y\‹ÿYŸKYõ‹èHâ ›Y
+…»óI Nÿ€€ú›YŸOSX]úõ›[ô
+X]õX^
+ù[Xô\äYŸQ[Àùò[Y_
+JJåL
+N‹ô\]Y\›õ⁄[ãô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹ô\]Y\›Ÿ\ÿ€›ô\òXõW››\õò[Y[ù	À‹››\õò[Y[ù⁄YùY€Y\‹ÿYŸNõ\Ÿ—[Àùò[YKùö[J
+_ù[›\ô⁄[ó‹YŸWÿŸ[ùŒúYŸ_JN‹ô\]Y\›õ⁄[ãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY^T^Y\ë\⁄õÿ\ô
+
+N›ÿ\›
+	—[X[ôH[ùõﬁpÍYH0Ë8†&[‹ôÿ[ö\ÿ]]\à8ß!I N‹ô]\õéﬂBà€€ú›^PùèYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\^Y\ã\^WI N⁄Yä^Pùä^‹^Pùãô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KX‹ôX]KY[ùûKX⁄X⁄€›]	ÀÿõŸNû‹XõX◊›⁄Ÿ[éú^Pùãô]\Ÿ]úXõX’⁄Ÿ[ã›\õò[Y[ù⁄Yú^Pùãô]\Ÿ]ù›\õò[Y[ùY^Y\ó⁄Yú^Pùãô]\Ÿ]ú^Y\íY^Y\óŸ[XZ[îÀúŸ\‹⁄[€èÀù\Ÿ\èÀô[XZ[ù[›XÿŸ\‹◊›\õêT’Tì
+…œ‹^Y\î^[Y[ù\›XÿŸ\‹…Àÿ[òŸ[›\õêT’Tì
+…œ‹^Y\î^[Y[ùXÿ[òŸ[	ﬂ_JN‹^Pùãô\ÿXõYYò[ŸN⁄Yä\úõ‹ü]OÀô\úõ‹ä\ô]\õàÿ\›
+]OÀô\úõ‹ü\úõ‹èÀõY\‹ÿYŸ_	“[\‹‹⁄XõH8†&[›]úö\àHZY[Y[ùâ N⁄Yä]OÀù\õ
+[ÿÿ][€ãöôYèY]Kù\õ‹ô]\õéﬂBà€€ú›‹[èYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K[‹[ã\^Y\ã[‹‹ù[ö]WI N⁄Yä‹[ä^€ÿÿ][€ãöôYè[‹[ãô]\Ÿ]õ‹[î^Y\ì‹‹ù[ö]N‹ô]\õéﬂBàYäKù\ôŸ]ÀöYOOI‹^Y\ë\ôX›‹ûPùâ ^¬àYäZ\–YZ[ä
+J\ô]\õàÿ\›
+	‘∞Í\Ÿ\ù∞ÍH0Ë8†&XYZ[ö\›ò]]\ãâ N¬àKù\ôŸ]ô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ŸX\ò⁄‹XõX◊Ÿ€ÿò[‹^Y\ú…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY‹]Y\ûNâ
+	»‹^Y\ë\ôX›‹ûTŸX\ò⁄	 Kùò[YKùö[J
+_ù[€[Z]çLJNŸKù\ôŸ]ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àú^Y\ë\ôX›‹ûOP\úò^Kö\–\úò^J]JOŸ]Nñ◊N‹ô[ô\î^Y\ë\ôX›‹ûPÿ\ô
+
+N‹ô[ô\êYZ[î^Y\îô\]Y\› 
+N‹ô]\õé¬àBà€€ú›[ùö]OYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]KY\ôX›‹ûKZ[ùö]WI N⁄Yä[ùö]J^¬à€€ú›YI
+	»‹^Y\ë\ôX›‹ûU›\õò[Y[ù	 Kùò[YN⁄Yä]Y
+\ô]\õàÿ\›
+	–⁄⁄\⁄\»8†&XXõ‹ôH›ÍH0Ë€€\0Í]\ãâ N¬à€€ú›õ›œJÀú^Y\ë\ôX›‹û_◊JKôö[ô
+èOî›ö[ô ãô€ÿò[‹^Y\ó⁄Y
+OOOT›ö[ô [ùö]Kô]\Ÿ]ô\ôX›‹ûR[ùö]JJN¬àYäX€€ôö\õJ	“[ùö]\à	  õ›œÀô\‹^W€ò[Y_	ÿŸHõ›Y]\â J…»0ËôZõ⁄[ôôHŸH›ÍH… J\ô]\õé¬à[ùö]Kô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	⁄[ùö]W‹XõX◊‹^Y\ó›◊››\õò[Y[ù	À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY››\õò[Y[ù⁄YùYŸ€ÿò[‹^Y\ó⁄Yö[ùö]Kô]\Ÿ]ô\ôX›‹ûR[ùö]K€Y\‹ÿYŸNâ’€àõŸö[XõX»€‹úô\‹€ô0Ë[àô\€⁄[à›\à€€\0Í]\àŸH›ÍKâﬂJN⁄[ùö]Kô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN›ÿ\›
+	“[ùö]][€à[ùõﬁpÍYH[ú»€€à\‹XŸHõ›Y]\à’‚H8ß!I N‹ô]\õé¬àBüJN¬Çôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀOOû⁄YäKù\ôŸ]ÀöYOOI‹ÿU€‹ö‹‹XŸQö[\â \ô[ô\î›\\êYZ[ï€‹ö‹‹XŸ\ 
+NﬂJN¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…À\ﬁ[ò»OOû¬àYäKù\ôŸ]ÀöYOOI‹ÿ]ôS‹ôÿ[ö^ô\îŸ][ô‹… ^⁄YäZ\–YZ[ä
+J\ô]\õéÿ€€ú›èYKù\ôŸ]ÿãô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	›\]W€^W€‹ôÿ[ö^ô\ó‹Ÿ][ô‹…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY€Yÿ[‹›]\Œâ
+	»€‹ôÿ[ö^ô\ìYÿ[›]\… Kùò[YK›⁄]ÿ\Ÿ‹õ›\›\õâ
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\‹õ›\	 Kùò[YKùö[J
+_ù[›⁄]ÿ\ÿ€€ùX›‹€ôNâ
+	»€‹ôÿ[ö^ô\ï⁄]ÿ\€ôI Kùò[YKùö[J
+_ù[JNÿãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àõ‹ôÿ[ö^ô\îŸ][ô‹œY]_ù[‹ô[ô\î›ö\Pö[[ô 
+N›ÿ\›
+	‘õŸö[‹ôÿ[ö\ÿ]]\àZ\»0Ëõ›\à8ß!I N‹ô]\õéﬂBàYäKù\ôŸ]ÀöYOOI‹ôYúô\⁄^Y\îô\]Y\›… ^ÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	€\››€‹ö‹‹XŸW‹^Y\ó‹ô\]Y\›…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN‘Àú^Y\îô\]Y\›œP\úò^Kö\–\úò^J]JOŸ]Nñ◊N‹ô[ô\êYZ[î^Y\îô\]Y\› 
+N›ÿ\›
+	—[X[ô\»X›X[\ÍY\»8ß!I N‹ô]\õéﬂBà€€ú›OYKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\ô\]Y\›XXÿŸ\I N⁄YäJ^⁄YäX€€ôö\õJ	–XÿŸ\\àŸ]H[X[ôHH\ùX⁄\][€à… J\ô]\õéÿKô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ô\‹€ôŸ€ÿò[‹^Y\ó‹\ùX⁄\][€ó‹ô\]Y\›	À‹‹ô\]Y\›⁄YòKô]\Ÿ]úô\]Y\›XÿŸ\ÿXÿŸ\ùùY_JNÿKô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY[
+
+N‹ô[ô\êYZ[î^Y\îô\]Y\› 
+N›ÿ\›
+]OÀú›]\œOOI‹^[Y[ù‹[ô[ô…œ…—[X[ôHXÿŸ\0ÍYH8†(àHõ›Y]\à⁄]XZ[ù[ò[ù^Y\àÿHXŸKâŒâ—[X[ôHXÿŸ\0ÍYH8ß!I N‹ô]\õéﬂBà€€ú›YKù\ôŸ]Àò€‹Ÿ\›Àä	÷Ÿ]K\ô\]Y\›YX€[ôWI N⁄Yä
+^⁄YäX€€ôö\õJ	‘ôYù\Ÿ\àŸ]H[X[ôH… J\ô]\õéŸô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹ô\‹€ôŸ€ÿò[‹^Y\ó‹\ùX⁄\][€ó‹ô\]Y\›	À‹‹ô\]Y\›⁄Yôô]\Ÿ]úô\]Y\›X€[ôKÿXÿŸ\ôò[Ÿ_JNŸô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY[
+
+N‹ô[ô\êYZ[î^Y\îô\]Y\› 
+N›ÿ\›
+	—[X[ôHôYù\ÍYKâ N‹ô]\õéﬂBüJN¬Çâ
+	»‹Ÿ[ô[ùö]I Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäTÀù€‹ö‹‹XŸJ\ô]\õé¬àYäJ\–YZ[ä
+_
+\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[ó⁄[ùö]Wÿ€€‹ôÿ[ö^ô\ú JJ\ô]\õàÿ\›
+	’H∏†&Y\»\»]]‹ö\ÍH0Ë[ùö]\à[à€À[‹ôÿ[ö\ÿ]]\ãâ N¬àYäÀò€€‹ô–€›[ùèSù[Xô\äÀù€‹ö‹‹XŸQôX]\ô\ÀõX^ÿ€€‹ôÿ[ö^ô\úﬂ
+J\ô]\õàÿ\›
+	”[Z]HH€À[‹ôÿ[ö\ÿ]]\ú»]Z[ùKâ N¬à€€ú›[XZ[I
+	»⁄[ùö]Q[XZ[	 Kùò[YKùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N⁄YäY[XZ[
+\ô]\õé¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿ‹ôX]Wÿ€€‹ôÿ[ö^ô\ó⁄[ùö]IÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYŸ[XZ[ô[XZ[JN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à€€ú›[ùèP\úò^Kö\–\úò^J]JOŸ]VÃNô]N¬àÀõ\›‹ôX]Y[ùö]OZ[ùüù[¬àYä\–YZ[ä
+J^ÿ€€ú›€ŸTô\œX]ÿZ]ÿãúú 	ÿYZ[óŸŸ]ÿ€€‹ôÿ[ö^ô\ó‹›ŸWÿ€ŸIÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYŸ[XZ[ô[XZ[JN⁄YäX€ŸTô\Àô\úõ‹ââò€ŸTô\Àô]J^‘Àõ\›‹ôX]Y[ùö]Kú›ŸWÿ€ŸOX€ŸTô\Àô]Kò€ŸN‘Àõ\›‹ôX]Y[ùö]KúXõX◊‹^Y\ó⁄YX€ŸTô\Àô]KúXõX◊‹^Y\ó⁄Yù[›û^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+€ŸTô\Àô]Kò€ŸJ_Xÿ]⁄
+ŸJ^ﬂ__Bà	
+	»⁄[ùö]Q[XZ[	 Kùò[YOI…Œ¬àYä\–YZ[ä
+JX]ÿZ]ÿY[
+
+NŸ[ŸHô[ô\êXÿŸ\‹ 
+N¬àÿ\›
+Àõ\›‹ôX]Y[ùö]OÀú›ŸWÿ€ŸO…–€ÀYŸ\›[€õòZ\ôHZõ›]0ÍH8ß!H€ŸH’‚H	 ‘Àõ\›‹ôX]Y[ùö]Kú›ŸWÿ€ŸJ…»€‹pÍKâŒâ“[ùö]][€à‹∞ÍpÍYH8ß!H][\ŸH€‹Y\àHY[à›H⁄]–\â N¬üN¬â
+	»ÿ€‹TXõX”[ö… Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›[öœI
+	»‹XõX”[ö… Kùò[YN⁄Yä[[ö \ô]\õé¬àû^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+[ö N›ÿ\›
+	”Y[àXõX»€‹pÍH8ß!I _Bàÿ]⁄
+J^…
+	»‹XõX”[ö… Kôõÿ›\ 
+N…
+	»‹XõX”[ö… KúŸ[X›
+
+N›ÿ\›
+	”Y[àÍ[X›[€õ∞ÍHà€‹YK[Kâ _BüN¬ÇÇÇôù[ò›[€à›Y\›Xô[
+
+^¬àYä\ö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJ\ô]\õà	…Œ¬à€€ú›‹›\ô›Y\›€Ÿó‹^Y\ó⁄Y‹
+ô›Y\›€Ÿó‹^Y\ó⁄Y
+Nõù[¬àô]\õà‹›…—›Y\›H	 ⁄‹›õò[YNâ—›Y\›	Œ¬üBôù[ò›[€à^Y\ë\‹^Sò[YJ
+^¬àYä\
+\ô]\õà	…Œ¬à€€ú›œY›Y\›Xô[
+
+N¬àô]\õàõò[YJ œ…»8†%	 ŸŒâ… N¬üBôù[ò›[€àôYúô\⁄›Y\›ŸîŸ[X›
+
+^¬à€€ú›Ÿ[I
+	»Ÿ›Y\›Ÿî^Y\â N⁄Yä\Ÿ[
+\ô]\õé¬à€€ú›ŸY\\Ÿ[ùò[YN¬àŸ[ö[õô\íSIœ‹[€àò[YOHàèë›Y\›x†)à
+òX›[]YäO€‹[€èâ ‘Àú^Y\úÀôö[\äOûòX›]ôIâûö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKõX\
+Oâœ‹[€àò[YOHâ ﬁöY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬àYäÀããúŸ[õ‹[€ú◊Kú€€YJœOõÀùò[YOOOZŸY\
+J\Ÿ[ùò[YOZŸY\¬üBôù[ò›[€à⁄⁄[õ€SXô[
+õ€J^¬àô]\õà
+ŸYô[úŸ]\éâ¸'ÊË{Ó#»0ÍYô[úŸ]\âÀY]õ€õ€YNâ¸'„ØpÍ]õ€õ€YIÀò]\‹Ÿ]\éâ¸'ÈÓHò]\‹Ÿ]\âÀö[ö\‹Ÿ]\éâ¸'ÈaHö[ö\‹Ÿ]\âÀöXòõ]\éâ¸'Í°öXòõ]\âÀúò\]\éâ¸'‰©Húò\]\âÀ‹‹^Y\éâ¯´d‹^Y\âﬂJV‹õ€W_	¯†%	Œ¬üBôù[ò›[€à^Y\î⁄⁄[YŸ‹ôYÿ]J^Y\íY
+^¬àô]\õàÀú⁄⁄[YŸ‹ôYÿ]\Àôö[ô
+èOúãú^Y\ó⁄YOO\^Y\íY
+_ù[¬üBôù[ò›[€à^Y\î⁄⁄[ô]öY]‘›[[X\ûJ^Y\ä^¬à€€ú›[TÀú⁄⁄[ô]öY]‹Àôö[\äèOúãú^Y\ó⁄YOO\^Y\ãöY
+N¬à€€ú›YZ[ïZYTÀúŸ\‹⁄[€èÀù\Ÿ\èÀöYù[¬à€€ú›ò[YX[ôö[\äèOìù[Xô\ãö\—ö[ö]Jù[Xô\äãúò][ô JJN¬à€€ú›€€‹ô‘ô]öY]‹œ]ò[Yôö[\äèOî›ö[ô ãô]ò[X]‹ó›\Ÿ\ó⁄Y
+HOOT›ö[ô YZ[ïZY
+JN¬à€€ú›YZ[îô]öY]œ]ò[Yôö[ô
+èOî›ö[ô ãô]ò[X]‹ó›\Ÿ\ó⁄Y
+OOOT›ö[ô YZ[ïZY
+J_ù[¬à€€ú›]ô—öY[JöY[
+OOû¬à€€ú›ò[œ]ò[YõX\
+èOìù[Xô\äñŸöY[JJKôö[\äù[Xô\ãö\—ö[ö]JN¬àô]\õàò[Àõ[ô››ò[ÀúôYXŸJ
+KäOOòJÿã
+K›ò[Àõ[ô›õù[¬àN¬à€€ú›õ€\œ^ﬂN¬àò[Yôõ‹ëXX⁄
+èOû⁄YäãúôYô\úôY‹õ€J\õ€\÷‹ãúôYô\úôY‹õ€WOJõ€\÷‹ãúôYô\úôY‹õ€W_
+JÃ_JN¬à€€ú›‹õ€OSÿöôX›ô[ùöY\ õ€\ Kú€‹ù
+
+KäOOòñÃWKXVÃWJVÃOÀñÃ_ù[¬àô]\õà¬àô]öY]‹Œùò[Y€€‹ô‘ô]öY]‹ÀYZ[îô]öY]Àà€›[ùùò[Yõ[ô›à]ôŒò]ô—öY[
+	‹ò][ô… Kàÿ\ô[Œò]ô—öY[
+	ÿÿ\ô[… KöXòõNò]ô—öY[
+	ŸöXòõI K€€X›Yéò]ô—öY[
+	ÿ€€X›Yâ Kúò\Nò]ô—öY[
+	Ÿúò\I Kà‹õ€BàN¬üBôù[ò›[€àô[ô\î^Y\ú 
+^¬à€€ú›õﬁI
+	»‹^Y\ú”\›	 Nÿõﬁö[õô\íSI…Œ¬àYä\–€€‹ô 
+J^¬à€€ú›[ôõœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N⁄[ôõÀò€\‹”ò[YOI‹ôXY€õK[õ›IŒ¬à[ôõÀö[õô\íSTÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõYà…¸'‰iHèâ ‘Àú^Y\úÀõ[ô›
+…»õ›Y]\â  Àú^Y\úÀõ[ô›åO…‹…Œâ… J…œÿèàXÿŸ\‹⁄XõI  Àú^Y\úÀõ[ô›åO…‹…Œâ… J…ÀàH]^€€ú›[\à\»‹ö]0Íô\»]€õô\à€à0Í]ò[X][€à›\à⁄\]YHõ›Y]\ãè]à›[OHõX\ô⁄[ã]‹ç‹‹Y[ôŒéLÿõ‹ô\ã\òY]\ŒåLÿòX⁄Ÿ‹õ›[ôàŸôôåÿŸÿ€€‹éàÕòçåèèèº'Â$à€€ôöY[ùY[èÿèà\»0Í]ò[X][€ú»€€ù‹õ⁄\ÍY\»HX[öpÍôH[ô0Í\[ô[ùH]›Z]ô[ù8†&RQ’‚HHõ›Y]\ãèŸ]èâ¬àâ¸'‰iHèâ ‘Àú^Y\úÀõ[ô›
+…»õ›Y]\â  Àú^Y\úÀõ[ô›åO…‹…Œâ… J…œÿèà[ú»H‹õ›\KàH[Ÿ[Hõ›][€à\›0Í\ÿX›]∞ÍHàŸ][\»\»[ôõ‹õX][€ú»õ›Y]\ú»]\»X›[€ú»]]‹ö\ÍY\»€€ù\‹€öXõ\ÀâŒ¬àõﬁò\[ô⁄[
+[ôõ N¬àBàôYúô\⁄›Y\›ŸîŸ[X›
+
+N¬àÀú^Y\úÀôõ‹ëXX⁄
+Oû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\â  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…»›Y\›\õ›…Œâ… N¬à€€ú›‹Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N›‹ò€\‹”ò[YOI‹õ›…Œ¬à€€ú›[ôõœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹‹[â N⁄[ôõÀú›[Kôõ^IÃIŒ¬à€€ú›œY›Y\›Xô[
+
+N¬à]Y]OJòX›]ôO…–X›YâŒâ“[òX›Yâ J œ…»8†(à	 Ÿ\ÿ  Nâ»8†(àY[XúôHH‹õ›\I N¬àYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY	âö\–YZ[ä
+J^¬à€€ú›YŸ‹ôYÿ]O\^Y\î⁄⁄[YŸ‹ôYÿ]JöY
+N¬àY]JœXYŸ‹ôYÿ]Iâìù[Xô\äYŸ‹ôYÿ]Kùõ›\óÿ€›[ù
+Oå…»8†(à[ﬁY[õôH	 ”ù[Xô\äYŸ‹ôYÿ]Kò]ô◊‹ò][ô Kù—ö^Y
+JJ…ÀÕH8†(à	 ÿYŸ‹ôYÿ]Kùõ›\óÿ€›[ù
+…»õ›[ù	  ù[Xô\äYŸ‹ôYÿ]Kùõ›\óÿ€›[ù
+OåO…‹…Œâ… Nâ»8†(à]X›[à]ö\…Œ¬àY[ŸHYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY	âö\–€€‹ô 
+J^¬à€€ú›YŸ‹ôYÿ]O\^Y\î⁄⁄[YŸ‹ôYÿ]JöY
+N¬àYäYŸ‹ôYÿ]Iâìù[Xô\äYŸ‹ôYÿ]Kùõ›\óÿ€›[ù
+Oå
+[Y]JœI»8†(àô\ôX›\»€ÀYŸ\›[€õòZ\ô\»à	 ”ù[Xô\äYŸ‹ôYÿ]Kò]ô◊‹ò][ô Kù—ö^Y
+JJ…ÀÕIŒ¬àBà[ôõÀö[õô\íSIœèâ Ÿ\ÿ õò[YJJ…œÿèâ  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…œ‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J¬à	œ]à€\‹œHõ]]Yèâ €Y]J…œŸ]èâŒ¬àYä\–YZ[ä
+J^¬à€€ú›ŸŸ€OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N›ŸŸ€Kù^€€ù[ù^òX›]ôO…—0Í\ÿX›]ô\âŒâ‘∞ÍXX›]ô\âŒ›ŸŸ€Kò€\‹”ò[YO^òX›]ôO…‹^Y\ãXX›[€ãY\ÿXõIŒâ‹^Y\ãXX›[€ãY[òXõIŒ¬àŸŸ€Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ô^H^òX›]ôN¬àYäX€€ôö\õJô^…‘∞ÍXX›]ô\à	 ﬁõò[YJ…»[ú»H‹õ›\H…Œâ‘›\‹[ôôH	 ﬁõò[YJ…»H‹õ›\H»€€à\›‹ö\]YHŸ\òH€€úŸ\ù∞ÍKâ J\ô]\õé¬àŸŸ€Kô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó‹Ÿ]‹^Y\óÿX›]ôIÀ‹‹^Y\ó⁄YûöYÿX›]ôNõô^JN¬àŸŸ€Kô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY[
+
+N¬àÿ\›
+ô^…“õ›Y]\à∞ÍXX›]∞ÍH8ß!IŒâ“õ›Y]\à›\‹[ôKâ N¬àN¬à€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N¬à[ù^€€ù[ùI¸'Â‰H›\ö[Y\âŒ¬à[ò€\‹”ò[YOIŸ[ôŸ\à€X[ùâŒ¬à[õ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJ	‘›\ö[Y\à	 ﬁõò[YJ…»H‹õ›\H◊óî⁄HŸHõ›Y]\à‹‹ÍH0ÍZ∞Ë[à\›‹ö\]YH‹‹ùYã[Ÿ\òH›\‹[ôHYö[àH∞Í\Ÿ\ùô\àŸ\»›]\›\]Y\Àâ J\ô]\õé¬à[ô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ô[[›ôW‹^Y\ó€Y[Xô\âÀ‹‹^Y\ó⁄YûöYJN¬à[ô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY[
+
+N¬àÿ\›
+]OOOIÿ\ò⁄]ôY	œ…“õ›Y]\à›\‹[ôHà\›‹ö\]YH€€úŸ\ù∞ÍKâŒâ“õ›Y]\à›\ö[pÍKâ N¬àN¬à‹ò\[ô
+[ôõÀŸŸ€K[
+N¬àY[ŸHYä\–€€‹ô 
+J^¬à‹ò\[ô
+[ôõ N¬àY[ŸH‹ò\[ô
+[ôõ N¬àò\[ô⁄[
+‹
+N¬ÇàYä\–YZ[ä
+IâîÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+^¬à€€ú››[[X\ûO\^Y\î⁄⁄[ô]öY]‘›[[X\ûJ
+N¬à€€ú›YŸ‹ôYÿ]O\^Y\î⁄⁄[YŸ‹ôYÿ]JöY
+N¬à€€ú›ô]öY]–õﬁYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹ô]öY]–õﬁú›[Kò‹‹’^I€X\ô⁄[ã]‹é‹Y[ôŒåLLúÿõ‹ô\éå\€€YŸôNéÿõ‹ô\ã\òY]\ŒåL‹ÿòX⁄Ÿ‹õ›[ôàŸéòôéIŒ¬àYä\›[[X\ûKò€›[ù
+^¬àô]öY]–õﬁö[õô\íSIœèº'‰‚àﬁ[ù0ÍŸH\»0Í]ò[X][€úœÿèè]à€\‹œHõ]]Y€X[à›[OHõX\ô⁄[ã]‹çèê]X›[ôH0Í]ò[X][€à›\àH[€Y[ùèŸ]èâŒ¬àY[Ÿ^¬à€€ú›è]èOùèO[ù[…¯†%	Œìù[Xô\ääKù—ö^Y
+JJ…ÀÕIŒ¬à€€ú›⁄\œIœ]à›[OHô\‹^Nôõ^Ÿÿ\çúŸõ^]‹ò\ù‹ò\€X\ô⁄[ã]‹ç‹èâ ¬à	œ‹[à€\‹œHô›Y\›XòYŸHè∏ßi;Ó#»ÿ\ô[»	 €äYŸ‹ôYÿ]OÀò]ô◊ÿÿ\ô[œœ‹›[[X\ûKòÿ\ô[ J…œ‹‹[èâ ¬à	œ‹[à€\‹œHô›Y\›XòYŸHèº'Í°öXòõH	 €äYŸ‹ôYÿ]OÀò]ô◊ŸöXòõOœ‹›[[X\ûKôöXòõJJ…œ‹‹[èâ ¬à	œ‹[à€\‹œHô›Y\›XòYŸHèº'È'H€€X›Yà	 €äYŸ‹ôYÿ]OÀò]ô◊ÿ€€X›Yèœ‹›[[X\ûKò€€X›YäJ…œ‹‹[èâ ¬à	œ‹[à€\‹œHô›Y\›XòYŸHèº'„´»úò\H	 €äYŸ‹ôYÿ]OÀò]ô◊Ÿúò\Oœ‹›[[X\ûKôúò\JJ…œ‹‹[èâ ¬à	œ‹[à€\‹œHô›Y\›XòYŸHèâ ‹⁄⁄[õ€SXô[
+YŸ‹ôYÿ]OÀù‹‹õ€_›[[X\ûKù‹õ€JJ…œ‹‹[èèŸ]èâŒ¬à€€ú›õ€Sò[YO\èOú⁄⁄[õ€SXô[
+ãúôYô\úôY‹õ€JKúô\XŸJ◊ñ◊àJ◊ÀÀ	… N¬à€€ú›õ›\úœ\›[[X\ûKúô]öY]‹ÀõX\
+èOû¬à€€ú›⁄œT›ö[ô ãô]ò[X]‹ó›\Ÿ\ó⁄Y
+OOOT›ö[ô ÀúŸ\‹⁄[€èÀù\Ÿ\èÀöY
+O…–YZ[âŒä
+ãô]ò[X]‹óŸ[XZ[	–€À[‹ôÿ[ö\ÿ]]\â Kú‹]
+	–	 VÃJN¬à€€ú›]Z[I–ÿ\ô[»	  ãòÿ\ô[œœ…¯†%	 J…ÀÕH8†(àöXòõH	  ãôöXòõOœ…¯†%	 J…ÀÕH8†(à€€X›Yà	  ãò€€X›Yèœ…¯†%	 J…ÀÕH8†(àúò\H	  ãôúò\Oœ…¯†%	 J…ÀÕH8†(à∞ÌHà	 ‹õ€Sò[YJäN¬àô]\õà	œ‹[à]OHâ Ÿ\ÿ ]Z[
+J…»à›[OHô\‹^Nö[õ[ôKYõ^Ÿÿ\çÿ[Y€ãZ][\ŒòŸ[ù\é€X\ô⁄[éçú‹Y[ôŒç\ÿõ‹ô\ã\òY]\Œé\ÿòX⁄Ÿ‹õ›[ôàŸôôéÿõ‹ô\éå\€€YŸLŸXôMéÿ›\ú€‹éö[èèèâ Ÿ\ÿ ⁄ J…œÿèà	 ”ù[Xô\äãúò][ô Kù—ö^Y
+JJ…ÀÕH€X[∏§Ê‹€X[è‹‹[èâŒ¬àJKöõ⁄[ä	… N¬à€€ú›€›[ùSù[Xô\äYŸ‹ôYÿ]OÀùõ›\óÿ€›[ùœ‹›[[X\ûKò€›[ù
+N¬à€€ú›]ôœXYŸ‹ôYÿ]OÀò]ô◊‹ò][ô»O[ù[”ù[Xô\äYŸ‹ôYÿ]Kò]ô◊‹ò][ô Nú›[[X\ûKò]ôŒ¬àô]öY]–õﬁö[õô\íSIœ]à›[OHô\‹^Nôõ^⁄ù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\åLÿ[Y€ãZ][\ŒòŸ[ù\éŸõ^]‹ò\ù‹ò\èèèº'‰‚àﬁ[ù0ÍŸH\»0Í]ò[X][€úœÿèè‹[èèèâ ÿ]ôÀù—ö^Y
+JJ…ÀÕOÿèà8†(à	 ÿ€›[ù
+…»õ›[ù	  €›[ùåO…‹…Œâ… J…œ‹‹[èèŸ]èâ ÿ⁄\ …œ]à€\‹œHú€X[]]Yà›[OHõX\ô⁄[ã]‹ç\èî›\ùõ€H[ôHõ›H8§Ê›\àõ⁄\à€€à0Í]Z[èŸ]èè]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹åúèâ ›õ›\ú …œŸ]èâŒ¬àBàò\[ô⁄[
+ô]öY]–õﬁ
+N¬àBÇàYä\–YZ[ä
+J^¬à€€ú›Y[ù]PõﬁYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N⁄Y[ù]Põﬁò€\‹”ò[YOI‹^Y\ã[[öÀXõﬁ	Œ¬àYäô€ÿò[‹^Y\ó⁄Y
+^¬àY[ù]Põﬁö[õô\íSIœ]èèèº'Í™àY[ù]0ÍH’‚HpÍYOÿèè]à€\‹œHõ]]Y€X[èêŸHY[XúôH\›ò]X⁄0ÍH0Ë[à€€\H’‚KàHXZ\€€àôH]]0ÍùôH[ŸYöpÍYH]YH\àH›\\àYZ[ãèŸ]èèŸ]èè‹[à€\‹œHõ[öŸY[⁄»è∏ß$»p‚O‹‹[èâŒ¬àY[Ÿ^¬àY[ù]Põﬁö[õô\íSIœ]èèèº'Í™à]X›[à€€\H’‚HpÍOÿèè]à€\‹œHõ]]Y€X[èìHõ›Y]\à›\úòH∞ÍX›\0Í\ô\àŸ\»›]\›\]Y\»\∞Í»‹∞ÍX][€àH€€à€€\K[àôX⁄\ò⁄[ù8†&RQH›\õõ⁄H›H8†&RQ’‚HHHY›YHZ\»[àÍ[X›[€õò[ù€€àõ€KèŸ]èèŸ]èè‹[à€\‹œHô›Y\›XòYŸHèìì”àp‚O‹‹[èâŒ¬àBàò\[ô⁄[
+Y[ù]Põﬁ
+N¬Çà€€ú›Y]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸY]ò€\‹”ò[YOI‹õ›…ŒŸY]ú›[KõX\ô⁄[ï‹IŒ	ŒŸY]ú›[Kôõ^‹ò\I›‹ò\	Œ¬à€€ú›ò[YR[ú]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 N€ò[YR[ú]ú›[Kôõ^IÃIŒ€ò[YR[ú]ùò[YO^õò[Y_	…Œ€ò[YR[ú]úXŸZ€\èI”õ€HHõ›Y]\âŒ¬à€€ú››]\œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N‹›]\Àú›[Kôõ^IÃIŒ¬à›]\Àö[õô\íSIœ‹[€àò[YOHõY[Xô\àèìY[XúôO€‹[€èè‹[€àò[YOHô›Y\›èë›Y\›€‹[€èâŒ¬à›]\Àùò[YO^ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…Ÿ›Y\›	Œâ€Y[Xô\âŒ¬Çà€€ú›‹›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N⁄‹›ú›[Kôõ^IÃIŒ¬à‹›ö[õô\íSIœ‹[€àò[YOHàèë›Y\›x†)è€‹[€èâ ‘Àú^Y\úÀôö[\äOOûKöYOO^öY	âûKòX›]ôIâûKö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKõX\
+OOâœ‹[€àò[YOHâ ﬁKöY
+…»èâ Ÿ\ÿ Kõò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬à‹›ùò[YO^ô›Y\›€Ÿó‹^Y\ó⁄Y	…Œ¬à‹›ò€\‹”\›ùŸŸ€J	⁄Y[âÀ›]\Àùò[YHOOIŸ›Y\›	 N¬à›]\Àõ€ò⁄[ôŸOJ
+OOö‹›ò€\‹”\›ùŸŸ€J	⁄Y[âÀ›]\Àùò[YHOOIŸ›Y\›	 N¬Çà€€ú›€ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 N‹€ôKù\OI›[	Œ‹€ôKö[ú][ŸOI›[	Œ‹€ôKúXŸZ€\èI”[ÿö[H
+ö]∞ÍJIŒ¬à€ôKú›[Kôõ^IÃIŒ‹€ôKùò[YOJÀò€€ùX›Àôö[ô
+œOòÀú^Y\ó⁄YOO^öY
+OÀú€ôW€ù[Xô\ä_	…Œ¬Çà€€ú›ÿ]ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹ÿ]ôKù^€€ù[ùI—[úôY⁄\›ô\à\»[ôõ‹…Œ‹ÿ]ôKò€\‹”ò[YOI‹^Y\ãXX›[€ã\ÿ]ôIŒ¬àÿ]ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›\”Y[Xô\è\›]\Àùò[YOOOI€Y[Xô\âŒ‹ÿ]ôKô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	€X[òYŸ\ó›\]W‹^Y\ó‹\ú€€ò[⁄[ôõ…À¬à‹^Y\ó⁄YûöY€ò[YNõò[YR[ú]ùò[YKùö[J
+K⁄\◊Ÿ‹õ›\€Y[Xô\éö\”Y[Xô\ãàŸ›Y\›€Ÿó‹^Y\ó⁄Yö\”Y[Xô\è€ù[ä‹›ùò[Y_ù[
+K‹€ôW€ù[Xô\éú€ôKùò[YKùö[J
+_ù[àJN¬àÿ]ôKô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àõò[YO[ò[YR[ú]ùò[YKùö[J
+Nﬁö\◊Ÿ‹õ›\€Y[Xô\èZ\”Y[Xô\éﬁô›Y\›€Ÿó‹^Y\ó⁄YZ\”Y[Xô\è€ù[ä‹›ùò[Y_ù[
+N¬à€€ú›õ›[ôTÀò€€ùX›Àôö[ô
+œOòÀú^Y\ó⁄YOO^öY
+N⁄Yäõ›[ô
+Yõ›[ôú€ôW€ù[Xô\è\€ôKùò[YKùö[J
+_ù[Ÿ[ŸHÀò€€ùX›Àú\⁄
+‹^Y\ó⁄YûöY€ôW€ù[Xô\éú€ôKùò[YKùö[J
+_ù[JN¬à]ÿZ]ÿY[
+
+N¬àÿ\›
+	“[ôõ‹õX][€ú»H	 ﬁõò[YJ…»Z\Ÿ\»0Ëõ›\à8ß!I N¬àN¬àY]ò\[ô
+ò[YR[ú]›]\À‹›€ôKÿ]ôJNŸò\[ô⁄[
+Y]
+N¬ÇàYäö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJ^¬à€€ú›€ŸTõ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â Nÿ€ŸTõ›Àò€\‹”ò[YOI‹õ›…Œÿ€ŸTõ›Àú›[KõX\ô⁄[ï‹IŒ	Œÿ€ŸTõ›Àú›[Kôõ^‹ò\I›‹ò\	Œ¬à€€ú›^\›[ôœTÀùX[P€Ÿ\Àôö[ô
+œOòÀú^Y\ó⁄YOO^öY
+N¬à€€ú›€ŸR[ôõœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹‹[â Nÿ€ŸR[ôõÀú›[Kôõ^IÃIŒ¬à€ŸR[ôõÀö[õô\íSIœèê€ŸH‹∞ÍX][€à8†&pÍ\]Z\Hèÿèà	  ^\›[ôœ…œ€ŸH›[OHôõ€ù\⁄^ôNå\ô[Hèâ Ÿ\ÿ ^\›[ôÀò€ŸJJ…œÿ€ŸOà	  ^\›[ôÀô[òXõY…¸'ÁËà]]‹ö\ÍIŒâ¯¶™à0Í\ÿX›]∞ÍI Nâ–]X›[à€ŸI N¬à€€ú›Ÿ[èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸŸ[ãù^€€ù[ùY^\›[ôœ…‘∞ÍYÍ[∞Í\ô\âŒâ—Í[∞Í\ô\à[à€ŸIŒŸŸ[ãò€\‹”ò[YOI‹^Y\ãXX›[€ãX€ŸIŒ¬àŸ[ãõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYä^\›[ô…âàX€€ôö\õJ	‘∞ÍYÍ[∞Í\ô\àH€ŸHH	 ﬁõò[YJ…»»8†&X[ò⁄Y[à€ŸHôHõ€ò›[€õô\òH\Àâ J\ô]\õé¬àŸ[ãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[óŸŸ[ô\ò]W‹^Y\ó›X[Wÿ€ŸIÀ‹‹^Y\ó⁄YûöYJN¬àŸ[ãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY[
+
+N›ÿ\›
+	”õ›]ôX]H€ŸH0Í\]Z\Hà	 Ÿ]JN¬àN¬à€ŸTõ›Àò\[ô
+€ŸR[ôõÀŸ[äN¬àYä^\›[ô ^¬à€€ú›ŸœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N›ŸÀù^€€ù[ùY^\›[ôÀô[òXõY…—0Í\ÿX›]ô\âŒâ‘∞ÍXX›]ô\âŒ›ŸÀò€\‹”ò[YOY^\›[ôÀô[òXõY…‹^Y\ãXX›[€ãY\ÿXõIŒâ‹^Y\ãXX›[€ãY[òXõIŒ¬àŸÀõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó‹Ÿ]‹^Y\ó›X[Wÿ€ŸWŸ[òXõY	À‹‹^Y\ó⁄YûöYŸ[òXõYàY^\›[ôÀô[òXõYJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY[
+
+N›ÿ\›
+^\›[ôÀô[òXõY…–]]‹ö\ÿ][€à0Í\ÿX›]∞ÍYKâŒâ–]]‹ö\ÿ][€à∞ÍXX›]∞ÍYKâ N¬àN¬à€ŸTõ›Àò\[ô⁄[
+Ÿ N¬àBàò\[ô⁄[
+€ŸTõ› N¬àBàBàYä\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸY]‹^Y\ó‹\ú€€ò[⁄[ôõ ^¬à€€ú›Y]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸY]ò€\‹”ò[YOI‹õ›…ŒŸY]ú›[Kò‹‹’^I€X\ô⁄[ã]‹éŸõ^]‹ò\ù‹ò\‹Y[ôŒåLÿòX⁄Ÿ‹õ›[ôàŸçŸéYôéÿõ‹ô\éå\€€YŸôMYçÿõ‹ô\ã\òY]\ŒåM	Œ¬à€€ú›ò[YR[ú]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 N€ò[YR[ú]ú›[Kôõ^IÃIŒ€ò[YR[ú]ùò[YO^õò[Y_	…Œ€ò[YR[ú]úXŸZ€\èI”õ€HHõ›Y]\âŒ¬à€€ú››]\œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N‹›]\Àú›[Kôõ^IÃIŒ‹›]\Àö[õô\íSIœ‹[€àò[YOHõY[Xô\àèìY[XúôO€‹[€èè‹[€àò[YOHô›Y\›èë›Y\›€‹[€èâŒ‹›]\Àùò[YO^ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…Ÿ›Y\›	Œâ€Y[Xô\âŒ¬à€€ú›‹›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N⁄‹›ú›[Kôõ^IÃIŒ⁄‹›ö[õô\íSIœ‹[€àò[YOHàèë›Y\›x†)è€‹[€èâ ‘Àú^Y\úÀôö[\äOOûKöYOO^öY	âûKòX›]ôIâûKö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKõX\
+OOâœ‹[€àò[YOHâ ﬁKöY
+…»èâ Ÿ\ÿ Kõò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N⁄‹›ùò[YO^ô›Y\›€Ÿó‹^Y\ó⁄Y	…Œ⁄‹›ò€\‹”\›ùŸŸ€J	⁄Y[âÀ›]\Àùò[YHOOIŸ›Y\›	 N‹›]\Àõ€ò⁄[ôŸOJ
+OOö‹›ò€\‹”\›ùŸŸ€J	⁄Y[âÀ›]\Àùò[YHOOIŸ›Y\›	 N¬à€€ú›€ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 N‹€ôKù\OI›[	Œ‹€ôKö[ú][ŸOI›[	Œ‹€ôKúXŸZ€\èI”[ÿö[H
+ö]∞ÍJIŒ‹€ôKú›[Kôõ^IÃIŒ‹€ôKùò[YOJÀò€€ùX›Àôö[ô
+œOòÀú^Y\ó⁄YOO^öY
+OÀú€ôW€ù[Xô\ä_	…Œ¬à€€ú›ÿ]ôR[ôõœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹ÿ]ôR[ôõÀù^€€ù[ùI¸'‰Øà[ôõ‹»õ›Y]\âŒ‹ÿ]ôR[ôõÀò€\‹”ò[YOI‹ö[X\ûIŒ¬àÿ]ôR[ôõÀõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›\”Y[Xô\è\›]\Àùò[YOOOI€Y[Xô\âŒ‹ÿ]ôR[ôõÀô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	€X[òYŸ\ó›\]W‹^Y\ó‹\ú€€ò[⁄[ôõ…À‹‹^Y\ó⁄YûöY€ò[YNõò[YR[ú]ùò[YKùö[J
+K⁄\◊Ÿ‹õ›\€Y[Xô\éö\”Y[Xô\ãŸ›Y\›€Ÿó‹^Y\ó⁄Yö\”Y[Xô\è€ù[ä‹›ùò[Y_ù[
+K‹€ôW€ù[Xô\éú€ôKùò[YKùö[J
+_ù[JN‹ÿ]ôR[ôõÀô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬁõò[YO[ò[YR[ú]ùò[YKùö[J
+Nﬁö\◊Ÿ‹õ›\€Y[Xô\èZ\”Y[Xô\éﬁô›Y\›€Ÿó‹^Y\ó⁄YZ\”Y[Xô\è€ù[ä‹›ùò[Y_ù[
+Nÿ€€ú›õ›[ôTÀò€€ùX›Àôö[ô
+œOòÀú^Y\ó⁄YOO^öY
+N⁄Yäõ›[ô
+Yõ›[ôú€ôW€ù[Xô\è\€ôKùò[YKùö[J
+_ù[Ÿ[ŸHÀò€€ùX›Àú\⁄
+‹^Y\ó⁄YûöY€ôW€ù[Xô\éú€ôKùò[YKùö[J
+_ù[JNÿ]ÿZ]ÿY[
+
+N›ÿ\›
+	“[ôõ‹õX][€ú»Z\Ÿ\»0Ëõ›\à8ß!I NﬂN¬àY]ò\[ô
+ò[YR[ú]›]\À‹›€ôKÿ]ôR[ôõ NŸò\[ô⁄[
+Y]
+N¬àBàYä\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸ[]W€Y[Xô\ú ^¬à€€ú›[]Tõ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸ[]Tõ›Àò€\‹”ò[YOI‹õ›…ŒŸ[]Tõ›Àú›[Kò‹‹’^I€X\ô⁄[ã]‹é⁄ù\›YûKX€€ù[ùôõ^Y[ô	Œ¬à€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸ[ù^€€ù[ùI¸'Â‰H›\ö[Y\àH‹õ›\IŒŸ[ò€\‹”ò[YOIŸ[ôŸ\à€X[ùâŒ¬à[õ€ò€X⁄œX\ﬁ[ò 
+OOû⁄YäX€€ôö\õJ	‘›\ö[Y\à	 ﬁõò[YJ…»H‹õ›\H◊óî€€à\›‹ö\]YH‹‹ùYàŸ\òH€€úŸ\ù∞ÍH⁄H∞ÍXŸ\‹ÿZ\ôKâ J\ô]\õéŸ[ô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹ô[[›ôW‹^Y\ó€Y[Xô\âÀ‹‹^Y\ó⁄YûöYJNŸ[ô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY[
+
+N›ÿ\›
+]OOOIÿ\ò⁄]ôY	œ…“õ›Y]\à›\‹[ôHà\›‹ö\]YH€€úŸ\ù∞ÍKâŒâ“õ›Y]\à›\ö[pÍKâ NﬂN¬à[]Tõ›Àò\[ô⁄[
+[
+NŸò\[ô⁄[
+[]Tõ› N¬àBàYä\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸŸ[ô\ò]W›X[Wÿ€Ÿ\…âûö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJ^¬à€€ú›€ŸTõ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â Nÿ€ŸTõ›Àò€\‹”ò[YOI‹õ›…Œÿ€ŸTõ›Àú›[Kò‹‹’^I€X\ô⁄[ã]‹éŸõ^]‹ò\ù‹ò\‹Y[ôŒåLÿòX⁄Ÿ‹õ›[ôàŸôôòYåÿõ‹ô\éå\€€YŸåŸòYNÿõ‹ô\ã\òY]\ŒåM	Œ¬à€€ú›^\›[ô–€ŸOTÀùX[P€Ÿ\Àôö[ô
+œOòÀú^Y\ó⁄YOO^öY
+N¬à€€ú›€ŸR[ôõœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹‹[â Nÿ€ŸR[ôõÀú›[Kôõ^IÃIŒÿ€ŸR[ôõÀö[õô\íSIœèê€ŸH0Í\]Z\Hèÿèà	  ^\›[ô–€ŸO…œ€ŸOâ Ÿ\ÿ ^\›[ô–€ŸKò€ŸJJ…œÿ€ŸOà	  ^\›[ô–€ŸKô[òXõY…¸'ÁËâŒâ¯¶™â Nâ–]X›[à€ŸI N¬à€€ú›Ÿ[èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸŸ[ãù^€€ù[ùY^\›[ô–€ŸO…‘∞ÍYÍ[∞Í\ô\âŒâ—Í[∞Í\ô\âŒŸŸ[ãò€\‹”ò[YOI‹^Y\ãXX›[€ãX€ŸIŒ¬àŸ[ãõ€ò€X⁄œX\ﬁ[ò 
+OOû⁄Yä^\›[ô–€ŸIâàX€€ôö\õJ	‘∞ÍYÍ[∞Í\ô\àH€ŸHH	 ﬁõò[YJ…»… J\ô]\õéŸŸ[ãô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[óŸŸ[ô\ò]W‹^Y\ó›X[Wÿ€ŸIÀ‹‹^Y\ó⁄YûöYJNŸŸ[ãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ€€ú››\èTÀùX[P€Ÿ\Àôö[ô
+œOòÀú^Y\ó⁄YOO^öY
+N⁄Yä›\ä^ÿ›\ãò€ŸOY]Nÿ›\ãô[òXõY]ùY_Y[ŸHÀùX[P€Ÿ\Àú\⁄
+‹^Y\ó⁄YûöY€ŸNô]K[òXõYùùYK\]Yÿ]õô]»]J
+Kù“T”‘›ö[ô 
+_JN‹ô[ô\î^Y\ú 
+N›ÿ\›
+	–€ŸH0Í\]Z\HÍ[∞Í\∞ÍHà	 Ÿ]JNﬂN¬à€ŸTõ›Àò\[ô
+€ŸR[ôõÀŸ[äN¬àYä^\›[ô–€ŸJ^ÿ€€ú›ŸœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N›ŸÀù^€€ù[ùY^\›[ô–€ŸKô[òXõY…—0Í\ÿX›]ô\âŒâ‘∞ÍXX›]ô\âŒ›ŸÀò€\‹”ò[YOY^\›[ô–€ŸKô[òXõY…‹^Y\ãXX›[€ãY\ÿXõIŒâ‹^Y\ãXX›[€ãY[òXõIŒ›ŸÀõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[ó‹Ÿ]‹^Y\ó›X[Wÿ€ŸWŸ[òXõY	À‹‹^Y\ó⁄YûöYŸ[òXõYàY^\›[ô–€ŸKô[òXõYJN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNŸ^\›[ô–€ŸKô[òXõYHY^\›[ô–€ŸKô[òXõY‹ô[ô\î^Y\ú 
+NﬂNÿ€ŸTõ›Àò\[ô⁄[
+Ÿ NﬂBàò\[ô⁄[
+€ŸTõ› N¬àBàYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY	âö\–€€‹ô 
+IâîÀõ^S[öŸY^Y\íY	âî›ö[ô Àõ^S[öŸY^Y\íY
+OOOT›ö[ô öY
+J^¬à€€ú›Ÿ[ìõ›OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹Ÿ[ìõ›Kú›[Kò‹‹’^I€X\ô⁄[ã]‹é‹Y[ôŒé\Lÿõ‹ô\ã\òY]\ŒåLúÿòX⁄Ÿ‹õ›[ôàŸåŸççéÿ€€‹éàÕçMMåŒÿõ‹ô\éå\€€YŸMYMŸXâŒ¬àŸ[ìõ›Kö[õô\íSIœèº'‰i€àõŸö[ÿèè]à€\‹œHú€X[èì€àH€€õòpÎù<'Ê#»à\»]Y\›[€àHHY]ôHKÕH\ù›]H€àõ‹ôHõŸö[\›€ò»‹ú»õ›H<'Ê ãèŸ]èâŒ¬àò\[ô⁄[
+Ÿ[ìõ›JN¬àBàYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY	âä\–YZ[ä
+_\–€€‹ô 
+JIâàJ\–€€‹ô 
+IâîÀõ^S[öŸY^Y\íY	âî›ö[ô Àõ^S[öŸY^Y\íY
+OOOT›ö[ô öY
+JJ^¬à€€ú›^\›[ôœTÀõ^Tò][ô‹Àôö[ô
+èOúãú^Y\ó⁄YOO^öY
+N¬à€€ú›ò]OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹ò]Kò€\‹”ò[YOI‹^Y\ã\⁄⁄[\ô]öY]»^Y\ã\ò][ôÀXÿ\ô	Œ¬à€€ú›YŸ‹ôYÿ]O\^Y\î⁄⁄[YŸ‹ôYÿ]JöY
+N¬à€€ú›YŸ’^XYŸ‹ôYÿ]Iâìù[Xô\äYŸ‹ôYÿ]Kùõ›\óÿ€›[ù
+Oå \–€€‹ô 
+O…œ]à€\‹œHú^Y\ã\ò][ôÀ]ô\ôX›èèèº'Âm{Ó#»ô\ôX›€€X›Yèÿèè›õ€ôœâ ”ù[Xô\äYŸ‹ôYÿ]Kò]ô◊‹ò][ô Kù—ö^Y
+JJ…ÀÕO‹›õ€ôœèŸ]èâŒâœ]à€\‹œHú^Y\ã\ò][ôÀ]ô\ôX›èèèº'Âm{Ó#»ô\ôX›€€X›Yèÿèè‹[èè›õ€ôœâ ”ù[Xô\äYŸ‹ôYÿ]Kò]ô◊‹ò][ô Kù—ö^Y
+JJ…ÀÕO‹›õ€ôœà8†(à	 ÿYŸ‹ôYÿ]Kùõ›\óÿ€›[ù
+…»0Í]ò[X][€â  ù[Xô\äYŸ‹ôYÿ]Kùõ›\óÿ€›[ù
+OåO…‹…Œâ… J…œ‹‹[èèŸ]èâ Nâœ]à€\‹œHú^Y\ã\ò][ôÀ]ô\ôX›\ÀY[\Hèº'‰‚à\»[ò€‹ôH\‹Ÿ^à8†&X]ö\»›\à[ôH[ﬁY[õôKèŸ]èâŒ¬à€€ú›]OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N›]Kò€\‹”ò[YOI‹^Y\ã\ò][ôÀZXY	Œ›]Kö[õô\íSIœ]à€\‹œHú^Y\ã\ò][ôÀ]]K\õ›»èèè∏¶ØH[€à0Í]ò[X][€èÿèè‹[à€\‹œHú^Y\ã\ò][ôÀ\ö]ò]Hèº'Â$à””ëíQSïQS‹‹[èèŸ]èè]à€\‹œHõ]]Y€X[^Y\ã\ò][ôÀ\ÿÿ[HèåH0Ëô[ôõ‹òŸ\à0≠»à[ﬁY[à0≠»»õ€à0≠»∞Í»õ€à0≠»H^Ÿ[[ùŸ]èè]à€\‹œHú^Y\ã\ò][ôÀXò[[òŸHè∏¶•ªÓ#»Ÿ\»‹ö]0Íô\»[[Y[ù[ùH‹∞ÍX][€à\»0Í\]Z\\»0Í\]Z[Xú∞ÍY\ÀèŸ]èâ ÿYŸ’^¬à€€ú›‹ö]\öXOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â Nÿ‹ö]\öXKò€\‹”ò[YOI‹^Y\ã\ò][ôÀX‹ö]\öXIŒ¬à€€ú›ò[Y\œ^ﬂN¬à€€ú›Xô[œ^ÿÿ\ô[Œâ¯ßi;Ó#»ÿ\ô[…ÀöXòõNâ¸'Í°öXòõIÀ€€X›Yéâ¸'È'H€€X›YâÀúò\Nâ¸'„´»úò\IﬂN¬à€€ú›]ô[^^ÃNâ‡ô[ôõ‹òŸ\âÀéâ”[ﬁY[âÀŒâ–õ€âÀâ’∞Í»õ€âÀNâ—^Ÿ[[ù	ﬂN¬àÿöôX›ô[ùöY\ Xô[ Kôõ‹ëXX⁄
+
+⁄Ÿ^KJOOû¬à€€ú›‹ò\Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	€Xô[	 N›‹ò\ò€\‹”ò[YOI‹^Y\ã\ò][ôÀYöY[	Œ¬à€€ú›ÿ\Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹‹[â Nÿÿ\ò€\‹”ò[YOI‹^Y\ã\ò][ôÀ[Xô[	Œÿÿ\ù^€€ù[ù]¬à€€ú›Ÿ[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N‹Ÿ[ò€\‹”ò[YOI‹^Y\ã\ò][ôÀ\Ÿ[X›	Œ‹Ÿ[úŸ]]öXù]J	ÿ\öXK[Xô[	À
+N‹Ÿ[ö[õô\íSIœ‹[€àò[YOHàè∏†%€‹[€èâ ÷ÃKãÀWKõX\
+èOâœ‹[€àò[YOHâ €ä…»èâ €ä…ÀÕH0≠»	 €]ô[^€óJ…œ€‹[€èâ Köõ⁄[ä	… N¬àYä^\›[ôœÀñ⁄Ÿ^WJ\Ÿ[ùò[YOT›ö[ô ^\›[ô÷⁄Ÿ^WJN¬àò[Y\÷⁄Ÿ^WO\Ÿ[›‹ò\ò\[ô
+ÿ\Ÿ[
+Nÿ‹ö]\öXKò\[ô⁄[
+‹ò\
+N¬àJN¬à€€ú›õ€U‹ò\Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	€Xô[	 N‹õ€U‹ò\ò€\‹”ò[YOI‹^Y\ã\ò][ôÀ\õ€IŒ¬àõ€U‹ò\ö[õô\íSIœ‹[à€\‹œHú^Y\ã\ò][ôÀ[Xô[èº'ÈÎH∞ÌHH∞ÍY[X›[€è‹‹[èâŒ¬à€€ú›õ€OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N‹õ€Kò€\‹”ò[YOI‹^Y\ã\ò][ôÀ\Ÿ[X›	Œ‹õ€KúŸ]]öXù]J	ÿ\öXK[Xô[	À	‘∞ÌHH∞ÍY[X›[€â N¬àõ€Kö[õô\íSIœ‹[€àò[YOHàèê⁄⁄\⁄\∏†)è€‹[€èè‹[€àò[YOHôYô[úŸ]\àèº'ÊË{Ó#»0ÍYô[úŸ]\è€‹[€èè‹[€àò[YOHõY]õ€õ€YHèº'„ØpÍ]õ€õ€YO€‹[€èè‹[€àò[YOHúò]\‹Ÿ]\àèº'ÈÓHò]\‹Ÿ]\è€‹[€èè‹[€àò[YOHôö[ö\‹Ÿ]\àèº'ÈaHö[ö\‹Ÿ]\è€‹[€èè‹[€àò[YOHôöXòõ]\àèº'Í°öXòõ]\è€‹[€èè‹[€àò[YOHôúò\]\àèº'‰©Húò\]\è€‹[€èè‹[€àò[YOHù‹‹^Y\àè∏´d‹^Y\è€‹[€èâŒ¬àYä^\›[ôœÀúôYô\úôY‹õ€J\õ€Kùò[YOY^\›[ôÀúôYô\úôY‹õ€N‹õ€U‹ò\ò\[ô⁄[
+õ€JN¬à€€ú›õŸ‹ô\‹œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹õŸ‹ô\‹Àò€\‹”ò[YOI‹^Y\ã\ò][ôÀ\õŸ‹ô\‹…Œ‹õŸ‹ô\‹Àö[õô\íSIœ]èè‹[èî∞Í\\ò][€àH8†&pÍ]ò[X][€è‹‹[èèèåÕOÿèèŸ]èè‹[à€\‹œHú^Y\ã\ò][ôÀ\õŸ‹ô\‹À]òX⁄»èèOè⁄Oè‹‹[èâŒ¬à€€ú›\]TõŸ‹ô\‹œJ
+OOûÿ€€ú›€ôOVÀããìÿöôX›ùò[Y\ ò[Y\ Kõ€WKôö[\ä€€ùõ€Oò€€ùõ€ùò[YJKõ[ô›‹õŸ‹ô\‹Àú]Y\ûTŸ[X›‹ä	ÿâ Kù^€€ù[ùY€ôJ…ÀÕIŒ‹õŸ‹ô\‹Àú]Y\ûTŸ[X›‹ä	⁄I Kú›[Kù⁄YJ€ôJåå
+J……IŒ‹õŸ‹ô\‹Àò€\‹”\›ùŸŸ€J	⁄\ÀX€€\]IÀ€ôOOOMJN”ÿöôX›ùò[Y\ ò[Y\ Kôõ‹ëXX⁄
+€€ùõ€Oò€€ùõ€ò€‹Ÿ\›
+	Àú^Y\ã\ò][ôÀYöY[	 OÀò€\‹”\›ùŸŸ€J	⁄\ÀYö[Y	ÀHX€€ùõ€ùò[YJJN‹õ€U‹ò\ò€\‹”\›ùŸŸ€J	⁄\ÀYö[Y	ÀH\õ€Kùò[YJNﬂN¬àÀããìÿöôX›ùò[Y\ ò[Y\ Kõ€WKôõ‹ëXX⁄
+€€ùõ€Oò€€ùõ€òY]ô[ù\›[ô\ä	ÿ⁄[ôŸIÀ\]TõŸ‹ô\‹ JN›\]TõŸ‹ô\‹ 
+N¬à€€ú›ö[ò[ÿ\õö[ôœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸö[ò[ÿ\õö[ôÀú›[Kò‹‹’^I€X\ô⁄[ã]‹åL‹Y[ôŒåLLúÿõ‹ô\ã\òY]\ŒåLúÿòX⁄Ÿ‹õ›[ôàŸôôçŸéÿõ‹ô\éå\€€YŸåXŒéÿ€€‹éàÕåLŸõ€ù]ŸZY⁄é	ŒŸö[ò[ÿ\õö[ôÀù^€€ù[ùY^\›[ôœ…¸'Â$àŸ]H0Í]ò[X][€à\›0ÍYö[ö]]ôKàŸ][H›\\àYZ[à]]H€‹úöYŸ\ãâŒâ¯¶®;Ó#»\∞Í»ò[Y][€ãŸ]Hõ›][€àŸ\òH0ÍYö[ö]]ôH]õ€à[ŸYöXXõKâŒ¬àYä^\›[ô VÀããìÿöôX›ùò[Y\ ò[Y\ Kõ€WKôõ‹ëXX⁄
+€€ùõ€Oò€€ùõ€ô\ÿXõY]ùYJN¬à€€ú›Ÿ[ôYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹Ÿ[ôù^€€ù[ùY^\›[ôœ…¸'Â$à0‚]ò[X][€à0ÍYö[ö]]ôIŒâ¸'‰Øà[úôY⁄\›ô\à[€à0Í]ò[X][€à0ÍYö[ö]]ôIŒ‹Ÿ[ôò€\‹”ò[YOI‹ö[X\ûIŒ‹Ÿ[ôú›[Kò‹‹’^I›⁄YåL	N€X\ô⁄[ã]‹åL	Œ‹Ÿ[ôô\ÿXõYHHY^\›[ôŒ¬àŸ[ôõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›^[ÿY^‹‹^Y\ó⁄YûöYÿÿ\ô[Œìù[Xô\äò[Y\Àòÿ\ô[Àùò[YJKŸöXòõNìù[Xô\äò[Y\ÀôöXòõKùò[YJKÿ€€X›Yéìù[Xô\äò[Y\Àò€€X›Yãùò[YJKŸúò\Nìù[Xô\äò[Y\Àôúò\Kùò[YJK‹ôYô\úôY‹õ€Núõ€Kùò[Y_N¬àYä\^[ÿYúÿÿ\ô[ﬂ\^[ÿYúŸöXòõ_\^[ÿYúÿ€€X›Yü\^[ÿYúŸúò\_\^[ÿYú‹ôYô\úôY‹õ€J\ô]\õàÿ\›
+	–€€\0ÍH\»‹ö]0Íô\»]H∞ÌHH∞ÍY[X›[€ãâ N¬àŸ[ôô\ÿXõY]ùYN‹Ÿ[ôù^€€ù[ùI—[úôY⁄\›ô[Y[ù8†)âŒ¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹›XõZ]‹^Y\ó‹⁄⁄[‹ô]öY]…À^[ÿY
+N¬àYä\úõ‹ä^‹Ÿ[ôô\ÿXõYYò[ŸN‹Ÿ[ôù^€€ù[ùY^\›[ôœ…¸'‰ØàY]ôH0Ëõ›\à[€à0Í]ò[X][€âŒâ¸'‰Øà[úôY⁄\›ô\à[€à0Í]ò[X][€âŒ‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJ_Bà€€ú›]ôœJ^[ÿYúÿÿ\ô[ ‹^[ÿYúŸöXòõJ‹^[ÿYúÿ€€X›Yä‹^[ÿYúŸúò\JKÕ¬à€€ú›ÿ]ôY^‹^Y\ó⁄YûöYò][ôŒò]ôÀÿ\ô[Œú^[ÿYúÿÿ\ô[ÀöXòõNú^[ÿYúŸöXòõK€€X›Yéú^[ÿYúÿ€€X›Yãúò\Nú^[ÿYúŸúò\KôYô\úôY‹õ€Nú^[ÿYú‹ôYô\úôY‹õ€K\]Yÿ]õô]»]J
+Kù“T”‘›ö[ô 
+_N¬à€€ú›YTÀõ^Tò][ô‹Àôö[ô[ô^
+èOúãú^Y\ó⁄YOO^öY
+N⁄YäYèL
+TÀõ^Tò][ô‹÷⁄YO\ÿ]ôYŸ[ŸHÀõ^Tò][ô‹Àú\⁄
+ÿ]ôY
+N¬à€€ú›Ÿ]NòYŸ—]K\úõ‹éòYŸ—\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹^Y\ó‹⁄⁄[ÿYŸ‹ôYÿ]\…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN¬àYäXYŸ—\úõ‹äTÀú⁄⁄[YŸ‹ôYÿ]\œP\úò^Kö\–\úò^JYŸ—]JOÿYŸ—]Nñ◊N¬àYä\–YZ[ä
+J^¬à€€ú›Ÿ]Núô]öY]—]K\úõ‹éúô]öY]—\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]ÿYZ[ó‹^Y\ó‹⁄⁄[‹ô]öY]‹…À‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöYJN¬àYä\ô]öY]—\úõ‹äTÀú⁄⁄[ô]öY]‹œP\úò^Kö\–\úò^Jô]öY]—]JO‹ô]öY]—]Nñ◊N¬àBàŸ[ôô\ÿXõYYò[ŸN›ÿ\›
+	‚]ò[X][€àH	 ﬁõò[YJ…»[úôY⁄\›∞ÍYH<'Â$à8†(à[ﬁY[õôHZ\ŸH0Ëõ›\â N¬àô[ô\î^Y\ú 
+N¬àN¬àò]Kò\[ô
+]K‹ö]\öXKõ€U‹ò\õŸ‹ô\‹Àö[ò[ÿ\õö[ôÀŸ[ô
+NŸò\[ô⁄[
+ò]JN¬àBàõﬁò\[ô⁄[
+
+N¬àJBüBò\ﬁ[ò»ù[ò›[€à[ú›\ôU€‹ö‹‹XŸJ
+^¬àYäÀù€‹ö‹‹XŸJ\ô]\õàÀù€‹ö‹‹XŸN¬à€€ú›ò[YOI
+	»€ô]’€‹ö‹‹XŸI Kùò[YKùö[J
+_	‘’‚H›\õò[Y[ùKÕIŒ¬à€€ú›Ÿ]Nù€‹ö‹‹XŸRY\úõ‹üOX]ÿZ]ÿãúú 	ÿ‹ôX]W€‹ôÿ[ö^ô\ó›€‹ö‹‹XŸW›öX[	À‹€ò[YNõò[YK€‹ôÿ[ö^ô\ó›\NâŸ‹õ›\	ﬂJN¬àYä\úõ‹ä]õ›»\úõ‹é¬àYä]€‹ö‹‹XŸRY
+]õ›»ô]»\úõ‹ä	“[\‹‹⁄XõHH‹∞ÍY\à8†&Y\‹XŸKâ N¬àÀù€‹ö‹‹XŸO^⁄Yù€‹ö‹‹XŸRYò[YKõ€NâÿYZ[âﬂN¬à	
+	»›€‹ö‹‹XŸTŸ]\	 Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»›€‹ö‹‹XŸSò[YI Kù^€€ù[ù[ò[YJ…»8†(àYZ[ö\›ò]]\âŒ¬àô]\õàÀù€‹ö‹‹XŸN¬üBâ
+	»‹^Y\ë‹õ›\›]\… Kõ€ò⁄[ôŸOJ
+OOû¬à€€ú›\—›Y\›I
+	»‹^Y\ë‹õ›\›]\… Kùò[YOOOIŸ›Y\›	Œ¬à	
+	»Ÿ›Y\›Ÿî^Y\â Kò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\—›Y\›
+N¬üN¬â
+	»ÿY^Y\ú… Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYä\–€€‹ô 
+IâàTÀõ^T\õZ\‹⁄[€úÀòÿ[óÿY€Y[Xô\ú \ô]\õàÿ\›
+	’H∏†&Y\»\»]]‹ö\ÍH0ËZõ›]\à\»Y[Xúô\Àâ N¬à€€ú›ùèI
+	»ÿY^Y\ú… N¬à€€ú›ò[Y\œVÀããõô]»Ÿ]
+	
+	»‹^Y\ú“[ú]	 Kùò[YKú‹]
+÷À◊óK KõX\
+Oûùö[J
+JKôö[\äõ€€X[äJWN¬àYä[ò[Y\Àõ[ô›
+\ô]\õàÿ\›
+	—[ùôH]H[⁄[ú»[àõ›Y]\ãâ N¬à€€ú›\”Y[Xô\èI
+	»‹^Y\ë‹õ›\›]\… Kùò[YHOOIŸ›Y\›	Œ¬à€€ú››Y\›ŸèZ\”Y[Xô\è€ù[ä	
+	»Ÿ›Y\›Ÿî^Y\â Kùò[Y_ù[
+N¬àùãô\ÿXõY]ùYNÿùãù^€€ù[ùI—[úôY⁄\›ô[Y[ù8†)âŒ¬àû^¬à€€ú›€‹ö‹‹XŸOX]ÿZ][ú›\ôU€‹ö‹‹XŸJ
+N¬à€€ú›õ›‹œ[ò[Y\ÀõX\
+ò[YOOä¬à€‹ö‹‹XŸW⁄Yù€‹ö‹‹XŸKöYàò[YKàX›]ôNùùYKà\◊Ÿ‹õ›\€Y[Xô\éö\”Y[Xô\ãà›Y\›€Ÿó‹^Y\ó⁄Yô›Y\›ŸÇàJJN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	‹^Y\ú… Kù\Ÿ\ù
+õ›‹À€€ê€€ôõX›â›€‹ö‹‹XŸW⁄Yò[YIÀY€õ‹ôQ\Xÿ]\ŒùùY_JN¬àYä\úõ‹ä]õ›»\úõ‹é¬à	
+	»‹^Y\ú“[ú]	 Kùò[YOI…Œ¬à	
+	»‹^Y\ë‹õ›\›]\… Kùò[YOI€Y[Xô\âŒ¬à	
+	»Ÿ›Y\›Ÿî^Y\â Kùò[YOI…Œ¬à	
+	»Ÿ›Y\›Ÿî^Y\â Kò€\‹”\›òY
+	⁄Y[â N¬àYä\–YZ[ä
+J^¬à€€ú›Ÿ]Nôúô\⁄^Y\úÀ\úõ‹éú^Y\ú—\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]ÿYZ[ó›€‹ö‹‹XŸW‹^Y\ú…À‹›€‹ö‹‹XŸW⁄Yù€‹ö‹‹XŸKöYJN¬àYä^Y\ú—\úõ‹ä]õ›»^Y\ú—\úõ‹é‘Àú^Y\úœYúô\⁄^Y\úﬂ◊N¬àY[Ÿ^¬à€€ú›Ÿ]Nôúô\⁄^Y\úÀ\úõ‹éú^Y\ú—\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]›€‹ö‹‹XŸW‹^Y\ú◊‹ÿYôIÀ‹›€‹ö‹‹XŸW⁄Yù€‹ö‹‹XŸKöYJN¬àYä^Y\ú—\úõ‹ä]õ›»^Y\ú—\úõ‹é‘Àú^Y\úœYúô\⁄^Y\úﬂ◊N¬àBàô[ô\î^Y\ú 
+N¬àÿ\›
+ò[Y\Àõ[ô›
+…»õ›Y]\â  ò[Y\Àõ[ô›åO…‹…Œâ… J…»[úôY⁄\›∞ÍI  ò[Y\Àõ[ô›åO…‹…Œâ… J…»8ß!I N¬àXÿ]⁄
+\úõ‹ä^›ÿ\›
+úöY[ôP]]\úõ‹ä\úõ‹äJ_Bàö[ò[^ÿùãô\ÿXõYYò[ŸNÿùãù^€€ù[ùI—[úôY⁄\›ô\à\»õ›Y]\ú…ﬂBüN¬Çò\ﬁ[ò»ù[ò›[€à[]U›\õò[Y[ù
+
+^¬àYäZ\–YZ[ì‹ 
+J\ô]\õàÿ\›
+	’H∏†&Y\»\»]]‹ö\ÍH0Ë›\ö[Y\à[à›\õõ⁄Kâ N¬à€€ú›Xô[]õò[Y_
+	’›\õõ⁄HH	 ›ù›\õò[Y[ùŸ]JN¬àYäX€€ôö\õJ	‘›\ö[Y\à0ÍYö[ö]]ô[Y[ù0™»	 €Xô[
+…»0Æ»◊óì\»0Í\]Z\\ÀX]⁄Àù]»]€õ∞ÍY\»pÍY\»0ËŸH›\õõ⁄HŸ\õ€ù0ÍYÿ[[Y[ù›\ö[pÍ\ÀàŸ]HX›[€à\›\ú∞Í]ô\ú⁄XõKâ J\ô]\õé¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	Ÿ[]W››\õò[Y[ùÿYZ[âÀ‹››\õò[Y[ù⁄YùöYJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àYäÀòX›]ôU›\èOO]öY
+TÀòX›]ôU›\è[ù[¬à]ÿZ]ÿY[
+
+N¬àÿ\›
+	’›\õõ⁄H›\ö[pÍH8ß!I N¬üBÇôù[ò›[€àŸX\€€ìò[YQõ‹ï›\õò[Y[ù
+
+^¬à€€ú›œTÀúŸX\€€úÀôö[ô
+OûöYOO]úŸX\€€ó⁄Y
+N¬àô]\õàœ‹Àõò[YNâ‘ÿ[ú»ÿZ\€€âŒ¬üBÇÇÇôù[ò›[€à›\õò[Y[ùXY[ôS\ 
+^¬àYä]]úôY⁄\›ò][€óŸXY[ôJ\ô]\õàù[¬à€€ú›\œ[ô]»]JúôY⁄\›ò][€óŸXY[ôJKôŸ][YJ
+N¬àô]\õàù[Xô\ãö\—ö[ö]J\ O€\Œõù[¬üBôù[ò›[€àõ‹õX]€›[ù›€ä\ ^¬àYä\œL
+\ô]\õà	“[úÿ‹ö\[€ú»\õZ[∞ÍY\…Œ¬à€€ú››[SX]ôõ€‹ä\ÀÃL
+N¬à€€ú›SX]ôõ€‹ä›[Œç
+N¬à€€ú›SX]ôõ€‹ä
+›[	Nç
+KÃÕå
+N¬à€€ú›[OSX]ôõ€‹ä
+›[	LÕå
+KÕå
+N¬à€€ú›‹œ]›[	Må¬àô]\õà
+Ÿ
+…⁄à	Œâ… J‘›ö[ô 
+KúY›\ù
+ã	Ã	 J…⁄	 ‘›ö[ô [JKúY›\ù
+ã	Ã	 J…€H	 ‘›ö[ô ‹ KúY›\ù
+ã	Ã	 J…‹…Œ¬üBôù[ò›[€à\]U›\õò[Y[ù€›[ù›€ú 
+^¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K\ôY⁄\›ò][€ãYXY[ôWI Kôõ‹ëXX⁄
+[Oû¬à€€ú›XY[ôO[ô]»]J[ô]\Ÿ]úôY⁄\›ò][€ëXY[ôJKôŸ][YJ
+N¬àYäSù[Xô\ãö\—ö[ö]JXY[ôJJ^Ÿ[ù^€€ù[ùI¯¶®;Ó#»]HH€0Ì\ôH[ùò[YIŒ‹ô]\õüBà€€ú›\œYXY[ôKQ]Kõõ› 
+N¬à€€ú›^\ôY[\œL¬à[ù^€€ù[ùY^\ôY…¯¶Â[úÿ‹ö\[€ú»\õZ[∞ÍY\…Œä	¯£Ï{Ó#»€0Ì\ôH[ú»	 Ÿõ‹õX]€›[ù›€ä\ JN¬à[ú›[Kôõ€ùŸZY⁄IŒ	Œ¬à[ú›[Kôõ€ù⁄^ôOIÃKå\ô[IŒ¬à[ú›[Kò€€‹èY^\ôY…»ÿéLXÃX…Œâ»ÃMççLÕ	Œ¬àJN¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]›\õò[Y[ù\›\ùI Kôõ‹ëXX⁄
+[Oû¬à€€ú›⁄X⁄€Ÿôè[ô]»]J[ô]\Ÿ]ù›\õò[Y[ù›\ù
+KôŸ][YJ
+N¬àYäSù[Xô\ãö\—ö[ö]J⁄X⁄€ŸôäJ^Ÿ[ù^€€ù[ùI–€›\8†&Y[ùõ⁄H0Ë€€ôö\õY\âŒ‹ô]\õüBà€€ú›\œZ⁄X⁄€ŸôãQ]Kõõ› 
+N¬à[ù^€€ù[ù[\œL…¯¶ØHH€›\8†&Y[ùõ⁄H\›€õ∞ÍIŒâ¯£Ï{Ó#»€›\8†&Y[ùõ⁄H[ú»	 Ÿõ‹õX]€›[ù›€ä\ Kúô\XŸJ	“[úÿ‹ö\[€ú»\õZ[∞ÍY\…À	ÃH… N¬àJN¬üBöYä]⁄[ô›Àó◊‹›ŸQXY[ôU[Y\ä^¬à⁄[ô›Àó◊‹›ŸQXY[ôU[Y\è\Ÿ][ù\ùò[
+\]U›\õò[Y[ù€›[ù›€úÀL
+N¬üBôù[ò›[€à›\õò[Y[ù]]‘[ä€›[ù
+^¬à€€ú›èSX]õX^
+X]õZ[äÕKù[Xô\ä€›[ù
+JJN¬àYäèL
+\ô]\õà›X[\Œå]⁄\Œå€‹ôNå›XúŒõãù[NâÃLõ›Y]\ú»Z[ö[][H›\à‹∞ÍY\àà0Í\]Z\\…ﬂN¬à€€ú›X[\œSX]ôõ€‹äãÕJN¬à€€ú›€‹ôO]X[\ çN¬à€€ú››Xúœ[ãX€‹ôN¬à€€ú›]⁄\œ]X[\œLœÃNäX[\œMOÃéå N¬àô]\õà¬àX[\Àà]⁄\Àà€‹ôKà›XúÀàù[NùX[\…LÇà…Ãàù]»8†&pÍXÿ\ùH8†&pÍ\]Z\HZ‹ú»ô[ùôK›HLZ[àX^[][I¬àâ”X]⁄»HLZ[â¬àN¬üBÇôù[ò›[€àôY⁄\›ò][€ê€€‹í[ôõ X[J^¬à€€ú›^T›ö[ô X[OÀò€€‹ü	»ÕçÕâ Kù”›Ÿ\êÿ\ŸJ
+N¬à€€ú›ò[Y\œ^¬à	»ÃLLNç…Œâ”õ⁄\âÀ	»ÃçMåŸXâŒâ–õ]IÀ	»ŸéòYò…Œâ–õ[ò…À	»ŸÃçåçâŒâ‘õ›YŸIÀà	»ÃMòLÕIŒâ’ô\ù	À	»ŸXXåÃ	Œâ“ò][ôIÀ	»ŸéMÃÃMâŒâ”‹ò[ôŸIÀ	»ÕÿÃÿYY	Œâ’ö[€]	Àà	»ŸXÕNIŒâ‘õ‹ŸIÀ	»ÕŒÕLâŒâ”X\úõ€âÀ	»ÕçÕâŒâ—‹ö\…¬àN¬àô]\õà⁄^Xô[õò[Y\÷⁄^_	–€›[]\à\ú€€õò[\ÍYIﬂN¬üBôù[ò›[€àôY⁄\›ò][€ë›Y\›^
+ôYÀ^Y\ìX\
+^¬à€€ú›\^Y\ìX\ôŸ]
+ôYœÀú^Y\ó⁄Y
+N¬àYäÀö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJ\ô]\õà	”Y[XúôHH‹õ›\IŒ¬à€€ú›‹›Y\ôYœÀúôY⁄\›\ôYÿûW‹^Y\ó⁄YÀô›Y\›€Ÿó‹^Y\ó⁄Yù[¬à€€ú›‹›Z‹›Y‹^Y\ìX\ôŸ]
+‹›Y
+Nõù[¬àô]\õà‹›…—›Y\›H	 ⁄‹›õò[YNâ—›Y\›	Œ¬üBôù[ò›[€àôY⁄\›ò][€î›[[X\ûR[
+›\õò[Y[ùY
+^¬à€€ú››\õò[Y[ùTÀù›\õò[Y[ùÀôö[ô
+OùöYOO]›\õò[Y[ùY
+N¬à€€ú›ôY‹œTÀù^Y\úÀôö[\äèOúãù›\õò[Y[ù⁄YOO]›\õò[Y[ùY	âúãúô\Ÿ[ù	âúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	 N¬à€€ú›X^^Y\úœSù[Xô\ä›\õò[Y[ùÀõX^‹^Y\úﬂå
+N¬à€€ú›ô[XZ[ö[ô—€ÿò[SX]õX^
+X^^Y\úÀ\ôY‹Àõ[ô›
+N¬à€€ú››\õò[Y[ùX[\œTÀùX[\Àôö[\äOùù›\õò[Y[ù⁄YOO]›\õò[Y[ùY
+N¬à€€ú›X[RYœ[ô]»Ÿ]
+›\õò[Y[ùX[\ÀõX\
+OùöY
+JN¬à€€ú›X[T^Y\îõ›‹œTÀùX[T^Y\úÀôö[\äOùX[RYÀö\ ùX[W⁄Y
+JN¬à€€ú›\‹⁄Y€ôYYœ[ô]»Ÿ]
+X[T^Y\îõ›‹ÀõX\
+Oùú^Y\ó⁄Y
+JN¬à€€ú›^Y\ìX\[ô]»X\
+Àú^Y\úÀõX\
+Oñ‹öYJJN¬à€€ú›ôY”X\[ô]»X\
+ôY‹ÀõX\
+èOñ‹ãú^Y\ó⁄YóJJN¬Çà€€ú›úôYTôY‹œ\ôY‹Àôö[\äèOàX\‹⁄Y€ôYYÀö\ ãú^Y\ó⁄Y
+JN¬à€€ú›úôYR[YúôYTôY‹Àõ[ô›à»úôYTôY‹ÀõX\
+èOû¬à€€ú›\^Y\ìX\ôŸ]
+ãú^Y\ó⁄Y
+N¬à€€ú››Y\›\ôY⁄\›ò][€ë›Y\›^
+ã^Y\ìX\
+N¬àô]\õà	œ]à€\‹œHú^Y\àõ›»èè‹[à›[OHôõ^åHèâ Ÿ\ÿ Àõò[Y_	“õ›Y]\â J¬à
+›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›
+J…œ‹‹[èâŒâ… J¬à	œ‹‹[èè‹[à€\‹œHõ]]Yèâ  ãö\◊‹›Xú›]]O…¸'ÁËô[\pÈÿ[ù€€[][âŒâ‚\]Z\H[0ÍX]⁄\ôI J…œ‹‹[èèŸ]èâŒ¬àJKöõ⁄[ä	… Bàà	œ€\‹œHõ]]Yèê]X›[àõ›Y]\à[à0Í\]Z\H[0ÍX]⁄\ôKè‹âŒ¬Çà€€ú›X[\“[]›\õò[Y[ùX[\Àõ[ô›à»›\õò[Y[ùX[\ÀõX\
+X[OOû¬à€€ú›Y[Xô\îõ›‹œ]X[T^Y\îõ›‹Àôö[\äOùùX[W⁄YOO]X[KöY
+N¬à€€ú›€€‹è\ôY⁄\›ò][€ê€€‹í[ôõ X[JN¬à€€ú›Y[Xô\ú“[[Y[Xô\îõ›‹Àõ[ô›€Y[Xô\îõ›‹ÀõX\
+Oû¬à€€ú›\^Y\ìX\ôŸ]
+ú^Y\ó⁄Y
+N¬à€€ú››Y\›\ôY⁄\›ò][€ë›Y\›^
+ôY”X\ôŸ]
+ú^Y\ó⁄Y
+K^Y\ìX\
+N¬àô]\õà	œ]à›[OHõX\ô⁄[ã]‹çè∏†(à	 Ÿ\ÿ Àõò[Y_	“õ›Y]\â J ›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›
+J…œ‹‹[èâŒâ… J…œŸ]èâŒ¬àJKöõ⁄[ä	… Nâœ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èê]X›[àõ›Y]\èŸ]èâŒ¬àô]\õà	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹éèâ ¬à	œ]à€\‹œHúõ›»èè‹[à›[OHù⁄YåN⁄ZY⁄åNÿõ‹ô\ã\òY]\ŒçL	NÿòX⁄Ÿ‹õ›[ôâ Ÿ\ÿ €€‹ãö^
+J…Œÿõ‹ô\éå\€€YÿÿôYLNŸõ^å]]»èè‹‹[èâ ¬à	œà›[OHôõ^åHèâ Ÿ\ÿ X[Kõò[Y_	‚\]Z\I J…œÿèè‹[à€\‹œHõ]]Yèâ €Y[Xô\îõ›‹Àõ[ô›
+…»õ›Y]\â  Y[Xô\îõ›‹Àõ[ô›åO…‹…Œâ… J…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèê€›[]\ààèâ Ÿ\ÿ €€‹ãõXô[
+J…œÿèèŸ]èâ €Y[Xô\ú“[
+…œŸ]èâŒ¬àJKöõ⁄[ä	… Bàà	œ€\‹œHõ]]Yèê]X›[ôH0Í\]Z\H€€\‹ÍYKè‹âŒ¬Çàô]\õà	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸYYéåéÿõ‹ô\éå\€€YÿçŸòÕèèèº'‰‚à	 ‹ôY‹Àõ[ô›
+…À… €X^^Y\ú …»[úÿ‹ö]œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèèèâ ‹ô[XZ[ö[ô—€ÿò[
+…»XŸI  ô[XZ[ö[ô—€ÿò[åO…‹…Œâ… J…»ô\›[ùI  ô[XZ[ö[ô—€ÿò[åO…‹…Œâ… J…œÿèà]ò[ù8†&X]Z[ôôHHõ€XúôHX^[][H0ÍYö[öH›\àŸH›\õõ⁄KèŸ]èèŸ]èâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLÿòX⁄Ÿ‹õ›[ôàŸéòôéHèèèº'‰iõ›Y]\ú»[à0Í\]Z\H[0ÍX]⁄\ôOÿèâ ŸúôYR[
+…œŸ]èâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLÿòX⁄Ÿ‹õ›[ôàŸéòôôàèèèº'‰iH0‚\]Z\\»0ÍZ∞Ë€€\‹ÍY\œÿèâ ›X[\“[
+…œŸ]èâŒ¬üBÇôù[ò›[€à\[ô›\õò[Y[ùŸX\€€ê€€ùõ€
+€€ùZ[ô\ã
+^¬àYäX€€ùZ[ô\ü]ôõ‹õX]OOI€XY›YIﬂZ\–YZ[ì‹ 
+J\ô]\õé¬à€€ú›‹ò\Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N¬à‹ò\ò€\‹”ò[YOI‹^Y\âŒ¬à‹ò\ú›[KõX\ô⁄[ï‹IÃL	Œ¬à‹ò\ú›[KòòX⁄Ÿ‹õ›[ôI»ŸéòôéIŒ¬Çà€€ú››\úô[ùŸX\€€èTÀúŸX\€€úÀôö[ô
+œOî›ö[ô ÀöY
+OOOT›ö[ô úŸX\€€ó⁄Y	… JN¬à‹ò\ö[õô\íSIœ]èèèº'‰·HÿZ\€€àH›\õõ⁄Oÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèâ ¬à
+›\úô[ùŸX\€€Çà…–ŸH›\õõ⁄H€€\HX›Y[[Y[ù[ú»èâ Ÿ\ÿ ›\úô[ùŸX\€€ãõò[YJJ…œÿèãàŸ\»ù]»]\‹Ÿ\»€€ù›[][0Í\»]ôX»\»]]ô\»›\õõ⁄\»HŸ]HÿZ\€€ãâ¬àâ–ŸH›\õõ⁄H\›èö‹ú»ÿZ\€€èÿèãàŸ\»ù]»]\‹Ÿ\»ô\›[ù[ö\]Y[Y[ù[ú»\»›]\›\]Y\»HŸH›\õõ⁄H]ôH€€ùZõ›]0Í\»0Ë]X›[à€\‹Ÿ[Y[ùHÿZ\€€ãâ J¬à	œŸ]èèŸ]èâŒ¬Çà€€ú›õ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N¬àõ›Àò€\‹”ò[YOI‹õ›…Œ¬àõ›Àú›[KõX\ô⁄[ï‹IŒ	Œ¬à€€ú›Ÿ[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N¬àŸ[ú›[Kôõ^IÃIŒ¬àŸ[ö[õô\íSIœ‹[€àò[YOHàèí‹ú»ÿZ\€€à8†%›]\›\]Y\»H›\õõ⁄H[ö\]Y[Y[ù€‹[€èâ ¬àÀúŸX\€€úÀõX\
+œOâœ‹[€àò[YOHâ ‹ÀöY
+…»èâ Ÿ\ÿ Àõò[YJJ Àö\◊ÿX›]ôO…»8†(àX›]ôIŒâ… J…œ€‹[€èâ Köõ⁄[ä	… N¬àŸ[ùò[YO]úŸX\€€ó⁄Y	…Œ¬Çà€€ú›ÿ]ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N¬àÿ]ôKù\OIÿù]€âŒ¬àÿ]ôKò€\‹”ò[YOI‹ö[X\ûIŒ¬àÿ]ôKù^€€ù[ùI¸'‰Øà[úôY⁄\›ô\àHÿZ\€€âŒ¬àÿ]ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ô]‘ŸX\€€íY\Ÿ[ùò[Y_ù[¬àYä›ö[ô ô]‘ŸX\€€íY	… OOOT›ö[ô úŸX\€€ó⁄Y	… J\ô]\õàÿ\›
+	–]X›[à⁄[ôŸ[Y[ùHÿZ\€€ãâ N¬àÿ]ôKô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	››\õò[Y[ù… Kù\]J‹ŸX\€€ó⁄Yõô]‘ŸX\€€íYJKô\J	⁄Y	ÀöY
+N¬àYä\úõ‹ä^‹ÿ]ôKô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJ_Bà]ÿZ]ÿY[
+
+N¬àŸ]öY] 	››\õò[Y[ù… N¬àÿ\›
+ô]‘ŸX\€€íY…’›\õõ⁄HZõ›]0ÍH0ËHÿZ\€€à8ß!IŒâ’›\õõ⁄Hô]\∞ÍHHHÿZ\€€à8ß!I N¬àN¬àõ›Àò\[ô
+Ÿ[ÿ]ôJN¬à‹ò\ò\[ô⁄[
+õ› N¬à€€ùZ[ô\ãò\[ô⁄[
+‹ò\
+N¬üBÇôù[ò›[€àô[ô\ï›\õò[Y[ù 
+^¬àÀ»çåàà	ÍY]]\àH›\õõ⁄H\›õ›0ÍYÍH\»ﬁ[ò⁄õ€ö\ÿ][€ú»]]€X]\]Y\ÀÇà€€ú›‹œI
+	»‹ŸX\€€îŸ[X›	 N¬à‹Àö[õô\íSIœ‹[€àò[YOHàèîÿ[ú»ÿZ\€€è€‹[€èâ ‘ÀúŸX\€€úÀõX\
+œOâœ‹[€àò[YOHâ ‹ÀöY
+…»èâ Ÿ\ÿ Àõò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬à€€ú›õﬁI
+	»››\õò[Y[ù\›	 Nÿõﬁö[õô\íSI…Œ¬Çà€€ú››\õò[Y[ù€õOTÀù›\õò[Y[ùÀôö[\äOùôõ‹õX]OOI€XY›YI N¬à€€ú››\úô[ù]›\õò[Y[ù€õKôö[\äOùú›]\»OOIŸö[ö\⁄Y	 N¬à€€ú›ö[ö\⁄Y]›\õò[Y[ù€õKôö[\äOùú›]\œOOIŸö[ö\⁄Y	 N¬ÇàYäX›\úô[ùõ[ô›
+^¬à€€ú›[\OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹	 NŸ[\Kò€\‹”ò[YOI€]]Y	ŒŸ[\Kù^€€ù[ùI–]X›[à›\õõ⁄H[à€›\úÀâŒÿõﬁò\[ô⁄[
+[\JN¬àBà›\úô[ùôõ‹ëXX⁄
+Oû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\à›\õò[Y[ùX›\úô[ùXÿ\ô	Œ¬à€€ú›‹Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N›‹ò€\‹”ò[YOI››\õò[Y[ùX›\úô[ùZXY	Œ¬à€€ú›]⁄Xô[œJúô\Ÿ\ùôY‹]⁄⁄Yﬂ◊JKõX\
+YOú]⁄ò[YJY
+JKôö[\äõ€€X[äN¬à€€ú›ô[ùYSXô[\]⁄Xô[Àõ[ô› €€\^Xô[
+ò€€\^⁄Y
+J…»8†(à	 ‹]⁄Xô[Àöõ⁄[ä	À	 JNäùô[ùY_	’\úòZ[ú»õ€àô[úŸZY€∞Í\… N¬à€€ú›öXŸSXô[Jù[Xô\äô[ùûWŸôYWÿŸ[ùﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]ŒåX^[][QúòX›[€ëY⁄]ŒåüJJ…»8†´	Œ¬à€€ú›Ÿ[ô\ò]Y[ôõœ]ôŸ[ô\ò]Y›X[Wÿ€›[ùà»ôŸ[ô\ò]Y›X[Wÿ€›[ù
+…»0Í\]Z\\»8†(à	  úôX€€[Y[ôY‹]⁄ÿ€›[ùJJ…»\úòZ[â  
+úôX€€[Y[ôY‹]⁄ÿ€›[ùJOåO…‹…Œâ… J…»8†(à	  õŸ›X[W‹õ›][€ó‹ù[O…‘∞Í€Hàù]»8†&pÍXÿ\ù»LZ[âŒâ”X]⁄»HLZ[â Bàà	‚\]Z\\»õ€àÍ[∞Í\∞ÍY\…Œ¬à‹ö[õô\íSIœ]èè]à€\‹œHù›\õò[Y[ùX›\úô[ù[ò[YHèâ Ÿ\ÿ õò[Y_
+	’›\õõ⁄HH	 ›ù›\õò[Y[ùŸ]JJJ…œŸ]èâ ¬à	œ]à€\‹œHù›\õò[Y[ùXòYŸ\»èè‹[à€\‹œHù›\õò[Y[ùXòYŸHèº'‰·H	 Ÿ\ÿ ù›\õò[Y[ùŸ]JJ…œ‹‹[èè‹[à€\‹œHù›\õò[Y[ùXòYŸHè∏¶ØH	 Ÿ\ÿ õ‹õX]Xô[
+
+JJ…œ‹‹[èè‹[à€\‹œHù›\õò[Y[ùXòYŸHèº'„·à	 Ÿ\ÿ ŸX\€€ìò[YQõ‹ï›\õò[Y[ù
+
+JJ…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHù›\õò[Y[ùZ[ôõÀY‹öYèâ ¬à	œ]à€\‹œHù›\õò[Y[ùZ[ôõÀZ][Hèè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ[Xô[èìY]H»\úòZ[úœ‹‹[èè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ]ò[YHèº'‰„H	 Ÿ\ÿ ô[ùYSXô[
+J…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHù›\õò[Y[ùZ[ôõÀZ][Hèè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ[Xô[èí‹òZ\ôH	àö^‹‹[èè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ]ò[YHèº'Âf	 Ÿ\ÿ ú›\ù›[YO‘›ö[ô ú›\ù›[YJKú€XŸJJNâ”õ€àô[úŸZY€∞ÍYI J…»8†(à<'‰≠à	 Ÿ\ÿ öXŸSXô[
+J…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHù›\õò[Y[ùZ[ôõÀZ][Hèè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ[Xô[èì‹ôÿ[ö\ÿ][€è‹‹[èè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ]ò[YHè∏¶¶{Ó#»	 Ÿ\ÿ Ÿ[ô\ò]Y[ôõ J…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHù›\õò[Y[ùZ[ôõÀZ][Hèè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ[Xô[èî∞Í\Ÿ\ùò][€è‹‹[èè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ]ò[YHèâ Ÿ\ÿ úô\Ÿ\ùò][€ó‹ôYô\ô[òŸ_	”õ€àô[úŸZY€∞ÍYI J…œ‹‹[èèŸ]èâ ¬à	œŸ]èâ ¬à
+úôY⁄\›ò][€óŸXY[ôO…œ]à€\‹œHù›\õò[Y[ùZ[ôõÀZ][Hà›[OHõX\ô⁄[ã]‹éèè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ[Xô[èê€0Ì\ôH\»[úÿ‹ö\[€úœ‹‹[èè]à]K\ôY⁄\›ò][€ãYXY[ôOHâ Ÿ\ÿ úôY⁄\›ò][€óŸXY[ôJJ…»èèŸ]èè‹[à€\‹œHù›\õò[Y[ùZ[ôõÀ]ò[YHèî∞Í]ùYHHôZ[H0ËM⁄	  ù[Xô\äúôY⁄\›ò][€óŸ^[ú⁄[€ó⁄›\úﬂ
+OOOLœ…»8†(àõ€€ôÿ][€à
+Ã⁄	Œâ… J…œ‹‹[èèŸ]èâŒâ… J¬à	œŸ]èâŒˆ€é;∂âûÀk∫wµÁ[ÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹õ›Àò€\‹”ò[YOI‹õ›»€X[X]⁄\^Y\ã\õ›…Œ‹õ›Àú›[KúY[ôœIÕ‹	Œ‹õ›Àú›[Kòõ‹ô\êõ›€OIÃ\€€YŸYåôYâŒ¬à€€ú›ò[YOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹‹[â N€ò[YKú›[Kôõ^IÃIŒ€ò[YKö[õô\íSIœèâ Ÿ\ÿ õò[YJJ…œÿèâ  ö\◊‹›Xú›]]O…»‹[à€\‹œHô›Y\›XòYŸHèîô[\pÈÿ[ù€€[][è‹‹[èâŒâ… N¬à€€ú›Ÿ[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N‹Ÿ[ò€\‹”ò[YOI€X]⁄\^Y\ã]X[K\Ÿ[X›	Œ‹Ÿ[ô\ÿXõYHXÿ[ì[›ôN¬àŸ[ö[õô\íSIœ‹[€àò[YOHàèí‹ú»X]⁄»ô[\pÈÿ[ù€‹[€èè‹[€àò[YOHâ ⁄€YKöY
+…»èâ Ÿ\ÿ €YKõò[YJJ…œ€‹[€èè‹[€àò[YOHâ ÿ]ÿ^KöY
+…»èâ Ÿ\ÿ ]ÿ^Kõò[YJJ…œ€‹[€èâŒ¬àŸ[ùò[YOX›\úô[ùX[_	…Œ¬à€€ú›ù]\ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	€Xô[	 NŸù]\ôKò€\‹”ò[YOI‹õ›»X]⁄Yù]\ôK[Xô[	ŒŸù]\ôKú›[Köù\›YûP€€ù[ùIŸõ^\›\ù	ŒŸù]\ôKú›[Kôÿ\IÕ	ŒŸù]\ôKú›[Kôõ€ù⁄^ôOIÃL\	Œ¬à€€ú›ÿèYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 Nÿÿãù\OIÿ⁄X⁄ÿõﬁ	Œÿÿãú›[Kù⁄YIÿ]]…Œÿÿãô\ÿXõYHXÿ[ì[›ôNŸù]\ôKò\[ô
+ÿãÿ›[Y[ùò‹ôX]U^õŸJ	»X]⁄»›Z]ò[ù… JN¬à€€ú›ÿ]ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹ÿ]ôKù^€€ù[ùI—0Í\XŸ\âŒ‹ÿ]ôKò€\‹”ò[YOI‹€X[ùâŒ‹ÿ]ôKô\ÿXõYHXÿ[ì[›ôN¬àÿ]ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû‹ÿ]ôKô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹Ÿ]€X]⁄‹^Y\óÿ\‹⁄Y€õY[ù	À‹€X]⁄⁄YõX]⁄öY‹^Y\ó⁄YúöY›X[W⁄YúŸ[ùò[Y_ù[ÿ\WŸù]\ôNòÿãò⁄X⁄ŸYJN⁄Yä\úõ‹ä^‹ÿ]ôKô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJ_X]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ìX]⁄\ 
+N›ÿ\›
+ÿãò⁄X⁄ŸY…“õ›Y]\à0Í\XÍH›\àŸHX]⁄]\»›Z]ò[ù»8ß!IŒâ“õ›Y]\à0Í\XÍH›\àŸHX]⁄8ß!I NﬂN¬àõ›Àò\[ô
+ò[YKŸ[ù]\ôKÿ]ôJN‹ô]\õàõ›Œ¬àN¬à€€ú›XZŸQ]Z[œJ]K][\À€ OOû¬à€€ú›]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]Z[… NŸ]ò€\‹”ò[YOI€X]⁄\^Y\ãY]Z[»	 ÿ€Œ¬à€€ú››[OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹›[[X\ûI N‹›[Kö[õô\íSIœèâ ›]J…œÿèè‹[à€\‹œHõ]]Yèâ ⁄][\Àõ[ô›
+…»õ›Y]\â  ][\Àõ[ô›åO…‹…Œâ… J…œ‹‹[èâŒŸ]ò\[ô⁄[
+›[JN¬à€€ú›\›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N€\›ò€\‹”ò[YOI€X]⁄\^Y\ã[\›	Œ⁄][\Àôõ‹ëXX⁄
+Oõ\›ò\[ô⁄[
+XZŸT^Y\îõ› 
+JJNŸ]ò\[ô⁄[
+\›
+N‹ô]\õà]¬àN¬à‹ò\ò\[ô⁄[
+XZŸQ]Z[ 	¸'‰iHõ›Y]\ú»\»à0Í\]Z\\…À›\ù\úÀ	€X]⁄\›\ù\úÀY]Z[… JN¬àYä›Xú›]]\Àõ[ô›
+]‹ò\ò\[ô⁄[
+XZŸQ]Z[ 	¸'ÁËô[\pÈÿ[ù»H›\õõ⁄IÀ›Xú›]]\À	€X]⁄\›XúÀY]Z[… JN¬ÇàYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+^¬à€€ú›õ›\œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]Z[… N€õ›\Àò€\‹”ò[YOI€X]⁄\^Y\ãY]Z[»X]⁄[õ›\ÀY]Z[…Œ¬à€€ú›ò]YTÀõX]⁄\‹⁄Y€õY[ùÀôö[\äOOòKõX]⁄⁄YOO[X]⁄öY	âòKùX[W⁄Y
+KõX\
+OOûÿ€€ú›\
+Kú^Y\ó⁄Y
+Kúè\ò][ô—õ‹ìX]⁄^Y\äX]⁄Kú^Y\ó⁄YKùX[W⁄YÀô€ÿ[ N‹ô]\õà	âúúèﬁ‹úãX[NòKùX[W⁄YNõù[ﬂJKôö[\äõ€€X[äKú€‹ù
+
+KäOOòãúúãúò][ôÀXKúúãúò][ôﬂKúõò[YKõÿÿ[P€€\\ôJãúõò[YJJN¬àõ›\Àö[õô\íSIœ›[[X\ûOèè∏´dõ›\»\»õ›Y]\úœÿèè‹[à€\‹œHõ]]Yèâ ‹ò]Yõ[ô›
+…»0Í]ò[pÍI  ò]Yõ[ô›åO…‹…Œâ… J…œ‹‹[èè‹›[[X\ûOè]à€\‹œHõ]]Yà›[OHúY[ôŒéúèâ  ò]Yõ[ô›‹ò]YõX\
+Oô\ÿ úõò[YJJ…»èâ ﬁúúãúò][ôÀù—ö^Y
+JJ…ÀÃLÿèà
+	 ﬁúúãúô\›[
+…»8†(à8¶ØH	 ﬁúúãô€ÿ[ …»8†(à<'„´»	 ﬁúúãò\‹⁄\› … I Köõ⁄[ä	œúèâ Nâ–]X›[ôHõ›Hÿ[›[XõH›\àH[€Y[ùâ J…œŸ]èâŒ¬à‹ò\ò\[ô⁄[
+õ›\ N¬àBàô]\õà‹ò\¬üBÇôù[ò›[€àô[ô\ìX]⁄\ 
+^¬à€€ú››\úô[ùX›\úô[ù›\ä
+N¬à€€ú›Ÿ[X›‹èI
+	»€X]⁄€€\]][€îŸ[X›	 N¬à€€ú›Ÿ[X›‹î›]\œI
+	»€X]⁄€€\]][€î›]\… N¬à€€ú›XÿŸ\‹“[I
+	»€X]⁄XÿŸ\‹“[	 N¬à€€ú›[Y⁄XõOTÀù›\õò[Y[ù¬àôö[\äOùú›]\»OOIŸö[ö\⁄Y	 Bàú€‹ù
+
+KäOOî›ö[ô Kù›\õò[Y[ùŸ]JKõÿÿ[P€€\\ôJ›ö[ô ãù›\õò[Y[ùŸ]JJJN¬àYäŸ[X›‹ä^¬à€€ú›ŸY\X›\úô[ùÀöY	…Œ¬àŸ[X›‹ãö[õô\íSIœ‹[€àò[YOHàèê⁄⁄\⁄\à[ôH€€\0Í]][€è€‹[€èâ Ÿ[Y⁄XõKõX\
+Oû¬à€€ú›⁄[ô]ôõ‹õX]OOI€XY›YIœ…¸'„‡H›ÍHHY›YIŒâ¯¶ØH›\õõ⁄IŒ¬àô]\õà	œ‹[€àò[YOHâ ›öY
+…»èâ ⁄⁄[ô
+…»8†(à	 Ÿ\ÿ õò[Y_ù›\õò[Y[ùŸ]JJ…»8†(à	 Ÿ\ÿ ù›\õò[Y[ùŸ]JJ…œ€‹[€èâŒ¬àJKöõ⁄[ä	… N¬àYä[Y⁄XõKú€€YJOùöYOOZŸY\
+J\Ÿ[X›‹ãùò[YOZŸY\¬àŸ[X›‹ãõ€ò⁄[ôŸOX\ﬁ[ò 
+OOû¬à€€ú›Y\Ÿ[X›‹ãùò[YN¬àYäZY
+\ô]\õé¬àÀòX›]ôU›\èZY¬àŸ[X›‹ãô\ÿXõY]ùYN¬à]ÿZ]ÿY›\õò[Y[ù
+
+N¬àŸ[X›‹ãô\ÿXõYYò[ŸN¬àô[ô\ìX]⁄\ 
+N¬àô[ô\í€YJ
+N¬àN¬àBàYäXÿŸ\‹“[	âö\–€€‹ô 
+IâàZ\’[\‹ò\ûPYZ[ä
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸ[ù\ó‹ÿ€‹ô\ ^¬àXÿŸ\‹“[ö[õô\íSI’€àõŸö[\›]]‹ö\ÍH0ËèúÿZ\⁄\à\»ÿ€‹ô\»]\»ù]]\úÀ‹\‹Ÿ]\ú»[ô[ù\»X]⁄œÿèãà⁄⁄\⁄\»H€€\0Í]][€à⁄KY\‹€›\ÀâŒ¬àBàYäŸ[X›‹î›]\ ^¬àYä›\úô[ù
+^¬àŸ[X›‹î›]\Àö[õô\íSJ›\úô[ùôõ‹õX]OOI€XY›YIœ…‘›ÍHHY›YHà	Œâ’›\õõ⁄Hà	 JŸ\ÿ ›\úô[ùõò[Y_›\úô[ùù›\õò[Y[ùŸ]JJ…»8†(à	 ‘ÀõX]⁄\Àõ[ô›
+…»X]⁄	  ÀõX]⁄\Àõ[ô›åO…‹…Œâ… J¬à
+›\úô[ùôõ‹õX]OOI€XY›YI…âîÀùX[\Àõ[ô›à…œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹éÿòX⁄Ÿ‹õ›[ôàŸôôéNÿõ‹ô\éå\€€YŸåôNHèèè∏£Ï{Ó#»∞Í€HHõ›][€à]]€X]\]YOÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èâ ¬à
+ÀùX[\Àõ[ô›	LÇà…”õ€XúôH8†&pÍ\]Z\\»[\Z\à
+	 ‘ÀùX[\Àõ[ô›
+… Hàèåàù]»8†&pÍXÿ\ùH8†&pÍ\]Z\HZ‹ú»ô[ùôOÿèãà⁄[õ€ãHX]⁄¯†&X\ú∞ÍùH0ËèåLZ[ù]\œÿèãâ¬àâ”õ€XúôH8†&pÍ\]Z\\»Z\à
+	 ‘ÀùX[\Àõ[ô›
+… Hà›\»\»X]⁄»\ô[ùèåLZ[ù]\œÿèãâ J¬à	œŸ]èèŸ]èâ¬àâ… N¬àY[ŸHŸ[X›‹î›]\Àù^€€ù[ùI–]X›[ôH€€\0Í]][€àÍ[X›[€õ∞ÍYKâŒ¬àBà€€ú›\”XY›YSX]⁄X›\úô[ùÀôõ‹õX]OOI€XY›YIŒ¬à€€ú›ô\OI
+	»€XY›YT]⁄ô\]Z\ô[Y[ù	 N¬àYäô\J\ô\Kò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\”XY›YSX]⁄
+N¬à€€ú›úèI
+	»‹õ›[ôõÿö[â N¬àYäúä^¬àúãô\ÿXõYHHZ\”XY›YSX]⁄¬àúãù]OZ\”XY›YSX]⁄…—[àY›YK‹∞ÍYH⁄\]YHX]⁄[ô]öYY[[Y[ùYö[à8†&Z[ô\]Y\à€€à\úòZ[ãâŒâ…Œ¬àBà	
+	»⁄€YUX[I Kö[õô\íS[X]⁄‹[€ú 
+N¬à	
+	»ÿ]ÿ^UX[I Kö[õô\íS[X]⁄‹[€ú 
+N¬à€€ú›õﬁI
+	»€X]⁄\”\›	 Nÿõﬁö[õô\íSI…Œ¬àÀõX]⁄\Àôõ‹ëXX⁄
+
+KJOOû¬à€€ú›€YO]JKö€YW›X[W⁄Y
+K]ÿ^O]JKò]ÿ^W›X[W⁄Y
+N⁄YäZ€Y_X]ÿ^J\ô]\õé¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOIÿÿ\ôX]⁄	Œ¬àö[õô\íSIœ]à€\‹œHõ]]YèìX]⁄	  JÃJJ Kú]⁄…»8†(à	 Ÿ\ÿ Kú]⁄
+Nâ… J Kúõ›[ô€Xô[…»8†(à	 Ÿ\ÿ Kúõ›[ô€Xô[
+Nâ… J…œŸ]èè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[àèèèâ Ÿ\ÿ €YKõò[YJJ…œÿèè‹[à€\‹œHúÿ€‹ôHèâ €Kö€YW‹ÿ€‹ôJ…»H	 €Kò]ÿ^W‹ÿ€‹ôJ…œ‹‹[èèèâ Ÿ\ÿ ]ÿ^Kõò[YJJ…œÿèèŸ]èâŒ¬ÇàYäÿ[ëY]›\úô[ùX]⁄\ 
+J^¬à€€ú›ÿ€‹ôQY]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹ÿ€‹ôQY]ò€\‹”ò[YOIŸ‹öYÃ…Œ‹ÿ€‹ôQY]ú›[KõX\ô⁄[ï‹IÃL	Œ¬à€€ú›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 K\ÿ€‹ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 Kÿ]ôTÿ€‹ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N¬àÀù\OI€ù[Xô\âŒ⁄ÀõZ[èIÃ	Œ⁄Àùò[YOSù[Xô\äKö€YW‹ÿ€‹ô_
+N⁄ÀúXŸZ€\èZ€YKõò[YN¬à\ÿ€‹ôKù\OI€ù[Xô\âŒÿ\ÿ€‹ôKõZ[èIÃ	Œÿ\ÿ€‹ôKùò[YOSù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+Nÿ\ÿ€‹ôKúXŸZ€\èX]ÿ^Kõò[YN¬àÿ]ôTÿ€‹ôKù^€€ù[ùI¸'‰Øàÿ€‹ôIŒ‹ÿ]ôTÿ€‹ôKò€\‹”ò[YOI‹ö[X\ûIŒ¬àÿ]ôTÿ€‹ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àÿ]ôTÿ€‹ôKô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	€X]⁄\… Kù\]J⁄€YW‹ÿ€‹ôNìX]õX^
+ù[Xô\äÀùò[YJ_
+K]ÿ^W‹ÿ€‹ôNìX]õX^
+ù[Xô\ä\ÿ€‹ôKùò[YJ_
+K›]\ŒâŸö[ö\⁄Y	Àö[ö\⁄Yÿ]õô]»]J
+Kù“T”‘›ö[ô 
+_JKô\J	⁄Y	ÀKöY
+N¬àYä\úõ‹ä^‹ÿ]ôTÿ€‹ôKô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJ_Bà]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ìX]⁄\ 
+N›ÿ\›
+	‘ÿ€‹ôH[úôY⁄\›∞ÍH]õ›\»ôXÿ[›[0ÍY\»8ß!I N¬àN¬àÿ€‹ôQY]ò\[ô
+À\ÿ€‹ôKÿ]ôTÿ€‹ôJNŸò\[ô⁄[
+ÿ€‹ôQY]
+N¬àBàò\[ô⁄[
+ùZ[X]⁄^Y\ìX[òYŸ\äK€YK]ÿ^JJN¬ÇàYäÿ[ìX[òYŸSX]⁄›ùX›\ôJ
+J^¬à€€ú›X›[€úœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NÿX›[€úÀò€\‹”ò[YOI‹õ›…ŒÿX›[€úÀú›[KõX\ô⁄[ï‹IŒ	Œ¬à€€ú›Y]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸY]ù^€€ù[ùI”[ŸYöY\âŒ¬à€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸ[ù^€€ù[ùI‘›\ö[Y\âŒŸ[ò€\‹”ò[YOIŸ[ôŸ\âŒ¬àX›[€úÀò\[ô
+Y][
+NŸò\[ô⁄[
+X›[€ú N¬ÇàY]õ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›Y]‹èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸY]‹ãò€\‹”ò[YOIŸ‹öYÃâŒŸY]‹ãú›[KõX\ô⁄[ï‹IŒ	Œ¬à€€ú›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 K\ÃèYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 KœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 KõYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 N¬àÀö[õô\íSTÀùX[\ÀõX\
+Oâœ‹[€àò[YOHâ ›öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬à\Ããö[õô\íSTÀùX[\ÀõX\
+Oâœ‹[€àò[YOHâ ›öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬àÀö[õô\íSIœ‹[€àò[YOHàèï\úòZ[è€‹[€èè‹[€àò[YOHêÿ\úôYõ›\àèêÿ\úôYõ›\è€‹[€èè‹[€àò[YOHìY\òŸY\»èìY\òŸY\œ€‹[€èè‹[€àò[YOHêõ›[Ÿ€ôHèêõ›[Ÿ€ôO€‹[€èâŒ¬àÀùò[YO[Kö€YW›X[W⁄Yÿ\Ããùò[YO[Kò]ÿ^W›X[W⁄Y‹Àùò[YO[Kú]⁄	…Œ‹õùò[YO[Kúõ›[ô€Xô[	…Œ‹õúXŸZ€\èI’›\à»\ŸH
+òX›[]YäIŒ¬à€€ú›ÿ]ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹ÿ]ôKù^€€ù[ùI—[úôY⁄\›ô\âŒ‹ÿ]ôKò€\‹”ò[YOI‹ö[X\ûIŒ¬à€€ú›ÿ[òŸ[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿÿ[òŸ[ù^€€ù[ùI–[õù[\âŒ¬àY]‹ãò\[ô
+À\ÃãÀõÿ]ôKÿ[òŸ[
+N¬àò\[ô⁄[
+Y]‹äNŸY]ô\ÿXõY]ùYN¬àÿ[òŸ[õ€ò€X⁄œJ
+OOûŸY]‹ãúô[[›ôJ
+NŸY]ô\ÿXõYYò[Ÿ_N¬àÿ]ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäÀùò[YOOOX\Ããùò[YJ\ô]\õàÿ\›
+	–⁄⁄\⁄\»]^0Í\]Z\\»Yô∞Í\ô[ù\… N¬àÿ]ôKô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	€X]⁄\… Kù\]J⁄€YW›X[W⁄YöÀùò[YK]ÿ^W›X[W⁄Yò\Ããùò[YK]⁄úÀùò[Y_ù[õ›[ô€Xô[úõùò[YKùö[J
+_ù[JKô\J	⁄Y	ÀKöY
+N¬àYä\úõ‹ä^‹ÿ]ôKô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJ_Bà]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ê[
+
+N›ÿ\›
+	”X]⁄[ŸYöpÍH8ß!I N¬àN¬àN¬Çà[õ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›€ÿ[€›[ùTÀô€ÿ[Àôö[\äœOôÀõX]⁄⁄YOO[KöY
+Kõ[ô›¬à€€ú›\ŸœY€ÿ[€›[ù…‘›\ö[Y\àŸHX]⁄»\»	 Ÿ€ÿ[€›[ù
+…»ù]
+ HpÍ\»Ÿ\õ€ù]\‹⁄H›\ö[pÍ\ÀâŒâ‘›\ö[Y\àŸHX]⁄…Œ¬àYäX€€ôö\õJ\Ÿ J\ô]\õé¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	€X]⁄\… Kô[]J
+Kô\J	⁄Y	ÀKöY
+N¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ê[
+
+N›ÿ\›
+	”X]⁄›\ö[pÍH8ß!I N¬àN¬àBÇà€€ú›õ‹õOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸõ‹õKò€\‹”ò[YOIŸ‹öYÃ…Œ¬à€€ú›X[OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 KÿœYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 K\œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	‹Ÿ[X›	 N¬àX[Kö[õô\íSIœ‹[€àò[YOHâ ⁄€YKöY
+…»èâ Ÿ\ÿ €YKõò[YJJ…œ€‹[€èè‹[€àò[YOHâ ÿ]ÿ^KöY
+…»èâ Ÿ\ÿ ]ÿ^Kõò[YJJ…œ€‹[€èâŒ¬à€€ú›ÿ]ôYX[OTÀô€ÿ[X[TŸ[X›[€ú÷€KöYN¬àYäÿ]ôYX[OOOZ€YKöYÿ]ôYX[OOOX]ÿ^KöY
+]X[Kùò[YO\ÿ]ôYX[N¬àù[ò›[€àö[
+
+^¬àÀô€ÿ[X[TŸ[X›[€ú÷€KöYO]X[Kùò[YN¬à€€ú›Yœ[X]⁄X[T^Y\íY KöYX[Kùò[YJN¬àÿÀö[õô\íSIœ‹[€àò[YOHàèêù]]\è€‹[€èâ ⁄YÀõX\
+YOâœ‹[€àò[YOHâ ⁄Y
+…»èâ Ÿ\ÿ ^Y\ë\‹^Sò[YJ
+Y
+J_	… J…œ€‹[€èâ Köõ⁄[ä	… N¬à\Àö[õô\íSIœ‹[€àò[YOHàèîÿ[ú»\‹ŸO€‹[€èâ ⁄YÀõX\
+YOâœ‹[€àò[YOHâ ⁄Y
+…»èâ Ÿ\ÿ ^Y\ë\‹^Sò[YJ
+Y
+J_	… J…œ€‹[€èâ Köõ⁄[ä	… N¬àBàö[
+
+N›X[Kõ€ò⁄[ôŸOYö[Ÿõ‹õKò\[ô
+X[KÿÀ\ N¬à€€ú›èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿãù^€€ù[ùI »ù]	Œÿãò€\‹”ò[YOI‹ö[X\ûIŒ¬àãõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYä\ÿÀùò[YJ\ô]\õàÿ\›
+	–⁄⁄\⁄\»Hù]]\â N¬àYä\Àùò[YOOO\ÿÀùò[YJ\ô]\õàÿ\›
+	–ù]]\à]\‹Ÿ]\àYô∞Í\ô[ù… N¬à€€ú›Ÿ[X›YX[O]X[Kùò[YN‘Àô€ÿ[X[TŸ[X›[€ú÷€KöYO\Ÿ[X›YX[Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	Ÿ€ÿ[… Kö[úŸ\ù
+€X]⁄⁄YõKöYX[W⁄YúŸ[X›YX[Kÿ€‹ô\ó‹^Y\ó⁄YúÿÀùò[YK\‹⁄\›\ó‹^Y\ó⁄Yò\Àùò[Y_ù[JN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿÀùò[YOI…Œÿ\Àùò[YOI…Œÿ]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ê[
+
+N›ÿ\›
+	–ù]Zõ›]0ÍH8ß!I N¬àN¬àYäÿ[ëY]›\úô[ùX]⁄\ 
+JYò\[ô
+õ‹õKäN¬Çà€€ú›\›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N⁄\›ú›[KõX\ô⁄[ï‹IŒ	Œ¬àÀô€ÿ[Àôö[\äœOôÀõX]⁄⁄YOO[KöY
+Kôõ‹ëXX⁄
+œOû¬à€€ú›èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹ãò€\‹”ò[YOI‹õ›»€X[	Œ¬àãö[õô\íSIœ‹[à›[OHôõ^åHè∏¶ØH	 Ÿ\ÿ 
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+OÀõò[Y_	œ… J Àò\‹⁄\›\ó‹^Y\ó⁄Y…»8°§	 Ÿ\ÿ 
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+OÀõò[Y_	… Nâ… J…œ‹‹[èâŒ¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nﬁù^€€ù[ùI–[õù[\âŒ¬àõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	Ÿ€ÿ[… Kô[]J
+Kô\J	⁄Y	ÀÀöY
+N⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ê[
+
+N›ÿ\›
+	–ù][õù[0ÍI _N¬àYäÿ[ëY]›\úô[ùX]⁄\ 
+J\ãò\[ô⁄[
+
+N⁄\›ò\[ô⁄[
+äN¬àJN¬àò\[ô⁄[
+\›
+Nÿõﬁò\[ô⁄[
+
+N¬àJN¬àYäX›\úô[ù
+^¬àõﬁö[õô\íSIœ]à€\‹œHòÿ\ôèè€\‹œHõ]]Yèê⁄⁄\⁄\»8†&XXõ‹ô[à›\õõ⁄H›H[à›ÍHHY›YH⁄KY\‹›\Àè‹èŸ]èâŒ¬àY[ŸHYäTÀõX]⁄\Àõ[ô›
+^¬àõﬁö[õô\íSIœ]à€\‹œHòÿ\ôèè€\‹œHõ]]Yèê]X›[àX]⁄∏†&Y\›[ò€‹ôH‹∞ÍpÍH›\àŸ]H€€\0Í]][€ãà0Í»]YH8†&XYZ[ö\›ò]]\à‹∞ÍYH\»X]⁄À[»\\òpÎùõ€ùX⁄H›\àHÿZ\⁄YH\»ÿ€‹ô\Àè‹èŸ]èâŒ¬àBüBÇâ
+	»ÿYX]⁄	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYä\–€€‹ô 
+IâàZ\’[\‹ò\ûPYZ[ä
+IâàTÀõ^T\õZ\‹⁄[€úÀòÿ[óŸ[ù\ó‹ÿ€‹ô\ \ô]\õàÿ\›
+	’H∏†&Y\»\»]]‹ö\ÍH0ËÿZ\⁄\à\»ÿ€‹ô\Àâ N¬à€€ú›X›\úô[ù›\ä
+K€YOI
+	»⁄€YUX[I Kùò[YK]ÿ^OI
+	»ÿ]ÿ^UX[I Kùò[YK]⁄I
+	»‹]⁄	 Kùò[YN¬àYä]Z€Y_X]ÿ^_€YOOOX]ÿ^J\ô]\õàÿ\›
+	–⁄⁄\⁄\»]^0Í\]Z\\»Yô∞Í\ô[ù\… N¬àYäôõ‹õX]OOI€XY›YI…âà\]⁄
+\ô]\õàÿ\›
+	‘›\à[àX]⁄HY›YK[ô\]YHÿõYÿ]⁄\ô[Y[ùH\úòZ[ãâ N¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	€X]⁄\… Kö[úŸ\ù
+››\õò[Y[ù⁄YùöY€YW›X[W⁄Yö€YK]ÿ^W›X[W⁄Yò]ÿ^KX]⁄€‹ô\éîÀõX]⁄\Àõ[ô›
+ÃK]⁄ú]⁄ù[õ›[ô€Xô[â
+	»‹õ›[ôXô[	 Kùò[YKùö[J
+_ù[JN¬àYä\úõ‹ä]ÿ\›
+\úõ‹ãõY\‹ÿYŸJNŸ[Ÿ^…
+	»‹]⁄	 Kùò[YOI…Œ…
+	»‹õ›[ôXô[	 Kùò[YOI…ﬂBüN¬â
+	»‹õ›[ôõÿö[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›X›\úô[ù›\ä
+N⁄Yä]ÀùX[\Àõ[ô›ä\ô]\õàÿ\›
+	–‹∞ÍYH\»0Í\]Z\\»8†&XXõ‹ô	 N⁄Yäôõ‹õX]OOI€XY›YI \ô]\õàÿ\›
+	—[àY›YK‹∞ÍYH\»X]⁄»[à\à[àYö[à8†&Z[ô\]Y\àH\úòZ[àH⁄\]YHX]⁄â Nÿ€€ú›^\›[ôœ[ô]»Ÿ]
+ÀõX]⁄\ÀõX\
+OOñ€Kö€YW›X[W⁄YKò]ÿ^W›X[W⁄YKú€‹ù
+
+Köõ⁄[ä	ﬂ	 JJKõ›‹œV◊N€]èTÀõX]⁄\Àõ[ô›
+ÃNŸõ‹ä]OL⁄OÀùX[\Àõ[ô›⁄J  Yõ‹ä]èZJÃN⁄èÀùX[\Àõ[ô›⁄ä  ^ÿ€€ú›Ÿ^OV‘ÀùX[\÷⁄WKöYÀùX[\÷⁄óKöYKú€‹ù
+
+Köõ⁄[ä	ﬂ	 N⁄YäY^\›[ôÀö\ Ÿ^JJ\õ›‹Àú\⁄
+››\õò[Y[ù⁄YùöY€YW›X[W⁄YîÀùX[\÷⁄WKöY]ÿ^W›X[W⁄YîÀùX[\÷⁄óKöYX]⁄€‹ô\éõä ﬂJ_ZYä\õ›‹Àõ[ô›
+\ô]\õàÿ\›
+	’›\»\»X]⁄»^\›[ù0ÍZ∞Ë	 Nÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	€X]⁄\… Kö[úŸ\ù
+õ›‹ NŸ\úõ‹è›ÿ\›
+\úõ‹ãõY\‹ÿYŸJNùÿ\›
+õ›‹Àõ[ô›
+…»X]⁄»Í[∞Í\∞Í\… _N¬ÇÇò\ﬁ[ò»ù[ò›[€àô[ô\ìXY›YJ
+^¬à€€ú›\ÿXõYI
+	»€XY›YQôX]\ôQ\ÿXõY	 K‹ôX]Pÿ\ôI
+	»€XY›YP‹ôX]Pÿ\ô	 N¬àYäY\ÿXõYX‹ôX]Pÿ\ô
+\ô]\õé¬à€€ú›[òXõYHHTÀù€‹ö‹‹XŸQôX]\ô\ÀõXY›YWŸ[òXõY¬à\ÿXõYò€\‹”\›ùŸŸ€J	⁄Y[âÀ[òXõY
+N¬à€€ú›ÿ[ê‹ôX]OZ\–YZ[ì‹ 
+_
+\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óÿ‹ôX]W››\õò[Y[ù N¬à‹ôX]Pÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀY[òXõYZ\–YZ[ì‹ 
+JN¬à	
+	»€XY›YTŸ\‹⁄[€êÿ\ô	 OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀY[òXõYXÿ[ê‹ôX]JN¬à	
+	»€XY›YPYZ[îôY⁄\›ò][€êÿ\ô	 OÀò€\‹”\›òY
+	⁄Y[â N¬à€€ú›ÿ[îÿ€‹ôSXY›YOZ\–YZ[ì‹ 
+_
+\–€€‹ô 
+IâîÀõ^T\õZ\‹⁄[€úÀòÿ[óŸ[ù\ó‹ÿ€‹ô\ N¬à	
+	»€XY›YTÿ€‹ö[ô–ÿ\ô	 OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀY[òXõYXÿ[îÿ€‹ôSXY›YJN¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	»›öY]À[XY›YHòÿ\ô	 Kôõ‹ëXX⁄
+œOû⁄Yä»OOY\ÿXõY
+XÀú›[Kõ‹X⁄]OY[òXõY……ŒâÃçMIﬂJN¬àYäY[òXõY
+\ô]\õé¬ÇàYä	
+	»€XY›YT›\ù	 IâàI
+	»€XY›YT›\ù	 Kùò[YJI
+	»€XY›YT›\ù	 Kùò[YO]Ÿ^J
+N¬àYä	
+	»€XY›YTŸ\‹⁄[€ë]I IâàI
+	»€XY›YTŸ\‹⁄[€ë]I Kùò[YJ^…
+	»€XY›YTŸ\‹⁄[€ë]I Kùò[YO]Ÿ^J
+N⁄Yä	
+	»€XY›YTŸ\‹⁄[€îôY⁄\›ò][€ëXY[ôI IâàI
+	»€XY›YTŸ\‹⁄[€îôY⁄\›ò][€ëXY[ôI Kùò[YJI
+	»€XY›YTŸ\‹⁄[€îôY⁄\›ò][€ëXY[ôI Kùò[YOYYò][ôY⁄\›ò][€ëXY[ôSÿÿ[
+	
+	»€XY›YTŸ\‹⁄[€ë]I Kùò[YJNﬂBÇà€€ú›XY›YTŸ\‹⁄[€îŸ[X›I
+	»€XY›YTŸ\‹⁄[€ìXY›YI N¬à€€ú›XY›YTŸ\‹⁄[€ëõ‹õOI
+	»€XY›YTŸ\‹⁄[€ëõ‹õI N¬à€€ú›õ”XY›YOI
+	»€õ”XY›YQõ‹îŸ\‹⁄[€â N¬à€€ú›X›]ôSXY›Y\œTÀõXY›Y\Àôö[\äOõú›]\»OOIŸö[ö\⁄Y	 N¬àYäXY›YTŸ\‹⁄[€îŸ[X›
+^¬à€€ú›ŸY\[XY›YTŸ\‹⁄[€îŸ[X›ùò[Y_ÀòX›]ôSXY›Y_	…Œ¬àXY›YTŸ\‹⁄[€îŸ[X›ö[õô\íSIœ‹[€àò[YOHàèê⁄⁄\⁄\à[ôHY›YO€‹[€èâ ÿX›]ôSXY›Y\ÀõX\
+Oâœ‹[€àò[YOHâ €öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬àYäX›]ôSXY›Y\Àú€€YJOõöYOOZŸY\
+J[XY›YTŸ\‹⁄[€îŸ[X›ùò[YOZŸY\¬àXY›YTŸ\‹⁄[€îŸ[X›õ€ò⁄[ôŸOJ
+OOû⁄YäXY›YTŸ\‹⁄[€îŸ[X›ùò[YJ^‘ÀòX›]ôSXY›YO[XY›YTŸ\‹⁄[€îŸ[X›ùò[YN‹ô[ô\ìXY›YJ
+Nﬂ_N¬àBàYäXX›]ôSXY›Y\Àõ[ô›
+^¬àYäXY›YTŸ\‹⁄[€ëõ‹õJ[XY›YTŸ\‹⁄[€ëõ‹õKò€\‹”\›òY
+	⁄Y[â N¬àYäõ”XY›YJ^¬àõ”XY›YKò€\‹”\›úô[[›ôJ	⁄Y[â N¬àõ”XY›YKö[õô\íSZ\–YZ[ì‹ 
+Bà»	œè∏°.{Ó#»]X›[ôHY›YH\‹€öXõKèÿèè]à›[OHõX\ô⁄[ã]‹ç\èê‹∞ÍYH8†&XXõ‹ô[ôHY›YH[ú»HŸX›[€à0™»‹∞ÍY\à[ôHY›YH0Æ»]ò[ùH›]õ⁄\à‹∞ÍY\à[à›ÍHHY›YKèŸ]èâ¬àà	œè∏°.{Ó#»]X›[ôHY›YH\‹€öXõKèÿèè]à›[OHõX\ô⁄[ã]‹ç\èë[X[ôH0Ë8†&XYZ[ö\›ò]]\àH‹∞ÍY\à[ôHY›YH]ò[ùH›]õ⁄\à‹∞ÍY\à[à›ÍHHY›YKèŸ]èâŒ¬àBàY[Ÿ^¬àYäXY›YTŸ\‹⁄[€ëõ‹õJ[XY›YTŸ\‹⁄[€ëõ‹õKò€\‹”\›úô[[›ôJ	⁄Y[â N¬àYäõ”XY›YJ[õ”XY›YKò€\‹”\›òY
+	⁄Y[â N¬àBÇà€€ú›\›I
+	»€XY›YS\›	 N€\›ö[õô\íSI…Œ¬àYäTÀõXY›Y\Àõ[ô›
+[\›ö[õô\íSIœ€\‹œHõ]]Yèê]X›[ôHY›YH‹∞ÍpÍYH›\àH[€Y[ùè‹âŒ¬àÀõXY›Y\Àôõ‹ëXX⁄
+Oû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\âŒŸú›[KõX\ô⁄[êõ›€OIÃL	Œ¬àö[õô\íSIœ]à€\‹œHúõ›»èè‹[à›[OHôõ^åHèèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Yèâ €ú›\ù◊€€ä ô[ô◊€€è…»8°§à	 €ô[ô◊€€éâ… J…»8†(à	  ú›]\œOOIŸö[ö\⁄Y	œ…’\õZ[∞ÍYIŒâ–X›]ôI J…œŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèº'‰iH›\»\»Y[Xúô\»X›Yú»H‹õ›\H]]ô[ù\ùX⁄\\ãà8†&Z[úÿ‹ö\[€àŸHòZ][ö\]Y[Y[ù0Ë⁄\]YH›ÍHHY›YKèŸ]èè‹‹[èèŸ]èâŒ¬à€€ú›õ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹õ›Àò€\‹”ò[YOI‹õ›…Œ‹õ›Àú›[KõX\ô⁄[ï‹IŒ	Œ¬à€€ú›‹[èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N€‹[ãù^€€ù[ù[öYOOTÀòX›]ôSXY›YO…”Y›YHÍ[X›[€õ∞ÍYIŒâ”›]úö\âŒ€‹[ãò€\‹”ò[YO[öYOOTÀòX›]ôSXY›YO…Ÿ‹ôY[âŒâ…Œ¬à‹[ãõ€ò€X⁄œJ
+OOû‘ÀòX›]ôSXY›YO[öY‹ô[ô\ìXY›YJ
+NﬂN¬àõ›Àò\[ô⁄[
+‹[äN¬àYä\–YZ[ì‹ 
+Iâõú›]\»OOIŸö[ö\⁄Y	 ^¬à€€ú›ö[ö\⁄Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸö[ö\⁄ù^€€ù[ùI’\õZ[ô\âŒŸö[ö\⁄ò€\‹”ò[YOIŸ[ôŸ\âŒ¬àö[ö\⁄õ€ò€X⁄œX\ﬁ[ò 
+OOû⁄YäX€€ôö\õJ	’\õZ[ô\àŸ]HY›YH»\»[úÿ‹ö\[€ú»Ÿ\õ€ùô\õpÍY\Àâ J\ô]\õéÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	Ÿö[ö\⁄€XY›YIÀ‹€XY›YW⁄YõöYJN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY[
+
+N‹Ÿ]öY] 	€XY›YI NﬂN¬àõ›Àò\[ô⁄[
+ö[ö\⁄
+N¬àBàYä\–YZ[ä
+J^¬à€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸ[ù^€€ù[ùI¸'Â‰{Ó#»›\ö[Y\àHY›YIŒŸ[ò€\‹”ò[YOIŸ[ôŸ\âŒ¬à[õ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ÿ\õö[ôœI¯¶®;Ó#»USïS”à8†%’TëT‘“S”àTî∞‚UëTî“PìWóìHY›YH0™»	  õò[Y_	‘ÿ[ú»õ€I J…»0Æ»òH0ÍùôH›\ö[pÍYH0ÍYö[ö]]ô[Y[ùóóêŸ[H›\ö[Y\òH0ÍYÿ[[Y[ù›\»\»›Í\»ò]X⁄0Í\»0ËŸ]HY›YH]]\ú»€õ∞ÍY\»\‹€ÿ⁄pÍY\»
+[úÿ‹ö\[€úÀ0Í\]Z\\ÀX]⁄Àÿ€‹ô\Àù]»]\‹Ÿ\ KóóêŸ]HX›[€àôH]]\»0ÍùôH[õù[0ÍYKóóê€€ôö\õY\àH›\ô\‹⁄[€à…Œ¬àYäX€€ôö\õJÿ\õö[ô J\ô]\õé¬à[ô\ÿXõY]ùYNŸ[ù^€€ù[ùI‘›\ô\‹⁄[€∏†)âŒ¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	Ÿ[]W€XY›YWÿYZ[âÀ‹€XY›YW⁄YõöYJN¬àYä\úõ‹ä^Ÿ[ô\ÿXõYYò[ŸNŸ[ù^€€ù[ùI¸'Â‰{Ó#»›\ö[Y\àHY›YIŒ‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂBàYäÀòX›]ôSXY›YOOO[öY
+TÀòX›]ôSXY›YO[ù[¬àYäÀòX›]ôU›\ââîÀù›\õò[Y[ùÀôö[ô
+OùöYOOTÀòX›]ôU›\äOÀõXY›YW⁄YOO[öY
+TÀòX›]ôU›\è[ù[¬à]ÿZ]ÿY[
+
+N¬àŸ]öY] 	€XY›YI N¬àÿ\›
+	”Y›YH›\ö[pÍYH0ÍYö[ö]]ô[Y[ù8ß!I N¬àN¬àõ›Àò\[ô⁄[
+[
+N¬àBàò\[ô⁄[
+õ› N€\›ò\[ô⁄[
+
+N¬àJN¬Çà€€ú›XY›YOTÀõXY›Y\Àôö[ô
+OõöYOOTÀòX›]ôSXY›YJ_ù[¬à€€ú›[ôõœI
+	»ÿX›]ôSXY›YR[ôõ… K⁄\ôPõﬁI
+	»€XY›YTôY⁄\›ò][€î⁄\ôI N¬àYä[XY›YJ^¬à[ôõÀö[õô\íSIœ€\‹œHõ]]YèîÍ[X›[€õôH›H‹∞ÍYH[ôHY›YKè‹âŒ‹⁄\ôPõﬁö[õô\íSI…Œ¬à	
+	»€XY›YTö^ô\–ÿ\ô	 OÀò€\‹”\›òY
+	⁄Y[â N¬à	
+	»€XY›YQ^\… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[à›ÍHHY›YKè‹âŒ¬à	
+	»€XY›YTÿ€‹ô\ú… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[ôH€õ∞ÍYKè‹âŒ¬à	
+	»€XY›YP\‹⁄\›… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[ôH€õ∞ÍYKè‹âŒ¬àYä	
+	»ŸŸ[ô\ò]SXY›YUX[\… JI
+	»ŸŸ[ô\ò]SXY›YUX[\… Kô\ÿXõY]ùYN¬àYä	
+	»€XY›YPYZ[îŸ\‹⁄[€ï€€… JI
+	»€XY›YPYZ[îŸ\‹⁄[€ï€€… Kò€\‹”\›òY
+	⁄Y[â N¬àYä	
+	»€XY›YPYZ[ìõ‘Ÿ\‹⁄[€â JI
+	»€XY›YPYZ[ìõ‘Ÿ\‹⁄[€â Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬àYä	
+	»€XY›YTÿ€‹ö[ô–õŸI JI
+	»€XY›YTÿ€‹ö[ô–õŸI Kö[õô\íSIœ€\‹œHõ]]YèîÍ[X›[€õôH[ôHY›YHZ\»[à›ÍH›\àÿZ\⁄\à€€à∞Í\›[]è‹âŒ¬àô]\õé¬àBà[ôõÀö[õô\íSIœ]à€\‹œHú^Y\àèèèâ Ÿ\ÿ XY›YKõò[YJJ…œÿèè]à€\‹œHõ]]Yèº'‰·HH	 Ÿ\ÿ XY›YKú›\ù◊€€äJ XY›YKô[ô◊€€è…»]H	 Ÿ\ÿ XY›YKô[ô◊€€äNâ»8†(àÿ[ú»]HHö[â J…œŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èèèº'‰iH›\»\»Y[Xúô\»X›Yú»H‹õ›\H€€ù0Í[Y⁄Xõ\»0ËŸ]HY›YKèÿèèŸ]èèŸ]èâ ¬à	œ]à€\‹œHúôXY€õK[õ›Hà›[OHõX\ô⁄[ã]‹éèèèëõ€ò›[€õô[Y[ùèÿèà]X›[ôH[úÿ‹ö\[€à0ËHY›YH∏†&Y\›∞ÍXŸ\‹ÿZ\ôKà[àõ›Y]\à¯†&Z[úÿ‹ö][ö\]Y[Y[ù]Hèî›ÍHHY›YOÿèà]\]Y[[€›ZZ]H\ùX⁄\\ãèŸ]èâŒ¬Çà€€ú›ö^ôPÿ\ôI
+	»€XY›YTö^ô\–ÿ\ô	 Kö^ôUŸŸ€OI
+	»€XY›YTö^ô\—[òXõY	 Kö^ôQöY[œI
+	»€XY›YTö^ôQöY[… Kö^ôTôXY€õOI
+	»€XY›YTö^ôTôXY€õI N¬àYäö^ôPÿ\ô
+^¬àö^ôPÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀ[XY›YJN¬à€€ú›ÿ[îö^ôPYZ[èZ\–YZ[ì‹ 
+N¬àYäö^ôUŸŸ€J^¬àö^ôUŸŸ€Kò⁄X⁄ŸYHH[XY›YKúö^ô\◊Ÿ[òXõY¬àö^ôUŸŸ€Kô\ÿXõYHXÿ[îö^ôPYZ[é¬àBàYäö^ôQöY[ \ö^ôQöY[Àò€\‹”\›ùŸŸ€J	⁄Y[âÀ[XY›YKúö^ô\◊Ÿ[òXõYXÿ[îö^ôPYZ[äN¬àYä	
+	»€XY›YTö^ôQö\ú›	 JI
+	»€XY›YTö^ôQö\ú›	 Kùò[YO[XY›YKúö^ôWŸö\ú›	…Œ¬àYä	
+	»€XY›YTö^ôTŸX€€ô	 JI
+	»€XY›YTö^ôTŸX€€ô	 Kùò[YO[XY›YKúö^ôW‹ŸX€€ô	…Œ¬àYä	
+	»€XY›YTö^ôU\ô	 JI
+	»€XY›YTö^ôU\ô	 Kùò[YO[XY›YKúö^ôW›\ô	…Œ¬àYäö^ôTôXY€õJ^¬àö^ôTôXY€õKö[õô\íS[XY›YKúö^ô\◊Ÿ[òXõYà»	¸'Èa»	 Ÿ\ÿ XY›YKúö^ôWŸö\ú›	”›0Ë0ÍYö[ö\à[0Í\öY]\ô[Y[ù	 J…œúèº'Èb	 Ÿ\ÿ XY›YKúö^ôW‹ŸX€€ô	”›0Ë0ÍYö[ö\à[0Í\öY]\ô[Y[ù	 J…œúèº'ÈbH	 Ÿ\ÿ XY›YKúö^ôW›\ô	”›0Ë0ÍYö[ö\à[0Í\öY]\ô[Y[ù	 Bàà	–]X›[à›[õõ€òÍH›\àŸ]HY›YKâŒ¬àBàYäö^ôUŸŸ€Iâòÿ[îö^ôPYZ[ä^¬àö^ôUŸŸ€Kõ€ò⁄[ôŸOJ
+OOû¬àYäö^ôQöY[ \ö^ôQöY[Àò€\‹”\›ùŸŸ€J	⁄Y[âÀ\ö^ôUŸŸ€Kò⁄X⁄ŸY
+N¬àN¬àBàBà⁄\ôPõﬁö[õô\íSIœ]à€\‹œHúôXY€õK[õ›Hèèèî\»8†&Z[úÿ‹ö\[€à0ËHY›YKèÿèà][\ŸHHY[à8†&Z[úÿ‹ö\[€àH›ÍHHY›YH€€òŸ\õ∞ÍH[ú»H\›H⁄KY\‹€›\ÀèŸ]èâŒ¬Çà€€ú›XY›YU›\úœTÀù›\õò[Y[ùÀôö[\äOùôõ‹õX]OOI€XY›YI…âùõXY›YW⁄YOO[XY›YKöY
+Kú€‹ù
+
+KäOOî›ö[ô ãù›\õò[Y[ùŸ]JKõÿÿ[P€€\\ôJ›ö[ô Kù›\õò[Y[ùŸ]JJJN¬à€€ú›õﬁI
+	»€XY›YQ^\… Nÿõﬁö[õô\íSI…Œ¬àYä[XY›YU›\úÀõ[ô›
+Xõﬁö[õô\íSIœ€\‹œHõ]]Yèê]X›[à›ÍH‹∞ÍpÍH[ú»Ÿ]HY›YKè‹âŒ¬àXY›YU›\úÀôõ‹ëXX⁄
+Oû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\âŒ¬à€€ú›]⁄Xô[œJúô\Ÿ\ùôY‹]⁄⁄Yﬂ◊JKõX\
+YOú]⁄ò[YJY
+JKôö[\äõ€€X[äN¬àö[õô\íSIœ]à€\‹œHúõ›»èè‹[à›[OHôõ^åHèèèâ Ÿ\ÿ õò[Y_
+	‘›ÍHY›YH	 ›ù›\õò[Y[ùŸ]JJJ…œÿèè]à€\‹œHõ]]Yèâ ›ù›\õò[Y[ùŸ]J…»8†(à	  ú›]\œOOIŸö[ö\⁄Y	œ…’\õZ[∞ÍIŒâ‡õ›Y\â J…œŸ]èâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹èº'‰„H	 Ÿ\ÿ ]⁄Xô[Àõ[ô› €€\^Xô[
+ò€€\^⁄Y
+J…»8†(à	 ‹]⁄Xô[Àöõ⁄[ä	À	 JNäùô[ùY_	’\úòZ[àõ€àô[úŸZY€∞ÍI JJ ú›\ù›[YO…»8†(à<'Âf	 Ÿ\ÿ ›ö[ô ú›\ù›[YJKú€XŸJJJNâ… J…»8†(à<'‰≠à	  ù[Xô\äô[ùûWŸôYWÿŸ[ùﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâ J…»8†´Ÿ]èâ ¬à
+úô\Ÿ\ùò][€ó‹ôYô\ô[òŸO…œ]à€\‹œHõ]]Yèî∞Í\Ÿ\ùò][€àà	 Ÿ\ÿ úô\Ÿ\ùò][€ó‹ôYô\ô[òŸJJ…œŸ]èâŒâ… J¬à
+úôY⁄\›ò][€óŸXY[ôO…œ]à]K\ôY⁄\›ò][€ãYXY[ôOHâ Ÿ\ÿ úôY⁄\›ò][€óŸXY[ôJJ…»à›[OHõX\ô⁄[ã]‹çúèèŸ]èè]à€\‹œHõ]]Yèëö[à\»[úÿ‹ö\[€ú»à	 €ô]»]JúôY⁄\›ò][€óŸXY[ôJKù”ÿÿ[T›ö[ô 	ŸúãQîâÀ›[YVõ€ôNâ–[Y\öXÿK”X\ù[ö\]YIÀ]T›[Nâ‹⁄‹ù	À[YT›[Nâ‹⁄‹ù	ﬂJJ…œŸ]èâŒâ… J¬à	œ‹‹[èèŸ]èâŒ¬à€€ú›õ›œYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N‹õ›Àò€\‹”ò[YOI‹õ›…Œ‹õ›Àú›[KõX\ô⁄[ï‹IŒ	Œ‹õ›Àú›[Kôõ^‹ò\I›‹ò\	Œ¬à€€ú›‹[èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N€‹[ãù^€€ù[ù]öYOOTÀòX›]ôU›\è…‘›ÍHÍ[X›[€õ∞ÍIŒâ”›]úö\âŒ€‹[ãõ€ò€X⁄œX\ﬁ[ò 
+OOû‘ÀòX›]ôU›\è]öYÿ]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ê[
+
+N›ÿ\›
+	‘›ÍHHY›YHÍ[X›[€õ∞ÍI _N‹õ›Àò\[ô⁄[
+‹[äN¬àYäúôY⁄\›ò][€ó€‹[ââîÀù€‹ö‹‹XŸOÀúXõX◊›⁄Ÿ[ä^¬à€€ú›⁄\ôOYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N‹⁄\ôKù^€€ù[ùI¸'Â%»Y[àHŸH›ÍIŒ¬à€€ú›\õ\ôY⁄\›ò][€ì[ö 
+N¬à⁄\ôKõ€ò€X⁄œX\ﬁ[ò 
+OOû›û^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+\õ
+N›ÿ\›
+	”Y[àH›ÍH€‹pÍH8ß!I _Xÿ]⁄
+J^ﬂ_N¬àõ›Àò\[ô⁄[
+⁄\ôJN¬àBàYä\–YZ[ä
+J^¬à€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â N¬à[ò€\‹”ò[YOIŸ[ôŸ\âŒ¬à[ù^€€ù[ùI¸'Â‰{Ó#»›\ö[Y\àH›ÍIŒ¬à[õ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›Xô[]õò[Y_
+	‘›ÍHH	 ›ù›\õò[Y[ùŸ]JN¬à€€ú›ÿ\õö[ôœI¯¶®;Ó#»’TëT‘“S”àTî∞‚UëTî“PìWóìH›ÍH0™»	 €Xô[
+…»0Æ»òH0ÍùôH›\ö[pÍH0ÍYö[ö]]ô[Y[ùóóêŸ[H›\ö[Y\òH]\‹⁄HŸ\»[úÿ‹ö\[€úÀ0Í\]Z\\ÀX]⁄
+ Kÿ€‹ô\Àù]»]\‹Ÿ\»0ÍX⁄\⁄]ô\»ò]X⁄0Í\»0ËŸH›ÍKóóì\»]]ô\»›Í\»]HY›YHôHŸ\õ€ù\»›\ö[pÍ\Àóóê€€ôö\õY\àH›\ô\‹⁄[€à…Œ¬àYäX€€ôö\õJÿ\õö[ô J\ô]\õé¬à€€ú›\Y\õ€\
+	‘›\à€€ôö\õY\ãÿZ\⁄\»^X›[Y[ù’TíSQTâ N¬àYä\YOOI‘’TíSQTâ \ô]\õàÿ\›
+	‘›\ô\‹⁄[€à[õù[0ÍYKâ N¬à[ô\ÿXõY]ùYNŸ[ù^€€ù[ùI‘›\ô\‹⁄[€∏†)âŒ¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	Ÿ[]W€XY›YW‹Ÿ\‹⁄[€óÿYZ[âÀ‹››\õò[Y[ù⁄YùöYJN¬àYä\úõ‹ä^Ÿ[ô\ÿXõYYò[ŸNŸ[ù^€€ù[ùI¸'Â‰{Ó#»›\ö[Y\àH›ÍIŒ‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂBàYäÀòX›]ôU›\èOO]öY
+TÀòX›]ôU›\è[ù[¬à]ÿZ]ÿY[
+
+N¬àŸ]öY] 	€XY›YI N¬àÿ\›
+	‘›ÍH›\ö[pÍH0ÍYö[ö]]ô[Y[ù8ß!I N¬àN¬àõ›Àò\[ô⁄[
+[
+N¬àBàò\[ô⁄[
+õ› Nÿõﬁò\[ô⁄[
+
+N¬àJN¬Çà€€ú››\úô[ùX›\úô[ù›\ä
+N¬à€€ú›Ÿ[èI
+	»ŸŸ[ô\ò]SXY›YUX[\… N¬à€€ú››\úô[ù\”XY›YTŸ\‹⁄[€èX›\úô[ùÀôõ‹õX]OOI€XY›YI…âò›\úô[ùÀõXY›YW⁄YOO[XY›YKöY¬àYäŸ[ä^¬àŸ[ãô\ÿXõYHJ›\úô[ù\”XY›YTŸ\‹⁄[€ââö\–YZ[ì‹ 
+JN¬àŸ[ãù]OX›\úô[ù\”XY›YTŸ\‹⁄[€è…–‹∞ÍY\àà0Í\]Z\\»]ôX»\»[úÿ‹ö]»€€ôö\õpÍ\…Œâ‘Í[X›[€õôH[à›ÍHHŸ]HY›YIŒ¬àBÇàYä\–YZ[ì‹ 
+J^¬à€€ú›€€œI
+	»€XY›YPYZ[îŸ\‹⁄[€ï€€… Kõ‘Ÿ\‹⁄[€èI
+	»€XY›YPYZ[ìõ‘Ÿ\‹⁄[€â N¬àYä›\úô[ù\”XY›YTŸ\‹⁄[€ä^¬à€€œÀò€\‹”\›úô[[›ôJ	⁄Y[â N€õ‘Ÿ\‹⁄[€èÀò€\‹”\›òY
+	⁄Y[â N¬Çà€€ú›Ÿ]NúôY⁄\›\ôY\úõ‹éúôY—\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹ôY⁄\›\ôY‹^Y\ú◊Ÿõ‹ó››\õò[Y[ù	À‹››\õò[Y[ù⁄Yò›\úô[ùöYJN¬à€€ú›õ›‹œ\ôY—\úõ‹è÷◊Nä\úò^Kö\–\úò^JôY⁄\›\ôY
+O‹ôY⁄\›\ôYñ◊JN¬à€€ú›ô\Ÿ[ùõ›‹œ\õ›‹Àôö[\äèOúãúô\Ÿ[ù
+N¬à€€ú›ôY“Yœ[ô]»Ÿ]
+ô\Ÿ[ùõ›‹ÀõX\
+èOúãú^Y\ó⁄Y
+JN¬à€€ú›€€ôö\õYYXY›YRYœ[ô]»Ÿ]
+ÀõXY›YT^Y\úÀôö[\äOõõXY›YW⁄YOO[XY›YKöY	âõú›]\œOOIÿ€€ôö\õYY	 KõX\
+Oõú^Y\ó⁄Y
+JN¬à€€ú›]òZ[XõOTÀú^Y\ú¬àôö[\äOúòX›]ôIâò€€ôö\õYYXY›YRYÀö\ öY
+Iâà\ôY“YÀö\ öY
+JBàú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬Çà€€ú›Ÿ[X›YŸ\‹⁄[€ìXô[I
+	»€XY›YPYZ[îŸ[X›YŸ\‹⁄[€â N¬àYäŸ[X›YŸ\‹⁄[€ìXô[
+\Ÿ[X›YŸ\‹⁄[€ìXô[ù^€€ù[ùJ›\úô[ùõò[Y_
+	‘›ÍHH	 ÿ›\úô[ùù›\õò[Y[ùŸ]JJJ…»8†(à	 ÿ›\úô[ùù›\õò[Y[ùŸ]N¬à€€ú›ôY⁄\›\ôY]OI
+	»€XY›YTôY⁄\›\ôY]I N¬àYäôY⁄\›\ôY]J\ôY⁄\›\ôY]Kù^€€ù[ùI“[úÿ‹ö]»0Ë—H›ÍH[ö\]Y[Y[ù8†%	  ›\úô[ùõò[Y_
+	‘›ÍHH	 ÿ›\úô[ùù›\õò[Y[ùŸ]JJN¬à€€ú›X[ùX[Ÿ[I
+	»€XY›YSX[ùX[^Y\îŸ[X›	 N¬àYäX[ùX[Ÿ[
+[X[ùX[Ÿ[ö[õô\íSX]òZ[XõKõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬Çà€€ú›€›[ùI
+	»€XY›YTôY⁄\›\ôY€›[ù	 N¬àYä€›[ù
+X€›[ùù^€€ù[ù\ô\Ÿ[ùõ›‹Àõ[ô›
+…»\ùX⁄\[ù	  ô\Ÿ[ùõ›‹Àõ[ô›åO…‹…Œâ… J…»0ËŸH›ÍIŒ¬à€€ú›\›I
+	»€XY›YTôY⁄\›\ôY^Y\ú”\›	 N¬àYä\›
+^¬à\›ö[õô\íS\ô\Ÿ[ùõ›‹Àõ[ô›‹ô\Ÿ[ùõ›‹ÀõX\
+
+ãJOOâœ]à€\‹œHú^Y\àõ›»èèà›[OHõZ[ã]⁄YåÃèâ  JÃJJ…Àèÿèè‹[à›[OHôõ^åHèâ Ÿ\ÿ ãú^Y\ó€ò[YJJ ãö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…»‹[à€\‹œHô›Y\›XòYŸHèí[ùö]0ÍO‹‹[èâŒâ… J…œ‹‹[èè‹[à€\‹œHô›Y\›XòYŸHèâ  ãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	ﬂãö\◊‹›Xú›]]O…‘ô[\pÈÿ[ù	Œâ–€€ôö\õpÍI J…œ‹‹[èèŸ]èâ Köõ⁄[ä	… Nâœ€\‹œHõ]]Yèê]X›[à[úÿ‹ö]›\àŸH›ÍKè‹âŒ¬àBÇà€€ú›ÿ]ôYI
+	»€XY›YTÿ]ôYX[\… N¬àYäÿ]ôY
+^¬àYäÀùX[\Àõ[ô›
+^¬àÿ]ôYö[õô\íSTÀùX[\ÀõX\
+X[OOû¬à€€ú›ò[Y\œTÀùX[T^Y\úÀôö[\äOùùX[W⁄YOO]X[KöY
+KõX\
+OîÀú^Y\úÀôö[ô
+OúöYOO]ú^Y\ó⁄Y
+OÀõò[YJKôö[\äõ€€X[äN¬àô]\õà	œ]à€\‹œHùX[Hà›[OHõX\ô⁄[ãXõ›€Néèè]à€\‹œHúõ›»èè‹[à›[OHù⁄YåN⁄ZY⁄åNÿõ‹ô\ã\òY]\ŒçL	NÿòX⁄Ÿ‹õ›[ôâ Ÿ\ÿ X[Kò€€‹ü	»ÕçÕâ J…Œÿõ‹ô\éå\€€YÿÿôYLHèè‹‹[èèèâ Ÿ\ÿ X[Kõò[YJJ…œÿèèŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çúèâ  ò[Y\Àõ[ô›€ò[Y\ÀõX\
+\ÿ Köõ⁄[ä	»8†(à	 Nâ–]X›[àõ›Y]\â J…œŸ]èèŸ]èâŒ¬àJKöõ⁄[ä	… N¬àY[ŸHÿ]ôYö[õô\íSIœ€\‹œHõ]]Yèì\»0Í\]Z\\»ôH€€ù\»[ò€‹ôH‹∞ÍpÍY\Àè‹âŒ¬àBÇà€€ú›‹ôX]U^I
+	»€XY›YUX[\–‹ôX][€ï^	 N¬àYä‹ôX]U^
+X‹ôX]U^ù^€€ù[ùTÀùX[\Àõ[ô›à»	”\»0Í\]Z\\»HŸH›ÍH€€ù0ÍZ∞Ë[úôY⁄\›∞ÍY\ÀàH]^\»€€ú›[\à⁄KY\‹€›\Àâ¬àà	–‹∞ÍYH]]€X]\]Y[Y[ùà0Í\]Z\\»0Ë\ù\à\»õ›Y]\ú»€€ôö\õpÍ\»[úÿ‹ö]»0ËŸH›ÍKâŒ¬àYäŸ[ä^¬àŸ[ãò€\‹”\›ùŸŸ€J	⁄Y[âÀÀùX[\Àõ[ô›å
+N¬àBàY[Ÿ^¬à€€œÀò€\‹”\›òY
+	⁄Y[â N€õ‘Ÿ\‹⁄[€èÀò€\‹”\›úô[[›ôJ	⁄Y[â N¬àYäõ‘Ÿ\‹⁄[€ä[õ‘Ÿ\‹⁄[€ãù^€€ù[ùI‘Í[X›[€õôH[à›ÍHHŸ]HY›YH[ú»H\›H⁄KY\‹›\»›\àÍ\ô\àŸ\»[úÿ‹ö]»]Ÿ\»0Í\]Z\\ÀâŒ¬àBàBÇÇàÀ»çåà8†%ÿZ\⁄YHH∞Í\›[]\ôX›[Y[ù\Z\»	€€ô€]Y›YKÇà€€ú›ÿ€‹ö[ô–ÿ\ôI
+	»€XY›YTÿ€‹ö[ô–ÿ\ô	 Kÿ€‹ö[ô–õŸOI
+	»€XY›YTÿ€‹ö[ô–õŸI Kÿ€‹ö[ô”Xô[I
+	»€XY›YTÿ€‹ö[ô‘Ÿ\‹⁄[€ìXô[	 N¬àYäÿ€‹ö[ô–ÿ\ô
+\ÿ€‹ö[ô–ÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀXÿ[îÿ€‹ôSXY›YJN¬àYäÿ[îÿ€‹ôSXY›YIâúÿ€‹ö[ô–õŸJ^¬à€€ú›ÿ€‹ö[ô’›\èX›\úô[ù›\ä
+N¬à€€ú›ò[YŸ\‹⁄[€è\ÿ€‹ö[ô’›\èÀôõ‹õX]OOI€XY›YI…âúÿ€‹ö[ô’›\èÀõXY›YW⁄YOO[XY›YKöY¬àYä]ò[YŸ\‹⁄[€ä^¬àYäÿ€‹ö[ô”Xô[
+\ÿ€‹ö[ô”Xô[ù^€€ù[ùI‘Í[X›[€õôH[à›ÍH[ú»0™»›Í\»HHY›YH0Æ»›\àÿZ\⁄\àH∞Í\›[]âŒ¬àÿ€‹ö[ô–õŸKö[õô\íSIœ€\‹œHõ]]Yèê]X›[à›ÍHHŸ]HY›YH∏†&Y\›Í[X›[€õ∞ÍKè‹âŒ¬àY[Ÿ^¬àYäÿ€‹ö[ô”Xô[
+\ÿ€‹ö[ô”Xô[ù^€€ù[ùJÿ€‹ö[ô’›\ãõò[Y_
+	‘›ÍHH	 ‹ÿ€‹ö[ô’›\ãù›\õò[Y[ùŸ]JJJ…»8†(à	 ‹ÿ€‹ö[ô’›\ãù›\õò[Y[ùŸ]N¬àYäTÀùX[\Àõ[ô›
+^¬àÿ€‹ö[ô–õŸKö[õô\íSIœ]à€\‹œHúôXY€õK[õ›Hèèè∞‚\]Z\\»õ€à‹∞ÍpÍY\Àèÿèè]à›[OHõX\ô⁄[ã]‹ç\èê‹∞ÍYH8†&XXõ‹ô\»à0Í\]Z\\»HŸH›ÍKàHõ‹õ][Z\ôHH∞Í\›[]\\òpÎùòH[ú›Z]HX⁄KèŸ]èèŸ]èâŒ¬àY[ŸHYäTÀõX]⁄\Àõ[ô›
+^¬àÿ€‹ö[ô–õŸKö[õô\íSIœ]à€\‹œHúôXY€õK[õ›HèèèìX]⁄õ€à‹∞ÍpÍKèÿèè]à›[OHõX\ô⁄[ã]‹ç\èìH›ÍH‹‹ÍHŸ\»0Í\]Z\\»XZ\»]X›[àX]⁄àòH[ú»8†&[€ô€]X]⁄»›\à‹∞ÍY\àHX]⁄HY›YKèŸ]èèŸ]èâŒ¬àY[Ÿ^¬à€€ú›OTÀõX]⁄\÷ÃK€YO]JKö€YW›X[W⁄Y
+K]ÿ^O]JKò]ÿ^W›X[W⁄Y
+N¬àYäZ€Y_X]ÿ^J^¬àÿ€‹ö[ô–õŸKö[õô\íSIœ€\‹œHõ]]Yèí[\‹‹⁄XõHH⁄\ôŸ\à\»]^0Í\]Z\\»HŸH›ÍKè‹âŒ¬àY[Ÿ^¬à€€ú›€ÿ[œTÀô€ÿ[Àôö[\äœOôÀõX]⁄⁄YOO[KöY
+N¬à€€ú›^Y\ú—õ‹ïX[O]X[RYOùX[T^Y\íY X[RY
+KõX\
+YOú
+Y
+JKôö[\äõ€€X[äN¬à€€ú›€ÿ[õ›‹œY€ÿ[ÀõX\
+œOû¬à€€ú›ÿ€‹ô\è\
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+K\‹⁄\›\èYÀò\‹⁄\›\ó‹^Y\ó⁄Y‹
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+Nõù[¬àô]\õà	œ]à€\‹œHú^Y\àõ›»à›[OHõX\ô⁄[ã]‹çúèè‹[à›[OHôõ^åHè∏¶ØHèâ Ÿ\ÿ ÿ€‹ô\èÀõò[Y_	œ… J…œÿèâ  \‹⁄\›\è…»‹[à€\‹œHõ]]Yè∏°§\‹ŸHà	 Ÿ\ÿ \‹⁄\›\ãõò[YJJ…œ‹‹[èâŒâ»‹[à€\‹œHõ]]Yè∏†(àÿ[ú»\‹ŸO‹‹[èâ J…œ‹‹[èèù]€à\OHòù]€àà€\‹œHô[ôŸ\àXY›YQ[]Q€ÿ[à]KY€ÿ[Hâ ŸÀöY
+…»èê[õù[\èÿù]€èèŸ]èâŒ¬àJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àù]]\à[úôY⁄\›∞ÍKè‹âŒ¬Çàÿ€‹ö[ô–õŸKö[õô\íSBà	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸYYéåéÿõ‹ô\éå\€€YÿçŸòÕèâ ¬à	œ]à€\‹œHõ]]Yèâ  Kú]⁄…¸'‰„H	 Ÿ\ÿ Kú]⁄
+J…»8†(à	Œâ… J…ÃH›ÍHHHX]⁄8†&Y[ùö\õ€àåZ[èŸ]èâ ¬à	œ]à€\‹œHô‹öYÃàà›[OHõX\ô⁄[ã]‹åLèâ ¬à	œXô[è‹[à€\‹œHõ]]Yèâ Ÿ\ÿ €YKõò[YJJ…œ‹‹[èè[ú]YHõXY›YR€YTÿ€‹ôHà\OHõù[Xô\ààZ[èHåàò[YOHâ ”ù[Xô\äKö€YW‹ÿ€‹ô_
+J…»èè€Xô[â ¬à	œXô[è‹[à€\‹œHõ]]Yèâ Ÿ\ÿ ]ÿ^Kõò[YJJ…œ‹‹[èè[ú]YHõXY›YP]ÿ^Tÿ€‹ôHà\OHõù[Xô\ààZ[èHåàò[YOHâ ”ù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+J…»èè€Xô[â ¬à	œŸ]èâ ¬à	œù]€àYHõXY›YTÿ]ôTÿ€‹ôHà€\‹œHúö[X\ûHà›[OHõX\ô⁄[ã]‹åLèº'‰Øà[úôY⁄\›ô\àHÿ€‹ôOÿù]€èâ ¬à	œŸ]èâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúèâ ¬à	œè∏ß•HZõ›]\à[àù]]\à»\‹Ÿ]\èÿèâ ¬à	œ]à€\‹œHô‹öYÃ»à›[OHõX\ô⁄[ã]‹éèâ ¬à	œŸ[X›YHõXY›YQ€ÿ[X[Hèè‹[€àò[YOHâ ⁄€YKöY
+…»èâ Ÿ\ÿ €YKõò[YJJ…œ€‹[€èè‹[€àò[YOHâ ÿ]ÿ^KöY
+…»èâ Ÿ\ÿ ]ÿ^Kõò[YJJ…œ€‹[€èè‹Ÿ[X›â ¬à	œŸ[X›YHõXY›YQ€ÿ[ÿ€‹ô\àèè‹[€àò[YOHàèêù]]\è€‹[€èè‹Ÿ[X›â ¬à	œŸ[X›YHõXY›YQ€ÿ[\‹⁄\›èè‹[€àò[YOHàèîÿ[ú»\‹ŸH0ÍX⁄\⁄]ôO€‹[€èè‹Ÿ[X›â ¬à	œŸ]èâ ¬à	œù]€àYHõXY›YPY€ÿ[à€\‹œHúö[X\ûHà›[OHõX\ô⁄[ã]‹åLèä»Zõ›]\àHù]ÿù]€èâ ¬à	œŸ]èâ ¬à	œ]à›[OHõX\ô⁄[ã]‹åLúèè»›[OHõX\ô⁄[ãXõ›€Néèêù]]\ú»[úôY⁄\›∞Í\»›\àŸH›ÍO⁄œâ Ÿ€ÿ[õ›‹ …œŸ]èâŒ¬Çà€€ú›X[TŸ[I
+	»€XY›YQ€ÿ[X[I Kÿ€‹ô\îŸ[I
+	»€XY›YQ€ÿ[ÿ€‹ô\â K\‹⁄\›Ÿ[I
+	»€XY›YQ€ÿ[\‹⁄\›	 N¬à€€ú›ö[XY›YQ€ÿ[^Y\úœJ
+OOû¬à€€ú›õ‹›\è\^Y\ú—õ‹ïX[JX[TŸ[ùò[YJN¬àÿ€‹ô\îŸ[ö[õô\íSIœ‹[€àò[YOHàèêù]]\è€‹[€èâ ‹õ‹›\ãõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬à\‹⁄\›Ÿ[ö[õô\íSIœ‹[€àò[YOHàèîÿ[ú»\‹ŸH0ÍX⁄\⁄]ôO€‹[€èâ ‹õ‹›\ãõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… N¬àN¬àX[TŸ[õ€ò⁄[ôŸOYö[XY›YQ€ÿ[^Y\úŒŸö[XY›YQ€ÿ[^Y\ú 
+N¬Çà	
+	»€XY›YTÿ]ôTÿ€‹ôI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›œSX]õX^
+ù[Xô\ä	
+	»€XY›YR€YTÿ€‹ôI Kùò[YJ_
+K\œSX]õX^
+ù[Xô\ä	
+	»€XY›YP]ÿ^Tÿ€‹ôI Kùò[YJ_
+N¬à€€ú›èI
+	»€XY›YTÿ]ôTÿ€‹ôI Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	€X]⁄\… Kù\]J⁄€YW‹ÿ€‹ôNöÀ]ÿ^W‹ÿ€‹ôNò\À›]\ŒâŸö[ö\⁄Y	Àö[ö\⁄Yÿ]õô]»]J
+Kù“T”‘›ö[ô 
+_JKô\J	⁄Y	ÀKöY
+N¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY›\õò[Y[ù
+
+Nÿ]ÿZ]ô[ô\ìXY›YJ
+N›ÿ\›
+	‘∞Í\›[]H›ÍH[úôY⁄\›∞ÍH8ß!I N¬àN¬Çà	
+	»€XY›YPY€ÿ[	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYä\ÿ€‹ô\îŸ[ùò[YJ\ô]\õàÿ\›
+	–⁄⁄\⁄\»Hù]]\ãâ N¬àYä\‹⁄\›Ÿ[ùò[YOOO\ÿ€‹ô\îŸ[ùò[YJ\ô]\õàÿ\›
+	”Hù]]\à]H\‹Ÿ]\à⁄]ô[ù0ÍùôHYô∞Í\ô[ùÀâ N¬à€€ú›èI
+	»€XY›YPY€ÿ[	 Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	Ÿ€ÿ[… Kö[úŸ\ù
+€X]⁄⁄YõKöYX[W⁄YùX[TŸ[ùò[YKÿ€‹ô\ó‹^Y\ó⁄Yúÿ€‹ô\îŸ[ùò[YK\‹⁄\›\ó‹^Y\ó⁄Yò\‹⁄\›Ÿ[ùò[Y_ù[JN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY›\õò[Y[ù
+
+Nÿ]ÿZ]ô[ô\ìXY›YJ
+N›ÿ\›
+	–ù]]\à»\‹Ÿ]\àZõ›]0ÍH8ß!I N¬àN¬Çàÿ€‹ö[ô–õŸKú]Y\ûTŸ[X›‹ê[
+	ÀõXY›YQ[]Q€ÿ[	 Kôõ‹ëXX⁄
+ùèOû¬àùãõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäX€€ôö\õJ	–[õù[\àŸHù]]ÿH\‹ŸH0ÍX⁄\⁄]ôH0Í]ô[ùY[H… J\ô]\õé¬àùãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãôúõ€J	Ÿ€ÿ[… Kô[]J
+Kô\J	⁄Y	Àùãô]\Ÿ]ô€ÿ[
+N¬àYä\úõ‹ä^ÿùãô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJ_Bà]ÿZ]ÿY›\õò[Y[ù
+
+Nÿ]ÿZ]ô[ô\ìXY›YJ
+N›ÿ\›
+	–ù][õù[0ÍKâ N¬àN¬àJN¬àBàBàBàBÇà€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]€XY›YW‹ò[ö⁄[ô‹…À‹€XY›YW⁄YõXY›YKöYJN¬àYä\úõ‹ä^…
+	»€XY›YTÿ€‹ô\ú… Kö[õô\íSIœ€\‹œHõ]]Yèâ Ÿ\ÿ \úõ‹ãõY\‹ÿYŸJJ…œ‹âŒ…
+	»€XY›YP\‹⁄\›… Kö[õô\íSI…Œ‹ô]\õüBà]õ›‹œP\úò^Kö\–\úò^J]JOŸ]Nñ◊N¬à]ÿ€‹è\õ›‹Àôö[\äOìù[Xô\äô€ÿ[ Oå
+Kú€‹ù
+
+KäOOìù[Xô\äãô€ÿ[ KSù[Xô\äKô€ÿ[ _›ö[ô Kú^Y\ó€ò[YJKõÿÿ[P€€\\ôJ›ö[ô ãú^Y\ó€ò[YJJJN¬à]\‹œ\õ›‹Àôö[\äOìù[Xô\äò\‹⁄\› Oå
+Kú€‹ù
+
+KäOOìù[Xô\äãò\‹⁄\› KSù[Xô\äKò\‹⁄\› _›ö[ô Kú^Y\ó€ò[YJKõÿÿ[P€€\\ôJ›ö[ô ãú^Y\ó€ò[YJJJN¬àÿ€‹èX€€\]][€îò[ö‹ ÿ€‹ã	Ÿ€ÿ[… Nÿ\‹œX€€\]][€îò[ö‹ \‹À	ÿ\‹⁄\›… N¬à	
+	»€XY›YTÿ€‹ô\ú… Kö[õô\íS\ÿ€‹ãõX\
+Oâœ]à€\‹œHúò[ö»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ ú^Y\ó€ò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁô€ÿ[ …»ù]	  ù[Xô\äô€ÿ[ OåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àù]›\àH[€Y[ùè‹âŒ¬à	
+	»€XY›YP\‹⁄\›… Kö[õô\íSX\‹ÀõX\
+Oâœ]à€\‹œHúò[ö»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ ú^Y\ó€ò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁò\‹⁄\› …»\‹ŸI  ù[Xô\äò\‹⁄\› OåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH\‹ŸH›\àH[€Y[ùè‹âŒ¬üBÇâ
+	»ÿ‹ôX]SXY›YI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäZ\–YZ[ì‹ 
+J\ô]\õàÿ\›
+	‘Ÿ][8†&XYZ[ö\›ò]]\à]]‹∞ÍY\à[ôHY›YKâ N¬à€€ú›ò[YOI
+	»€XY›YSò[YI Kùò[YKùö[J
+K›\ùI
+	»€XY›YT›\ù	 Kùò[YK[ôI
+	»€XY›YQ[ô	 Kùò[Y_ù[¬àYä[ò[Y_\›\ù
+\ô]\õàÿ\›
+	“[ô\]YHHõ€H]H]HH0ÍXù]â N¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿ‹ôX]W€XY›YIÀ‹›€‹ö‹‹XŸW⁄YîÀù€‹ö‹‹XŸKöY€ò[YNõò[YK‹›\ù◊€€éú›\ùŸ[ô◊€€éô[ôJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÀòX›]ôSXY›YOY]N…
+	»€XY›YSò[YI Kùò[YOI…Œ…
+	»€XY›YQ[ô	 Kùò[YOI…Œ¬à]ÿZ]ÿY[
+
+N‹Ÿ]öY] 	€XY›YI N›ÿ\›
+	”Y›YH‹∞ÍpÍYH8ß!I N¬üN¬Çâ
+	»‹ÿ]ôSXY›YTö^ô\… Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäZ\–YZ[ì‹ 
+J\ô]\õàÿ\›
+	‘Ÿ][8†&XYZ[ö\›ò]]\à]]0ÍYö[ö\à\»›Àâ N¬à€€ú›XY›YOTÀõXY›Y\Àôö[ô
+OõöYOOTÀòX›]ôSXY›YJN¬àYä[XY›YJ\ô]\õàÿ\›
+	‘Í[X›[€õôH[ôHY›YKâ N¬à€€ú›[òXõYHHI
+	»€XY›YTö^ô\—[òXõY	 OÀò⁄X⁄ŸY¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹Ÿ]€XY›YW‹ö^ô\…À¬à€XY›YW⁄YõXY›YKöYàŸ[òXõYô[òXõYàŸö\ú›â
+	»€XY›YTö^ôQö\ú›	 OÀùò[YKùö[J
+_ù[à‹ŸX€€ôâ
+	»€XY›YTö^ôTŸX€€ô	 OÀùò[YKùö[J
+_ù[à›\ôâ
+	»€XY›YTö^ôU\ô	 OÀùò[YKùö[J
+_ù[àJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY[
+
+N‹Ÿ]öY] 	€XY›YI N¬àÿ\›
+[òXõY…”›»H‹»[úôY⁄\›∞Í\»8ß!IŒâ”›»0Í\ÿX›]∞Í\»›\àŸ]HY›YKâ N¬üN¬Çâ
+	»ÿ‹ôX]SXY›YTŸ\‹⁄[€â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäTÀõXY›Y\Àú€€YJOõú›]\»OOIŸö[ö\⁄Y	 J\ô]\õàÿ\›
+\–YZ[ì‹ 
+O…–‹∞ÍYH8†&XXõ‹ô[ôHY›YKâŒâ—[X[ôH0Ë8†&XYZ[ö\›ò]]\àH‹∞ÍY\à[ôHY›YKâ N¬à€€ú›XY›YRYI
+	»€XY›YTŸ\‹⁄[€ìXY›YI OÀùò[Y_	…Œ¬à€€ú›XY›YOTÀõXY›Y\Àôö[ô
+OõöYOO[XY›YRY	âõú›]\»OOIŸö[ö\⁄Y	 N¬àYä[XY›YJ\ô]\õàÿ\›
+	–⁄⁄\⁄\»HY›YH€€òŸ\õ∞ÍYKâ N¬à€€ú›]OI
+	»€XY›YTŸ\‹⁄[€ë]I Kùò[YN⁄YäY]J\ô]\õàÿ\›
+	–⁄⁄\⁄\»H]HH›ÍKâ N¬à€€ú›XY[ôSÿÿ[I
+	»€XY›YTŸ\‹⁄[€îôY⁄\›ò][€ëXY[ôI OÀùò[Y_	…Œ¬à€€ú›ôY⁄\›ò][€ëXY[ôO\ôY⁄\›ò][€ëXY[ôR\€ XY[ôSÿÿ[
+N¬àYä\ôY⁄\›ò][€ëXY[ôJ\ô]\õàÿ\›
+	“[ô\]YHH]H]8†&Z]\ôHHö[à\»[úÿ‹ö\[€úÀâ N¬à€€ú›]ô[ù›\ù[ô]»]J]J…’	  	
+	»€XY›YTŸ\‹⁄[€î›\ù[YI OÀùò[Y_	ÃNå	 J…ŒåLå	 KôŸ][YJ
+N¬à€€ú›XY[ôS\œ[ô]»]JôY⁄\›ò][€ëXY[ôJKôŸ][YJ
+N¬àYäXY[ôS\œQ]Kõõ› 
+J\ô]\õàÿ\›
+	”Hö[à\»[úÿ‹ö\[€ú»⁄]0ÍùôH[ú»Hù]\ãâ N¬àYäXY[ôS\œèY]ô[ù›\ù
+\ô]\õàÿ\›
+	”Hö[à\»[úÿ‹ö\[€ú»⁄]0ÍùôH]ò[ùH0ÍXù]H›ÍKâ N¬à€€ú›€€\^YI
+	»€XY›YTŸ\‹⁄[€ê€€\^	 OÀùò[Y_	…Œ¬à€€ú›]⁄YI
+	»€XY›YTŸ\‹⁄[€î]⁄	 OÀùò[Y_	…Œ¬à€€ú››\ù[YOI
+	»€XY›YTŸ\‹⁄[€î›\ù[YI OÀùò[Y_	…Œ¬à€€ú›ôYTò]œI
+	»€XY›YTŸ\‹⁄[€ë[ùûQôYI OÀùò[YN¬àYäX€€\^Y
+\ô]\õàÿ\›
+	–⁄⁄\⁄\»H€€\^HH›ÍKâ N¬àYä\]⁄Y
+\ô]\õàÿ\›
+	–⁄⁄\⁄\»H\úòZ[àH›ÍKâ N¬àYä\›\ù[YJ\ô]\õàÿ\›
+	“[ô\]YH8†&Z]\ôHH∞Í\Ÿ\ùò][€ãâ N¬àYäôYTò]œOOI…ﬂù[Xô\äôYTò] O
+\ô]\õàÿ\›
+	“[ô\]YHHö^\à\ùX⁄\[ùâ N¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿ‹ôX]W€XY›YW‹Ÿ\‹⁄[€ó›åâÀ¬à€XY›YW⁄YõXY›YKöYàŸ]Nô]Kà€ò[YNâ
+	»€XY›YTŸ\‹⁄[€ìò[YI Kùò[YKùö[J
+_ù[à€X^‹^Y\úŒåLàÿ€€\^⁄Yò€€\^Yà‹]⁄⁄Yú]⁄Yà‹›\ù›[YNú›\ù[YKàŸ[ùûWŸôYWÿŸ[ùŒìX]úõ›[ô
+ù[Xô\äôYTò] JåL
+Kà‹ô\Ÿ\ùò][€ó‹ôYô\ô[òŸNâ
+	»€XY›YTŸ\‹⁄[€îô\Ÿ\ùò][€îôYâ OÀùò[YKùö[J
+_ù[àÿ€€€\ó‹›YŸŸ\›YÿŸ[ùŒîÀù€‹ö‹‹XŸQôX]\ô\Àù\ô⁄[óŸ[òXõY”X]úõ›[ô
+X]õX^
+ù[Xô\ä	
+	»€XY›YTŸ\‹⁄[€ê€€€\î›YŸŸ\›Y	 OÀùò[YJ_
+JåL
+Nåà‹ôY⁄\›ò][€óŸXY[ôNúôY⁄\›ò][€ëXY[ôBàJN¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÀòX›]ôSXY›YO[XY›YKöY‘ÀòX›]ôU›\èY]N¬à	
+	»€XY›YTŸ\‹⁄[€ìò[YI Kùò[YOI…Œ…
+	»€XY›YTŸ\‹⁄[€îô\Ÿ\ùò][€îôYâ Kùò[YOI…Œ…
+	»€XY›YTŸ\‹⁄[€îôY⁄\›ò][€ëXY[ôI Kùò[YOYYò][ôY⁄\›ò][€ëXY[ôSÿÿ[
+	
+	»€XY›YTŸ\‹⁄[€ë]I Kùò[YJN¬à]ÿZ]ÿY[
+
+N‹Ÿ]öY] 	€XY›YI N›ÿ\›
+	‘›ÍH‹∞ÍpÍH[ú»0™»	 €XY›YKõò[YJ…»0Æ»8ß!I N¬üN¬Çâ
+	»€XY›YSX[ùX[Y^Y\â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäZ\–YZ[ì‹ 
+J\ô]\õàÿ\›
+	‘Ÿ][8†&XYZ[ö\›ò]]\à]]Zõ›]\àX[ùY[[Y[ù[à[úÿ‹ö]â N¬à€€ú›X›\úô[ù›\ä
+N¬à€€ú›XY›YOTÀõXY›Y\Àôö[ô
+OõöYOOTÀòX›]ôSXY›YJN¬àYä]ôõ‹õX]OOI€XY›YIﬂ[XY›Y_õXY›YW⁄YOO[XY›YKöY
+\ô]\õàÿ\›
+	‘Í[X›[€õôH[à›ÍHHŸ]HY›YKâ N¬à€€ú›Ÿ[I
+	»€XY›YSX[ùX[^Y\îŸ[X›	 N¬à€€ú›Yœ\Ÿ[÷ÀããúŸ[úŸ[X›Y‹[€ú◊KõX\
+œOõÀùò[YJKôö[\äõ€€X[äNñ◊N¬àYäZYÀõ[ô›
+\ô]\õàÿ\›
+	‘Í[X›[€õôH]H[⁄[ú»[ôH\ú€€õôKâ N¬à€€ú›èI
+	»€XY›YSX[ùX[Y^Y\â Nÿãô\ÿXõY]ùYNÿãù^€€ù[ùI–Zõ›]8†)âŒ¬à]YYLÿZ]\›YLòZ[YL¬àõ‹ä€€ú›YŸàY ^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ÿYZ[óÿY‹ôY⁄\›\ôY€Y[Xô\ó›◊€XY›YW‹Ÿ\‹⁄[€âÀ‹››\õò[Y[ù⁄YùöY‹^Y\ó⁄YúYJN¬àYä\úõ‹äYòZ[Y
+ Œ»[ŸHÿYY
+ Œ»Yä]OOOI›ÿZ]\›	 ]ÿZ]\›Y
+ ŒﬂBàBàãô\ÿXõYYò[ŸNÿãù^€€ù[ùI–Zõ›]\àHÍ[X›[€âŒ¬à]ÿZ]ÿY›\õò[Y[ù
+
+Nÿ]ÿZ]ô[ô\ìXY›YJ
+N¬àYäòZ[Y
+\ô]\õàÿ\›
+YY
+…»Zõ›]0ÍJ K	 ŸòZ[Y
+…»0ÍX⁄X  Kâ N¬àÿ\›
+YY
+…»\ú€€õôI  YYåO…‹…Œâ… J…»Zõ›]0ÍYI  YYåO…‹…Œâ… J ÿZ]\›Y…»8†(à	 ›ÿZ]\›Y
+…»ô[\pÈÿ[ù
+ IŒâ… J…»8ß!I N¬üN¬Çâ
+	»ŸŸ[ô\ò]SXY›YUX[\… Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›X›\úô[ù›\ä
+N⁄Yä]ôõ‹õX]OOI€XY›YI \ô]\õàÿ\›
+	”›]úôH[ôHõ›\õ∞ÍYHHY›YKâ N¬àYäZ\–YZ[ì‹ 
+J\ô]\õàÿ\›
+	‘Ÿ][8†&XYZ[ö\›ò]]\à]]‹∞ÍY\à\»0Í\]Z\\»\Z\»8†&[€ô€]Y›YKâ N¬àYäÀùX[\Àõ[ô›
+\ô]\õàÿ\›
+	”\»0Í\]Z\\»HŸH›ÍH€€ù0ÍZ∞Ë[úôY⁄\›∞ÍY\Àâ N¬à€€ú›èI
+	»ŸŸ[ô\ò]SXY›YUX[\… Nÿãô\ÿXõY]ùYNÿãù^€€ù[ùI–‹∞ÍX][€∏†)âŒ¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ[ô\ò]W€XY›YW›€◊›X[\…À‹››\õò[Y[ù⁄YùöYJN¬àãô\ÿXõYYò[ŸNÿãù^€€ù[ùI–‹∞ÍY\à\»0Í\]Z\\»]ôX»\»[úÿ‹ö]…Œ¬àYä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬à]ÿZ]ÿY›\õò[Y[ù
+
+N‹ô[ô\ê[
+
+N¬à	
+	»€XY›YQŸ[ô\ò][€í[ôõ… Kù^€€ù[ùIÃà0Í\]Z\\»‹∞ÍpÍY\»]ôX»	 ”ù[Xô\ä]OÀú^Y\óÿ€›[ù
+J…»õ›Y]\ú»€€ôö\õpÍ\ÀâŒ¬àÿ\›
+	‚\]Z\\»HY›YH‹∞ÍpÍY\»8ß!I N¬üN¬ÇÇò\ﬁ[ò»ù[ò›[€àò[ö⁄[ô—]\Ÿ]
+
+^¬à€€ú›X›\úô[ù›\ä
+N¬àYäÀúò[ö”[ŸOOOIŸ^I ^¬à€€ú›ZYœTÀõX]⁄\ÀõX\
+OOõKöY
+N¬àô]\õàŸ€ÿ[ŒîÀô€ÿ[ﬂ◊KX]⁄\ŒîÀõX]⁄\ﬂ◊K›\õò[Y[ùŒù÷›Nñ◊_N¬àBà]ŸX\€€íY]ÀúŸX\€€ó⁄Yù[¬àYä\ŸX\€€íY
+^¬à€€ú›X›]ôTŸX\€€èTÀúŸX\€€úÀôö[ô
+œOúÀö\◊ÿX›]ôJ_ÀúŸX\€€ú÷ÃN¬àŸX\€€íYXX›]ôTŸX\€€èÀöYù[¬àBàYä\ŸX\€€íY
+\ô]\õàŸ€ÿ[Œñ◊KX]⁄\Œñ◊K›\õò[Y[ùŒñ◊_N¬à]›\õò[Y[ùœTÀù›\õò[Y[ùÀôö[\äOûúŸX\€€ó⁄YOO\ŸX\€€íY	âûôõ‹õX]OOI€XY›YI N¬à›\õò[Y[ùœ]›\õò[Y[ùÀôö[\äOûú›]\œOOIŸö[ö\⁄Y	ﬂöYOOTÀòX›]ôU›\äN¬à€€ú›Yœ]›\õò[Y[ùÀõX\
+OûöY
+N¬àYä]YÀõ[ô›
+\ô]\õàŸ€ÿ[Œñ◊KX]⁄\Œñ◊K›\õò[Y[ùŒñ◊_N¬à€€ú›\èX]ÿZ]ÿãôúõ€J	€X]⁄\… KúŸ[X›
+	 â Kö[ä	››\õò[Y[ù⁄Y	ÀY N¬à€€ú›X]⁄\œ[\ãô]_◊N¬à€€ú›ZYœ[X]⁄\ÀõX\
+OûöY
+N¬àYä[ZYÀõ[ô›
+\ô]\õàŸ€ÿ[Œñ◊KX]⁄\À›\õò[Y[ùﬂN¬à€€ú›‹èX]ÿZ]ÿãôúõ€J	Ÿ€ÿ[… KúŸ[X›
+	 â Kö[ä	€X]⁄⁄Y	ÀZY N¬àô]\õàŸ€ÿ[Œô‹ãô]_◊KX]⁄\À›\õò[Y[ùﬂN¬üBÇôù[ò›[€à€€\]][€îò[ö‹ \úãŸ^J^€]ô]è[ù[ò[öœL‹ô]\õà\úãõX\
+
+JOOû⁄Yä⁄Ÿ^WHOO\ô]ä^‹ò[öœZJÃN‹ô]è^⁄Ÿ^W_\ô]\õàÀããûò[öﬂ_J_BÇò\ﬁ[ò»ù[ò›[€àô[ô\îò[ö⁄[ô 
+^¬à€€ú›œX]ÿZ]ò[ö⁄[ô—]\Ÿ]
+
+K€ÿ[œYÀô€ÿ[ÀX]⁄\œYÀõX]⁄\À›\õò[Y[ùœYÀù›\õò[Y[ùŒ¬à€€ú›ŸX\€€î⁄\ôPÿ\ôI
+	»‹ŸX\€€îXõX‘⁄\ôPÿ\ô	 KŸX\€€î⁄\ôR[ú]I
+	»‹ŸX\€€îXõX‘⁄\ôS[ö… N¬àYäŸX\€€î⁄\ôPÿ\ô
+\ŸX\€€î⁄\ôPÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀZ\–YZ[ä
+JN¬àYäŸX\€€î⁄\ôR[ú]
+\ŸX\€€î⁄\ôR[ú]ùò[YO\ŸX\€€îXõX‘ò[ö⁄[ô”[ö 
+N¬à€€ú››]œ[ô]»X\
+Àú^Y\úÀõX\
+OñﬁöY⁄YûöYò[YNûõò[YK\◊Ÿ‹õ›\€Y[Xô\éûö\◊Ÿ‹õ›\€Y[Xô\ã›Y\›€Ÿó‹^Y\ó⁄Yûô›Y\›€Ÿó‹^Y\ó⁄YŒåNåX]⁄YŒõô]»Ÿ]
+
+K›\õò[Y[ùYŒõô]»Ÿ]
+
+_WJJN¬à€€ú›X]⁄X\[ô]»X\
+X]⁄\ÀõX\
+OOñ€KöYWJJN¬à€ÿ[Àôõ‹ëXX⁄
+œOû¬à€€ú›O[X]⁄X\ôŸ]
+ÀõX]⁄⁄Y
+N¬àYä›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J^¬à€€ú›œ\›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+N‹Àô  Œ‹ÀõX]⁄YÀòY
+ÀõX]⁄⁄Y
+N⁄YäJ\Àù›\õò[Y[ùYÀòY
+Kù›\õò[Y[ù⁄Y
+N¬àBàYäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âú›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J^¬à€€ú›O\›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+NÿKòJ ŒÿKõX]⁄YÀòY
+ÀõX]⁄⁄Y
+N⁄YäJXKù›\õò[Y[ùYÀòY
+Kù›\õò[Y[ù⁄Y
+N¬àBàJN¬ÇàÀ»€›[ù\X\ò[òŸ\»]ô[à⁄]›]H€ÿ[ÿ\‹⁄\›\⁄[ô»X[HY[Xô\ú⁄\õ‹àXX⁄›\õò[Y[ùÇàõ‹ä€€ú››\àŸà›\õò[Y[ù ^¬à€€ú›Ÿ]NùX[\ﬂOX]ÿZ]ÿãôúõ€J	›X[\… KúŸ[X›
+	⁄Y	 Kô\J	››\õò[Y[ù⁄Y	À›\ãöY
+N¬à€€ú›X[RYœJX[\ﬂ◊JKõX\
+OûöY
+N¬àYä]X[RYÀõ[ô›
+X€€ù[ùYN¬à€€ú›Ÿ]NùOX]ÿZ]ÿãôúõ€J	›X[W‹^Y\ú… KúŸ[X›
+	 â Kö[ä	›X[W⁄Y	ÀX[RY N¬à€€ú›^Y\ïX[O[ô]»X\
+
+◊JKõX\
+Oñﬁú^Y\ó⁄YùX[W⁄YJJN¬à€€ú››\ìX]⁄\œ[X]⁄\Àôö[\äOOõKù›\õò[Y[ù⁄YOO]›\ãöY
+N¬àõ‹ä€€ú›‹^Y\íYX[RYHŸà^Y\ïX[Kô[ùöY\ 
+J^¬à€€ú›œ\›]ÀôŸ]
+^Y\íY
+N⁄Yä\ X€€ù[ùYN¬à€€ú›^YY]›\ìX]⁄\Àôö[\äOOõKö€YW›X[W⁄YOO]X[RYKò]ÿ^W›X[W⁄YOO]X[RY
+N¬àYä^YYõ[ô›
+^¬àÀù›\õò[Y[ùYÀòY
+›\ãöY
+N¬à^YYôõ‹ëXX⁄
+OOúÀõX]⁄YÀòY
+KöY
+JN¬àBàBàBÇà€€ú›[X]⁄Yœ[X]⁄\ÀõX\
+OOõKöY
+N¬à]ò[ö⁄[ô–\‹⁄Y€õY[ùœV◊N¬àYä[X]⁄YÀõ[ô›
+^¬à€€ú›Ÿ]NõXK\úõ‹éõXQ\úõ‹üOX]ÿZ]ÿãôúõ€J	€X]⁄‹^Y\óÿ\‹⁄Y€õY[ù… KúŸ[X›
+	 â Kö[ä	€X]⁄⁄Y	À[X]⁄Y N¬àYä[XQ\úõ‹ä\ò[ö⁄[ô–\‹⁄Y€õY[ùœ[X_◊N¬àBÇà€€ú›^Y\îŸX\€€î›]œ[ô]»X\
+Àú^Y\úÀõX\
+OñﬁöY¬àYûöYò[YNûõò[YK\◊Ÿ‹õ›\€Y[Xô\éûö\◊Ÿ‹õ›\€Y[Xô\ãàõ‹Y\ŒåX]⁄⁄[úŒåŒåNåò][ô’›[åò][ô”X]⁄\Œå]ôŒåàWJJN¬à€ÿ[Àôõ‹ëXX⁄
+œOû¬àYä^Y\îŸX\€€î›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J\^Y\îŸX\€€î›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ¬àYäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âú^Y\îŸX\€€î›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J\^Y\îŸX\€€î›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ Œ¬àJN¬ÇàX]⁄\Àôõ‹ëXX⁄
+OOû¬à€€ú›⁄[õô\èSù[Xô\äKö€YW‹ÿ€‹ôJOìù[Xô\äKò]ÿ^W‹ÿ€‹ôJO€Kö€YW›X[W⁄Yäù[Xô\äKò]ÿ^W‹ÿ€‹ôJOìù[Xô\äKö€YW‹ÿ€‹ôJO€Kò]ÿ^W›X[W⁄Yõù[
+N¬àò[ö⁄[ô–\‹⁄Y€õY[ùÀôö[\äOOòKõX]⁄⁄YOO[KöY	âòKùX[W⁄Y
+Kôõ‹ëXX⁄
+OOû¬à€€ú››\^Y\îŸX\€€î›]ÀôŸ]
+Kú^Y\ó⁄Y
+N⁄Yä\›
+\ô]\õé¬àYä⁄[õô\ââî›ö[ô KùX[W⁄Y
+OOOT›ö[ô ⁄[õô\äJ\›õX]⁄⁄[ú  Œ¬àYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+^¬à€€ú›úè\ò][ô—õ‹ìX]⁄^Y\äKKú^Y\ó⁄YKùX[W⁄Y€ÿ[ N¬àYäúä^‹›úò][ô’›[
+œ\úãúò][ôŒ‹›úò][ô”X]⁄\  ŒﬂBàBàJN¬àJN¬Çàõ‹ä€€ú››\àŸà›\õò[Y[ùÀôö[\äOùú›]\œOOIŸö[ö\⁄Y	 J^¬à€€ú››\ìX]⁄\œ[X]⁄\Àôö[\äOOõKù›\õò[Y[ù⁄YOO]›\ãöY
+N¬àYä]›\ìX]⁄\Àõ[ô›
+X€€ù[ùYN¬à€€ú›Ÿ]NùX[\ﬂOX]ÿZ]ÿãôúõ€J	›X[\… KúŸ[X›
+	⁄Yò[YI Kô\J	››\õò[Y[ù⁄Y	À›\ãöY
+N¬à€€ú›õ›‹œJX[\ﬂ◊JKõX\
+Oä⁄YûöYò[YNûõò[YKZéåéåéååúåòŒåŒåJJN¬à€€ú›€O[ô]»X\
+õ›‹ÀõX\
+OñﬁöYJJN¬à›\ìX]⁄\Àôõ‹ëXX⁄
+OOû¬à€€ú›O\€KôŸ]
+Kö€YW›X[W⁄Y
+Kè\€KôŸ]
+Kò]ÿ^W›X[W⁄Y
+N⁄YäX_Xä\ô]\õé¬àKõZä ŒÿãõZä ŒÿKòú
+œSù[Xô\äKö€YW‹ÿ€‹ô_
+NÿKòò œSù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+Nÿãòú
+œSù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+Nÿãòò œSù[Xô\äKö€YW‹ÿ€‹ô_
+N¬àYäù[Xô\äKö€YW‹ÿ€‹ôJOìù[Xô\äKò]ÿ^W‹ÿ€‹ôJJ^ÿKùä Œÿãô
+ ŒÿKú œLﬂBà[ŸHYäù[Xô\äKò]ÿ^W‹ÿ€‹ôJOìù[Xô\äKö€YW‹ÿ€‹ôJJ^ÿãùä ŒÿKô
+ Œÿãú œLﬂBà[Ÿ^ÿKõä Œÿãõä ŒÿKú  Œÿãú  ﬂBàJN¬àõ›‹Àú€‹ù
+
+KäOOòãúÀXKúﬂ
+ãòúXãòò KJKòúXKòò _ãòúXKòúKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à€€ú›⁄[\[€è\õ›‹÷ÃN⁄YäX⁄[\[€äX€€ù[ùYN¬à€€ú›ZYœ[ô]»Ÿ]
+›\ìX]⁄\ÀõX\
+OOõKöY
+JN¬à€€ú›⁄[\œ[ô]»Ÿ]
+ò[ö⁄[ô–\‹⁄Y€õY[ùÀôö[\äOOõZYÀö\ KõX]⁄⁄Y
+Iâî›ö[ô KùX[W⁄Y
+OOOT›ö[ô ⁄[\[€ãöY
+JKõX\
+OOòKú^Y\ó⁄Y
+JN¬à⁄[\Àôõ‹ëXX⁄
+YOû⁄Yä^Y\îŸX\€€î›]Àö\ Y
+J\^Y\îŸX\€€î›]ÀôŸ]
+Y
+Kùõ‹Y\  ŒﬂJN¬àBà^Y\îŸX\€€î›]Àôõ‹ëXX⁄
+œOû‹Àò]ôœ\Àúò][ô”X]⁄\œ‹Àúò][ô’›[‹Àúò][ô”X]⁄\ŒåﬂJN¬Çà€€ú›õ‹Tõ›‹œVÀããú^Y\îŸX\€€î›]Àùò[Y\ 
+WKôö[\äOûùõ‹Y\ﬂõX]⁄⁄[úﬂôﬂòJBàú€‹ù
+
+KäOOòãùõ‹Y\ÀXKùõ‹Y\ﬂãõX]⁄⁄[úÀXKõX]⁄⁄[úﬂãôÀXKôﬂãòKXKò_ãò]ôÀXKò]ôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à€€ú›‹^Y\îõ›‹œVÀããú^Y\îŸX\€€î›]Àùò[Y\ 
+WKôö[\äOûúò][ô”X]⁄\ Bàú€‹ù
+
+KäOOòãò]ôÀXKò]ôﬂãôÀXKôﬂãòKXKò_ãùõ‹Y\ÀXKùõ‹Y\ﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬Çà]õ‹Q^[ôYYò[ŸKYZ[ï‹^[ôYYò[ŸN¬à€€ú›ô[ô\ïõ‹Y\œJ
+OOû¬à€€ú›ö\⁄XõO]õ‹Q^[ôY›õ‹Tõ›‹Œùõ‹Tõ›‹Àú€XŸJL
+N¬à€€ú›õﬁI
+	»‹^Y\ïõ‹Tò[ö… N¬àYäõﬁ
+Xõﬁö[õô\íS]ö\⁄XõKõX\
+
+JOOû¬à€€ú›‹œ]õ‹Tõ›‹Àö[ô^Ÿä
+JÃN¬àô]\õà	œ]à€\‹œHúò[ö»	  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…Ÿ›Y\›\õ›…Œâ… J…»èèèâ  ‹œOOLO…¸'‰dIŒú‹ J…œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Yèâ ﬁõX]⁄⁄[ú …»öX›⁄\ôI  õX]⁄⁄[úœåO…‹…Œâ… J…»HX]⁄8†(à8¶ØH	 ﬁô …»8†(à<'„´»	 ﬁòJ úò][ô”X]⁄\œ…»8†(à8´d	 ﬁò]ôÀù—ö^Y
+JNâ… J…œŸ]èè‹‹[èèà€\‹œHúöY⁄èº'„·à	 ﬁùõ‹Y\ …œÿèèŸ]èâŒ¬àJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àõ‹0ÍYH[úôY⁄\›∞ÍKè‹âŒ¬à€€ú›èI
+	»›ŸŸ€T^Y\ïõ‹Tò[ö… N⁄Yää^ÿãò€\‹”\›ùŸŸ€J	⁄Y[âÀõ‹Tõ›‹Àõ[ô›LL
+Nÿãù^€€ù[ù]õ‹Q^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂBàN¬à€€ú›ô[ô\êYZ[ï‹J
+OOû¬à€€ú›ö\⁄XõOXYZ[ï‹^[ôY›‹^Y\îõ›‹Œù‹^Y\îõ›‹Àú€XŸJL
+N¬à€€ú›õﬁI
+	»ÿYZ[ï‹^Y\îò[ö… N¬àYäõﬁ
+Xõﬁö[õô\íS]ö\⁄XõKõX\
+
+JOOû¬à€€ú›‹œ]‹^Y\îõ›‹Àö[ô^Ÿä
+JÃN¬àô]\õà	œ]à€\‹œHúò[ö»	  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…Ÿ›Y\›\õ›…Œâ… J…»èèèâ  ‹œOOLO…¸'‰dIŒú‹ J…œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Yèâ ﬁúò][ô”X]⁄\ …»X]⁄	  úò][ô”X]⁄\œåO…‹…Œâ… J…»8†(à<'„·à	 ﬁùõ‹Y\ …»8†(à8¶ØH	 ﬁô …»8†(à<'„´»	 ﬁòJ…œŸ]èè‹‹[èèà€\‹œHúöY⁄è∏´d	 ﬁò]ôÀù—ö^Y
+JJ…œÿèèŸ]èâŒ¬àJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôHõ›H\‹€öXõKè‹âŒ¬à€€ú›èI
+	»›ŸŸ€PYZ[ï‹^Y\îò[ö… N⁄Yää^ÿãò€\‹”\›ùŸŸ€J	⁄Y[âÀ‹^Y\îõ›‹Àõ[ô›LL
+Nÿãù^€€ù[ùXYZ[ï‹^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂBàN¬àô[ô\ïõ‹Y\ 
+N‹ô[ô\êYZ[ï‹
+
+N¬àYä	
+	»›ŸŸ€T^Y\ïõ‹Tò[ö… JI
+	»›ŸŸ€T^Y\ïõ‹Tò[ö… Kõ€ò€X⁄œJ
+OOû›õ‹Q^[ôYH]õ‹Q^[ôY‹ô[ô\ïõ‹Y\ 
+NﬂN¬àYä	
+	»›ŸŸ€PYZ[ï‹^Y\îò[ö… JI
+	»›ŸŸ€PYZ[ï‹^Y\îò[ö… Kõ€ò€X⁄œJ
+OOûÿYZ[ï‹^[ôYHXYZ[ï‹^[ôY‹ô[ô\êYZ[ï‹
+
+NﬂN¬àYä	
+	»‹⁄\ôT^Y\ïõ‹Tò[ö… JI
+	»‹⁄\ôT^Y\ïõ‹Tò[ö… Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à]^I¸'„·àì‘0‚QT»ëST‘ï0‚T»Tàì’QUTóóâŒ¬àõ‹Tõ›‹Àôõ‹ëXX⁄
+
+JOOù^
+œJJÃJJ…Àà	 ﬁõò[YJ…»8†%	 ﬁùõ‹Y\ …»õ‹0ÍYI  ùõ‹Y\œåO…‹…Œâ… J…»8†(à	 ﬁõX]⁄⁄[ú …»öX›⁄\ôI  õX]⁄⁄[úœåO…‹…Œâ… J…»8†(à8¶ØH	 ﬁô …»8†(à<'„´»	 ﬁòJ…◊â N¬àYäò]öYÿ]‹ãú⁄\ôJ^›û^ÿ]ÿZ]ò]öYÿ]‹ãú⁄\ôJ›]Nâ’õ‹0ÍY\»ô[\‹ù0Í\»\àõ›Y]\âÀ^JN‹ô]\õüXÿ]⁄
+J^ﬂ_Bàû^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+^
+N›ÿ\›
+	–€\‹Ÿ[Y[ù\»õ‹0ÍY\»€‹pÍH8ß!I _Xÿ]⁄
+J^›ÿ\›
+	–€‹YH[\‹‹⁄XõI _BàN¬Çà]ÿ€‹èVÀããú›]Àùò[Y\ 
+WKôö[\äOûôﬂõX]⁄YÀú⁄^ô_ù›\õò[Y[ùYÀú⁄^ôJBàú€‹ù
+
+KäOOòãôÀXKôﬂãòKXKò_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]\‹œVÀããú›]Àùò[Y\ 
+WKôö[\äOûòJBàú€‹ù
+
+KäOOòãòKXKò_ãôÀXKôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àÿ€‹èX€€\]][€îò[ö‹ ÿ€‹ã	Ÿ… Nÿ\‹œX€€\]][€îò[ö‹ \‹À	ÿI N¬Çà	
+	»‹ÿ€‹ô\îò[ö… Kö[õô\íS\ÿ€‹ãõX\
+OÇà	œ]à€\‹œHúò[ö»	  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ﬁúò[ö …œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèâ  ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…œ‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›Xô[
+
+öY
+JJJ…œ‹‹[èâŒâ… J…œ]à€\‹œHõ]]Yèâ ﬁù›\õò[Y[ùYÀú⁄^ôJ…»›\õõ⁄I  ù›\õò[Y[ùYÀú⁄^ôOåO…‹…Œâ… J…»8†(à	 ﬁõX]⁄YÀú⁄^ôJ…»X]⁄	  õX]⁄YÀú⁄^ôOåO…‹…Œâ… J…œŸ]èè‹‹[èèà€\‹œHúöY⁄èâ ﬁô …»ù]	  ôœåO…‹…Œâ… J…œÿèèŸ]èâ¬à
+Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH€õ∞ÍYO‹âŒ¬Çà	
+	»ÿ\‹⁄\›ò[ö… Kö[õô\íSX\‹ÀõX\
+OÇà	œ]à€\‹œHúò[ö»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁòJ…»\‹ŸI  òOåO…‹…Œâ… J…œÿèèŸ]èâ¬à
+Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH€õ∞ÍYO‹âŒ¬Çàô[ô\ïX[Tò[ö⁄[ô 
+N¬Çà]I¯¶ØH	  Àúò[ö”[ŸOOOI‹ŸX\€€âœ…–”T‘—SQSïïUUTî»HH–RT””âŒâ–”T‘—SQSïïUUTî»H’Tìì“I J…◊óâŒ¬àÿ€‹ãôõ‹ëXX⁄
+Où
+œ^úò[ö …Àà	 ﬁõò[YJ…»8†%	 ﬁô …»ù]	  ôœåO…‹…Œâ… J…»8†(à	 ﬁù›\õò[Y[ùYÀú⁄^ôJ…»›\õõ⁄I  ù›\õò[Y[ùYÀú⁄^ôOåO…‹…Œâ… J…»8†(à	 ﬁõX]⁄YÀú⁄^ôJ…»X]⁄	  õX]⁄YÀú⁄^ôOåO…‹…Œâ… J…◊â N¬à
+œI◊º'„´»T‘—UTî◊âŒ¬à\‹Àôõ‹ëXX⁄
+Où
+œ^úò[ö …Àà	 ﬁõò[YJ…»8†%	 ﬁòJ…»\‹ŸI  òOåO…‹…Œâ… J…◊â N¬à
+œI◊º'„·àì‘0‚QT»ëST‘ï0‚T»Tàì’QUTóâŒ¬àõ‹Tõ›‹Àôõ‹ëXX⁄
+
+JOOù
+œJJÃJJ…Àà	 ﬁõò[YJ…»8†%	 ﬁùõ‹Y\ …»õ‹0ÍYI  ùõ‹Y\œåO…‹…Œâ… J…◊â N¬àYäÀù€‹ö‹‹XŸQôX]\ô\Àú^Y\ó‹ò][ô‹◊Ÿ[òXõY
+^¬à
+œI◊∏´d‘VQTóâŒ¬à‹^Y\îõ›‹Àôõ‹ëXX⁄
+
+JOOù
+œJJÃJJ…Àà	 ﬁõò[YJ…»8†%	 ﬁò]ôÀù—ö^Y
+JJ…ÀÃLâ N¬àBà	
+	»‹⁄\ôU^	 Kùò[YO]¬üBÇôù[ò›[€àô[ô\ïX[Tò[ö⁄[ô 
+^ÿ€€ú›èTÀùX[\ÀõX\
+Oä⁄YûöYò[YNûõò[YKZéåéåéååúåòŒåŒåJJKX\[ô]»X\
+ãõX\
+OñﬁöYJJN‘ÀõX]⁄\Àôõ‹ëXX⁄
+OOûÿ€€ú›[X\ôŸ]
+Kö€YW›X[W⁄Y
+KO[X\ôŸ]
+Kò]ÿ^W›X[W⁄Y
+N⁄YäZXJ\ô]\õé⁄õZä ŒÿKõZä Œ⁄òú
+œ[Kö€YW‹ÿ€‹ôN⁄òò œ[Kò]ÿ^W‹ÿ€‹ôNÿKòú
+œ[Kò]ÿ^W‹ÿ€‹ôNÿKòò œ[Kö€YW‹ÿ€‹ôN⁄YäKö€YW‹ÿ€‹ôOõKò]ÿ^W‹ÿ€‹ôJ^⁄ùä ŒÿKô
+ Œ⁄ú œLﬂY[ŸHYäKò]ÿ^W‹ÿ€‹ôOõKö€YW‹ÿ€‹ôJ^ÿKùä Œ⁄ô
+ ŒÿKú œLﬂY[Ÿ^⁄õä ŒÿKõä Œ⁄ú  ŒÿKú  ﬂ_JN‹ãú€‹ù
+
+KäOOòãúÀXKúﬂ
+ãòúXãòò KJKòúXKòò _ãòúXKòú
+N…
+	»›X[Tò[ö… Kö[õô\íS\ãõX\
+
+JOOâœ]à€\‹œHúò[ö»èèèâ  JÃJJ…œÿèè‹[èâ Ÿ\ÿ õò[YJJ…»‹[à€\‹œHõ]]Yèä	 ﬁõZä…»RäO‹‹[èè‹‹[èèà€\‹œHúöY⁄èâ ﬁú …»œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH0Í\]Z\O‹âﬂBôÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	Àúò[ö”[ŸI Kôõ‹ëXX⁄
+èOòãõ€ò€X⁄œJ
+OOû‘Àúò[ö”[ŸOXãô]\Ÿ]õ[ŸNŸÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	Àúò[ö”[ŸI Kôõ‹ëXX⁄
+Oûò€\‹”\›ùŸŸ€J	‹ö[X\ûIÀOOXäJN‹ô[ô\îò[ö⁄[ô 
+_JN¬â
+	»‹⁄\ôU⁄]ÿ\	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›^I
+	»‹⁄\ôU^	 Kùò[YN⁄Yäò]öYÿ]‹ãú⁄\ôJ^›û^ÿ]ÿZ]ò]öYÿ]‹ãú⁄\ôJ›]Nâ–€\‹Ÿ[Y[ùH›\õõ⁄IÀ^JN‹ô]\õüXÿ]⁄ﬂ_X]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+^
+N›ÿ\›
+	‘∞Í\›[pÍH€‹pÍI _N¬öYä	
+	»ÿ€‹TŸX\€€îXõX‘⁄\ôS[ö… JI
+	»ÿ€‹TŸX\€€îXõX‘⁄\ôS[ö… Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›[öœI
+	»‹ŸX\€€îXõX‘⁄\ôS[ö… Kùò[YN⁄Yä[[ö \ô]\õàÿ\›
+	–]X›[ôHÿZ\€€àX›]ôKâ N›û^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+[ö N›ÿ\›
+	”Y[àHHÿZ\€€à€‹pÍH8ß!I _Xÿ]⁄
+J^…
+	»‹ŸX\€€îXõX‘⁄\ôS[ö… KúŸ[X›
+
+NŸÿ›[Y[ùô^X–€€[X[ô
+	ÿ€‹I N›ÿ\›
+	”Y[àHHÿZ\€€à€‹pÍH8ß!I __N¬öYä	
+	»‹⁄\ôTŸX\€€îXõX‘⁄\ôS[ö… JI
+	»‹⁄\ôTŸX\€€îXõX‘⁄\ôS[ö… Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›[öœI
+	»‹ŸX\€€îXõX‘⁄\ôS[ö… Kùò[YN⁄Yä[[ö \ô]\õàÿ\›
+	–]X›[ôHÿZ\€€àX›]ôKâ Nÿ€€ú›ŸX\€€èTÀúŸX\€€úÀôö[ô
+Oûö\◊ÿX›]ôJ_ÀúŸX\€€ú÷ÃKŸX\€€ìò[YOT›ö[ô ŸX\€€èÀõò[Y_	Ÿ[à€›\ú… Kúô\XŸJ◊úÿZ\€€ó À⁄K	… KY\‹ÿYŸOI’õ⁄X⁄H\»∞Í\›[]»HHÿZ\€€à	 ‹ŸX\€€ìò[YN⁄Yäò]öYÿ]‹ãú⁄\ôJ^›û^ÿ]ÿZ]ò]öYÿ]‹ãú⁄\ôJ›]Nâ‘∞Í\›[]»HHÿZ\€€à’‚IÀ^õY\‹ÿYŸK\õõ[öﬂJN‹ô]\õüXÿ]⁄
+J^⁄YäKõò[YOOOI–Xõ‹ù\úõ‹â \ô]\õü_]û^ÿ]ÿZ]ò]öYÿ]‹ãò€\õÿ\ôù‹ö]U^
+Y\‹ÿYŸJ…◊â €[ö N›ÿ\›
+	”Y\‹ÿYŸH]Y[à€‹pÍ\»8ß!I _Xÿ]⁄
+J^›ÿ\›
+	‘\ùYŸH[ô\‹€öXõI __N¬öYä	
+	»€‹[îŸX\€€îXõX‘⁄\ôS[ö… JI
+	»€‹[îŸX\€€îXõX‘⁄\ôS[ö… Kõ€ò€X⁄œJ
+OOûÿ€€ú›[öœI
+	»‹ŸX\€€îXõX‘⁄\ôS[ö… Kùò[YN⁄Yä[ö ]⁄[ô›Àõ‹[ä[öÀ	◊ÿõ[ö…À	€õ€‹[ô\â _N¬Çôù[ò›[€à›Xúÿ‹öXôTôX[[YJ
+^⁄YäÀò⁄[õô[
+\ÿãúô[[›ôP⁄[õô[
+Àò⁄[õô[
+N€][Y\éÿ€€ú›ô[ÿYJ
+OOûÿ€X\ï[Y[›]
+[Y\äN›[Y\è\Ÿ][Y[›]
+\ﬁ[ò 
+OOò]ÿZ]ÿY[
+
+KçL
+_N‘Àò⁄[õô[\ÿãò⁄[õô[
+	››\õõ⁄K[X[òYŸ\â Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ‹^Y\ú…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ‹ŸX\€€ú…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ››\õò[Y[ù…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ››\õò[Y[ù‹^Y\ú…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ›X[\…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ›X[W‹^Y\ú…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ€X]⁄\…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâŸ€ÿ[…ﬂKô[ÿY
+Kõ€ä	‹‹›‹ô\◊ÿ⁄[ôŸ\…ÀŸ]ô[ùâ âÀÿ⁄[XNâ‹XõX…ÀXõNâ€X]⁄‹^Y\óÿ\‹⁄Y€õY[ù…ﬂKô[ÿY
+Kú›Xúÿ‹öXôJ
+_BÇöYä	‹Ÿ\ùöXŸU€‹öŸ\â»[àò]öYÿ]‹ä^¬àò]öYÿ]‹ãúŸ\ùöXŸU€‹öŸ\ãúôY⁄\›\ä	Àã‹›Àöúœ›èMå…À›\]UöXPÿX⁄Nâ€õ€ôIﬂJBàù[äôYœOû¬àôYÀù\]J
+Kòÿ]⁄
+
+
+OOûﬂJN¬àò]öYÿ]‹ãúŸ\ùöXŸU€‹öŸ\ãòY]ô[ù\›[ô\ä	ÿ€€ùõ€\ò⁄[ôŸIÀ
+
+OOû¬àYäŸ\‹⁄[€î›‹òYŸKôŸ]][J	‘’◊–ïRS‘ëS–QÕå… J\ô]\õé¬àŸ\‹⁄[€î›‹òYŸKúŸ]][J	‘’◊–ïRS‘ëS–QÕå…À	ÃI N¬àÿÿ][€ãúô[ÿY
+
+N¬àK€€òŸNùùY_JN¬àô]\õàôYŒ¬àJBàù[äôYœOúôYÀù\]J
+JBàòÿ]⁄
+
+
+OOûﬂJN¬üBúÿãò]]õ€ê]]›]P⁄[ôŸJ
+]ô[ùŸ\‹⁄[€äOOû⁄Yä]ô[ùOOI‘T‘’”‘ë‘ëP”’ëTñI ^‘ÀúŸ\‹⁄[€è\Ÿ\‹⁄[€é‹⁄›‘ôX€›ô\ûQõ‹õJ
+N‹ô]\õü\Ÿ][Y[›]
+]]›]K
+_JN¬Çôù[ò›[€à]\››\õò[Y[ùõ‹ïö\›X[
+
+^¬àô]\õà›\úô[ù›\ä
+_Àù›\õò[Y[ù÷Ã_ù[¬üBÇò€€ú›íT’PS’œLLíT’PS“LLÕL¬õ]›\úô[ùö\›X[õÿè[ù[¬õ]›\úô[ùö\›X[ö[[ò[YOI››\õõ⁄KYKY[X[ò⁄Kúô…Œ¬Çôù[ò›[€àîõ›[ôôX›
+›KÀãö[›õ⁄ŸJ^¬à€€ú›úèSX]õZ[äãÀÃãÃäN¬à›òôY⁄[î]
+
+N¬à›õ[›ôU 
+‹úãJNÿ›ò\ò’ 
+›ÀK
+›ÀJ⁄úäNÿ›ò\ò’ 
+›ÀJ⁄J⁄úäN¬à›ò\ò’ J⁄KúäNÿ›ò\ò’ K
+›ÀKúäNÿ›ò€‹ŸT]
+
+N¬àYäö[
+^ÿ›ôö[›[OYö[ÿ›ôö[
+
+NﬂBàYä›õ⁄ŸJ^ÿ›ú›õ⁄ŸT›[O\›õ⁄ŸNÿ›ú›õ⁄ŸJ
+NﬂBüBôù[ò›[€àï^
+›^KX^⁄Yõ€ù€€‹ã[Y€èI€Yù	 ^¬à›ôõ€ùYõ€ùÿ›ôö[›[OX€€‹éÿ›ù^[Y€èX[Y€éÿ›ù^ò\Ÿ[[ôOIÿ[Xô]X…Œ¬à›ôö[^
+›ö[ô ^
+KKX^⁄Y
+N¬üBôù[ò›[€àï‹ò\
+›^X^⁄Y
+^¬à€€ú›€‹ôœT›ö[ô ^	… Kú‹]
+◊ À Nÿ€€ú›[ô\œV◊N€][ôOI…Œ¬à€‹ôÀôõ‹ëXX⁄
+€‹ôOû¬à€€ú›\›[[ôO€[ôJ…»	 ›€‹ôù€‹ô¬àYä›õYX\›\ôU^
+\›
+Kù⁄YõX^⁄Y	âà[ôJ^€[ô\Àú\⁄
+[ôJN€[ôO]€‹ôY[ŸH[ôO]\›¬àJN¬àYä[ôJ[[ô\Àú\⁄
+[ôJN¬àô]\õà[ô\Œ¬üBôù[ò›[€àëò]’‹ò\Y
+›^KX^⁄Y[ôRZY⁄õ€ù€€‹ãX^[ô\œL ^¬à›ôõ€ùYõ€ùÿ›ôö[›[OX€€‹éÿ›ù^[Y€èI€Yù	Œ¬à€€ú›[ô\œ]ï‹ò\
+›^X^⁄Y
+Kú€XŸJX^[ô\ N¬à[ô\Àôõ‹ëXX⁄
+
+[ôKJOOò›ôö[^
+[ôKJ⁄Jõ[ôRZY⁄X^⁄Y
+JN¬àô]\õàJ€[ô\Àõ[ô›
+õ[ôRZY⁄¬üBôù[ò›[€àö\›X[]J
+^¬àû^‹ô]\õàô]»]J
+Àù›\õò[Y[ùŸ]_	… J…’Léåå	 Kù”ÿÿ[Q]T›ö[ô 	ŸúãQîâÀ›ŸYZŸ^Nâ€€ô…À^NâÃãYY⁄]	À[€ùâ€€ô…ÀYX\éâ€ù[Y\öX…ﬂJ_Bàÿ]⁄
+J^‹ô]\õàÀù›\õò[Y[ùŸ]_	…ﬂBüBôù[ò›[€àö\›X[[YJ›]K
+^¬à€€ú›œX›ò‹ôX]S[ôX\ë‹òYY[ù
+LLÕL
+N¬àÀòY€€‹î›‹
+	»ÃéLY	 NŸÀòY€€‹î›‹
+çã	»ÃÿåéI NŸÀòY€€‹î›‹
+K	»ÃåXÃM	 N¬à›ôö[›[OYŒÿ›ôö[ôX›
+íT’PS’ÀíT’PS“
+N¬à›ô€ÿò[[OKåÿ›ôö[›[OI»ŸôôôôôâŒ¬àõ‹ä]OL⁄OMé⁄J  ^ÿ›òôY⁄[î]
+
+Nÿ›ò\ò 
+⁄JçÕKLL
+ IL JçãåãX]îJåäNÿ›ôö[
+
+_Bà›ô€ÿò[[OLN¬àï^
+›	¯¶ØH’‚H’TìêSQSïKÕIÀÃLKM	ÕÃÕ\öX[	À	»ŒYYMòé	 N¬àï^
+›]KÃNM	Œåú\öX[	À	»Ÿôôôôôâ N¬àï^
+›ö\›X[]J
+KÃåéM	ÕLé\öX[	À	»ÿŒYMŸI N¬à›ôö[›[OI»ÃÕòÃÕò…Œÿ›ôö[ôX›
+ÃçNLMK N¬üBôù[ò›[€àö\›X[õ€›\ä›
+^¬àï^
+›
+Àõò[Y_	‘’‚H’TìêSQSïKÕI KÃLéLãÕå	Õåç\öX[	À	»ÿNŒXçâ N¬àï^
+›	—Í[∞Í\∞ÍH\à8†&X\	ÀLLLéLãÃ	ÕLåú\öX[	À	»ÕŸLéIÀ	‹öY⁄	 N¬üBÇôù[ò›[€àXZŸUö\›X[X[\ ›
+^¬àö\›X[[YJ›	‚TURTT…À
+N¬à]OLÃå¬à€€ú›ÿ\ôœTÀùX[\Àú€XŸJ
+N¬àÿ\ôÀôõ‹ëXX⁄
+
+X[KY
+OOû¬à€€ú›Yœ]X[T^Y\íY X[KöY
+N¬à€€ú›ò[Y\œZYÀõX\
+YOú^Y\ë\‹^Sò[YJ
+Y
+JJKôö[\äõ€€X[äN¬à€€ú›ÿ\ôSX]õX^
+LNŒ
+”X]òŸZ[
+ò[Y\Àõ[ô›ÃäJåŒ
+N¬àîõ›[ôôX›
+›ÃKMÿ\ôç	»Ÿôôôôôâ N¬à€€ú›ôœ\›ŸUX[P€€‹äX[JKôœ\›ŸUX[U^€€‹äô N¬àîõ›[ôôX›
+›LJÃåãNKLãMKô N¬àï^
+›	¸'‰eH	 ›X[Kõò[YKNãJÕMÀMçK	Œå‹\öX[	ÀôÀ	ÿŸ[ù\â N¬àï^
+››ŸUX[P€€‹ìXô[
+X[JKéMKJÕMÀLå	ÕÃN\öX[	À	»ÕççÕMôI N¬à€€ú›ò[[òŸOTÀùX[Pò[[òŸTÿ€‹ô\Àôö[ô
+Oî›ö[ô ùX[W⁄Y
+OOOT›ö[ô X[KöY
+JN¬àYäò[[òŸJ^¬àï^
+›	¸'‰-à⁄Y[àõ›[XÿY[^H	 ”ù[Xô\äò[[òŸKùX[W‹ÿ€‹ô_
+Kù—ö^Y
+JJ…ÀÕIÀLÃJÕNÃL	ÕÃN\\öX[	À	»ÃÕòåŸ	À	‹öY⁄	 N¬àBà]LéKO^JÕL¬àò[Y\Àôõ‹ëXX⁄
+
+ò[YKJOOû¬à€€ú›€€ZILãõ›œSX]ôõ€‹äKÃäN¬àï^
+›	¯†(à	 €ò[YK
+ÿ€€
+åÕKJ‹õ› åŒÃå	Õåç\öX[	À	»ÃNÕé	 N¬àJN¬àJœXÿ\ô
+Ãå¬àJN¬àYäXÿ\ôÀõ[ô›
+]ï^
+›	–]X›[ôH0Í\]Z\H‹∞ÍpÍYIÀÃŒLM	ÕåÕ\öX[	À	»Ÿôôôôôâ N¬à€€ú››Xúœ]›\õò[Y[ù€€[[€î›Xú›]]\ 
+N¬àYä›XúÀõ[ô›	âàOLNMJ^¬à€€ú›SX]õX^
+ÕM
+”X]òŸZ[
+›XúÀõ[ô›Ã JåÃ
+N¬àîõ›[ôôX›
+›ÃKMå	»Ÿôôçâ N¬àï^
+›	¸'ÁËëSTp·–Sï»””SUSî…ÀMKJÃŒÃ	Œå\\öX[	À	»ŒXMXL	 N¬à›XúÀôõ‹ëXX⁄
+
+JOOûÿ€€ú›€€ZILÀõ›œSX]ôõ€‹äKÃ N›ï^
+›^Y\ë\‹^Sò[YJ
+KJÿ€€
+åNMKJÃÕä‹õ› åÃN	ÕåN\öX[	À	»ÕXçLôI NﬂJN¬àBàö\›X[õ€›\ä›
+N¬üBÇôù[ò›[€àXZŸUö\›X[ô\›[ ›
+^¬àö\›X[[YJ›	‘∞‚T’SU…À
+N¬à]OLÃMN¬à€€ú›X]⁄\œTÀõX]⁄\Àú€XŸJLäN¬àX]⁄\Àôõ‹ëXX⁄
+
+KJOOû¬à€€ú›€YO]JKö€YW›X[W⁄Y
+OÀõò[Y_	œ…Œ¬à€€ú›]ÿ^O]JKò]ÿ^W›X[W⁄Y
+OÀõò[Y_	œ…Œ¬àîõ›[ôôX›
+›ÃKMÕãå	»Ÿôôôôôâ N¬àï^
+›	”I  JÃJKLãJÕKÃ	Œåú\öX[	À	»ÃÕòåŸ	 N¬àï^
+›€YKåKJÕKçÃ	ÕÃç\\öX[	À	»ÃNÕé	À	‹öY⁄	 N¬àîõ›[ôôX›
+›JÃMKLåM	»ÃÿåéI N¬àï^
+›
+Kö€YW‹ÿ€‹ôOœÃ
+J…»H	  Kò]ÿ^W‹ÿ€‹ôOœÃ
+KMJÕKLK	Œé\öX[	À	»ŸôôôôôâÀ	ÿŸ[ù\â N¬àï^
+›]ÿ^KåçKJÕKçÃ	ÕÃç\\öX[	À	»ÃNÕé	 N¬àYäKú]⁄
+]ï^
+›Kú]⁄MÕKJÕKLå	Õåå\öX[	À	»ÕòéÕIÀ	‹öY⁄	 N¬àJœNL¬àJN¬àYä[X]⁄\Àõ[ô›
+]ï^
+›	–]X›[àX]⁄[úôY⁄\›∞ÍIÀÃŒLM	ÕåÕ\öX[	À	»Ÿôôôôôâ N¬àö\›X[õ€›\ä›
+N¬üBÇôù[ò›[€à›\õò[Y[ùÿ€‹ô\ïö\›X[]J
+^¬à€€ú››]œ[ô]»X\
+Àú^Y\úÀõX\
+OñﬁöY⁄YûöYò[YNûõò[YKŒå›Y\›ûö\◊Ÿ‹õ›\€Y[Xô\èOOYò[Ÿ_WJJN¬àÀô€ÿ[Àôõ‹ëXX⁄
+œOû⁄Yä›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J\›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  ﬂJN¬à]\úèVÀããú›]Àùò[Y\ 
+WKôö[\äOûô Kú€‹ù
+
+KäOOòãôÀXKôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]ô]è[ù[ò[öœL¬àô]\õà\úãõX\
+
+JOOû⁄Yäô»OO\ô]ä^‹ò[öœZJÃN‹ô]è^ôﬂ\ô]\õàÀããûò[öﬂ_JN¬üBôù[ò›[€àXZŸUö\›X[ÿ€‹ô\ú ›
+^¬àö\›X[[YJ›	–”T‘—SQSïïUUTî…À
+N¬à€€ú›\úè]›\õò[Y[ùÿ€‹ô\ïö\›X[]J
+Kú€XŸJM
+N¬à]OLÃMN¬à\úãôõ‹ëXX⁄
+
+JOOû¬à€€ú›Ÿ][O^úò[öœLŒ¬àîõ›[ôôX›
+›ÃKMçNŸ][O…»ŸNYéYâŒâ»Ÿôôôôôâ N¬à€€ú›YY[^úò[öœOOLO…¸'Èa…Œûúò[öœOOLè…¸'Èb	Œûúò[öœOOLœ…¸'ÈbIŒî›ö[ô úò[ö N¬àï^
+›YY[LKJÕÀå	Œç‹\öX[	À	»ÃÕòåŸ	 N¬àï^
+›õò[YJ ô›Y\›…»8†(à›Y\›	Œâ… KNLJÕÀåÃ	ÕÃç\\öX[	Àô›Y\›…»ÕÃNŒIŒâ»ÃNÕé	 N¬àï^
+›ô …»ù]	  ôœåO…‹…Œâ… KMMKJÕÀMå	Œçú\öX[	À	»ÃÕòåŸ	À	‹öY⁄	 N¬àJœMÕé¬àJN¬àYäX\úãõ[ô›
+]ï^
+›	–]X›[àù][úôY⁄\›∞ÍIÀÃŒLM	ÕåÕ\öX[	À	»Ÿôôôôôâ N¬àö\›X[õ€›\ä›
+N¬üBÇò\ﬁ[ò»ù[ò›[€àŸ[ô\ò]Uö\›X[
+⁄[ô
+^¬à€€ú›[]\››\õò[Y[ùõ‹ïö\›X[
+
+N¬àYä]
+\ô]\õàÿ\›
+	–]X›[à›\õõ⁄H\‹€öXõKâ N¬à€€ú›ÿ[ùò\œI
+	»›ö\›X[ÿ[ùò\… K›Xÿ[ùò\ÀôŸ]€€ù^
+	Ãô	 N¬àÿ[ùò\Àù⁄YUíT’PS’Œÿÿ[ùò\ÀöZY⁄UíT’PS“¬àYä⁄[ôOOI›X[\… [XZŸUö\›X[X[\ ›
+N¬à[ŸHYä⁄[ôOOI‹ô\›[… [XZŸUö\›X[ô\›[ ›
+N¬à[ŸHXZŸUö\›X[ÿ€‹ô\ú ›
+N¬à›\úô[ùö\›X[ö[[ò[YOI››\õõ⁄KI ⁄⁄[ô
+…ÀI  ù›\õò[Y[ùŸ]_	… Kúô\XŸP[
+	ÀIÀ	… J…Àúô…Œ¬à›\úô[ùö\›X[õÿèX]ÿZ]ô]»õ€Z\ŸJô\€€ôOOòÿ[ùò\Àù–õÿäô\€€ôK	⁄[XYŸK‹ô…ÀJJN¬à	
+	»›ö\›X[ô]öY]–õﬁ	 Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à	
+	»›ö\›X[ô]öY]–õﬁ	 Kúÿ‹õ€[ù’öY] ÿôZ]ö[‹éâ‹€[€›	Àõÿ⁄ŒâÿŸ[ù\âﬂJN¬àÿ\›
+	’ö\›Y[Í[∞Í\∞ÍH8ß!I N¬üBÇò\ﬁ[ò»ù[ò›[€àÿ]ôP›\úô[ùö\›X[
+
+^¬àYäX›\úô[ùö\›X[õÿä\ô]\õàÿ\›
+	—Í[∞ÍôH8†&XXõ‹ô[àö\›Y[â N¬à€€ú›\õUTìò‹ôX]SÿöôX›Tì
+›\úô[ùö\›X[õÿäN¬à€€ú›OYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿI NÿKöôYè]\õÿKô›€õÿYX›\úô[ùö\›X[ö[[ò[YN¬àÿ›[Y[ùòõŸKò\[ô⁄[
+JNÿKò€X⁄ 
+NÿKúô[[›ôJ
+N¬àŸ][Y[›]
+
+
+OOïTìúô]õ⁄ŸSÿöôX›Tì
+\õ
+KML
+N¬üBò\ﬁ[ò»ù[ò›[€à⁄\ôP›\úô[ùö\›X[
+
+^¬àYäX›\úô[ùö\›X[õÿä\ô]\õàÿ\›
+	—Í[∞ÍôH8†&XXõ‹ô[àö\›Y[â N¬à€€ú›ö[O[ô]»ö[Jÿ›\úô[ùö\›X[õÿóK›\úô[ùö\›X[ö[[ò[YK›\Nâ⁄[XYŸK‹ô…ﬂJN¬àYäò]öYÿ]‹ãòÿ[î⁄\ôH	âàò]öYÿ]‹ãòÿ[î⁄\ôJŸö[\ŒñŸö[W_JH	âàò]öYÿ]‹ãú⁄\ôJ^¬àû^¬à]ÿZ]ò]öYÿ]‹ãú⁄\ôJŸö[\ŒñŸö[WK]Nâ‘’‚H’TìêSQSïKÕIﬂJN¬àô]\õé¬àXÿ]⁄
+J^⁄YäKõò[YOOOI–Xõ‹ù\úõ‹â \ô]\õéﬂBàBàÿ]ôP›\úô[ùö\›X[
+
+N¬àÿ\›
+	‘\ùYŸHHöX⁄Y\àõ€à\‹€öXõHà[XYŸH[úôY⁄\›∞ÍYKâ N¬üBâ
+	»›ö\›X[X[\… Kõ€ò€X⁄œJ
+OOôŸ[ô\ò]Uö\›X[
+	›X[\… N¬â
+	»›ö\›X[ô\›[… Kõ€ò€X⁄œJ
+OOôŸ[ô\ò]Uö\›X[
+	‹ô\›[… N¬â
+	»›ö\›X[ÿ€‹ô\ú… Kõ€ò€X⁄œJ
+OOôŸ[ô\ò]Uö\›X[
+	‹ÿ€‹ô\ú… N¬â
+	»Ÿ›€õÿYö\›X[	 Kõ€ò€X⁄œ\ÿ]ôP›\úô[ùö\›X[¬â
+	»‹⁄\ôUö\›X[	 Kõ€ò€X⁄œ\⁄\ôP›\úô[ùö\›X[¬â
+	»ÿ€‹ŸUö\›X[	 Kõ€ò€X⁄œJ
+OOâ
+	»›ö\›X[ô]öY]–õﬁ	 Kò€\‹”\›òY
+	⁄Y[â N¬Çôù[ò›[€àXõX“\›‹ûTô]\õï\õ
+⁄Ÿ[ä^¬à€€ú›O\›ŸTXõX‘\ò[\ 
+N¬à€€ú››][ô]»TìŸX\ò⁄\ò[\ 
+N¬à›]úŸ]
+	‹XõX…À⁄Ÿ[äN¬àõ‹ä€€ú›Ÿ^HŸà…››\õò[Y[ù	À	›öY]…À	€[ŸIÀ	€XY›YI◊J^¬à€€ú›ò[YO\KôŸ]
+Ÿ^JN¬àYäò[YJ[›]úŸ]
+Ÿ^Kò[YJN¬àBàô]\õàT’Tì
+…œ… €›]ù‘›ö[ô 
+N¬üBôù[ò›[€àXõX“\›‹ûU\õ
+⁄Ÿ[ã\›‹ûRY
+^¬à€€ú›O\›ŸTXõX‘\ò[\ 
+N¬à€€ú››‹ôY\›ŸT›‹ôYXõX‘ôY⁄\›ò][€ê€€ù^
+
+N¬à€€ú›ô[Y[Xô\ôY\›‹ôYúXõXœOOT›ö[ô ⁄Ÿ[äO‹›‹ôYûﬂN¬à€€ú››][ô]»TìŸX\ò⁄\ò[\ 
+N¬à›]úŸ]
+	‹XõX…À⁄Ÿ[äN¬à›]úŸ]
+	⁄\›‹ûIÀ\›‹ûRY
+N¬à€€ú›⁄‹ù\KôŸ]
+	‹… _ô[Y[Xô\ôYúŒ⁄Yä◊ñ–KVòK^åNW^ÃKÃüIÀù\›
+⁄‹ù	… J[›]úŸ]
+	Ÿúõ€W‹…À⁄‹ù
+N¬àõ‹ä€€ú›Ÿ^HŸà…››\õò[Y[ù	À	›öY]…À	€[ŸIÀ	€XY›YI◊J^¬à€€ú›ò[YO\KôŸ]
+Ÿ^J_ô[Y[Xô\ôY⁄Ÿ^WN¬àYäò[YJ[›]úŸ]
+	Ÿúõ€W… ⁄Ÿ^Kò[YJN¬àBàô]\õàT’Tì
+…œ… €›]ù‘›ö[ô 
+N¬üBôù[ò›[€àXõX“\›‹ûPòX⁄’\õ
+⁄Ÿ[ä^¬à€€ú›O\›ŸTXõX‘\ò[\ 
+N¬à€€ú››‹ôY\›ŸT›‹ôYXõX‘ôY⁄\›ò][€ê€€ù^
+
+N¬à€€ú›ô[Y[Xô\ôY\›‹ôYúXõXœOOT›ö[ô ⁄Ÿ[äO‹›‹ôYûﬂN¬à€€ú›⁄‹ù\KôŸ]
+	Ÿúõ€W‹… _ô[Y[Xô\ôYúŒ⁄Yä◊ñ–KVòK^åNW^ÃKÃüIÀù\›
+⁄‹ù	… J\ô]\õàT’Tì
+…œ‹œI Ÿ[ò€ŸUTíP€€\€ô[ù
+⁄‹ù
+N¬à€€ú››][ô]»TìŸX\ò⁄\ò[\ 
+N¬à›]úŸ]
+	‹XõX…À⁄Ÿ[äN¬àõ‹ä€€ú›Ÿ^HŸà…››\õò[Y[ù	À	›öY]…À	€[ŸIÀ	€XY›YI◊J^¬à€€ú›ò[YO\KôŸ]
+	Ÿúõ€W… ⁄Ÿ^J_ô[Y[Xô\ôY⁄Ÿ^WN¬àYäò[YJ[›]úŸ]
+Ÿ^Kò[YJN¬àBàô]\õàT’Tì
+…œ… €›]ù‘›ö[ô 
+N¬üBÇôù[ò›[€à›ŸTXõX‘\ò[\ 
+^¬à€€ú›O[ô]»TìŸX\ò⁄\ò[\ ÿÿ][€ãúŸX\ò⁄
+N¬à€€ú›è]⁄[ô›Àó◊‹›ŸTô\€€ôY⁄‹ù[öŒ¬àYää^¬àYäãù›\õò[Y[ù
+\KúŸ]
+	››\õò[Y[ù	Àãù›\õò[Y[ù
+N¬àYäãùöY] \KúŸ]
+	›öY]…ÀãùöY] N¬àYäãõXY›YJ\KúŸ]
+	€XY›YIÀãõXY›YJN¬àBàô]\õàN¬üBôù[ò›[€à›ŸTô[Y[Xô\îXõX‘ôY⁄\›ò][€ê€€ù^
+
+^¬à€€ú›O\›ŸTXõX‘\ò[\ 
+N¬àYäKôŸ]
+	⁄\›‹ûI J\ô]\õé¬à€€ú››^‹XõXŒî›ö[ô KôŸ]
+	‹XõX… _XõX’⁄Ÿ[ëúõ€U\õ	… _N¬àõ‹ä€€ú›Ÿ^HŸà…‹…À	››\õò[Y[ù	À	›öY]…À	€[ŸIÀ	€XY›YI◊J^¬à€€ú›è\KôŸ]
+Ÿ^JN¬àYääX›⁄Ÿ^WO]é¬àBàYä›ù›\õò[Y[ù›ùöY]ﬂ›õ[Ÿ_›õXY›YJ^¬àû^‹Ÿ\‹⁄[€î›‹òYŸKúŸ]][J	‹›ŸW‹XõX◊‹ôY⁄\›ò][€óÿ€€ù^	Àî””ãú›ö[ô⁄YûJ›
+JNﬂXÿ]⁄
+J^ﬂBàBüBôù[ò›[€à›ŸT›‹ôYXõX‘ôY⁄\›ò][€ê€€ù^
+
+^¬àû^¬à€€ú›ò]œ\Ÿ\‹⁄[€î›‹òYŸKôŸ]][J	‹›ŸW‹XõX◊‹ôY⁄\›ò][€óÿ€€ù^	 N¬à€€ú›ÿöè\ò]œ“î””ãú\úŸJò] Nõù[¬àô]\õàÿöââù\[ŸàÿöèOOI€ÿöôX›	œ€ÿöéûﬂN¬àXÿ]⁄
+J^‹ô]\õàﬂ_BüBôù[ò›[€à^[Y[ù[€ô^JŸ[ù ^¬àô]\õà
+ù[Xô\äŸ[ùﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]ŒåãX^[][QúòX›[€ëY⁄]ŒåüJJ…»8†´	Œ¬üBôù[ò›[€à^[Y[ùô\‹ùö[ù
+ô\‹ùY]‹ìò[YOI… ^¬àYä\ô\‹ù
+\ô]\õé¬à]‹›Yÿ›[Y[ùôŸ][[Y[ùûRY
+	‹›ŸT^[Y[ùö[ù‹›	 N¬àYä‹›
+Z‹›úô[[›ôJ
+N¬à‹›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N¬à‹›öYI‹›ŸT^[Y[ùö[ù‹›	Œ¬à‹›ò€\‹”ò[YOI‹^[Y[ù\ö[ùZ‹›	Œ¬à€€ú›^Y\úœP\úò^Kö\–\úò^Jô\‹ùú^Y\ú O‹ô\‹ùú^Y\úŒñ◊N¬à€€ú›ÿ[⁄[úœP\úò^Kö\–\úò^Jô\‹ùùÿ[⁄[ú O‹ô\‹ùùÿ[⁄[úŒñ◊N¬à€€ú›õ›‹œVÀããú^Y\úÀõX\
+èOäÀããúãÿ[⁄[éôò[Ÿ_JJKããùÿ[⁄[úÀõX\
+èOäÀããúãÿ[⁄[éùùY_JJWN¬à€€ú›ZY\õ›‹Àôö[\äèOàH\ãúZY
+Kõ[ô›¬à€€ú›[úZY\õ›‹Àôö[\äèOà\ãúZY
+Kõ[ô›¬à€€ú››[\õ›‹Àôö[\äèOàH\ãúZY
+KúôYXŸJ
+›[KäOOú›[J”ù[Xô\äãò[[›[ùÿŸ[ùﬂô\‹ùô[ùûWŸôYWÿŸ[ùﬂ
+K
+N¬à€€ú›õ]J\€ OOû⁄YäZ\€ \ô]\õà	¯†%	Œ›û^‹ô]\õàô]»[ùë]U[YQõ‹õX]
+	ŸúãQîâÀŸ]T›[Nâ‹⁄‹ù	À[YT›[Nâ‹⁄‹ù	ﬂJKôõ‹õX]
+ô]»]J\€ JNﬂXÿ]⁄
+J^‹ô]\õà›ö[ô \€ __N¬à€€ú›õŸO\õ›‹ÀõX\
+èOâœèèâ Ÿ\ÿ ãú^Y\ó€ò[Y_	“õ›Y]\â J ãùÿ[⁄[è…»€X[äZõ›]0ÍH›\àXŸJO‹€X[âŒâ… J…œ›èâ Ÿ\ÿ ^[Y[ù[€ô^Jãò[[›[ùÿŸ[ùﬂô\‹ùô[ùûWŸôYWÿŸ[ùﬂ
+JJ…œ›èâ  ãúZY…‘Vp‚IŒâ”ì”àVp‚I J…œ›èâ Ÿ\ÿ ãò€€X›‹ó€ò[Y_	¯†%	 J…œ›èâ Ÿ\ÿ õ]
+ãúZYÿ]
+JJ…œ›è›èâ Köõ⁄[ä	… N¬à‹›ö[õô\íSIœ]à€\‹œHú^[Y[ù\ö[ù\⁄Y]èèOâ Ÿ\ÿ ô\‹ùù›\õò[Y[ù€ò[Y_
+	‘›ÍHH	  ô\‹ùù›\õò[Y[ùŸ]_	… JJJ…œ⁄Oèë]HH›ÍHà	 Ÿ\ÿ ô\‹ùù›\õò[Y[ùŸ]_	¯†%	 J…»8†(àö^\à\ùX⁄\[ùà	 Ÿ\ÿ ^[Y[ù[€ô^Jô\‹ùô[ùûWŸôYWÿŸ[ùﬂ
+JJ…œ‹â  Y]‹ìò[YO…œîò\‹ù0ÍY]0ÍH\àà	 Ÿ\ÿ Y]‹ìò[YJJ…œ‹âŒâ… J…œ]à€\‹œHú^[Y[ù\ö[ù\›[[X\ûHèèèâ ‹ZY
+…»^pÍI  ZYåO…‹…Œâ… J…œÿèèèâ ›[úZY
+…»õ€à^pÍI  [úZYåO…‹…Œâ… J…œÿèèèï›[[òÿZ\‹ÍHà	 Ÿ\ÿ ^[Y[ù[€ô^J›[
+JJ…œÿèèŸ]èèXõOèXYèèèíõ›Y]\è›èì[€ù[ù›èî›]]›èë[úôY⁄\›∞ÍH\è›èë]H»]\ôO›è›èè›XYèõŸOâ ÿõŸJ…œ›õŸOè›XõOè€\‹œHú^[Y[ù\ö[ùYõ€›èîò\‹ùH›Z]öHX[ùY[\»ZY[Y[ù»›\àXŸH8†%’‚H›\õò[Y[ùè‹èŸ]èâŒ¬àÿ›[Y[ùòõŸKò\[ô⁄[
+‹›
+N¬àô\]Y\›[ö[X][€ëúò[YJ
+
+OOúŸ][Y[›]
+
+
+OOù⁄[ô›Àúö[ù
+
+K
+JN¬üBÇò\ﬁ[ò»ù[ò›[€àõ€›^[Y[ù\⁄ ⁄Ÿ[ä^¬àÀúXõX”[ŸO]ùYN¬àYä⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[
+^ÿ€X\í[ù\ùò[
+⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[
+N›⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[[ù[ﬂBà	
+	»ÿ]]	 Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»€XZ[â Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»‹XõX’öY]… Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à€€ú›õ€›I
+	»‹XõX’öY]… N¬àõ€›ö[õô\íSIœXY\à€\‹œHù‹èèH€\‹œHúXõXÀ]]Hèè[Y»‹òœHããŸò]öX€€ãúôœ›èMåNà€\‹œHòúò[ô[X\ö»à[Hî’‚Hèî›Z]öH\»ZY[Y[ù»›\àXŸO⁄Oè]à€\‹œHúXõXÀ\›Xàèî’‚H’TìêSQSïKÕH8†(àÿZ\⁄YHX[ùY[H[ö\]Y[Y[ùŸ]èè⁄XY\èè]à€\‹œHòÿ\ôèè]àYHú^[Y[ù\⁄–€€ù[ùèè€\‹œHõ]]Yèê⁄\ôŸ[Y[ùHH\›H\»[úÿ‹ö]¯†)è‹èŸ]èèŸ]èâŒ¬à]€ò\⁄›[ù[¬à€€ú›€€X›‹î›‹òYŸRŸ^OI‹›ŸW‹^[Y[ùÿ€€X›‹ó€ò[YIŒ¬à€€ú›ô[Y[Xô\ôY€€X›‹èJ
+OOû›û^‹ô]\õà
+ÿÿ[›‹òYŸKôŸ]][J€€X›‹î›‹òYŸRŸ^J_	… Kùö[J
+NﬂXÿ]⁄
+J^‹ô]\õà	…ﬂ_N¬à€€ú›ÿ]ôP€€X›‹èJò[YKô[Y[Xô\äOOû›û^⁄Yäô[Y[Xô\ââõò[YKùö[J
+J[ÿÿ[›‹òYŸKúŸ]][J€€X›‹î›‹òYŸRŸ^Kò[YKùö[J
+JNŸ[ŸHYä\ô[Y[Xô\ä[ÿÿ[›‹òYŸKúô[[›ôR][J€€X›‹î›‹òYŸRŸ^JNﬂXÿ]⁄
+J^ﬂ_N¬à€€ú›õ]]U[YOJ\€ OOû⁄YäZ\€ \ô]\õà	¯†%	Œ›û^‹ô]\õàô]»[ùë]U[YQõ‹õX]
+	ŸúãQîâÀŸ]T›[Nâ‹⁄‹ù	À[YT›[Nâ‹⁄‹ù	ﬂJKôõ‹õX]
+ô]»]J\€ JNﬂXÿ]⁄
+J^‹ô]\õà\€ﬂ_N¬à€€ú›Ÿ]€€X›‹èJ
+OOä	
+	»‹^[Y[ù\⁄–€€X›‹â OÀùò[Y_	… Kùö[J
+N¬à€€ú›[ú›\ôP€€X›‹èJ
+OOûÿ€€ú›èYŸ]€€X›‹ä
+N⁄Yä[ä^›ÿ\›
+	“[ô\]YH€à∞Í[õ€H»õ€H]ò[ùH€€ù[ùY\ãâ N…
+	»‹^[Y[ù\⁄–€€X›‹â OÀôõÿ›\ 
+N‹ô]\õà	…Œﬂ\ÿ]ôP€€X›‹äãHI
+	»‹^[Y[ù\⁄‘ô[Y[Xô\ê€€X›‹â OÀò⁄X⁄ŸY
+N‹ô]\õàéﬂN¬à\ﬁ[ò»ù[ò›[€àÿY\⁄ 
+^¬à€€ú›€€ù[ùI
+	»‹^[Y[ù\⁄–€€ù[ù	 N⁄YäX€€ù[ù
+\ô]\õé¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹^[Y[ùŸ\⁄◊‹€ò\⁄›	À‹›⁄Ÿ[éù⁄Ÿ[üJN¬àYä\úõ‹üY]J^ÿ€€ù[ùö[õô\íSIœà€\‹œHúŸX›[€ù]HèìY[à[ô\‹€öXõO⁄èè€\‹œHõ]]Yèâ Ÿ\ÿ \úõ‹èÀõY\‹ÿYŸ_	–ŸHY[àH›Z]öH\›[ùò[YH›H0Í\ÿX›]∞ÍKâ J…œ‹âŒ‹ô]\õéﬂBà€ò\⁄›Y]N‹ô[ô\ë\⁄ 
+N¬àBàù[ò›[€à›\úô[ùô\‹ù
+
+^¬à€€ú›[J€ò\⁄›Àú^Y\úﬂ◊JKôö[\äèOúãúô\Ÿ[ù	âúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	 N¬àô]\õà››\õò[Y[ù€ò[YNú€ò\⁄›Àù›\õò[Y[ù€ò[YK›\õò[Y[ùŸ]Nú€ò\⁄›Àù›\õò[Y[ùŸ]K[ùûWŸôYWÿŸ[ùŒú€ò\⁄›Àô[ùûWŸôYWÿŸ[ùﬂà^Y\úŒò[õX\
+èOä‹^Y\ó€ò[YNúãú^Y\ó€ò[YKZYàH\ãõX[ùX[‹ZYÿ]ZYÿ]úãõX[ùX[‹ZYÿ]€€X›‹ó€ò[YNúãõX[ùX[‹ZYÿ€€X›‹ó€ò[YK[[›[ùÿŸ[ùŒú€ò\⁄›Àô[ùûWŸôYWÿŸ[ùﬂJJKàÿ[⁄[úŒä€ò\⁄›Àùÿ[⁄[úﬂ◊JKõX\
+èOä‹^Y\ó€ò[YNúãú^Y\ó€ò[YKZYùùYKZYÿ]úãúZYÿ]€€X›‹ó€ò[YNúãò€€X›‹ó€ò[YK[[›[ùÿŸ[ùŒúãò[[›[ùÿŸ[ùÀÿ[⁄[éùùY_JJ_N¬àBàù[ò›[€àô[ô\ë\⁄ 
+^¬à€€ú›€€ù[ùI
+	»‹^[Y[ù\⁄–€€ù[ù	 N⁄YäX€€ù[ù\€ò\⁄›
+\ô]\õé¬à€€ú›[J€ò\⁄›ú^Y\úﬂ◊JKôö[\äèOúãúô\Ÿ[ùãúôY⁄\›ò][€ó‹›]\œOOI€]W›⁄]ò]ÿ[	 N¬à€€ú›€€ôö\õYYX[ôö[\äèOúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	…âúãúôY⁄\›ò][€ó‹›]\»OOI€]W›⁄]ò]ÿ[	…âà\ãö\◊‹›Xú›]]JN¬à€€ú›ÿ[⁄[úœ\€ò\⁄›ùÿ[⁄[úﬂ◊N¬à€€ú›ZY€›[ùX€€ôö\õYYôö[\äèOàH\ãõX[ùX[‹ZYÿ]
+Kõ[ô›
+›ÿ[⁄[úÀõ[ô›¬à€€ú›[úZY€›[ùSX]õX^
+€€ôö\õYYôö[\äèOà\ãõX[ùX[‹ZYÿ]
+Kõ[ô›
+N¬à€€ú›öXŸOSù[Xô\ä€ò\⁄›ô[ùûWŸôYWÿŸ[ùﬂ
+N¬à€€ú››[€€X›Y\ZY€›[ù
+úöXŸN¬à€€ú›ÿ]ôYò[YO\ô[Y[Xô\ôY€€X›‹ä
+N¬à€€ù[ùö[õô\íSIœ]à€\‹œHúõ›»à›[OHò[Y€ãZ][\Œôõ^\›\ùŸÿ\åLúŸõ^]‹ò\ù‹ò\èè]à›[OHôõ^åN€Z[ã]⁄YååÃèèà€\‹œHúŸX›[€ù]Hà›[OHõX\ô⁄[ãXõ›€Nç\èº'‰≠à	 Ÿ\ÿ €ò\⁄›ù›\õò[Y[ù€ò[Y_
+	‘›ÍHH	 ‹€ò\⁄›ù›\õò[Y[ùŸ]JJJ…œ⁄èè]à€\‹œHõ]]Yèº'‰·H	 Ÿ\ÿ €ò\⁄›ù›\õò[Y[ùŸ]_	… J…œŸ]èè]à€\‹œHú^[Y[ù\öXŸKZY⁄Y⁄èîö^0Ë^Y\ààèâ Ÿ\ÿ ^[Y[ù[€ô^JöXŸJJJ…œÿèà\àõ›Y]\èŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èí[ô\]YH€à∞Í[õ€KZ\»X\ú]YH⁄[\[Y[ù]ZHH^pÍH›\àXŸKèŸ]èèŸ]èèù]€àYHú^[Y[ù\⁄‘ôYúô\⁄è∏°Æ»X›X[\Ÿ\èÿù]€èèŸ]èâ »à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åMÿòX⁄Ÿ‹õ›[ôàŸéòYò»èèXô[õ‹èHú^[Y[ù\⁄–€€X›‹àèèèº'‰i€à∞Í[õ€H»õ€Oÿèè€Xô[è[ú]YHú^[Y[ù\⁄–€€X›‹ààX^[ô›HçåàXŸZ€\èHë^à]\ô[ùàò[YOHâ Ÿ\ÿ ÿ]ôYò[YJJ…»à]]ÿ€€\]OHõò[YHà›[OHõX\ô⁄[ã]‹çúèèXô[€\‹œHúõ›»à›[OHôÿ\é€X\ô⁄[ã]‹é⁄ù\›YûKX€€ù[ùôõ^\›\ùèè[ú]YHú^[Y[ù\⁄‘ô[Y[Xô\ê€€X›‹àà\OHò⁄X⁄ÿõﬁà›[OHù⁄Yò]]»à	  ÿ]ôYò[YO…ÿ⁄X⁄ŸY	Œâ… J…œè‹[èìpÍ[[‹ö\Ÿ\àŸHõ€H›\àŸ]\\ôZ[›\àHõÿ⁄Z[ôHõ⁄\œ‹‹[èè€Xô[è]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èìHõ€H\›[úôY⁄\›∞ÍH]ôX»⁄\]YHò[Y][€àHZY[Y[ùèŸ]èèŸ]èâ »à	œ]à€\‹œHô‹öYÃ»à›[OHõX\ô⁄[ã]‹åMèè]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸYYéåàèèà›[OHôõ€ù\⁄^ôNåKåúô[Hèâ ‹ZY€›[ù
+…œÿèè]à€\‹œHõ]]Yèî^pÍI  ZY€›[ùåO…‹…Œâ… J…œŸ]èèŸ]èè]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸôôåŸNèèà›[OHôõ€ù\⁄^ôNåKåúô[Hèâ ›[úZY€›[ù
+…œÿèè]à€\‹œHõ]]Yèìõ€à^pÍI  [úZY€›[ùåO…‹…Œâ… J…œŸ]èèŸ]èè]à€\‹œHú^Y\àèèà›[OHôõ€ù\⁄^ôNåKåúô[Hèâ Ÿ\ÿ ^[Y[ù[€ô^J›[€€X›Y
+JJ…œÿèè]à€\‹œHõ]]Yèï›[[òÿZ\‹ÍOŸ]èèŸ]èèŸ]èâ »à	œ]à€\‹œHú^[Y[ù]ÿ[⁄[ãXÿ\ôèè]èèè∏ß•Hõ›Y]\àXúŸ[ùHH\›Oÿèè]à€\‹œHõ]]Yèî¯†&Z[ŸH∞Í\Ÿ[ùH]ZYKZõ›]H⁄[\[Y[ù€€àõ€KàH[€ù[ù][\ÍHŸ\òH	 Ÿ\ÿ ^[Y[ù[€ô^JöXŸJJJ…ÀèŸ]èèŸ]èè]à€\‹œHúõ›»à›[OHôÿ\éŸõ^]‹ò\ù‹ò\€X\ô⁄[ã]‹éèè[ú]YHú^[Y[ù\⁄’ÿ[⁄[ìò[YHàX^[ô›HéàXŸZ€\èHìõ€H»∞Í[õ€HHõ›Y]\àà›[OHôõ^åN€Z[ã]⁄Yåååèèù]€àYHú^[Y[ù\⁄–Yÿ[⁄[àà€\‹œHúö[X\ûHèêZõ›]\à€€[YHVp‚Oÿù]€èèŸ]èèŸ]èâ »à	œ]à€\‹œHúõ›»à›[OHôÿ\éŸõ^]‹ò\ù‹ò\€X\ô⁄[ã]‹åMèè]à›[OHôõ^åN€Z[ã]⁄Yåååèè[ú]YHú^[Y[ù\⁄‘ŸX\ò⁄àXŸZ€\èHº'Â#àôX⁄\ò⁄\à[àõ›Y]\àà]]ÿ€€\]OHõŸôàèèŸ]èèù]€àYHú^[Y[ù\⁄‘ö[ùèº'Â™;Ó#»[\ö[Y\à»[úôY⁄\›ô\àèÿù]€èèŸ]èè]àYHú^[Y[ù\⁄‘õ›‹»à›[OHõX\ô⁄[ã]‹åLèèŸ]èâ »à
+ÿ[⁄[úÀõ[ô›…œ]à›[OHõX\ô⁄[ã]‹åMúèè»€\‹œHúŸX›[€ù]HèêZõ›]0Í\»›\àXŸO⁄œè]àYHú^[Y[ù\⁄’ÿ[⁄[ú»èèŸ]èèŸ]èâŒâ… J¬à	œ]à€\‹œHúôXY€õK[õ›Hà›[OHõX\ô⁄[ã]‹åLúèº'Â$Y[àö]∞ÍHà›Z]öHX[ùY[[ö\]Y[Y[ùà0‡H€0Ì\ôHH›\õõ⁄K[àò\‹ù0ÍYö[ö]Yà\›\ò⁄]∞ÍH]\‹€öXõH›\à8†&XYZ[ö\›ò]]\ãèŸ]èâŒ¬à€€ú›õ›‹–õﬁI
+	»‹^[Y[ù\⁄‘õ›‹… N¬à€€ú›ò]œJ
+OOû¬à€€ú›OJ	
+	»‹^[Y[ù\⁄‘ŸX\ò⁄	 OÀùò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬à€€ú›õ›‹œX[ôö[\äèOà\_›ö[ô ãú^Y\ó€ò[Y_	… Kù”›Ÿ\êÿ\ŸJ
+Kö[ò€Y\ JJN¬àõ›‹–õﬁö[õô\íSI…Œ¬àYä\õ›‹Àõ[ô›
+^‹õ›‹–õﬁö[õô\íSIœ€\‹œHõ]]Yèê]X›[àõ›Y]\à€‹úô\‹€ô[ùè‹âŒ‹ô]\õéﬂBàõ›‹Àôõ‹ëXX⁄
+èOû¬à€€ú›ÿZ]\ãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	Œ¬à€€ú›⁄]ò]€è\ãúôY⁄\›ò][€ó‹›]\œOOI€]W›⁄]ò]ÿ[	Œ¬à€€ú››Xú›]]OHH\ãö\◊‹›Xú›]]N¬à€€ú›ZYHH\ãõX[ùX[‹ZYÿ]¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\àõ›…ŒŸú›[KõX\ô⁄[êõ›€OIŒ	ŒŸú›[Kôÿ\IŒ	ŒŸú›[Kôõ^‹ò\I›‹ò\	Œ⁄Yä⁄]ò]€ä^Ÿú›[Kõ‹X⁄]OIÀçN	ŒŸú›[KòòX⁄Ÿ‹õ›[ôI»ŸåŸççâﬂBà€€ú›]Y]\ZY	âúãõX[ùX[‹ZYÿ€€X›‹ó€ò[YO…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹èîÿZ\⁄H\à	 Ÿ\ÿ ãõX[ùX[‹ZYÿ€€X›‹ó€ò[YJJ…»8†(à	 Ÿ\ÿ õ]]U[YJãõX[ùX[‹ZYÿ]
+JJ…œŸ]èâŒâ…Œ¬à€€ú››]\’^]⁄]ò]€è…¯¶®;Ó#»0Í\⁄\›[Y[ùH\õöpÍôHZ[ù]IŒä›Xú›]]O…¸'ÁËô[\pÈÿ[ù	ŒäÿZ]…¯£Ï»\›H8†&X][ùIŒâ¯ß!H[úÿ‹ö]€€ôö\õpÍI JNÿ€€ú›⁄]ò]ÿ[[ôõœ]⁄]ò]€è…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹èîô]\∞ÍHHHô]Z[HX›]ôI  ãù⁄]ò]ÿ[€õ›O…»8†(à	 Ÿ\ÿ ãù⁄]ò]ÿ[€õ›JNâ… J…œŸ]èâŒâ…ŒŸö[õô\íSIœ‹[à›[OHôõ^åN€Z[ã]⁄YåMÃèèèâ Ÿ\ÿ ãú^Y\ó€ò[Y_	“õ›Y]\â J…œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹èâ ‹›]\’^
+ ⁄]ò]€è……Œâ»8†(à	 Ÿ\ÿ ^[Y[ù[€ô^JöXŸJJJJ…œŸ]èâ ›⁄]ò]ÿ[[ôõ ÿ]Y]
+…œ‹‹[èè‹[à€\‹œHô›Y\›XòYŸHà›[OHòòX⁄Ÿ‹õ›[ôâ  ⁄]ò]€è…»ŸMYMŸXâŒäZY…»ŸNçŸX…ŒäÿZ]…»ŸôôåYâŒâ»ŸôôNYM… JJJ…Œÿ€€‹éâ  ⁄]ò]€è…»ÕçMMå…ŒäZY…»ÃMÕòLÕâŒäÿZ]…»ŒXMXå	Œâ»ÿåÃçåYI JJJ…»èâ  ⁄]ò]€è…—0‚T“T’SQSï	ŒäZY…‘Vp‚IŒâ”ì”àVp‚I JJ…œ‹‹[èâŒ¬àYä]ÿZ]	âà]⁄]ò]€ä^ÿ€€ú›èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â Nÿãò€\‹”ò[YO\ZY…Ÿ[ôŸ\âŒâ‹ö[X\ûIŒÿãù^€€ù[ù\ZY…¯°™HX\ú]Y\àõ€à^pÍIŒâ¯ß!HX\ú]Y\à^pÍIŒÿãõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›€€X›‹èY[ú›\ôP€€X›‹ä
+N⁄YäX€€X›‹ä\ô]\õéÿãô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹^[Y[ùŸ\⁄◊‹Ÿ]‹ZY›åâÀ‹›⁄Ÿ[éù⁄Ÿ[ã‹^Y\ó⁄Yúãú^Y\ó⁄Y‹ZYà\ZYÿ€€X›‹ó€ò[YNò€€X›‹üJN⁄Yä\úõ‹ä^ÿãô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂX]ÿZ]ÿY\⁄ 
+NﬂNŸò\[ô⁄[
+äNﬂBàõ›‹–õﬁò\[ô⁄[
+
+N¬àJN¬àN¬à€€ú›ÿ[–õﬁI
+	»‹^[Y[ù\⁄’ÿ[⁄[ú… N¬àYäÿ[–õﬁ
+^›ÿ[–õﬁö[õô\íSI…Œ›ÿ[⁄[úÀôõ‹ëXX⁄
+èOûÿ€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\àõ›…ŒŸú›[KõX\ô⁄[êõ›€OIŒ	ŒŸö[õô\íSIœ‹[à›[OHôõ^åHèèèâ Ÿ\ÿ ãú^Y\ó€ò[YJJ…œÿèè]à€\‹œHõ]]YèîVp‚H8†(à	 Ÿ\ÿ ^[Y[ù[€ô^Jãò[[›[ùÿŸ[ùﬂöXŸJJJ…»8†(àÿZ\⁄H\à	 Ÿ\ÿ ãò€€X›‹ó€ò[Y_	¯†%	 J…»8†(à	 Ÿ\ÿ õ]]U[YJãúZYÿ]
+JJ…œŸ]èè‹‹[èè‹[à€\‹œHô›Y\›XòYŸHà›[OHòòX⁄Ÿ‹õ›[ôàŸNçŸXŒÿ€€‹éàÃMÕòLÕàèîVp‚O‹‹[èâŒÿ€€ú›[Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿù]€â NŸ[ò€\‹”ò[YOIŸ[ôŸ\âŒŸ[ù^€€ù[ùI‘ô]\ô\âŒŸ[õ€ò€X⁄œX\ﬁ[ò 
+OOû⁄YäX€€ôö\õJ	‘ô]\ô\à	 ‹ãú^Y\ó€ò[YJ…»HHô]Z[HHZY[Y[ù… J\ô]\õéÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹^[Y[ùŸ\⁄◊Ÿ[]W›ÿ[⁄[âÀ‹›⁄Ÿ[éù⁄Ÿ[ã›ÿ[⁄[ó⁄YúãöYJN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNÿ]ÿZ]ÿY\⁄ 
+NﬂNŸò\[ô⁄[
+[
+N›ÿ[–õﬁò\[ô⁄[
+
+NﬂJNﬂBà	
+	»‹^[Y[ù\⁄‘ŸX\ò⁄	 Kõ€ö[ú]Yò]Œ¬à	
+	»‹^[Y[ù\⁄‘ôYúô\⁄	 Kõ€ò€X⁄œ[ÿY\⁄Œ¬à	
+	»‹^[Y[ù\⁄‘ö[ù	 Kõ€ò€X⁄œJ
+OOú^[Y[ùô\‹ùö[ù
+›\úô[ùô\‹ù
+
+KŸ]€€X›‹ä
+JN¬à	
+	»‹^[Y[ù\⁄–Yÿ[⁄[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›€€X›‹èY[ú›\ôP€€X›‹ä
+N⁄YäX€€X›‹ä\ô]\õéÿ€€ú›ò[YOJ	
+	»‹^[Y[ù\⁄’ÿ[⁄[ìò[YI OÀùò[Y_	… Kùö[J
+N⁄Yä[ò[YJ^›ÿ\›
+	“[ô\]YHHõ€HHõ›Y]\à0ËZõ›]\ãâ N‹ô]\õéﬂX€€ú›ùèI
+	»‹^[Y[ù\⁄–Yÿ[⁄[â Nÿùãô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹^[Y[ùŸ\⁄◊ÿY›ÿ[⁄[âÀ‹›⁄Ÿ[éù⁄Ÿ[ã‹^Y\ó€ò[YNõò[YKÿ€€X›‹ó€ò[YNò€€X›‹üJN⁄Yä\úõ‹ä^ÿùãô\ÿXõYYò[ŸN‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂX]ÿZ]ÿY\⁄ 
+N›ÿ\›
+ò[YJ…»Zõ›]0ÍH€€[YH^pÍH8ß!I NﬂN¬à€€ú›€€X›‹í[ú]I
+	»‹^[Y[ù\⁄–€€X›‹â Nÿ€€ú›ô[Y[Xô\êõﬁI
+	»‹^[Y[ù\⁄‘ô[Y[Xô\ê€€X›‹â N¬àYä€€X›‹í[ú]
+X€€X›‹í[ú]õ€ò⁄[ôŸOJ
+OOúÿ]ôP€€X›‹ä€€X›‹í[ú]ùò[YKH\ô[Y[Xô\êõﬁÀò⁄X⁄ŸY
+N¬àYäô[Y[Xô\êõﬁ
+\ô[Y[Xô\êõﬁõ€ò⁄[ôŸOJ
+OOúÿ]ôP€€X›‹ä€€X›‹í[ú]Àùò[Y_	…Àô[Y[Xô\êõﬁò⁄X⁄ŸY
+N¬àò] 
+N¬àBà]ÿZ]ÿY\⁄ 
+N¬üBÇõ]XõX–õ€››]O[ù[¬ò\ﬁ[ò»ù[ò›[€àõ€›XõX ⁄Ÿ[ä^¬à€€ú›Ÿ^OT›ö[ô ⁄Ÿ[äJ…ﬂ	 €ÿÿ][€ãúŸX\ò⁄¬àYäXõX–õ€››]OÀöŸ^OOOZŸ^J^¬àYäXõX–õ€››]KõÿY[ô \ô]\õàXõX–õ€››]KõÿY[ôŒ¬àYäXõX–õ€››]KõÿYY
+\ô]\õàXõX–õ€››]KúôYúô\⁄Àä
+N¬àBà€€ú››]O^⁄Ÿ^KÿYYôò[ŸKôYúô\⁄õù[N‹XõX–õ€››]O\›]N¬à›]KõÿY[ôœ[ÿYXõX‘YŸJ⁄Ÿ[ã›]JN¬àû^‹›]KõÿYYJ]ÿZ]›]KõÿY[ô HOOYò[ŸNﬂYö[ò[^‹›]KõÿY[ôœ[ù[ﬂBüBò\ﬁ[ò»ù[ò›[€àÿYXõX‘YŸJ⁄Ÿ[ãõ€››]J^¬àÀúXõX”[ŸO]ùYN¬àYä⁄[ô›Àó◊‹›ŸTô\€€ôY⁄‹ù[ö ^¬à€€ú›è]⁄[ô›Àó◊‹›ŸTô\€€ôY⁄‹ù[öŒ¬àÀ»[öôX›ô\€€ôYò[Y\»[ù»H[ã[Y[[‹ûHTì\ò[Y]\àÿöôX›€õKÇàÀ»Húõ›‹Ÿ\àYô\‹»ô[XZ[ú»H‹öY⁄[ò[⁄‹ùTì
+‹œKããäKÇàYäãù›\õò[Y[ù
+]\õ\ò[\ÀúŸ]
+	››\õò[Y[ù	Àãù›\õò[Y[ù
+N¬àYäãùöY] ]\õ\ò[\ÀúŸ]
+	›öY]…ÀãùöY] N¬àYäãõXY›YJ]\õ\ò[\ÀúŸ]
+	€XY›YIÀãõXY›YJN¬àBà›ŸTô[Y[Xô\îXõX‘ôY⁄\›ò][€ê€€ù^
+
+N¬àÀ»çåà8†%0Í]]€ÿò[›\à0Í]ö]\à]I›[à[ò⁄Y[àòYúòpÎò⁄\‹Ÿ[Y[ùXõX¬àÀ»ôX€€ú›ùZ\ŸHHõ‹õ][Z\ôH	⁄[úÿ‹ö\[€à0Í\]Z\H\∞Í»ò[Y][€àH€ŸKÇà⁄[ô›Àó◊‹›ŸTXõX’X[QY][ôœYò[ŸN¬àYä⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[
+^¬à€X\í[ù\ùò[
+⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[
+N¬à⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[[ù[¬àBà	
+	»ÿ]]	 Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»€XZ[â Kò€\‹”\›òY
+	⁄Y[â N¬à	
+	»‹XõX’öY]… Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬à]\úŸY¬àû^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹XõX◊›€‹ö‹‹XŸW‹€ò\⁄››åâÀ‹›⁄Ÿ[éù⁄Ÿ[üJN¬àYä\úõ‹ä]õ›»\úõ‹é¬àYäY]J]õ›»ô]»\úõ‹ä	”Y[àXõX»[ùò[YH›H0Í\ÿX›]∞ÍKâ N¬à\úŸYY]N¬àXÿ]⁄
+J^¬à	
+	»‹XõX’€‹ö‹‹XŸSò[YI Kù^€€ù[ùI”Y[à[ô\‹€öXõIŒ¬à	
+	»‹XõX‘ŸX\€€îÿ€‹ô\ú… Kö[õô\íSIœ€\‹œHõ]]Yèâ Ÿ\ÿ KõY\‹ÿYŸ_JJ…œ‹âŒ¬àô]\õàò[ŸN¬àBà€€ú›\\úŸY¬à]ò][ô—‹õ›\ò[YOI…Œ¬à]ôYúô\⁄ŸX\€€îò[ö⁄[ô‹œJ
+OOûﬂN¬à€€ú›YŸT\ò[\œ\›ŸTXõX‘\ò[\ 
+N¬à€€ú›öY]ŸY›\õò[Y[ù\YŸT\ò[\ÀôŸ]
+	⁄\›‹ûI _YŸT\ò[\ÀôŸ]
+	››\õò[Y[ù	 N¬à€€ú›öY]ŸYXY›YO\YŸT\ò[\ÀôŸ]
+	€XY›YI N¬à⁄[ô›Àú›ŸTYŸUöY]–€€ù^^‹YŸNúYŸT\ò[\ÀôŸ]
+	⁄\›‹ûI O…⁄\›‹ûIŒùöY]ŸY›\õò[Y[ù…‹ôY⁄\›ò][€âŒùöY]ŸYXY›YO…€XY›YIŒâ›€‹ö‹‹XŸIÀ⁄Ÿ[ãYùöY]ŸY›\õò[Y[ùöY]ŸYXY›Y_ù[N¬àÿ›[Y[ùô\‹]⁄]ô[ù
+ô]»]ô[ù
+	‹›ŸNúYŸK]öY]… JN¬à€€ú›XõX’\ô[èHHTù€‹ö‹‹XŸOÀù\ô⁄[óŸ[òXõY¬à	
+	»‹XõX’€‹ö‹‹XŸSò[YI Kù^€€ù[ùTù€‹ö‹‹XŸOÀõò[Y_	‘’‚H’TìêSQSïKÕIŒ¬à]^Y\úœTú^Y\úﬂ◊KŸX\€€úœTúŸX\€€úﬂ◊KXY›Y\œTõXY›Y\ﬂ◊KXY›YT^Y\úœTõXY›YW‹^Y\úﬂ◊K›\õò[Y[ùœJù›\õò[Y[ùﬂ◊JKú€‹ù
+
+KäOOî›ö[ô ãù›\õò[Y[ùŸ]JKõÿÿ[P€€\\ôJ›ö[ô Kù›\õò[Y[ùŸ]JJJN¬à]X[\œTùX[\ﬂ◊KX[T^Y\úœTùX[W‹^Y\úﬂ◊KX[R[ùö]][€úœTùX[W‹^Y\ó⁄[ùö]][€úﬂ◊KX]⁄\œTõX]⁄\ﬂ◊K€ÿ[œTô€ÿ[ﬂ◊KX]⁄\‹⁄Y€õY[ùœTõX]⁄‹^Y\óÿ\‹⁄Y€õY[ùﬂ◊N¬à€€ú›XõX‘^Y\îò][ô‹—[òXõYHHTôôX]\ô\œÀú^Y\ó‹ò][ô‹◊Ÿ[òXõY	âàHTôôX]\ô\œÀù‹‹^Y\óŸ[òXõY¬à€€ú›XõX’X[Tô]öY]—[òXõYHHTôôX]\ô\œÀùX[W‹ô]öY]◊Ÿ[òXõY¬à€€ú›XõX’X[Tô]öY]‘›]\œTùX[W‹ô]öY]◊‹›]\ﬂ◊N¬àÀú‹‹ù–€€\^\œTú‹‹ù◊ÿ€€\^\ﬂ◊N¬àÀú‹‹ù‘]⁄\œTú‹‹ù◊‹]⁄\ﬂ◊N¬à]ôY⁄\›ò][€úœTù›\õò[Y[ù‹^Y\úﬂ◊N¬à]›\õò[Y[ù‹õ›\]ô[œTù›\õò[Y[ùŸ‹õ›\€]ô[ﬂ◊N¬à€€ú›XõX‘\ò[\’‹\›ŸTXõX‘\ò[\ 
+N¬à€€ú›ô\]Y\›YXõX’öY]œ\XõX‘\ò[\’‹ôŸ]
+	›öY]… _	…Œ¬à€€ú›YÿXﬁS[ŸO\XõX‘\ò[\’‹ôŸ]
+	€[ŸI _	…Œ¬à€€ú›XY›YRõ⁄[íY\XõX‘\ò[\’‹ôŸ]
+	€XY›YI N¬à€€ú›\”XY›YTôY⁄\›ò][€èJô\]Y\›YXõX’öY]œOOI€XY›YI _
+\ô\]Y\›YXõX’öY]…âõYÿXﬁS[ŸOOOI€XY›YI…âõXY›YRõ⁄[íY	âà\XõX‘\ò[\’‹ôŸ]
+	››\õò[Y[ù	 JN¬àYä\”XY›YTôY⁄\›ò][€ââõXY›YRõ⁄[íY	âà\XõX‘\ò[\’‹ôŸ]
+	››\õò[Y[ù	 J^¬à€€ú›XY›YO[XY›Y\Àôö[ô
+OõöYOO[XY›YRõ⁄[íY
+N¬àYä[XY›YJ^¬à	
+	»‹XõX’öY]… Kö[õô\íSIœXY\à€\‹œHù‹èèOè[Y»‹òœHããŸò]öX€€ãúôœ›èMLà€\‹œHòúò[ô[X\ö»à[Hî’‚Hèî’‚H’TìêSQSïKÕO⁄Oè⁄XY\èè]à€\‹œHòÿ\ôèèìY›YH[ùõ›]òXõKè‹èŸ]èâŒ‹ô]\õé¬àBÇà€€ú›‹õ›\Y[Xô\úœ\^Y\úÀôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKú€‹ù
+
+KäOOî›ö[ô Kõò[YJKõÿÿ[P€€\\ôJ›ö[ô ãõò[YJJJN¬à€€ú›€€ôö\õYYYœ[ô]»Ÿ]
+XY›YT^Y\úÀôö[\äOõõXY›YW⁄YOO[XY›YKöY	âõú›]\œOOIÿ€€ôö\õYY	 KõX\
+Oõú^Y\ó⁄Y
+JN¬à€€ú›€€ôö\õYYY[Xô\úœ\^Y\úÀôö[\äOúòX›]ôIâò€€ôö\õYYYÀö\ öY
+JKú€‹ù
+
+KäOOî›ö[ô Kõò[YJKõÿÿ[P€€\\ôJ›ö[ô ãõò[YJJJN¬ÇàÀ»[ôHY›YHH[ôH›XÿŸ\‹⁄[€àH›Í\Àà⁄\]YH›ÍHHY›YH€‹úô\‹€ô0ËSàX]⁄€ô»
+çåZ[äKÇàÀ»\»›]\›\]Y\»⁄KY\‹€›\»ôHô[õô[ù]YH\»›Í\»ò]X⁄0Í\»0Ë—UHY›YKÇà€€ú›XY›YTŸ\‹⁄[€úœ]›\õò[Y[ù¬àôö[\äOùôõ‹õX]OOI€XY›YI…âùõXY›YW⁄YOO[XY›YKöY
+Bàú€‹ù
+
+KäOOî›ö[ô Kù›\õò[Y[ùŸ]JKõÿÿ[P€€\\ôJ›ö[ô ãù›\õò[Y[ùŸ]JJJN¬à€€ú›XY›YU›\õò[Y[ùYœ[ô]»Ÿ]
+XY›YTŸ\‹⁄[€úÀõX\
+OùöY
+JN¬à€€ú›XY›YSX]⁄\œ[X]⁄\¬àôö[\äOOõXY›YU›\õò[Y[ùYÀö\ Kù›\õò[Y[ù⁄Y
+JBàú€‹ù
+
+KäOOû¬à€€ú›O[XY›YTŸ\‹⁄[€úÀôö[ô
+OùöYOOXKù›\õò[Y[ù⁄Y
+Kè[XY›YTŸ\‹⁄[€úÀôö[ô
+OùöYOOXãù›\õò[Y[ù⁄Y
+N¬àô]\õà›ö[ô OÀù›\õò[Y[ùŸ]_	… Kõÿÿ[P€€\\ôJ›ö[ô èÀù›\õò[Y[ùŸ]_	… J_
+ù[Xô\äKõX]⁄€‹ô\ü
+KSù[Xô\äãõX]⁄€‹ô\ü
+JN¬àJN¬à€€ú›XY›YSX]⁄Yœ[ô]»Ÿ]
+XY›YSX]⁄\ÀõX\
+OOõKöY
+JN¬ÇàÀ»[ò€\ôH›\»\»õ›Y]\ú»^X[ù∞ÍY[[Y[ù\ùX⁄\0ÍH0ËHY›YKH€€\ö\»\»åpÍôHõ⁄\»ãÇà€€ú›XY›YT^Y\íYœ[ô]»Ÿ]
+€€ôö\õYYY N¬à€€ú›XY›YUX[RYœ[ô]»Ÿ]
+
+N¬àXY›YSX]⁄\Àôõ‹ëXX⁄
+OOû€XY›YUX[RYÀòY
+Kö€YW›X[W⁄Y
+N€XY›YUX[RYÀòY
+Kò]ÿ^W›X[W⁄Y
+NﬂJN¬àX[T^Y\úÀôö[\äOõXY›YUX[RYÀö\ ùX[W⁄Y
+JKôõ‹ëXX⁄
+OõXY›YT^Y\íYÀòY
+ú^Y\ó⁄Y
+JN¬à€ÿ[Àôö[\äœOõXY›YSX]⁄YÀö\ ÀõX]⁄⁄Y
+JKôõ‹ëXX⁄
+œOû¬àYäÀúÿ€‹ô\ó‹^Y\ó⁄Y
+[XY›YT^Y\íYÀòY
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+N¬àYäÀò\‹⁄\›\ó‹^Y\ó⁄Y
+[XY›YT^Y\íYÀòY
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+N¬àJN¬à€€ú›XY›YT[‹O\^Y\úÀôö[\äOõXY›YT^Y\íYÀö\ öY
+JN¬à€€ú›XY›YT›]œ[ô]»X\
+XY›YT[‹KõX\
+Oñ‹öY⁄YúöYò[YNúõò[YKŒåNåŒåWJJN¬Çà€ÿ[Àôö[\äœOõXY›YSX]⁄YÀö\ ÀõX]⁄⁄Y
+JKôõ‹ëXX⁄
+œOû¬àYäXY›YT›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J[XY›YT›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ¬àYäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âõXY›YT›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J[XY›YT›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ Œ¬àJN¬ÇàÀ»‹^Y\àHõ€XúôHH›Í\»»X]⁄»HY›YHÿY€∞Í\ÀÇàXY›YSX]⁄\Àôõ‹ëXX⁄
+OOû¬à€€ú›œSù[Xô\äKö€YW‹ÿ€‹ô_
+K\œSù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+N¬àYäœOOX\ \ô]\õé¬à€€ú›⁄[õô\íYZœò\œ€Kö€YW›X[W⁄YõKò]ÿ^W›X[W⁄Y¬àX[T^Y\úÀôö[\äOùùX[W⁄YOO]⁄[õô\íY
+Kôõ‹ëXX⁄
+Oû¬àYäXY›YT›]Àö\ ú^Y\ó⁄Y
+J[XY›YT›]ÀôŸ]
+ú^Y\ó⁄Y
+Kù  Œ¬àJN¬àJN¬Çà]XY›YTÿ€‹ô\úœVÀããõXY›YT›]Àùò[Y\ 
+WKôö[\äOûôœå
+Kú€‹ù
+
+KäOOòãôÀXKôﬂãòKXKò_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]ô]ë€ÿ[œ[ù[€ÿ[ò[öœL¬àXY›YTÿ€‹ô\úœ[XY›YTÿ€‹ô\úÀõX\
+
+JOOû⁄Yäô»OO\ô]ë€ÿ[ ^Ÿ€ÿ[ò[öœZJÃN‹ô]ë€ÿ[œ^ôﬂ\ô]\õàÀããûò[öŒô€ÿ[ò[öﬂ_JN¬Çà]XY›YP\‹⁄\›œVÀããõXY›YT›]Àùò[Y\ 
+WKôö[\äOûòOå
+Kú€‹ù
+
+KäOOòãòKXKò_ãôÀXKôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]ô]ê\‹⁄\›œ[ù[\‹⁄\›ò[öœL¬àXY›YP\‹⁄\›œ[XY›YP\‹⁄\›ÀõX\
+
+JOOû⁄YäòHOO\ô]ê\‹⁄\› ^ÿ\‹⁄\›ò[öœZJÃN‹ô]ê\‹⁄\›œ^ò_\ô]\õàÀããûò[öŒò\‹⁄\›ò[öﬂ_JN¬Çà]XY›YU⁄[õô\úœVÀããõXY›YT›]Àùò[Y\ 
+WKôö[\äOûùœå
+Kú€‹ù
+
+KäOOòãùÀXKùﬂãôÀXKôﬂãòKXKò_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]ô]ï⁄[úœ[ù[⁄[îò[öœL¬àXY›YU⁄[õô\úœ[XY›YU⁄[õô\úÀõX\
+
+JOOû⁄Yäù»OO\ô]ï⁄[ú ^›⁄[îò[öœZJÃN‹ô]ï⁄[úœ^ùﬂ\ô]\õàÀããûò[öŒù⁄[îò[öﬂ_JN¬Çà€€ú›ÿ€‹ô\ú“[[XY›YTÿ€‹ô\úÀú€XŸJL
+KõX\
+Oâœ]à€\‹œHúò[ö»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁô …»ù]	  ôœåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àù][úôY⁄\›∞ÍH›\àH[€Y[ùè‹âŒ¬à€€ú›\‹⁄\›“[[XY›YP\‹⁄\›Àú€XŸJL
+KõX\
+Oâœ]à€\‹œHúò[ö»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁòJ…»\‹ŸI  òOåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH\‹ŸH[úôY⁄\›∞ÍYH›\àH[€Y[ùè‹âŒ¬à€€ú›⁄[õô\ú“[[XY›YU⁄[õô\úÀú€XŸJL
+KõX\
+Oâœ]à€\‹œHúò[ö»èèèâ  úò[öœOOLO…¸'‰dIŒûúò[ö J…œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Yèï‹^Y\à8†(àöX›⁄\ô\»[à›ÍHHY›YOŸ]èè‹‹[èèà€\‹œHúöY⁄èâ ﬁù …»öX›⁄\ôI  ùœåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôHöX›⁄\ôH[ô]öYY[H[úôY⁄\›∞ÍYH›\àH[€Y[ùè‹âŒ¬Çà€€ú›Y[Xô\í[X€€ôö\õYYY[Xô\úÀõX\
+
+JOOû¬à€€ú›ö\ú›\ù[\‹ò\ûW€XY›YW€Y[Xô\ââúõXY›YW€‹öY⁄[ó⁄YOO[XY›YKöY¬àô]\õà	œ]à€\‹œHú^Y\àõ›»èè‹[à›[OHôõ^åHèèèâ Ÿ\ÿ õò[YJJ…œÿèâ  ö\ú›…»‹[à€\‹œHô›Y\›XòYŸHèº'·•HpÍôHõ⁄\œ‹‹[èâŒâ… J…œ‹‹[èè‹[à€\‹œHõ]]Yèà…  JÃJJ…œ‹‹[èèŸ]èâŒ¬àJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àY[XúôH[úÿ‹ö]›\àH[€Y[ùè‹âŒ¬Çà€€ú›ö^ôR[[XY›YKúö^ô\◊Ÿ[òXõYà»	œ]à€\‹œHòÿ\ôà›[OHòòX⁄Ÿ‹õ›[ôõ[ôX\ãY‹òYY[ù
+MYYÀŸôôéãŸôôôçJNÿõ‹ô\éå\€€YŸçéYàèèà€\‹œHúŸX›[€ù]Hèº'„†H›»HHY›YO⁄èâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ãXõ›€Néèë\»›»€€ù∞Í]ù\»›\àH€\‹Ÿ[Y[ù\»ù]]\úÀèŸ]èâ ¬à	œ]à€\‹œHú^Y\àèº'Èa»èåY\àù]]\àèÿèà	 Ÿ\ÿ XY›YKúö^ôWŸö\ú›	”›0Ë0ÍYö[ö\à[0Í\öY]\ô[Y[ù	 J…œŸ]èâ ¬à	œ]à€\‹œHú^Y\àèº'ÈbèåôHù]]\àèÿèà	 Ÿ\ÿ XY›YKúö^ôW‹ŸX€€ô	”›0Ë0ÍYö[ö\à[0Í\öY]\ô[Y[ù	 J…œŸ]èâ ¬à	œ]à€\‹œHú^Y\àèº'ÈbHèåŸHù]]\àèÿèà	 Ÿ\ÿ XY›YKúö^ôW›\ô	”›0Ë0ÍYö[ö\à[0Í\öY]\ô[Y[ù	 J…œŸ]èèŸ]èâ¬àà	…Œ¬ÇàÀ»\õöY\à›ÍHHY›YH^X[ùYôôX›]ô[Y[ù[àX]⁄àYôöX⁄\àSíTUQSQSïŸ\»]^0Í\]Z\\ÀÇà€€ú›Ÿ\‹⁄[€ú’⁄]X]⁄[XY›YTŸ\‹⁄[€úÀôö[\äœOõXY›YSX]⁄\Àú€€YJOOõKù›\õò[Y[ù⁄YOO\ÀöY
+JN¬à€€ú›]\›XY›YTŸ\‹⁄[€è\Ÿ\‹⁄[€ú’⁄]X]⁄õ[ô›‹Ÿ\‹⁄[€ú’⁄]X]⁄‹Ÿ\‹⁄[€ú’⁄]X]⁄õ[ô›LWNõù[¬à€€ú›]\›XY›YSX]⁄\œ[]\›XY›YTŸ\‹⁄[€è€XY›YSX]⁄\Àôö[\äOOõKù›\õò[Y[ù⁄YOO[]\›XY›YTŸ\‹⁄[€ãöY
+Nñ◊N¬àÀ»Hõ‹õX]][ôH\›H›ÍHHHX]⁄HåZ[ãà⁄H\⁄Y]\ú»[ò⁄Y[ú»X]⁄»^\›[ù€à[€ùôHH\õöY\à[úôY⁄\›∞ÍKÇà€€ú›]\›XY›YSX]⁄[]\›XY›YSX]⁄\Àõ[ô›€]\›XY›YSX]⁄\÷€]\›XY›YSX]⁄\Àõ[ô›LWNõù[¬Çà]]\››ŸR[I…Œ¬àYä]\›XY›YTŸ\‹⁄[€ââõ]\›XY›YSX]⁄
+^¬à€€ú›€YO]X[\Àôö[ô
+OùöYOO[]\›XY›YSX]⁄ö€YW›X[W⁄Y
+N¬à€€ú›]ÿ^O]X[\Àôö[ô
+OùöYOO[]\›XY›YSX]⁄ò]ÿ^W›X[W⁄Y
+N¬à€€ú›[ùõ€ôYV⁄€YK]ÿ^WKôö[\äõ€€X[äN¬à€€ú›ÿ\ôœZ[ùõ€ôYõX\
+X[OOû¬à€€ú›Y[Xô\úœ]X[T^Y\úÀôö[\äOùùX[W⁄YOO]X[KöY
+KõX\
+Oú^Y\úÀôö[ô
+OúöYOO]ú^Y\ó⁄Y
+JKôö[\äõ€€X[äN¬à€€ú›\’⁄[õô\èSù[Xô\ä]\›XY›YSX]⁄ö€YW‹ÿ€‹ô_
+HOOSù[Xô\ä]\›XY›YSX]⁄ò]ÿ^W‹ÿ€‹ô_
+H	âÇà
+
+ù[Xô\ä]\›XY›YSX]⁄ö€YW‹ÿ€‹ô_
+Oìù[Xô\ä]\›XY›YSX]⁄ò]ÿ^W‹ÿ€‹ô_
+IâùX[KöYOO[]\›XY›YSX]⁄ö€YW›X[W⁄Y
+_à
+ù[Xô\ä]\›XY›YSX]⁄ò]ÿ^W‹ÿ€‹ô_
+Oìù[Xô\ä]\›XY›YSX]⁄ö€YW‹ÿ€‹ô_
+IâùX[KöYOO[]\›XY›YSX]⁄ò]ÿ^W›X[W⁄Y
+JN¬àô]\õà	œ]à€\‹œHúXõXÀ]X[KXÿ\ôèâ ¬à	œ]à€\‹œHúXõXÀ]X[KZXYèè]èâ  \’⁄[õô\è…¸'‰dH	Œâ… JŸ\ÿ X[Kõò[YJJ…œŸ]èâ  \’⁄[õô\è…œ]à€\‹œHúXõXÀ]X[K\⁄\ùèº'„·àòZ[ú]Y]\àH\õöY\à›ÍOŸ]èâŒâ… J…œŸ]èâ ¬à	œ]à€\‹œHúXõXÀ]X[K\^Y\ú»èâ  Y[Xô\úÀõX\
+Oâœ]à€\‹œHúXõXÀ]X[K\^Y\àèâ Ÿ\ÿ õò[YJJ…œŸ]èâ Köõ⁄[ä	… _	œ]à€\‹œHõ]]Yèê€€\‹⁄][€àõ€à[úôY⁄\›∞ÍYOŸ]èâ J…œŸ]èâ ¬à	œŸ]èâŒ¬àJKöõ⁄[ä	… N¬à€€ú›YœY€ÿ[Àôö[\äœOôÀõX]⁄⁄YOO[]\›XY›YSX]⁄öY
+N¬à€€ú›€ÿ[[ô\œ[YÀõX\
+œOû¬à€€ú›ÿ€‹ô\è\^Y\úÀôö[ô
+OúöYOOYÀúÿ€‹ô\ó‹^Y\ó⁄Y
+N¬à€€ú›\‹⁄\›\èYÀò\‹⁄\›\ó‹^Y\ó⁄Y‹^Y\úÀôö[ô
+OúöYOOYÀò\‹⁄\›\ó‹^Y\ó⁄Y
+Nõù[¬àô]\õà	œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç\è∏¶ØH	 Ÿ\ÿ ÿ€‹ô\èÀõò[Y_	œ… J \‹⁄\›\è…»‹[à€\‹œHõ]]Yè∏°§\‹ŸH	 Ÿ\ÿ \‹⁄\›\ãõò[YJJ…œ‹‹[èâŒâ… J…œŸ]èâŒ¬àJKöõ⁄[ä	… N¬à]\››ŸR[Bà	œ]à€\‹œHòÿ\ôèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\åLÿ[Y€ãZ][\Œôõ^\›\ùŸõ^]‹ò\ù‹ò\èâ ¬à	œ]èèà€\‹œHúŸX›[€ù]Hèº'Â)H\õöY\à›ÍHHY›YO⁄èè]à€\‹œHõ]]Yèâ Ÿ\ÿ ]\›XY›YTŸ\‹⁄[€ãõò[Y_]\›XY›YTŸ\‹⁄[€ãù›\õò[Y[ùŸ]JJ…»8†(à	 Ÿ\ÿ ]\›XY›YTŸ\‹⁄[€ãù›\õò[Y[ùŸ]JJ…»8†(àHX]⁄8†&Y[ùö\õ€àåZ[èŸ]èèŸ]èâ ¬à	œ‹[à€\‹œHô›Y\›XòYŸHèëì‘ìPUQ’QO‹‹[èâ ¬à	œŸ]èâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\éèèèâ Ÿ\ÿ €YOÀõò[Y_	‚\]Z\HI J…œÿèè‹[à€\‹œHúÿ€‹ôHèâ ”ù[Xô\ä]\›XY›YSX]⁄ö€YW‹ÿ€‹ô_
+J…»H	 ”ù[Xô\ä]\›XY›YSX]⁄ò]ÿ^W‹ÿ€‹ô_
+J…œ‹‹[èèèâ Ÿ\ÿ ]ÿ^OÀõò[Y_	‚\]Z\Hâ J…œÿèèŸ]èâ  €ÿ[[ô\œ…œ]à›[OHõX\ô⁄[ã]‹éèâ Ÿ€ÿ[[ô\ …œŸ]èâŒâ… J…œŸ]èâ ¬à	œ»›[OHõX\ô⁄[ã]‹åM\èº'‰iH\»0Í\]Z\\»]ZHŸH€€ùYôúõ€ù0ÍY\œ⁄œè]àYHúXõX”XY›YS\›X[\»à›[OHô\‹^Nôõ^Ÿÿ\åLú€›ô\ôõ›À^ò]]Œ‹Y[ôŒçúLèâ ÿÿ\ô …œŸ]èâ ¬à	œŸ]èâŒ¬àY[Ÿ^¬à]\››ŸR[Iœ]à€\‹œHòÿ\ôà›[OHòòX⁄Ÿ‹õ›[ôàŸéòôéHèèà€\‹œHúŸX›[€ù]Hèº'Â)H\õöY\à›ÍHHY›YO⁄èè€\‹œHõ]]Yèê]X›[àX]⁄HY›YH∏†&XH[ò€‹ôH0Í]0ÍH[úôY⁄\›∞ÍKè‹èŸ]èâŒ¬àBÇà	
+	»‹XõX’öY]… Kö[õô\íSBà	œXY\à€\‹œHù‹èèOº'„‡H	 Ÿ\ÿ XY›YKõò[YJJ…œ⁄Oè]à€\‹œHúXõXÀ\›Xàèî’‚H’TìêSQSïKÕH8†(àY›YH8†(àH›ÍHHHX]⁄8†&Y[ùö\õ€àåZ[èŸ]èè⁄XY\èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'‰·HÿZ\€€àHHY›YO⁄èè]à€\‹œHú^Y\àèèèë0ÍXù]èÿèà	 Ÿ\ÿ XY›YKú›\ù◊€€äJ…œŸ]èè]à€\‹œHú^Y\àèèèëö[àèÿèà	 Ÿ\ÿ XY›YKô[ô◊€€ü	”õ€à0ÍYö[öYI J…œŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèê€€ùòZ\ô[Y[ù]Hõ‹õX]›\õõ⁄H
+[ùö\õ€àH0ËX]⁄»›\àö
+K[à›ÍHHY›YH€‹úô\‹€ô0Ë[àŸ][X]⁄€ô»8†&Y[ùö\õ€àåZ[ù]\ÀèŸ]èèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃ»èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hè∏¶ØHYZ[]\ú»ù]]\úœ⁄èâ ‹ÿ€‹ô\ú“[
+…œŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'„´»YZ[]\ú»\‹Ÿ]\úœ⁄èâ ÿ\‹⁄\›“[
+…œŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'‰dH‹^Y\è⁄èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ãXõ›€Néèê€\‹Ÿ[Y[ù\àõ€XúôHH›Í\»HY›YHÿY€∞Í\ÀèŸ]èâ ›⁄[õô\ú“[
+…œŸ]èâ ¬à	œŸ]èâ ¬à]\››ŸR[
+¬àö^ôR[
+¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]HèîôZõ⁄[ôôHHY›YO⁄èè€\‹œHõ]]Yèî⁄HH\»0ÍZ∞ËY[XúôHH‹õ›\KÍ[X›[€õôH€àõ€Kà⁄[õ€ã8†&[‹[€à0™»pÍôHõ⁄\»0Æ»ô\›H\‹€öXõH[ö\]Y[Y[ù›\à8†&Z[úÿ‹ö\[€à0ËHY›YKè‹â ¬à	œŸ[X›YHúXõX”XY›YT^Y\àèè‹[€àò[YOHàèê⁄⁄\⁄\»€àõ€O€‹[€èâ Ÿ‹õ›\Y[Xô\úÀõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ €€ôö\õYYYÀö\ öY
+O…»8†(à0ÍZ∞Ë[úÿ‹ö]	Œâ… J…œ€‹[€èâ Köõ⁄[ä	… J…œ‹Ÿ[X›â ¬à	œ]à€\‹œHú‹XŸHèèŸ]èè]à€\‹œHúõ›»èèù]€àYHúXõX”XY›YRõ⁄[àà€\‹œHúö[X\ûHèíôHôZõ⁄[ú»HY›YOÿù]€èèù]€àYHúXõX”XY›YSX]ôHèìYHô]\ô\èÿù]€èèŸ]èè]àYHúXõX”XY›YT›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèèŸ]èâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åMÿòX⁄Ÿ‹õ›[ôàŸéòôéHèèèº'·•Hô[ZpÍôHõ⁄\»]ôX»H‹õ›\Hœÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[éç\èë[ùôH€àõ€H›\à8†&Z[úÿ‹ö\ôH0ËŸ]HY›YKàH›\úò\»\ùX⁄\\à]^õÿ⁄Z[ú»›Í\»HY›YKèŸ]èè[ú]YHúXõX”ô]”XY›YT^Y\ìò[YHàX^[ô›HçåàXŸZ€\èHï€à∞Í[õ€H»õ€Hèè]à€\‹œHú‹XŸHèèŸ]èèù]€àYHúXõX”ô]”XY›YRõ⁄[àà€\‹œHúö[X\ûHèìx†&Z[úÿ‹ö\ôH›\àŸ]HY›YOÿù]€èè]àYHúXõX”ô]”XY›YT›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèèŸ]èèŸ]èèŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'‰iHY[Xúô\»HHY›YH
+	 ÿ€€ôö\õYYY[Xô\úÀõ[ô›
+… O⁄èè]à€\‹œHúôXY€õK[õ›Hà›[OHõX\ô⁄[ãXõ›€NåLèèèê][ù[€àèÿèàŸ]H\›H€‹úô\‹€ô]^Y[Xúô\»HHY›YKà[HôH⁄Y€öYöYH\»]x†&Z[»\ùX⁄\[ù]Hõÿ⁄Z[à›ÍKà⁄\]YH›ÍH∞ÍXŸ\‹⁄]H[ôH[úÿ‹ö\[€àÍ\\∞ÍYKèŸ]èè]àYHúXõX”XY›YSY[Xô\ú»èâ €Y[Xô\í[
+…œŸ]èèŸ]èâŒ¬Çà	
+	»‹XõX”XY›YRõ⁄[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›YI
+	»‹XõX”XY›YT^Y\â Kùò[YN¬àYä\Y
+\ô]\õà	
+	»‹XõX”XY›YT›]\… Kù^€€ù[ùI–⁄⁄\⁄\»€àõ€KâŒ¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊€XY›YW‹ôY⁄\›ò][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã€XY›YW⁄YõXY›YKöY‹^Y\ó⁄YúYÿX›[€éâ⁄õ⁄[âﬂJN¬àYä\úõ‹ä\ô]\õà	
+	»‹XõX”XY›YT›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN¬à	
+	»‹XõX”XY›YT›]\… Kù^€€ù[ùI¸'ÁËà\ùX⁄\][€à0ËHY›YH€€ôö\õpÍYHIŒ¬àŸ][Y[›]
+
+
+OOõÿÿ][€ãúô[ÿY
+
+KL
+N¬àN¬à	
+	»‹XõX”XY›YSX]ôI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›YI
+	»‹XõX”XY›YT^Y\â Kùò[YN¬àYä\Y
+\ô]\õà	
+	»‹XõX”XY›YT›]\… Kù^€€ù[ùI–⁄⁄\⁄\»€àõ€KâŒ¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊€XY›YW‹ôY⁄\›ò][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã€XY›YW⁄YõXY›YKöY‹^Y\ó⁄YúYÿX›[€éâ€X]ôIﬂJN¬àYä\úõ‹ä\ô]\õà	
+	»‹XõX”XY›YT›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN¬à	
+	»‹XõX”XY›YT›]\… Kù^€€ù[ùI“[úÿ‹ö\[€àô]\∞ÍYKâŒ¬àŸ][Y[›]
+
+
+OOõÿÿ][€ãúô[ÿY
+
+KL
+N¬àN¬à	
+	»‹XõX”ô]”XY›YRõ⁄[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ò[YOI
+	»‹XõX”ô]”XY›YT^Y\ìò[YI Kùò[YKùö[J
+N¬àYä[ò[YJ\ô]\õà	
+	»‹XõX”ô]”XY›YT›]\… Kù^€€ù[ùI—[ùôH€àõ€KâŒ¬à€€ú›èI
+	»‹XõX”ô]”XY›YRõ⁄[â Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊‹ôY⁄\›\ó€ô]◊€XY›YW‹^Y\âÀ‹›⁄Ÿ[éù⁄Ÿ[ã€XY›YW⁄YõXY›YKöY€ò[YNõò[Y_JN¬àãô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õà	
+	»‹XõX”ô]”XY›YT›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN¬à	
+	»‹XõX”ô]”XY›YT›]\… Kù^€€ù[ùI¸'ÁËà[úÿ‹ö\[€à€€ôö\õpÍYHH€àõ€H\›Zõ›]0ÍH]^Y[Xúô\»HŸ]HY›YH›\àHÿZ\€€ãâŒ¬àŸ][Y[›]
+
+
+OOõÿÿ][€ãúô[ÿY
+
+Kå
+N¬àN¬àô]\õé¬àBÇà€€ú›\›‹ûRY\›ŸTXõX‘\ò[\ 
+KôŸ]
+	⁄\›‹ûI N¬àYä\›‹ûRY
+^¬àÀ»H⁄\ôYôY⁄\›ò][€à[ö»\»ô]ô\à[ŸYöYYàŸH€õHô[Y[Xô\à]»€€ù^ÿÿ[BàÀ»€»]ô\ûHîô]›\ààúõ€H\›‹ûHô]\õú»»H^X››\õò[Y[ù»›ÍH]‹[ôY]ÇÇà€€ú›]›\õò[Y[ùÀôö[ô
+OûöYOOZ\›‹ûRY
+N¬àYäZ
+^¬à	
+	»‹XõX’öY]… Kö[õô\íSIœXY\à€\‹œHù‹èèOè[Y»‹òœHããŸò]öX€€ãúôœ›èMLà€\‹œHòúò[ô[X\ö»à[Hî’‚Hèî’‚H’TìêSQSïKÕO⁄Oè⁄XY\èè]à€\‹œHòÿ\ôèèï›\õõ⁄H[ùõ›]òXõKè‹èù]€àYHòòX⁄‘XõX»è∏°§ô]›\à0Ë[€à[úÿ‹ö\[€èÿù]€èèŸ]èâŒ¬à	
+	»ÿòX⁄‘XõX… Kõ€ò€X⁄œJ
+OOõÿÿ][€ãöôYè\XõX“\›‹ûPòX⁄’\õ
+⁄Ÿ[äN¬àô]\õé¬àBà€€ú›X[\œ]X[\Àôö[\äOûù›\õò[Y[ù⁄YOOZöY
+N¬à€€ú›X]⁄\œ[X]⁄\Àôö[\äOûù›\õò[Y[ù⁄YOOZöY
+Kú€‹ù
+
+KäOOäKõX]⁄€‹ô\ü
+KJãõX]⁄€‹ô\ü
+JN¬à€€ú›ZYœ[ô]»Ÿ]
+X]⁄\ÀõX\
+OOõKöY
+JN¬à€€ú›€ÿ[œY€ÿ[Àôö[\äœOõZYÀö\ ÀõX]⁄⁄Y
+JN¬à€€ú›X\è[ô]»X\
+X[\ÀõX\
+OñﬁöYõò[YWJJN¬à€€ú›X\è[ô]»X\
+^Y\úÀõX\
+OñﬁöYJJN¬à€€ú››[ô[ô‹œ]X[\ÀõX\
+Oä⁄YûöYò[YNûõò[YKZéåéåéååúåòŒåŒåJJN¬à€€ú›€O[ô]»X\
+›[ô[ô‹ÀõX\
+OñﬁöYJJN¬àX]⁄\Àôõ‹ëXX⁄
+OOû¬à€€ú›O\€KôŸ]
+Kö€YW›X[W⁄Y
+Kè\€KôŸ]
+Kò]ÿ^W›X[W⁄Y
+N⁄YäX_^ä\ô]\õé¬àKõZä ŒﬁãõZä ŒÿKòú
+œ[Kö€YW‹ÿ€‹ôNÿKòò œ[Kò]ÿ^W‹ÿ€‹ôNﬁãòú
+œ[Kò]ÿ^W‹ÿ€‹ôNﬁãòò œ[Kö€YW‹ÿ€‹ôN¬àYäKö€YW‹ÿ€‹ôOõKò]ÿ^W‹ÿ€‹ôJ^ÿKùä Œﬁãô
+ ŒÿKú œLﬂY[ŸHYäKò]ÿ^W‹ÿ€‹ôOõKö€YW‹ÿ€‹ôJ^ﬁãùä ŒÿKô
+ Œﬁãú œLﬂY[Ÿ^ÿKõä Œﬁãõä ŒÿKú  Œﬁãú  ﬂBàJN¬à›[ô[ô‹Àú€‹ù
+
+KäOOûãúÀXKúﬂ
+ãòú^ãòò KJKòúXKòò _ãòúXKòú
+N¬à€€ú›X[Tõ›‹œ\›[ô[ô‹ÀõX\
+
+JOOâœ]à€\‹œHúò[ö»èèèâ  JÃJJ…œÿèè‹[èâ Ÿ\ÿ õò[YJJ…»‹[à€\‹œHõ]]Yèä	 ﬁõZä…»Rà8†(à	  òú^òòœèL… …Œâ… J òú^òò J… O‹‹[èè‹‹[èèà€\‹œHúöY⁄èâ ﬁú …»œÿèèŸ]èâ Köõ⁄[ä	… N¬à€€ú››]œ[ô]»X\
+^Y\úÀõX\
+OñﬁöY⁄YûöYò[YNûõò[YKŒåNå›Y\›ûö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸK›Y\›€Ÿéûô›Y\›€Ÿó‹^Y\ó⁄YWJJN¬à€ÿ[Àôõ‹ëXX⁄
+œOû⁄Yä›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J\›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ⁄YäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âú›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J\›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ ﬂJN¬à]ÿ€‹èVÀããú›]Àùò[Y\ 
+WKôö[\äOûô Kú€‹ù
+
+KäOOûãôÀXKôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]ô]è[ù[ò[öœL‹ÿ€‹è\ÿ€‹ãõX\
+
+JOOû⁄Yäô»OO\ô]ä^‹ò[öœZJÃN‹ô]è^ôﬂ\ô]\õàÀããûò[öﬂ_JN¬à]\‹œVÀããú›]Àùò[Y\ 
+WKôö[\äOûòJKú€‹ù
+
+KäOOûãòKXKò_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]\[ù[\èLÿ\‹œX\‹ÀõX\
+
+JOOû⁄YäòHOOX\
+^ÿ\èZJÃNÿ\^ò_\ô]\õàÀããûò[öŒò\ü_JN¬à€€ú›\›‹ûTò[ö‘õ›‹œJ\úã\K^[ôYYò[ŸJOOû¬à€€ú›ö\⁄XõOY^[ôYÿ\úéò\úãú€XŸJL
+N¬àô]\õàö\⁄XõKõX\
+
+JOOû¬à€€ú›öY⁄]\OOOIŸ…œ ô …»ù]	  ôœåO…‹…Œâ… JNù\OOOIÿIœ òJ…»\‹ŸI  òOåO…‹…Œâ… JNä	¯´d	 ﬁò]ôÀù—ö^Y
+JJN¬à€€ú›‹œ]\OOOI›‹	œ OOOL…¸'‰dIŒäJÃJJNûúò[öŒ¬à€€ú›^òO]\OOOI›‹	œ…œ]à€\‹œHõ]]Yèâ ﬁõX]⁄\ …»X]⁄	  õX]⁄\œåO…‹…Œâ… J…»8†(à8¶ØH	 ﬁô …»8†(à<'„´»	 ﬁòJ…œŸ]èâŒâ…Œ¬àô]\õà	œ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ‹‹ …œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèâ Ÿ^òJ…œ‹‹[èèà€\‹œHúöY⁄èâ ‹öY⁄
+…œÿèèŸ]èâŒ¬àJKöõ⁄[ä	… N¬àN¬à€€ú›\›‹\XõX‘^Y\îò][ô‹—[òXõY›‹^Y\ú—úõ€Q]JX]⁄\À€ÿ[ÀX]⁄\‹⁄Y€õY[ùÀ^Y\úÀô]»Ÿ]
+⁄öYJJNñ◊N¬à€€ú›X]⁄õ›‹œ]X]⁄\ÀõX\
+
+KJOOû¬à€€ú›Yœ]€ÿ[Àôö[\äœOôÀõX]⁄⁄YOO[KöY
+N¬à€€ú›€ÿ[õÿ⁄œJX[RY
+OOû¬à€€ú›õ›‹œ[YÀôö[\äœOî›ö[ô ÀùX[W⁄Y
+OOOT›ö[ô X[RY
+JKõX\
+œOû¬à€€ú›ÿœ\X\ãôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+K\œYÀò\‹⁄\›\ó‹^Y\ó⁄Y‹X\ãôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+Nõù[¬àô]\õà	œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç\è∏¶ØH	 Ÿ\ÿ ÿœÀõò[Y_	œ… J \œ…»‹[à€\‹œHõ]]Yè∏°§	 Ÿ\ÿ \Àõò[YJJ…œ‹‹[èâŒâ… J…œŸ]èâŒ¬àJKöõ⁄[ä	… N¬àô]\õàõ›‹ﬂ	œ]à€\‹œHú€X[]]Yà›[OHõX\ô⁄[ã]‹ç\èê]X›[àù]]\èŸ]èâŒ¬àN¬à€€ú›ò]Y\XõX‘^Y\îò][ô‹—[òXõY€X]⁄\‹⁄Y€õY[ùÀôö[\äOOòKõX]⁄⁄YOO[KöY	âòKùX[W⁄Y
+KõX\
+OOû¬à€€ú›\X\ãôŸ]
+Kú^Y\ó⁄Y
+Kúè\ò][ô—õ‹ìX]⁄^Y\äKKú^Y\ó⁄YKùX[W⁄Y€ÿ[ N¬àô]\õàúââúﬁ€ò[YNúõò[YKéúúãúò][ôÀX[NòKùX[W⁄YNõù[¬àJKôö[\äõ€€X[äNñ◊N¬à€€ú›ô\›Hò]Yõ[ô›”X]õX^
+ããúò]YõX\
+OûúäJNõù[¬à€€ú›õ›P€€JX[RY
+OOû¬à€€ú›õ›‹œ\ò]Yôö[\äOî›ö[ô ùX[JOOOT›ö[ô X[RY
+JKú€‹ù
+
+KäOOòãúãXKúüKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àô]\õàõ›‹ÀõX\
+èOâœ]à€\‹œHú€X[à›[OHúY[ôŒçèâ  ãúèOOXô\›…¯´d	Œâ… JŸ\ÿ ãõò[YJJ…»à›[OHôõÿ]úöY⁄èâ €ãúãù—ö^Y
+JJ…ÀÃLÿèèŸ]èâ Köõ⁄[ä	… _	œ]à€\‹œHú€X[]]Yèê]X›[ôHõ›OŸ]èâŒ¬àN¬à€€ú›õ›\“[\XõX‘^Y\îò][ô‹—[òXõY…œ]à€\‹œHõõ›\ÀX€€[[ú»à›[OHõX\ô⁄[ã]‹åLèâ ¬à	œ]à€\‹œHú^Y\àõ›\ÀX€€[[àà›[OHõX\ô⁄[éåèèèâ Ÿ\ÿ X\ãôŸ]
+Kö€YW›X[W⁄Y
+_	œ… J…œÿèâ €õ›P€€
+Kö€YW›X[W⁄Y
+J…œŸ]èâ ¬à	œ]à€\‹œHú^Y\àõ›\ÀX€€[[àà›[OHõX\ô⁄[éåèèèâ Ÿ\ÿ X\ãôŸ]
+Kò]ÿ^W›X[W⁄Y
+_	œ… J…œÿèâ €õ›P€€
+Kò]ÿ^W›X[W⁄Y
+J…œŸ]èâ ¬à	œŸ]èâŒâ…Œ¬àô]\õà	œ]à€\‹œHú^Y\àèè]à€\‹œHõ]]YèìX]⁄	  JÃJJ Kú]⁄…»8†(à	 Ÿ\ÿ Kú]⁄
+Nâ… J…œŸ]èâ ¬à	œ]à€\‹œHö\›‹ûK\ÿ€‹ô[[ôHà›[OHõX\ô⁄[ã]‹çúèâ ¬à	œà€\‹œHö\›‹ûK]X[K[ò[YHèâ Ÿ\ÿ X\ãôŸ]
+Kö€YW›X[W⁄Y
+_	œ… J…œÿèâ ¬à	œ]à€\‹œHúÿ€‹ôHèâ €Kö€YW‹ÿ€‹ôJ…»H	 €Kò]ÿ^W‹ÿ€‹ôJ…œŸ]èâ ¬à	œà€\‹œHö\›‹ûK]X[K[ò[YHèâ Ÿ\ÿ X\ãôŸ]
+Kò]ÿ^W›X[W⁄Y
+_	œ… J…œÿèâ ¬à	œ]à€\‹œHö\›‹ûKY€ÿ[»€YHèâ Ÿ€ÿ[õÿ⁄ Kö€YW›X[W⁄Y
+J…œŸ]èâ ¬à	œ]à€\‹œHö\›‹ûKY€ÿ[»]ÿ^Hèâ Ÿ€ÿ[õÿ⁄ Kò]ÿ^W›X[W⁄Y
+J…œŸ]èâ ¬à	œŸ]èâ €õ›\“[
+…œŸ]èâŒ¬àJKöõ⁄[ä	… N¬à€€ú››[ô[ô”‹ô\è[ô]»X\
+›[ô[ô‹ÀõX\
+
+JOOñﬁöYWJJN¬à€€ú›€‹ùY\›‹ûUX[\œ]X[\Àú€XŸJ
+Kú€‹ù
+
+KäOOä›[ô[ô”‹ô\ãôŸ]
+KöY
+OœŒNNJKJ›[ô[ô”‹ô\ãôŸ]
+ãöY
+OœŒNNJ_›ö[ô Kõò[YJKõÿÿ[P€€\\ôJ›ö[ô ãõò[YJJJN¬à€€ú›X[\‘õ›‹œIœ]à›[OHô\‹^Nôõ^Ÿÿ\åLú€›ô\ôõ›À^ò]]Œ‹Y[ôŒçúLèâ ‹€‹ùY\›‹ûUX[\ÀõX\
+X[OOû¬à€€ú›Yœ]X[T^Y\úÀôö[\äOùùX[W⁄YOO]X[KöY
+KõX\
+Oùú^Y\ó⁄Y
+N¬à€€ú›ò[öœJ›[ô[ô”‹ô\ãôŸ]
+X[KöY
+OœŒNNJJÃN¬àô]\õà	œ]à€\‹œHùX[Hà›[OHõZ[ã]⁄YååÃŸõ^ååÃ…  ò[öœOOLO…ÿõ‹ô\éåú€€YŸòNÿõﬁ\⁄Y›Œå‹LúôÿòJåMMéåM
+N…Œâ… J…»èè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[àèèèâ  ò[öœOOLO…¸'‰dH	Œâ… JŸ\ÿ X[Kõò[YJJ…œÿèè‹[à€\‹œHô›Y\›XòYŸHèâ  ò[öœOOLO…¸'„·àòZ[ú]Y]\âŒâ»… ‹ò[ö J…œ‹‹[èèŸ]èâ ⁄YÀõX\
+YOâœ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹çúèâ Ÿ\ÿ X\ãôŸ]
+Y
+OÀõò[Y_	œ… J…œŸ]èâ Köõ⁄[ä	… J…œŸ]èâŒ¬àJKöõ⁄[ä	… J…œŸ]èâŒ¬à	
+	»‹XõX’öY]… Kö[õô\íSBà	œXY\à€\‹œHù‹èè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[àèè]èèO∏¶ØH	 Ÿ\ÿ õò[Y_	‘’‚H’TìêSQSïKÕI J…œ⁄Oè]à€\‹œHúXõXÀ\›Xàèâ ⁄ù›\õò[Y[ùŸ]J…»8†(à\›‹ö\]YOŸ]èèŸ]èèù]€àYHòòX⁄‘XõX»è∏°§ô]›\èÿù]€èèŸ]èè⁄XY\èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'‰iH0‚\]Z\\œ⁄èâ »
+X[\‘õ›‹ﬂ	œ€\‹œHõ]]Yèê]X›[ôH0Í\]Z\Kè‹â H
+…œŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'„·à€\‹Ÿ[Y[ùö[ò[⁄èâ »
+X[Tõ›‹ﬂ	œ€\‹œHõ]]Yèê]X›[à€\‹Ÿ[Y[ùè‹â H
+…œŸ]èâ ¬à	œ]à€\‹œHô‹öYÃàèè]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hè∏¶ØHù]]\úœ⁄èè]àYHö\›‹ûTÿ€‹ô\ú–õﬁèâ  \›‹ûTò[ö‘õ›‹ ÿ€‹ã	Ÿ… _	œ€\‹œHõ]]Yèê]X›[àù]]\ãè‹â J…œŸ]èâ  ÿ€‹ãõ[ô›åL…œù]€àYHö\›‹ûUŸŸ€Tÿ€‹ô\ú»à›[OHõX\ô⁄[ã]‹åLèë0Í]ô[‹\èÿù]€èâŒâ… J…œŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'„´»\‹Ÿ]\úœ⁄èè]àYHö\›‹ûP\‹⁄\›–õﬁèâ  \›‹ûTò[ö‘õ›‹ \‹À	ÿI _	œ€\‹œHõ]]Yèê]X›[à\‹Ÿ]\ãè‹â J…œŸ]èâ  \‹Àõ[ô›åL…œù]€àYHö\›‹ûUŸŸ€P\‹⁄\›»à›[OHõX\ô⁄[ã]‹åLèë0Í]ô[‹\èÿù]€èâŒâ… J…œŸ]èèŸ]èâ ¬à
+XõX‘^Y\îò][ô‹—[òXõY…œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hè∏´d‹^Y\àH›\õõ⁄O⁄èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ãXõ›€Néèê€\‹Ÿ[Y[ù\»YZ[]\ô\»\ôõ‹õX[òŸ\»[ô]öYY[\»H›\õõ⁄KèŸ]èè]àYHö\›‹ûU‹^Y\êõﬁèâ  \›‹ûTò[ö‘õ›‹ \›‹	›‹	 _	œ€\‹œHõ]]Yèê]X›[ôHõ›H\‹€öXõKè‹â J…œŸ]èâ  \›‹õ[ô›åL…œù]€àYHö\›‹ûUŸŸ€U‹^Y\àà›[OHõX\ô⁄[ã]‹åLèë0Í]ô[‹\èÿù]€èâŒâ… J…œŸ]èâŒâ… J¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'‰‚»∞Í\›[]»	àõ›\œ⁄èâ »
+X]⁄õ›‹ﬂ	œ€\‹œHõ]]Yèê]X›[àX]⁄è‹â H
+…œŸ]èâŒ¬à]\›ÿ—^[ôYYò[ŸK\›\‹—^[ôYYò[ŸK\›‹^[ôYYò[ŸN¬àYä	
+	»⁄\›‹ûUŸŸ€Tÿ€‹ô\ú… JI
+	»⁄\›‹ûUŸŸ€Tÿ€‹ô\ú… Kõ€ò€X⁄œJ
+OOû⁄\›ÿ—^[ôYHZ\›ÿ—^[ôY…
+	»⁄\›‹ûTÿ€‹ô\ú–õﬁ	 Kö[õô\íSZ\›‹ûTò[ö‘õ›‹ ÿ€‹ã	Ÿ…À\›ÿ—^[ôY
+N…
+	»⁄\›‹ûUŸŸ€Tÿ€‹ô\ú… Kù^€€ù[ùZ\›ÿ—^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂN¬àYä	
+	»⁄\›‹ûUŸŸ€P\‹⁄\›… JI
+	»⁄\›‹ûUŸŸ€P\‹⁄\›… Kõ€ò€X⁄œJ
+OOû⁄\›\‹—^[ôYHZ\›\‹—^[ôY…
+	»⁄\›‹ûP\‹⁄\›–õﬁ	 Kö[õô\íSZ\›‹ûTò[ö‘õ›‹ \‹À	ÿIÀ\›\‹—^[ôY
+N…
+	»⁄\›‹ûUŸŸ€P\‹⁄\›… Kù^€€ù[ùZ\›\‹—^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂN¬àYä	
+	»⁄\›‹ûUŸŸ€U‹^Y\â JI
+	»⁄\›‹ûUŸŸ€U‹^Y\â Kõ€ò€X⁄œJ
+OOû⁄\›‹^[ôYHZ\›‹^[ôY…
+	»⁄\›‹ûU‹^Y\êõﬁ	 Kö[õô\íSZ\›‹ûTò[ö‘õ›‹ \›‹	›‹	À\›‹^[ôY
+N…
+	»⁄\›‹ûUŸŸ€U‹^Y\â Kù^€€ù[ùZ\›‹^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂN¬à	
+	»ÿòX⁄‘XõX… Kõ€ò€X⁄œJ
+OOõÿÿ][€ãöôYè\XõX“\›‹ûPòX⁄’\õ
+⁄Ÿ[äN¬àô]\õé¬àBà€€ú›‹[ï›\úœVÀããù›\õò[Y[ù◊Kôö[\äOùú›]\»OOIŸö[ö\⁄Y	…âùúôY⁄\›ò][€ó€‹[äKú€‹ù
+
+KäOOî›ö[ô Kù›\õò[Y[ùŸ]JKõÿÿ[P€€\\ôJ›ö[ô ãù›\õò[Y[ùŸ]JJJN¬à€€ú›XõX‘\ò[\œ\›ŸTXõX‘\ò[\ 
+N¬à€€ú›ô\]Y\›Y›\õò[Y[ù\XõX‘\ò[\ÀôŸ]
+	››\õò[Y[ù	 N¬à€€ú›ô\]Y\›YöY]œ\XõX‘\ò[\ÀôŸ]
+	›öY]… _	…Œ¬à€€ú›ô\]Y\›Y[ŸO\XõX‘\ò[\ÀôŸ]
+	€[ŸI _	…Œ¬à€€ú›ÿ[ù”XY›YTŸ\‹⁄[€è\ô\]Y\›YöY]œOOI€XY›YK\Ÿ\‹⁄[€âﬂ
+\ô\]Y\›YöY]…âúô\]Y\›Y[ŸOOOI€XY›YW‹Ÿ\‹⁄[€â N¬à€€ú›ÿ[ù’›\õò[Y[ù\ô\]Y\›YöY]œOOI››\õò[Y[ù	ﬂ
+\ô\]Y\›YöY]…âúô\]Y\›Y[ŸOOOI››\õò[Y[ù	 N¬à€€ú›[ŸSX]⁄\œ]Oùÿ[ù”XY›YTŸ\‹⁄[€è›ôõ‹õX]OOI€XY›YIŒäÿ[ù’›\õò[Y[ù›ôõ‹õX]OOI€XY›YIŒùùYJN¬à€€ú›€€ú›[][€ì€õOH\ô\]Y\›Y›\õò[Y[ù	âà\ô\]Y\›YöY]…âà\ô\]Y\›Y[ŸIâà\XõX‘\ò[\ÀôŸ]
+	€XY›YI Iâà\XõX‘\ò[\ÀôŸ]
+	⁄\›‹ûI N¬à]ôY’›\è[ù[¬àYäô\]Y\›Y›\õò[Y[ù
+^¬àôY’›\è]›\õò[Y[ùÀôö[ô
+OùöYOO\ô\]Y\›Y›\õò[Y[ù	âõ[ŸSX]⁄\ 
+J_ù[¬àY[ŸHYäX€€ú›[][€ì€õIâäÿ[ù”XY›YTŸ\‹⁄[€üÿ[ù’›\õò[Y[ù
+J^¬àôY’›\è[‹[ï›\úÀôö[ô
+[ŸSX]⁄\ _ù[¬àBà€€ú›ôY–õﬁI
+	»‹XõX‘ôY⁄\›ò][€â N¬à]ôY⁄\›ò][€îô\Ÿ[ù][€è[ù[¬à]ôY⁄\›ò][€ê€€‹ôÿ[ö^ô\úœV◊KôY⁄\›ò][€îò][ô’⁄[ô›‹œV◊KôY⁄\›ò][€í\–€€‹ôÿ[ö^ô\èYò[ŸKôY⁄\›ò][€î\ú€€ò[[ú›ùX›[€èI…Œ¬à]ô\Ÿ[ù][€ìY]Y]P]L¬à\ﬁ[ò»ù[ò›[€àÿYô\Ÿ[ù][€ìY]Y]J
+^¬àYä\ôY’›\üôY’›\ãôõ‹õX]OOI€XY›YIﬂ]Kõõ› 
+K\ô\Ÿ[ù][€ìY]Y]P]Ã
+\ô]\õé¬àô\Ÿ[ù][€ìY]Y]P]Q]Kõõ› 
+N¬à€€ú›Ÿ\‹⁄[€èX]ÿZ]ÿãò]]ôŸ]Ÿ\‹⁄[€ä
+N¬àôY⁄\›ò][€í\–€€‹ôÿ[ö^ô\èYò[ŸN‹ôY⁄\›ò][€ê€€‹ôÿ[ö^ô\úœV◊N‹ôY⁄\›ò][€îò][ô’⁄[ô›‹œV◊N‹ôY⁄\›ò][€î\ú€€ò[[ú›ùX›[€èI…Œ¬àYä\Ÿ\‹⁄[€ãô]OÀúŸ\‹⁄[€ä^‹ôY⁄\›ò][€îô\Ÿ[ù][€èÀù\]SZ\‹⁄[€ú 
+N‹ô]\õéﬂBà€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]€^W››\õò[Y[ù‹ô\Ÿ[ù][€ó›åIÀ‹››\õò[Y[ù⁄YúôY’›\ãöYJN¬àYä\úõ‹üY]J^‹ôY⁄\›ò][€îô\Ÿ[ù][€èÀù\]SZ\‹⁄[€ú 
+N‹ô]\õéﬂBàôY⁄\›ò][€í\–€€‹ôÿ[ö^ô\èY]Kö\◊ÿ€€‹ôÿ[ö^ô\èOO]ùYN¬àôY⁄\›ò][€î\ú€€ò[[ú›ùX›[€èT›ö[ô ]Kú\ú€€ò[⁄[ú›ùX›[€úﬂ	… Kùö[J
+N¬àôY⁄\›ò][€ê€€‹ôÿ[ö^ô\úœY]Kö\◊ÿ€€‹ôÿ[ö^ô\ââô]Kõ^W‹^Y\ó⁄Y÷Ÿ]Kõ^W‹^Y\ó⁄YNñ◊N‹ôY⁄\›ò][€îò][ô’⁄[ô›‹œY]Kù›\õò[Y[ù‹ò][ô◊›⁄[ô›‹ﬂ◊N¬àôY⁄\›ò][€îô\Ÿ[ù][€èÀù\]SZ\‹⁄[€ú 
+N¬àBàYäô\]Y\›Y›\õò[Y[ù	âà\ôY’›\ä^¬à	
+	»‹XõX’öY]… Kö[õô\íSIœXY\à€\‹œHù‹èèOè[Y»‹òœHããŸò]öX€€ãúôœ›èMLà€\‹œHòúò[ô[X\ö»à[Hî’‚Hèî’‚H’TìêSQSïKÕO⁄Oè⁄XY\èè]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]HèìY[à8†&Z[úÿ‹ö\[€à[ô\‹€öXõO⁄èè€\‹œHõ]]YèêŸHY[àôH€‹úô\‹€ô\»0Ë[ôH[úÿ‹ö\[€à›]ô\ùK›HH\HH€€\0Í]][€àôH€‹úô\‹€ô\»]HY[àÍ[∞Í\∞ÍKà]X›[à]]ôH›\õõ⁄HöH]X›[ôHY›YHôHŸ\òHYôöX⁄0ÍH0ËÿHXŸKè‹èŸ]èâŒ¬àô]\õé¬àBÇàÀ»çåà8†%[ôõ‹õX][€ú»][\»ö\⁄Xõ\»0Í»Hô[ZpÍôHYŸK]ò[ùH⁄⁄^€€ÀÍ\]Z\KÇàù[ò›[€àô[ô\îXõX‘]ZX⁄‘›] 
+^¬à€€ú›õﬁI
+	»‹XõX‘]ZX⁄‘›]… N¬àYäXõﬁ
+\ô]\õé¬àYä\ôY’›\ä^ÿõﬁö[õô\íSI…Œ‹ô]\õéﬂBà€€ú›X›]ôTôY‹œ\ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âúãúô\Ÿ[ù
+N¬à€€ú›€€ôö\õYYXX›]ôTôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	 Kõ[ô›¬à€€ú›ÿZ][ôœXX›]ôTôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	 Kõ[ô›¬à€€ú››Xú›]]\œXX›]ôTôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	…âúãö\◊‹›Xú›]]JKõ[ô›¬à€€ú›X^^Y\úœSù[Xô\äôY’›\ãõX^‹^Y\úﬂÕJN¬à€€ú›ô[XZ[ö[ôœSX]õX^
+X^^Y\úÀX€€ôö\õYY
+N¬à€€ú›ôYOJù[Xô\äôY’›\ãô[ùûWŸôYWÿŸ[ùﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]Œìù[Xô\äôY’›\ãô[ùûWŸôYWÿŸ[ùﬂ
+ILLÃéåX^[][QúòX›[€ëY⁄]ŒåüJN¬à]XY[ôOI‡∞ÍX⁄\Ÿ\âŒ¬àYäôY’›\ãúôY⁄\›ò][€óŸXY[ôJ^¬à€€ú›[ô]»]JôY’›\ãúôY⁄\›ò][€óŸXY[ôJN¬àYäSù[Xô\ãö\”òSäôŸ][YJ
+JJHXY[ôOYù”ÿÿ[T›ö[ô 	ŸúãQîâÀ›ŸYZŸ^Nâ‹⁄‹ù	À^NâÃãYY⁄]	À[€ùâÃãYY⁄]	À›\éâÃãYY⁄]	ÀZ[ù]NâÃãYY⁄]	ﬂJKúô\XŸJ	À	À	»8†(â N¬àBà€€ú›][OJX€€ãXô[ò[YK^òOI… OOâœ]à€\‹œHú^Y\àà›[OHõX\ô⁄[éåÿòX⁄Ÿ‹õ›[ôàŸòôòYçéÿõ‹ô\éå\€€YŸXYòÿN€Z[ãZZY⁄çÕèè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNãçŒô[Hèâ ⁄X€€ä…»	 €Xô[
+…œŸ]èè]à›[OHôõ€ù\⁄^ôNåKåô[NŸõ€ù]ŸZY⁄éL€X\ô⁄[ã]‹å‹èâ ›ò[YJ…œŸ]èâ  ^òO…œ]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNãçÕ\ô[N€X\ô⁄[ã]‹åúèâ Ÿ^òJ…œŸ]èâŒâ… J…œŸ]èâŒ¬àõﬁö[õô\íSBà][J	¸'‰iIÀ	“[úÿ‹ö]…ÀX›]ôTôY‹Àõ[ô›
+…»»	 €X^^Y\úÀ
+›Xú›]]\œ‹›Xú›]]\ …»ô[\pÈÿ[ù	  ›Xú›]]\œåO…‹…Œâ… Nâ… J ÿZ][ôœ ›Xú›]]\œ…»8†(à	Œâ… J›ÿZ][ô …»[à][ùIŒâ… JJ¬à][J	¸'„ß˚Ó#…À	‘XŸ\»ô\›[ù\…ÀX]õX^
+X^^Y\úÀXX›]ôTôY‹Àõ[ô›
+KX›]ôTôY‹Àõ[ô›è[X^^Y\úœ…–€€\]8†%\›H8†&X][ùIŒâ… J¬à
+
+
+OOû¬à€€ú›€]›\õò[Y[ù‹õ›\]ô[Àôö[ô
+Oî›ö[ô ù›\õò[Y[ù⁄Y
+OOOT›ö[ô ôY’›\ãöY
+JN¬à€€ú›ÿ€‹ôOY€	âìù[Xô\ãö\—ö[ö]Jù[Xô\ä€ò]ô◊‹ò][ô JO”ù[Xô\ä€ò]ô◊‹ò][ô Nõù[¬à€€ú›Xô[\ÿ€‹ôOOO[ù[…—[à€›\ú»8†&pÍ]ò[X][€âŒäÿ€‹ôOKçO…‡ô[ôõ‹òŸ\âŒúÿ€‹ôOãçO…”[ﬁY[âŒúÿ€‹ôOÀçO…–õ€âŒúÿ€‹ôOçO…’∞Í»õ€âŒâ—^Ÿ[[ù	 N¬àô]\õà][J	¯¶®IÀ	”ö]ôX]HH‹õ›\IÀÿ€‹ôOOO[ù[€Xô[äÿ€‹ôKù—ö^Y
+JKúô\XŸJ	ÀâÀ	À	 J…»»H8†%	 €Xô[
+K	—Í[∞Í\∞ÍH]]€X]\]Y[Y[ù[àõ€ò›[€àHö]ôX]H\»õ›Y]\ú»H‹õ›\Kâ N¬àJJ
+J¬à][J	¸'‰·IÀ	‘ô[ô^ã]õ›\…À\ÿ ôY’›\ãù›\õò[Y[ùŸ]_	‡∞ÍX⁄\Ÿ\â J ôY’›\ãú›\ù›[YO…»8†(à	 Ÿ\ÿ ›ö[ô ôY’›\ãú›\ù›[YJKú€XŸJJJNâ… K\ÿ ôY’›\ãùô[ùY_	’\úòZ[à0Ë∞ÍX⁄\Ÿ\â JJ¬à][J	¯£Ï…À	—ö[à\»[úÿ‹ö\[€ú…À\ÿ XY[ôJJJ¬à][J	¸'‰≠âÀ	‘\ùX⁄\][€âÀôYJ…»8†´	À	‹\àõ›Y]\â N¬àBàô[ô\îXõX‘]ZX⁄‘›] 
+N¬Çàù[ò›[€àXõX—›Y\›Xô[
+
+^¬àYä\
+\ô]\õà	…Œ¬àYäö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJ\ô]\õà	”Y[XúôHH‹õ›\IŒ¬à€€ú›‹›\^Y\úÀôö[ô
+OûöYOO\ô›Y\›€Ÿó‹^Y\ó⁄Y
+N¬àô]\õà‹›…—›Y\›H	 ⁄‹›õò[YNâ—›Y\›	Œ¬àBàù[ò›[€à\—ö\ú›[YTXõX‘^Y\ä^Y\íY›\õò[Y[ùY
+^¬àYäôY’›\èÀôõ‹õX]OOI€XY›YI \ô]\õàò[ŸN¬à€€ú›\^Y\úÀôö[ô
+OûöYOO\^Y\íY
+N¬àYä\ö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJ\ô]\õàò[ŸN¬àô]\õà\ôY⁄\›ò][€úÀú€€YJèOúãú^Y\ó⁄YOO\^Y\íY	âúãù›\õò[Y[ù⁄YOO]›\õò[Y[ùY	âúãúô\Ÿ[ù
+N¬àBÇàù[ò›[€àXõX‘ôY⁄\›ò][€î›[[X\ûR[
+
+^¬àYä\ôY’›\ä\ô]\õà	…Œ¬à€€ú›ôY‹œ\ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âúãúô\Ÿ[ù	âúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	 N¬à€€ú›X^^Y\úœSù[Xô\äôY’›\ãõX^‹^Y\úﬂå
+N¬à€€ú›ô[XZ[ö[ô—€ÿò[SX]õX^
+X^^Y\úÀ\ôY‹Àõ[ô›
+N¬à€€ú››\ïX[\œ]X[\Àôö[\äOùù›\õò[Y[ù⁄YOO\ôY’›\ãöY
+N¬à€€ú›Yœ[ô]»Ÿ]
+›\ïX[\ÀõX\
+OùöY
+JN¬à€€ú›õ›‹œ]X[T^Y\úÀôö[\äOöYÀö\ ùX[W⁄Y
+JN¬à€€ú›\‹⁄Y€ôY[ô]»Ÿ]
+õ›‹ÀõX\
+Oùú^Y\ó⁄Y
+JN¬à€€ú›X\[ô]»X\
+^Y\úÀõX\
+Oñ‹öYJJN¬à€€ú›ôY”X\[ô]»X\
+ôY‹ÀõX\
+èOñ‹ãú^Y\ó⁄YóJJN¬Çà€€ú››Y\›^\èOû¬à€€ú›\X\ôŸ]
+èÀú^Y\ó⁄Y
+N¬àYäÀö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJ\ô]\õà	”Y[XúôHH‹õ›\IŒ¬à€€ú›‹›Y\èÀúôY⁄\›\ôYÿûW‹^Y\ó⁄YÀô›Y\›€Ÿó‹^Y\ó⁄Yù[¬à€€ú›‹›Z‹›Y‹X\ôŸ]
+‹›Y
+Nõù[¬àô]\õà‹›…—›Y\›H	 ⁄‹›õò[YNâ—›Y\›	Œ¬àN¬à€€ú›€€‹í[ôõœ]X[OOû¬à€€ú›^T›ö[ô X[OÀò€€‹ü	»ÕçÕâ Kù”›Ÿ\êÿ\ŸJ
+N¬à€€ú›ò[Y\œ^…»ÃLLNç…Œâ”õ⁄\âÀ	»ÃçMåŸXâŒâ–õ]IÀ	»ŸéòYò…Œâ–õ[ò…À	»ŸÃçåçâŒâ‘õ›YŸIÀ	»ÃMòLÕIŒâ’ô\ù	À	»ŸXXåÃ	Œâ“ò][ôIÀ	»ŸéMÃÃMâŒâ”‹ò[ôŸIÀ	»ÕÿÃÿYY	Œâ’ö[€]	À	»ŸXÕNIŒâ‘õ‹ŸIÀ	»ÕŒÕLâŒâ”X\úõ€âÀ	»ÕçÕâŒâ—‹ö\…ﬂN¬àô]\õà⁄^Xô[õò[Y\÷⁄^_	–€›[]\à\ú€€õò[\ÍYIﬂN¬àN¬Çà€€ú›úôYO\ôY‹Àôö[\äèOàX\‹⁄Y€ôYö\ ãú^Y\ó⁄Y
+JN¬à€€ú›úôYR[YúôYKõ[ô›à»úôYKõX\
+èOû¬à€€ú›\X\ôŸ]
+ãú^Y\ó⁄Y
+N¬à€€ú››Y\›Y›Y\›^
+äN¬à€€ú›[ô[ô“[ùö]O]X[R[ùö]][€úÀôö[ô
+OOöKù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô Kú^Y\ó⁄Y
+OOOT›ö[ô ãú^Y\ó⁄Y
+IâöKú›]\œOOI‹[ô[ô… N¬à€€ú›[ô[ô’X[O\[ô[ô“[ùö]O››\ïX[\Àôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô [ô[ô“[ùö]KùX[W⁄Y
+JNõù[¬à€€ú›úôYT›]O\[ô[ô’X[O…¯£Ï»õ‹‹⁄][€àà	 ‹[ô[ô’X[Kõò[YNäãö\◊‹›Xú›]]O…¸'ÁËô[\pÈÿ[ù€€[][âŒâ¸'„¨à0‚\]Z\H[0ÍX]⁄\ôI N¬à€€ú›⁄[è\XõX‘ôY⁄\›ò][€ë]U[YJãúôY⁄\›\ôYÿ]ãò‹ôX]Yÿ]
+N¬àô]\õà	œ]à€\‹œHú^Y\àõ›»à›[OHò[Y€ãZ][\Œôõ^\›\ùèè‹[à›[OHôõ^åHèâ Ÿ\ÿ Àõò[Y_	“õ›Y]\â J¬à
+›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›
+J…œ‹‹[èâŒâ… J¬à
+⁄[è…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹Ÿõ€ù\⁄^ôNåLúèº'Âdà[úÿ‹ö]H	 Ÿ\ÿ ⁄[äJ…œŸ]èâŒâ… J¬à	œ‹‹[èè‹[à€\‹œHõ]]Yà›[OHúY[ôÀ]‹åúèâ Ÿ\ÿ úôYT›]JJ…œ‹‹[èèŸ]èâŒ¬àJKöõ⁄[ä	… Bàà	œ€\‹œHõ]]Yèê]X›[àõ›Y]\à[à0Í\]Z\H[0ÍX]⁄\ôKè‹âŒ¬Çà€€ú›X[\“[]›\ïX[\Àõ[ô›à»›\ïX[\ÀõX\
+X[OOû¬à€€ú›õ›‹œ]õ›‹Àôö[\äOùùX[W⁄YOO]X[KöY
+N¬à€€ú›€€‹èX€€‹í[ôõ X[JN¬à€€ú›[ô[ô‘õ›‹œ]X[R[ùö]][€úÀôö[\äOOöKù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô KùX[W⁄Y
+OOOT›ö[ô X[KöY
+IâöKú›]\œOOI‹[ô[ô… N¬à€€ú›Y[Xô\ú“[Jõ›‹Àõ[ô›[ô[ô‘õ›‹Àõ[ô›
+Bà»õ›‹ÀõX\
+Oû¬à€€ú›\X\ôŸ]
+ú^Y\ó⁄Y
+N¬à€€ú››Y\›Y›Y\›^
+ôY”X\ôŸ]
+ú^Y\ó⁄Y
+JN¬à€€ú›ôYœ\ôY”X\ôŸ]
+ú^Y\ó⁄Y
+N¬à€€ú›⁄[è\XõX‘ôY⁄\›ò][€ë]U[YJôYœÀúôY⁄\›\ôYÿ]ôYœÀò‹ôX]Yÿ]
+N¬àô]\õà	œ]à›[OHõX\ô⁄[ã]‹ç‹è∏ß!H	 Ÿ\ÿ Àõò[Y_	“õ›Y]\â J ›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›
+J…œ‹‹[èâŒâ… J ⁄[è…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[éåúåúŸõ€ù\⁄^ôNåLúèº'Âdà[úÿ‹ö]H	 Ÿ\ÿ ⁄[äJ…œŸ]èâŒâ… J…œŸ]èâŒ¬àJKöõ⁄[ä	… J‹[ô[ô‘õ›‹ÀõX\
+[ùèOû¬à€€ú›\X\ôŸ]
+[ùãú^Y\ó⁄Y
+N¬àô]\õà	œ]à›[OHõX\ô⁄[ã]‹çè∏£Ï»	 Ÿ\ÿ Àõò[Y_	“õ›Y]\â J…»‹[à€\‹œHõ]]Yè∏†(à[à][ùH8†&XXÿ€‹ô‹‹[èèŸ]èâŒ¬àJKöõ⁄[ä	… Bàà	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èê]X›[àõ›Y]\èŸ]èâŒ¬àô]\õà	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹éèè]à€\‹œHúõ›»èâ ¬à	œ‹[à›[OHù⁄YåN⁄ZY⁄åNÿõ‹ô\ã\òY]\ŒçL	NÿòX⁄Ÿ‹õ›[ôâ Ÿ\ÿ €€‹ãö^
+J…Œÿõ‹ô\éå\€€YÿÿôYLNŸõ^å]]»èè‹‹[èâ ¬à	œà›[OHôõ^åHèâ Ÿ\ÿ X[Kõò[Y_	‚\]Z\I J…œÿèè‹[à€\‹œHõ]]Yèâ ‹õ›‹Àõ[ô›
+…ÀÕH€€ôö\õpÍI  õ›‹Àõ[ô›åO…‹…Œâ… J [ô[ô‘õ›‹Àõ[ô›…»8†(à	 ‹[ô[ô‘õ›‹Àõ[ô›
+…»[à][ùIŒâ… J…œ‹‹[èèŸ]èâ ¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèê€›[]\ààèâ Ÿ\ÿ €€‹ãõXô[
+J…œÿèèŸ]èâ €Y[Xô\ú“[
+…œŸ]èâŒ¬àJKöõ⁄[ä	… Bàà	œ€\‹œHõ]]Yèê]X›[ôH0Í\]Z\H€€\‹ÍYKè‹âŒ¬Çàô]\õà	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸYYéåéÿõ‹ô\éå\€€YÿçŸòÕèèèº'‰‚à	 ‹ôY‹Àõ[ô›
+…À… €X^^Y\ú …»[úÿ‹ö]œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèèèâ ‹ô[XZ[ö[ô—€ÿò[
+…»XŸI  ô[XZ[ö[ô—€ÿò[åO…‹…Œâ… J…»ô\›[ùI  ô[XZ[ö[ô—€ÿò[åO…‹…Œâ… J…œÿèà]ò[ù8†&X]Z[ôôHH[Z]H8†&Z[úÿ‹ö]ÀèŸ]èèŸ]èâ ¬à
+úôYKõ[ô›…œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLÿòX⁄Ÿ‹õ›[ôàŸéòôéHèèèº'‰iõ›Y]\ú»[à0Í\]Z\H[0ÍX]⁄\ôOÿèâ ŸúôYR[
+…œŸ]èâŒâ… J¬à
+›\ïX[\Àõ[ô›…œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLÿòX⁄Ÿ‹õ›[ôàŸéòôôàèèèº'‰iH0‚\]Z\\»0ÍZ∞Ë€€\‹ÍY\œÿèâ ›X[\“[
+…œŸ]èâŒâ… N¬àBÇàù[ò›[€àXõX‘ôY⁄\›ò][€ë]U[YJò[YJ^¬àYä]ò[YJ\ô]\õà	…Œ¬àû^¬àô]\õàô]»]Jò[YJKù”ÿÿ[T›ö[ô 	ŸúãQîâÀ›[YVõ€ôNâ–[Y\öXÿK”X\ù[ö\]YIÀ^NâÃãYY⁄]	À[€ùâÃãYY⁄]	ÀYX\éâ€ù[Y\öX…À›\éâÃãYY⁄]	ÀZ[ù]NâÃãYY⁄]	ﬂJN¬àXÿ]⁄
+J^‹ô]\õà	…ﬂBàBÇàù[ò›[€àô[ô\îXõX‘ôY⁄\›ò][€ì\›
+
+^¬àYä\ôY’›\ü\ôY–õﬁ
+\ô]\õé¬à€€ú›ôY‹œ\ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY
+Kú€‹ù
+
+KäOOî›ö[ô KúôY⁄\›\ôYÿ]Kò‹ôX]Yÿ]	… Kõÿÿ[P€€\\ôJ›ö[ô ãúôY⁄\›\ôYÿ]ãò‹ôX]Yÿ]	… JJN¬à€€ú›€€ôö\õYY\ôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	…âúãúô\Ÿ[ù
+N¬à€€ú›ÿZ][ôœ\ôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	 N¬à€€ú›^Y\ìX\[ô]»X\
+^Y\úÀõX\
+OñﬁöYJJN¬à€€ú›\›õ›‹œX€€ôö\õYYõX\
+
+ãJOOû¬à€€ú›\^Y\ìX\ôŸ]
+ãú^Y\ó⁄Y
+N⁄Yä\
+\ô]\õà	…Œ¬à€€ú›‹›JÀö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸIâúãúôY⁄\›\ôYÿûW‹^Y\ó⁄Y
+O‹^Y\ìX\ôŸ]
+ãúôY⁄\›\ôYÿûW‹^Y\ó⁄Y
+Nõù[¬à€€ú››Y\›\Àö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸO…”Y[XúôHH‹õ›\IŒä‹› 	—›Y\›H	 ⁄‹›õò[YJNúXõX—›Y\›Xô[
+
+JN¬à€€ú›ö\ú›Z\—ö\ú›[YTXõX‘^Y\äöYôY’›\ãöY
+N¬à€€ú›⁄[è\XõX‘ôY⁄\›ò][€ë]U[YJãúôY⁄\›\ôYÿ]ãò‹ôX]Yÿ]
+N¬àô]\õà	œ]à€\‹œHú^Y\àõ›»à›[OHò[Y€ãZ][\Œôõ^\›\ùèèà›[OHõZ[ã]⁄YåÕèâ  JÃJJ…Àèÿèè‹[à›[OHôõ^åHèâ Ÿ\ÿ õò[YJJ ö\ú›…»‹[à€\‹œHô›Y\›XòYŸHèº'·•HpÍôHõ⁄\œ‹‹[èâŒâ… J ›Y\›	âàYö\ú›…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›
+J…œ‹‹[èâŒâ… J ⁄[è…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹Ÿõ€ù\⁄^ôNåLúèº'Âdà[úÿ‹ö]H	 Ÿ\ÿ ⁄[äJ…œŸ]èâŒâ… J…œ‹‹[èè‹[à›[OHôõ€ù]ŸZY⁄çÃÿ€€‹éâ  ãö\◊‹›Xú›]]O…»ÿçLÃIŒâ»ÃMNŸ	 J…»èâ  ãö\◊‹›Xú›]]O…‘ô[\pÈÿ[ù	Œâ–€€ôö\õpÍI J…œ‹‹[èèŸ]èâŒ¬àJKôö[\äõ€€X[äN¬à€€ú›ÿZ]õ›‹œ]ÿZ][ôÀõX\
+
+ãJOOû¬à€€ú›\^Y\ìX\ôŸ]
+ãú^Y\ó⁄Y
+N⁄Yä\
+\ô]\õà	…Œ¬à€€ú›‹›JÀö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸIâúãúôY⁄\›\ôYÿûW‹^Y\ó⁄Y
+O‹^Y\ìX\ôŸ]
+ãúôY⁄\›\ôYÿûW‹^Y\ó⁄Y
+Nõù[¬à€€ú››Y\›\Àö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸO…”Y[XúôHH‹õ›\IŒä‹› 	—›Y\›H	 ⁄‹›õò[YJNúXõX—›Y\›Xô[
+
+JN¬à€€ú›ö\ú›Z\—ö\ú›[YTXõX‘^Y\äöYôY’›\ãöY
+N¬à€€ú›⁄[è\XõX‘ôY⁄\›ò][€ë]U[YJãúôY⁄\›\ôYÿ]ãò‹ôX]Yÿ]
+N¬àô]\õà	œ]à€\‹œHú^Y\àõ›»à›[OHò[Y€ãZ][\Œôõ^\›\ùèèà›[OHõZ[ã]⁄YåÕèâ  JÃJJ…Àèÿèè‹[à›[OHôõ^åHèâ Ÿ\ÿ õò[YJJ ö\ú›…»‹[à€\‹œHô›Y\›XòYŸHèº'·•HpÍôHõ⁄\œ‹‹[èâŒâ… J ›Y\›	âàYö\ú›…»‹[à€\‹œHô›Y\›XòYŸHèâ Ÿ\ÿ ›Y\›
+J…œ‹‹[èâŒâ… J ⁄[è…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹å‹Ÿõ€ù\⁄^ôNåLúèº'Âdà[úÿ‹ö]H	 Ÿ\ÿ ⁄[äJ…œŸ]èâŒâ… J…œ‹‹[èè‹[à›[OHôõ€ù]ŸZY⁄çÃÿ€€‹éàÿçLÃHèê][ùO‹‹[èèŸ]èâŒ¬àJKöõ⁄[ä	… N¬à€€ú›X^XõXœSù[Xô\äôY’›\ãõX^‹^Y\úﬂå
+N¬à€€ú›X›]ôTXõXœ\ôY‹Àôö[\äèOúãúô\Ÿ[ù
+N¬à€€ú››Xú‘XõXœX€€ôö\õYYôö[\äèOúãö\◊‹›Xú›]]JN¬à€€ú›ô[XZ[ö[ô‘XõXœSX]õX^
+X^XõXÀXX›]ôTXõXÀõ[ô›
+N¬à€€ú›€›[ùI
+	»‹XõX‘ôY–€›[ù	 N⁄Yä€›[ù
+X€›[ùù^€€ù[ùXX›]ôTXõXÀõ[ô›
+…À… €X^XõX …»[úÿ‹ö]»8†(à	 ‹ô[XZ[ö[ô‘XõX …»XŸI  ô[XZ[ö[ô‘XõXœåO…‹…Œâ… J…»ô\›[ùI  ô[XZ[ö[ô‘XõXœåO…‹…Œâ… J ›Xú‘XõXÀõ[ô›…»8†(à	 ‹›Xú‘XõXÀõ[ô›
+…»ô[\pÈÿ[ù	  ›Xú‘XõXÀõ[ô›åO…‹…Œâ… Nâ… J ÿZ][ôÀõ[ô›…»8†(à	 ›ÿZ][ôÀõ[ô›
+…»[à][ùIŒâ… N¬à€€ú›\›I
+	»‹XõX‘ôY⁄\›\ôY\›	 N⁄Yä\›
+^¬à€€ú›^[ôYHHI
+	»‹XõX”[‹ôTôY⁄\›ò][€ú… OÀõ‹[é¬à\›ö[õô\íS[\›õ›‹Àú€XŸJJKöõ⁄[ä	… J \›õ›‹Àõ[ô›çO…œ]Z[»YHúXõX”[‹ôTôY⁄\›ò][€ú»â  ^[ôY…»‹[âŒâ… J…œè›[[X\ûOè‹[à€\‹œHù⁄[ãX€‹ŸYèïõ⁄\à\»	  \›õ›‹Àõ[ô›MJJ…»]]ô\»[úÿ‹ö]œ‹‹[èè‹[à€\‹œHù⁄[ã[‹[àèìX\‹]Y\àH›Z]HHH\›O‹‹[èè‹›[[X\ûOâ €\›õ›‹Àú€XŸJJKöõ⁄[ä	… J…œŸ]Z[œâŒâ… N¬àBà€€ú›€\›I
+	»‹XõX’ÿZ]\›	 N⁄Yä€\›
+^›€\›ö[õô\íS]ÿZ]õ›‹Œ›€\›ú\ô[ù[[Y[ùò€\‹”\›ùŸŸ€J	⁄Y[âÀ]ÿZ][ôÀõ[ô›
+_BàBÇàYäôY’›\ä^¬à€€ú›[öŸYXY›YO\ôY’›\ãôõ‹õX]OOI€XY›YIœ€XY›Y\Àôö[ô
+OõöYOO\ôY’›\ãõXY›YW⁄Y
+Nõù[¬à	
+	»‹XõX’€‹ö‹‹XŸSò[YI Kù^€€ù[ù\ôY’›\ãôõ‹õX]OOI€XY›YI¬à ôY’›\ãõò[Y_
+	‘›ÍHH	  [öŸYXY›YOÀõò[Y_	”Y›YI JJBàäôY’›\ãõò[Y_
+	’›\õõ⁄HH	 ‹ôY’›\ãù›\õò[Y[ùŸ]JJN¬à€€ú›ôY‹œ\ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY
+N¬à€€ú›€€ôö\õYYõ›‹œ\ôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	…âúãúô\Ÿ[ù
+N¬à€€ú›€€ôö\õYYX€€ôö\õYYõ›‹Àõ[ô›¬à€€ú››Xú›]]\œX€€ôö\õYYõ›‹Àôö[\äèOúãö\◊‹›Xú›]]JKõ[ô›¬à€€ú›ÿZ][ôœ\ôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	…âúãúô\Ÿ[ù
+Kõ[ô›¬à€€ú›XõX–]]‘[è\ôY’›\ãôõ‹õX]OOI€XY›YIœ€ù[ù›\õò[Y[ù]]‘[ä€€ôö\õYY
+N¬à€€ú›XõX—ôYOJù[Xô\äôY’›\ãô[ùûWŸôYWÿŸ[ùﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]Œìù[Xô\äôY’›\ãô[ùûWŸôYWÿŸ[ùﬂ
+ILLÃéåX^[][QúòX›[€ëY⁄]ŒåüJN¬à€€ú›ô\Ÿ\ùôY]⁄ò[Y\œJôY’›\ãúô\Ÿ\ùôY‹]⁄⁄Yﬂ◊JKõX\
+YOîÀú‹‹ù‘]⁄\Àôö[ô
+OúöYOOZY
+OÀõò[YJKôö[\äõ€€X[äN¬à€€ú›XõX’\úòZ[ìXô[\ô\Ÿ\ùôY]⁄ò[Y\Àõ[ô›‹ô\Ÿ\ùôY]⁄ò[Y\Àöõ⁄[ä	À	 NäôY’›\ãùô[ùY_	‡∞ÍX⁄\Ÿ\â N¬à€€ú›XõX’[YO\ôY’›\ãú›\ù›[YO‘›ö[ô ôY’›\ãú›\ù›[YJKú€XŸJJNâ‡∞ÍX⁄\Ÿ\âŒ¬àôY–õﬁö[õô\íSBà	œ]à€\‹œHú^Y\àèèèâ Ÿ\ÿ ôY’›\ãõò[Y_
+	’›\õõ⁄HH	 ‹ôY’›\ãù›\õò[Y[ùŸ]JJJ…œÿèè]àYHúXõX‘ôY–€›[ùà€\‹œHõ]]Yèâ ÿ€€ôö\õYY
+…À…  ôY’›\ãõX^‹^Y\úﬂÕJJ…»[úÿ‹ö]…  ›Xú›]]\œ…»8†(à	 ‹›Xú›]]\ …»ô[\pÈÿ[ù	  ›Xú›]]\œåO…‹…Œâ… Nâ… J ÿZ][ôœ…»8†(à	 ›ÿZ][ô …»[à][ùIŒâ… J…œŸ]èâ ¬à
+ôY’›\ãôõ‹õX]OOI€XY›YIœ 
+
+OOûÿ€€ú›[è]›\õò[Y[ù]]‘[ä€€ôö\õYY
+N‹ô]\õà	œ]à›[OHõX\ô⁄[ã]‹ç‹Ÿõ€ù]ŸZY⁄éè∏¶¶{Ó#»ÿÍ[ò\ö[»X›Y[à	  [ãùX[\œ‹[ãùX[\ …»0Í\]Z\I  [ãùX[\œåO…‹…Œâ… J…»8†(à	 ‹[ãú]⁄\ …»\úòZ[â  [ãú]⁄\œåO…‹…Œâ… J [ãú›Xúœ…»8†(à	 ‹[ãú›Xú …»ô[\pÈÿ[ù	  [ãú›XúœåO…‹…Œâ… J…»€€[][â  [ãú›XúœåO…‹…Œâ… Nâ… Nâ€[⁄[ú»HLõ›Y]\ú»8†%0Í\]Z\\»õ€àÍ[∞Í\òXõ\… J…œŸ]èâﬂJJ
+Nâ… J¬à
+ôY’›\ãúôY⁄\›ò][€óŸXY[ôO…œ]à›[OHõX\ô⁄[ã]‹é‹Y[ôŒé\L\ÿõ‹ô\ã\òY]\ŒåLÿòX⁄Ÿ‹õ›[ôàŸåôçÿõ‹ô\éå\€€YÿòôçŸèèè∏£Ï{Ó#»€€\H0ËôXõ›\ú»\»[úÿ‹ö\[€úœÿèè]à]K\ôY⁄\›ò][€ãYXY[ôOHâ Ÿ\ÿ ôY’›\ãúôY⁄\›ò][€óŸXY[ôJJ…»à›[OHõX\ô⁄[ã]‹çèèŸ]èè]à€\‹œHõ]]Yèëö[à\»[úÿ‹ö\[€ú»à	 €ô]»]JôY’›\ãúôY⁄\›ò][€óŸXY[ôJKù”ÿÿ[T›ö[ô 	ŸúãQîâÀ›[YVõ€ôNâ–[Y\öXÿK”X\ù[ö\]YIÀ]T›[Nâ‹⁄‹ù	À[YT›[Nâ‹⁄‹ù	ﬂJJ…œŸ]èèŸ]èâŒâ… J…œŸ]èâ ¬à
+ôY’›\ãôõ‹õX]OOI€XY›YI¬à»	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸYYéåéÿõ‹ô\éå\€€YÿçŸòÕèèèº'‰„H[ôõ‹»ò]\]Y\œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çú€[ôKZZY⁄åKç»èê€€\^H»\úòZ[ú»àèâ Ÿ\ÿ XõX’\úòZ[ìXô[
+J…œÿèèúèí]\ôHH∞Í\Ÿ\ùò][€ààèâ Ÿ\ÿ XõX’[YJJ…œÿèèúèîö^àèâ Ÿ\ÿ XõX—ôYJJ…»8†´»\ùX⁄\[ùÿèâ  ôY’›\ãúô\Ÿ\ùò][€ó‹ôYô\ô[òŸO…œúèî∞Í\Ÿ\ùò][€ààèâ Ÿ\ÿ ôY’›\ãúô\Ÿ\ùò][€ó‹ôYô\ô[òŸJJ…œÿèâŒâ… J…œŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹é€[ôKZZY⁄åKç»èèèîõŸ‹ò[[YHèÿèèúèéHà\úö]∞ÍYKZY[Y[ù
+»0ÍX⁄]Yôô[Y[ùúèéZà0ÍXù]H›\õõ⁄H8†%\»ô[ZpÍô\»0Í\]Z\\»\úö]∞ÍY\»€€[Y[òŸ[ù	  ôY’›\ãù\ô⁄[óÿX›]ôO…œúèåLZàŸHZK][\…Œâ… J…œŸ]èèŸ]èâ¬àà	… J¬à
+XõX–]]‘[ââò€€ôö\õYYèLL…œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸYYéåéÿõ‹ô\éå\€€YÿçŸòÕèèè∏¶¶{Ó#»õ‹õX]∞Í]ùH]ôX»	 ÿ€€ôö\õYY
+…»[úÿ‹ö]œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\€[ôKZZY⁄åKçàèâ ‹XõX–]]‘[ãùX[\ …»0Í\]Z\\»8†(à	 ‹XõX–]]‘[ãú]⁄\ …»\úòZ[â  XõX–]]‘[ãú]⁄\œåO…‹…Œâ… J XõX–]]‘[ãú›Xúœ…»8†(à	 ‹XõX–]]‘[ãú›Xú …»ô[\pÈÿ[ù	  XõX–]]‘[ãú›XúœåO…‹…Œâ… J…»€€[][â  XõX–]]‘[ãú›XúœåO…‹…Œâ… Nâ… J…Àâ  XõX–]]‘[ãú›Xúœ…»\»ô[\pÈÿ[ù»›\úõ€ùõ›Y\à›\à∏†&Z[\‹ùH]Y[H0Í\]Z\KâŒâ… J…œŸ]èèŸ]èâŒâ… J¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸéòôéHèèè∏ß!H[úÿ‹ö\[€èÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çú€[ôKZZY⁄åKçàèí[úÿ‹ö\À]⁄H[à€\]X[ù›\àè∞™»ôH\ùX⁄\H0Æœÿèãà⁄HHöY[ú»Xÿ€€\Y€∞ÍK[ô\]YHHõ€HH\»[ùö]0Í\Àà⁄\]YHY[XúôH]]Zõ›]\àù\‹]x†&pËèçH[ùö]0Í\»X^[][OÿèãèŸ]èèŸ]èâ ¬à	œ]à€\‹œHú‹XŸHèèŸ]èèŸ[X›YHúXõX‘^Y\îŸ[X›èè‹[€àò[YOHàèê⁄⁄\⁄\»€àõ€O€‹[€èè‹Ÿ[X›â ¬à	œ]àYHúXõX‘Ÿ[X›Y›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç‹èê⁄⁄\⁄\»€àõ€H›\àõ⁄\à€à›]]èŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èî⁄H[à]]ôHõ›Y]\à8†&XHõ‹‹ÍH[ôH0Í\]Z\K\»õ›]€ú»èêXÿŸ\\èÿèà»èîôYù\Ÿ\èÿèà\\òpÎùõ€ùX⁄H\∞Í»Í[X›[€àH€àõ€KèŸ]èè]àYHúXõX’X[R[ùö]][€ëX⁄\⁄[€àà€\‹œHöY[àà›[OHõX\ô⁄[ã]‹åLèèŸ]èâ ¬à	œ]à€\‹œHú‹XŸHèèŸ]èè]àYHúXõX‘\ùX⁄\][€êX›[€ú»à€\‹œHúõ›»èèù]€àYHúXõX“õ⁄[àà€\‹œHúö[X\ûHè∏ß!HôH\ùX⁄\Oÿù]€èèù]€àYHúXõX”X]ôHè∏ßcôHôH\ùX⁄\H\œÿù]€èèŸ]èâ ¬à	œ]àYHúXõX‘^[Y[ùõﬁà]K\^[Y[ùX€€ùõ€\èHò\à€\‹œHöY[àà›[OHõX\ô⁄[ã]‹åLúèèŸ]èâ ¬à
+ôY’›\ãôõ‹õX]OOI€XY›YI¬à»	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸôôôçÿõ‹ô\éå\€€YŸåôéXàèèèº'·•Hô[ZpÍôHõ⁄\»œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[éç\èïH∏†&Y\»\»[ò€‹ôHY[XúôHH‹õ›\H»[ùôH€àõ€H›\à8†&Z[úÿ‹ö\ôH0ËŸ]HY›YKèŸ]èè[ú]YHúXõX”ô]‘^Y\ìò[YHàX^[ô›HçåàXŸZ€\èHï€à∞Í[õ€H»õ€Hèè]à€\‹œHú‹XŸHèèŸ]èèù]€àYHúXõX”ô]‘^Y\íõ⁄[àà€\‹œHúö[X\ûHèìx†&Z[úÿ‹ö\ôH›\àHô[ZpÍôHõ⁄\œÿù]€èèŸ]èâ¬àà	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸôôçŸYÿõ‹ô\éå\€€YŸôYÿXHèèèº'È'HHôH\ùX⁄\\»\»XZ\»H[ùö]\»]Y[]x†&][àœÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çú€[ôKZZY⁄åKçàèê]X›[àõÿõ0ÍYHàèúÍ[X›[€õôH⁄[\[Y[ù€àõ€Oÿèà[ú»H\›H⁄KY\‹›\Àÿ[ú»€\]Y\à›\à0™»ôH\ùX⁄\H0ÆÀZ\»ÿZ\⁄\»Hõ€HH€à[ùö]0ÍH⁄KY\‹€›\Àà€à[ùö]0ÍHŸ\òHò]X⁄0ÍH0Ë€àõ€H]èù⁄KHôHŸ\ò\»\»[úÿ‹ö]]H›\õõ⁄OÿèãèŸ]èèŸ]èâ J¬à	œ]Z[»€\‹œHú^Y\ààYHúXõX—›Y\›öY[»à›[OHõX\ô⁄[ã]‹åLúèè›[[X\ûH›[OHò›\ú€‹éú⁄[ù\àèèèº'‰iY\»[ùö]0Í\œÿèè‹›[[X\ûOè]à€\‹œHõ]]Yà›[OHõX\ô⁄[éçèâ ¬à
+ôY’›\ãôõ‹õX]OOI€XY›YI¬à»	‘Í[X›[€õôH€àõ€H⁄KY\‹›\»Z\»Zõ›]H\»[ùö]0Í\»[à\à[ãàH]^[àZõ›]\àù\‹]x†&pËèçH]H›[ÿèà›\àŸH›ÍKâ¬àà	‘›\à[à›\õõ⁄K[ôH\ú€€õôH^0Í\öY]\ôHôH]]\»¯†&Z[úÿ‹ö\ôHŸ][Hà[H⁄]0ÍùôHèö[ùö]0ÍYH\à[àY[XúôHH‹õ›\OÿèãàÍ[X›[€õôH€àõ€HZ\»Zõ›]H€à›H\»[ùö]0Í\ÀpÍõYH⁄H⁄K[pÍõYHHôH\ùX⁄\\»\ÀàH]^[àZõ›]\àù\‹]x†&pËèçH]H›[ÿèãâ J¬à	œŸ]èè]àYHúXõX‘ô]ö[›\—›Y\›’‹ò\à€\‹œHöY[àèèXô[õ‹èHúXõX‘ô]ö[›\—›Y\›èèèîô]õ›]ô\à[à[ò⁄Y[à[ùö]0ÍOÿèè€Xô[èŸ[X›YHúXõX‘ô]ö[›\—›Y\›èè‹[€àò[YOHàèêZõ›]\à[àõ›]ô[[ùö]0ÍO€‹[€èè‹Ÿ[X›è€\‹œHõ]]Yèì\»[ùö]0Í\»0ÍZ∞Ë[úÿ‹ö]»0ËŸ]H0ÍY][€à€€ù[ô\]pÍ\»[ú»H\›Kè‹èŸ]èèXô[õ‹èHúXõX—›Y\›ò[YHèìõ€HH8†&Z[ùö]0ÍO€Xô[è[ú]YHúXõX—›Y\›ò[YHàX^[ô›HçåàXŸZ€\èHìõ€HHõ›]ô[[ùö]0ÍH›HH8†&Z[ùö]0ÍHÍ[X›[€õ∞ÍHèèXô[€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹é⁄ù\›YûKX€€ù[ùôõ^\›\ùèè[ú]YHúXõX—›Y\›Y[Xô\àà\OHò⁄X⁄ÿõﬁà›[OHù⁄Yò]]»èè‹[èêZõ›]\àŸ][ùö]0ÍH€€[YHY[XúôHH‹õ›\O‹‹[èè€Xô[è]àYHúXõX—›Y\›€ôU‹ò\à€\‹œHöY[àà›[OHõX\ô⁄[ã]‹éèè[ú]YHúXõX—›Y\›€ôHà\OHù[à[ú][ŸOHù[àXŸZ€\èHìù[pÍ\õ»H[ÿö[HH8†&Z[ùö]0ÍHèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çèìHù[pÍ\õ»\›[X[ô0ÍH[ö\]Y[Y[ù›\à‹∞ÍY\àÿHöX⁄HY[XúôKà[ô\›Hö]∞ÍH]ö\⁄XõH[ö\]Y[Y[ù\à8†&XYZ[ö\›ò]]\ãèŸ]èèŸ]èè]à€\‹œHú‹XŸHèèŸ]èèù]€àYHúXõX–Y›Y\›à€\‹œHúö[X\ûHèä»Zõ›]\à[€à[ùö]0ÍOÿù]€èèŸ]Z[œâ ¬à	œ]àYHúXõX‘ôY‘›]\»à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸôôçŸYÿõ‹ô\éå\€€YŸôYÿXN€[ôKZZY⁄åKçàèèèº'ÁË€€[Y[ùõ€ò›[€õôHH›]]0™»ô[\pÈÿ[ù0Æ»œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çúèìH›]]ô[\pÈÿ[ù\›]öXùpÍH[ö\]Y[Y[ù‹ú‹]x†&Z[∏†&^HH\»[ò€‹ôH\‹Ÿ^àHõ›Y]\ú»›\à€€ú›]Y\à[ôH0Í\]Z\H€€\0ÍH›\0Í[Y[ùZ\ôHHèçHõ›Y]\úœÿèãèúèèúèèèë^[\Hèÿèà]ôX»èåM[úÿ‹ö]œÿèã€à]]õ‹õY\àèåà0Í\]Z\\»€€\0Í\»HOÿèàà\»õ›Y]\ú»€\‹Í\»HHLYH0ËHMHXŸH€€ù€ò»èçô[\pÈÿ[ùœÿèãà0Í»]x†&][àèåMYHõ›Y]\èÿèà¯†&Z[úÿ‹ö]Ÿ\»Hõ›Y]\ú»õ‹õY[ùHèåŸH0Í\]Z\H€€\0ÍOÿèà]ôH€€ù\»ô[\pÈÿ[ùÀèúèèúèìpÍõYHö[ò⁄\H[ú›Z]HàMà0ËNH[úÿ‹ö]»Hô[\pÈÿ[ù»›\à∞Í\\ô\àHH0Í\]Z\H»0Ëå[úÿ‹ö]»H0Í\]Z\\»€€\0Í\Àà8†&[‹ôôH\›ò\ÍH›\àHèô]H]8†&Z]\ôH8†&Z[úÿ‹ö\[€èÿèãYôöX⁄0ÍY\»€›\»Hõ€HH⁄\]YHõ›Y]\à[ú»H\›KèŸ]èèŸ]èâ ¬à	œ»›[OHõX\ô⁄[ã]‹åNèº'‰iH\›H\»[úÿ‹ö]œ⁄œè]àYHúXõX‘ôY⁄\›\ôY\›èèŸ]èâ ¬à	œ]àYHúXõX’ÿZ]‹ò\à€\‹œHâ  ÿZ][ôœ……Œâ⁄Y[â J…»èè»›[OHõX\ô⁄[ã]‹åMè∏£Ï»\›H8†&X][ùO⁄œè]àYHúXõX’ÿZ]\›èèŸ]èèŸ]èâŒ¬àô[ô\îXõX‘ôY⁄\›ò][€ì\›
+
+N¬à\]U›\õò[Y[ù€›[ù›€ú 
+N¬à€€ú›XõX—XY[ôO]›\õò[Y[ùXY[ôS\ ôY’›\äN¬à€€ú›XõX‘ôY⁄\›ò][€ë^\ôY\ôY’›\ãôõ‹õX]OOI€XY›YI…âúXõX—XY[ôHOO[ù[	âë]Kõõ› 
+Oè\XõX—XY[ôN¬àYäXõX‘ôY⁄\›ò][€ë^\ôY
+^¬à€€ú››I
+	»‹XõX‘ôY‘›]\… N¬àYä›
+\›ö[õô\íSIœè∏¶Â[úÿ‹ö\[€ú»\õZ[∞ÍY\ÀèÿèàH€0Ì\ôH0Í]Z]ö^0ÍYHHôZ[HH›\õõ⁄H0ËM⁄âŒ¬à…‹XõX“õ⁄[âÀ	‹XõX–Y›Y\›	À	‹XõX”ô]‘^Y\íõ⁄[â◊Kôõ‹ëXX⁄
+YOûÿ€€ú›èI
+	»… ⁄Y
+N⁄YääXãô\ÿXõY]ùYNﬂJN¬àBÇàYäXõX’\ô[ââúôY’›\ãù\ô⁄[óÿX›]ôJ^Ÿÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	»‹XõX’\ô[ë€õ‹êÿ\ô	 Kôõ‹ëXX⁄
+Oûúô[[›ôJ
+JN¬à€€ú›€õ‹êÿ\ôYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸ€õ‹êÿ\ôöYI‹XõX’\ô[ë€õ‹êÿ\ô	Œ¬à€õ‹êÿ\ôò€\‹”ò[YOIÿÿ\ô	Œ¬à€õ‹êÿ\ôö[õô\íSIœà€\‹œHúŸX›[€ù]Hèº'È‚à‹€ò]]\ú»HHŸHZK][\œ⁄èè€\‹œHõ]]YèìH€\‹Ÿ[Y[ù\\òpÎùòHX⁄H0Í»]YH\»\ùX⁄\][€ú»0ËH€X⁄pÍôHŸ\õ€ù[úôY⁄\›∞ÍY\»\à8†&[‹ôÿ[ö\ÿ]]\ãè‹è]àYHúXõX–€€€\ë€õ‹ú»èèŸ]èâŒ¬àôY–õﬁú\ô[ù[[Y[ùÀö[úŸ\ùôYõ‹ôJ€õ‹êÿ\ôôY–õﬁõô^⁄Xõ[ô N¬àBÇàŸ][Y[›]
+\]U›\õò[Y[ù€›[ù›€úÀ
+N¬à€€ú›PìP◊—’QT’”SRUMN¬Çàù[ò›[€àXõX—›Y\›\ÿYŸJ‹›Y
+^¬à€€ú›\ŸY\ôY⁄\›ò][€úÀôö[\äèOÇàãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âÇà›ö[ô ãúôY⁄\›\ôYÿûW‹^Y\ó⁄Y	… OOOT›ö[ô ‹›Y	… Bà
+Kõ[ô›¬àô]\õà›\ŸYô[XZ[ö[ôŒìX]õX^
+PìP◊—’QT’”SRU]\ŸY
+_N¬àBÇàù[ò›[€àôYúô\⁄XõX‘^Y\îŸ[X›
+
+^¬à€€ú›Ÿ[I
+	»‹XõX‘^Y\îŸ[X›	 N¬àYä\Ÿ[
+\ô]\õé¬à€€ú›ô]ö[›\œ\Ÿ[ùò[YN¬à€€ú›Y[Xô\úœ\^Y\úÀôö[\äOûòX›]ôIâûö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à€€ú›⁄Y€ò]\ôORî””ãú›ö[ô⁄YûJY[Xô\úÀõX\
+OñﬁöYõò[YWJJN¬àYäŸ[ô]\Ÿ]õY[Xô\î⁄Y€ò]\ôOOO\⁄Y€ò]\ô_ÿ›[Y[ùòX›]ôQ[[Y[ùOO\Ÿ[
+\ô]\õé¬àŸ[ô]\Ÿ]õY[Xô\î⁄Y€ò]\ôO\⁄Y€ò]\ôN¬àŸ[ö[õô\íSIœ‹[€àò[YOHàèê⁄⁄\⁄\»€àõ€O€‹[€èâ €Y[Xô\úÀõX\
+Oû¬àÀ»H\›Hô\›Hõ€€ùZ\ô[Y[ù⁄[\HàH›]]]\»[ùö]0Í\»€€ùYôöX⁄0Í\»ù\›H[à\‹€›\»\∞Í»Í[X›[€ãÇàô]\õà	œ‹[€àò[YOHâ ﬁöY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâŒ¬àJKöõ⁄[ä	… N¬àYäÀããúŸ[õ‹[€ú◊Kú€€YJœOõÀùò[YOOO\ô]ö[›\ J\Ÿ[ùò[YO\ô]ö[›\Œ¬àBÇàù[ò›[€àô[ô\îô]ö[›\—›Y\› 
+^¬à€€ú›Ÿ[X›I
+	»‹XõX‘ô]ö[›\—›Y\›	 K‹ò\I
+	»‹XõX‘ô]ö[›\—›Y\›’‹ò\	 K‹›I
+	»‹XõX‘^Y\îŸ[X›	 OÀùò[YN¬àYä\Ÿ[X›]‹ò\
+\ô]\õé¬à€€ú›ô]ö[›\“Yœ[ô]»Ÿ]
+ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âä›ö[ô ãúôY⁄\›\ôYÿûW‹^Y\ó⁄Y	… OOOT›ö[ô ‹›
+_^Y\úÀú€€YJOúöYOO\ãú^Y\ó⁄Y	âî›ö[ô ô›Y\›€Ÿó‹^Y\ó⁄Y	… OOOT›ö[ô ‹›
+JJJKõX\
+èOúãú^Y\ó⁄Y
+JN¬à€€ú›ô]ö[›\œZ‹›‹^Y\úÀôö[\äOúö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸIâúô]ö[›\“YÀö\ öY
+JKú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YJJNñ◊N¬à‹ò\ò€\‹”\›ùŸŸ€J	⁄Y[âÀ\ô]ö[›\Àõ[ô›
+N¬àYäÿ›[Y[ùòX›]ôQ[[Y[ùOO\Ÿ[X›
+\ô]\õé¬à€€ú›€\Ÿ[X›ùò[YK[Iœ‹[€àò[YOHàèêZõ›]\à[àõ›]ô[[ùö]0ÍO€‹[€èâ ‹ô]ö[›\ÀõX\
+Oûÿ€€ú›ô\Ÿ[ù\ôY⁄\›ò][€úÀú€€YJèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âúãú^Y\ó⁄YOO\öY	âúãúô\Ÿ[ù
+N‹ô]\õà	œ‹[€àò[YOHâ ‹öY
+…»à	  ô\Ÿ[ù…Ÿ\ÿXõY	Œâ… J…œâ Ÿ\ÿ õò[YJJ ô\Ÿ[ù…»8†%0ÍZ∞Ë[úÿ‹ö]	Œâ… J…œ€‹[€èâŒﬂJKöõ⁄[ä	… N¬àYäŸ[X›ö[õô\íSOOZ[
+^‹Ÿ[X›ö[õô\íSZ[⁄YäÀããúŸ[X›õ‹[€ú◊Kú€€YJœOõÀùò[YOOO[€	âà[Àô\ÿXõY
+J\Ÿ[X›ùò[YO[€ﬂBàBà	
+	»‹XõX‘ô]ö[›\—›Y\›	 Kõ€ò⁄[ôŸOJ
+OOûÿ€€ú›\^Y\úÀôö[ô
+OúöYOOI
+	»‹XõX‘ô]ö[›\—›Y\›	 Kùò[YJN…
+	»‹XõX—›Y\›ò[YI Kùò[YO\Àõò[Y_	…Œ⁄Yä
+^…
+	»‹XõX—›Y\›Y[Xô\â Kò⁄X⁄ŸYYò[ŸN…
+	»‹XõX—›Y\›€ôI Kùò[YOI…Œ…
+	»‹XõX—›Y\›€ôU‹ò\	 Kò€\‹”\›òY
+	⁄Y[â Nﬂ_N¬à	
+	»‹XõX—›Y\›ò[YI KòY]ô[ù\›[ô\ä	⁄[ú]	À
+
+OOû…
+	»‹XõX‘ô]ö[›\—›Y\›	 Kùò[YOI…ŒﬂJN¬àù[ò›[€à\]TŸ[X›YôY⁄\›ò][€î›]\ 
+^¬àô[ô\îô]ö[›\—›Y\› 
+N¬à€€ú›YI
+	»‹XõX‘^Y\îŸ[X›	 OÀùò[YN¬à€€ú››]\œI
+	»‹XõX‘Ÿ[X›Y›]\… N¬àYä\›]\ \ô]\õé¬àYä\Y
+^‹›]\Àù^€€ù[ùI–⁄⁄\⁄\»€àõ€H›\àõ⁄\à€à›]]]Hõ€XúôH8†&Z[ùö]0Í\»]x†&Z[Hô\›KâŒ‹ô]\õüBà€€ú›ôYœ\ôY⁄\›ò][€úÀôö[ô
+èOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô ãú^Y\ó⁄Y
+OOOT›ö[ô Y
+Iâúãúô\Ÿ[ù
+N¬à€€ú›ÿ[òŸ[YôYœ\ôY⁄\›ò][€úÀôö[ô
+èOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô ãú^Y\ó⁄Y
+OOOT›ö[ô Y
+Iâà\ãúô\Ÿ[ù	âúãúôY⁄\›ò][€ó‹›]\œOOIÿÿ[òŸ[Y	 N¬à€€ú›\ÿYŸO\XõX—›Y\›\ÿYŸJY
+N¬à€€ú›[ùö]U^]\ÿYŸKúô[XZ[ö[ôœåà…»8†(à	 ›\ÿYŸKù\ŸY
+…À… ‘PìP◊—’QT’”SRU
+…»[ùö]0ÍI  \ÿYŸKù\ŸYåO…‹…Œâ… J…»][\ÍI  \ÿYŸKù\ŸYåO…‹…Œâ… J…»8†%	 ›\ÿYŸKúô[XZ[ö[ô …»ô\›[ù	  \ÿYŸKúô[XZ[ö[ôœåO…‹…Œâ… J…Àâ¬àâ»8†(à	 ›\ÿYŸKù\ŸY
+…À… ‘PìP◊—’QT’”SRU
+…»[ùö]0Í\»][\Í\»8†%]X›[ôH[ùö]][€àô\›[ùKâŒ¬àYä\ôY ^¬à›]\Àù^€€ù[ùJÿ[òŸ[YôY¬à…¸'Â-H8†&Y\»0Í\⁄[úÿ‹ö]HŸH›ÍKàH]^H∞ÍZ[úÿ‹ö\ôH[ù]YH\»[úÿ‹ö\[€ú»€€ù›]ô\ù\Àâ¬àäôY’›\ãôõ‹õX]OOI€XY›YI¬à…¯¶™àH∏†&Y\»\»[ò€‹ôH[úÿ‹ö]0ËŸH›ÍKâ¬àâ¯¶™àHôH\ùX⁄\\»\»X›Y[[Y[ùàH]^]X[ôpÍõYH[ùö]\à]Y[]x†&][à⁄KY\‹€›\»ÿ[ú»8†&Z[úÿ‹ö\ôKâ JJ⁄[ùö]U^¬àY[Ÿ^¬à€€ú›\‹⁄Y€ôYX[RYœ[ô]»Ÿ]
+X[\Àôö[\äOùù›\õò[Y[ù⁄YOO\ôY’›\ãöY
+KõX\
+OùöY
+JN¬à€€ú›[ïX[O]X[T^Y\úÀú€€YJOî›ö[ô ú^Y\ó⁄Y
+OOOT›ö[ô Y
+Iâò\‹⁄Y€ôYX[RYÀö\ ùX[W⁄Y
+JN¬à€€ú›⁄[è\XõX‘ôY⁄\›ò][€ë]U[YJôYÀúôY⁄\›\ôYÿ]
+N¬à›]\Àù^€€ù[ùJ
+ôYÀúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	ﬂôYÀö\◊‹›Xú›]]JBà…¸'ÁËH\»0ÍZ∞Ë[úÿ‹ö]€€[YHô[\pÈÿ[ù›\à€€\0Í]\àHõÿ⁄Z[ôH0Í\]Z\Kâ¬àä[ïX[O…¸'ÁËàH\»0ÍZ∞Ë[úÿ‹ö][ú»[ôH0Í\]Z\KâŒâ¸'ÁËàH\»0ÍZ∞Ë[úÿ‹ö]]€€ôö\õpÍKâ JJ ⁄[è…»8†(à[úÿ‹ö\[€àà	 ›⁄[éâ… J⁄[ùö]U^¬àBà€€ú›Y›Y\›ùèI
+	»‹XõX–Y›Y\›	 N¬àYäY›Y\›ùä^¬àY›Y\›ùãô\ÿXõY]\ÿYŸKúô[XZ[ö[ôœL¬àY›Y\›ùãù^€€ù[ù]\ÿYŸKúô[XZ[ö[ôœLà…”[Z]HHH[ùö]0Í\»]Z[ùI¬àâ »Zõ›]\à[€à[ùö]0ÍH
+	 ›\ÿYŸKúô[XZ[ö[ô …»ô\›[ù	  \ÿYŸKúô[XZ[ö[ôœåO…‹…Œâ… J… IŒ¬àBàBà]XõX‘^[Y[ùŸ\OL¬à]XõX‘^[Y[ùÿX⁄O^‹^Y\íYõù[›]\Œõù[[õù[ôŒõù[õ‹ô\éõù[N¬à]XõX‘^[Y[ùÿY[ô—õ‹è[ù[¬à]XõX‘›ö\P€€ôö\õS\›]L¬à]XõX‘›ö\P€€ôö\õTù[õö[ôœYò[ŸN¬à\ﬁ[ò»ù[ò›[€à€€ôö\õTXõX‘›ö\T^[Y[ù
+YŸ\‹⁄[€íY[ù[õ‹òŸOYò[ŸJ^¬àYä\YXõX‘›ö\P€€ôö\õTù[õö[ô \ô]\õàò[ŸN¬à€€ú›õ›œQ]Kõõ› 
+N¬àYäYõ‹òŸIâõõ›À\XõX‘›ö\P€€ôö\õS\›]å
+\ô]\õàò[ŸN¬àXõX‘›ö\P€€ôö\õS\›][õ›Œ‹XõX‘›ö\P€€ôö\õTù[õö[ôœ]ùYN¬àû^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KX€€ôö\õKY[ùûK\^[Y[ù	ÀÿõŸNû‹XõX◊›⁄Ÿ[éù⁄Ÿ[ã›\õò[Y[ù⁄YúôY’›\ãöY^Y\ó⁄YúYŸ\‹⁄[€ó⁄YúŸ\‹⁄[€íYù[_JN¬àYä\úõ‹ü]OÀô\úõ‹ä\ô]\õàò[ŸN¬àYä]OÀúZY
+^¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYõù[›]\Œõù[[õù[ôŒõù[õ‹ô\éõù[N¬àô]\õàùYN¬àBàô]\õàò[ŸN¬àXÿ]⁄
+ŸJ^‹ô]\õàò[ŸNﬂYö[ò[^‹XõX‘›ö\P€€ôö\õTù[õö[ôœYò[ŸNﬂBàBà€€ú›XõX”[€ô^OXŸ[ùœOäù[Xô\äŸ[ùﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]ŒåãX^[][QúòX›[€ëY⁄]ŒåüJJ…»8†´	Œ¬àù[ò›[€àXõX”€ú⁄]TöXŸSXô[
+
+^¬à€€ú›Ÿ[ùœ\ôY’›\ãõ€ú⁄]WŸ[ùûWŸôYWÿŸ[ùŒ¬àô]\õàŸ[ù»O[ù[	âìù[Xô\ãö\—ö[ö]Jù[Xô\äŸ[ù JIâìù[Xô\äŸ[ù OèL‹XõX”[€ô^JŸ[ù Nâ’\öYà0Ë€€ôö\õY\à]\∞Í»H€€\^IŒ¬àBàù[ò›[€à\TXõX‘^[Y[ùöY] õﬁ[ôÀõ‹ô\ä^¬àõﬁò€\‹”ò[YOI‹^Y\âŒ¬àõﬁú›[KòòX⁄Ÿ‹õ›[ôXôﬂ	»ŸéòôôâŒ¬àõﬁú›[Kòõ‹ô\èXõ‹ô\ü	Ã\€€YÿÿôŸçIŒ¬àYäõﬁö[õô\íSOOZ[
+Xõﬁö[õô\íSZ[¬àBà\ﬁ[ò»ù[ò›[€àô[ô\îXõX‘^[Y[ùõﬁ
+‹[€úœ^ﬂJ^¬à€€ú›õﬁI
+	»‹XõX‘^[Y[ùõﬁ	 N¬àYäXõﬁ
+\ô]\õé¬à€€ú›YI
+	»‹XõX‘^Y\îŸ[X›	 OÀùò[YN¬àYä\YôY’›\ãú›]\œOOIŸö[ö\⁄Y	 ^  ‹XõX‘^[Y[ùŸ\N‹XõX‘^[Y[ùÿY[ô—õ‹è[ù[‹XõX‘^[Y[ùÿX⁄O^‹^Y\íYõù[›]\Œõù[[õù[ôŒõù[õ‹ô\éõù[Nÿõﬁò€\‹”ò[YOI⁄Y[âŒÿõﬁö[õô\íSI…Œ‹ô]\õéﬂBà€€ú›ôYœ\ôY⁄\›ò][€úÀôö[ô
+èOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô ãú^Y\ó⁄Y
+OOOT›ö[ô Y
+Iâúãúô\Ÿ[ù
+N¬àYä\ôY ^¬à
+ ‹XõX‘^[Y[ùŸ\N‹XõX‘^[Y[ùÿY[ô—õ‹è[ù[¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYõù[›]\Œõù[[õù[ôŒõù[õ‹ô\éõù[Nÿõﬁò€\‹”ò[YOI⁄Y[âŒÿõﬁö[õô\íSI…Œ‹ô]\õé¬àBàYäXõX‘^[Y[ùÿY[ô—õ‹èOO\Y
+\ô]\õé¬à€€ú›Ÿ\OJ ‹XõX‘^[Y[ùŸ\N¬à€€ú›ÿ[YT^Y\è\XõX‘^[Y[ùÿX⁄Kú^Y\íYOO\Y	âúXõX‘^[Y[ùÿX⁄Kö[¬àYäÿ[YT^Y\ä^¬à\TXõX‘^[Y[ùöY] õﬁXõX‘^[Y[ùÿX⁄Kö[XõX‘^[Y[ùÿX⁄KòôÀXõX‘^[Y[ùÿX⁄Kòõ‹ô\äN¬àY[Ÿ^¬à\TXõX‘^[Y[ùöY] õﬁ	œèº'‰¨»ZY[Y[ùHH\ùX⁄\][€èÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èï∞Í\öYöXÿ][€àH›]]8†)èŸ]èâÀ	»ŸéòôôâÀ	Ã\€€YÿÿôŸçI N¬àBàXõX‘^[Y[ùÿY[ô—õ‹è\Y¬àû^¬à€€ú›ﬁŸ]K\úõ‹üKŸ]Nò⁄⁄XŸQ]K\úõ‹éò⁄⁄XŸQ\úõ‹üWOX]ÿZ]õ€Z\ŸKò[
+¬àÿãúú 	‹XõX◊››\õò[Y[ù‹^[Y[ù‹›]\…À‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYJKàÿãúú 	‹XõX◊››\õò[Y[ù‹^[Y[ùÿ⁄⁄XŸW‹›]\…À‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYJBàJN¬àYäŸ\HOO\XõX‘^[Y[ùŸ\_	
+	»‹XõX‘^Y\îŸ[X›	 OÀùò[YHOO\YXõﬁö\–€€õôX›Y
+\ô]\õé¬àYä\úõ‹ü⁄⁄XŸQ\úõ‹ä^‹XõX‘^[Y[ùÿX⁄O^‹^Y\íYõù[›]\Œõù[[õù[ôŒõù[õ‹ô\éõù[Nÿõﬁö[õô\íSIœèº'‰¨»ZY[Y[ùHH\ùX⁄\][€èÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èî›]][ô\‹€öXõH›\àH[€Y[ùèŸ]èâŒ‹ô]\õéﬂBà€€ú››Y]_ﬂN¬àYä›úôX\€€èOOI›ÿZ]\›	 ^¬à€€ú›[Iœèº'ÁËZY[Y[ù[à][ùHH€€ôö\õX][€èÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\€[ôKZZY⁄åKçàèïH\»X›Y[[Y[ùô[\pÈÿ[ùàHZY[Y[ùŸ\òHõ‹‹ÍH]]€X]\]Y[Y[ù‹ú‹]x†&][ôHXŸH€€ôö\õpÍYHŸHX∞Í\ô\òKèŸ]èâŒ¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYúY›]\Œú›[ôŒâ»ŸôôéN	Àõ‹ô\éâÃ\€€YŸåôNIﬂNÿ\TXõX‘^[Y[ùöY] õﬁ[XõX‘^[Y[ùÿX⁄KòôÀXõX‘^[Y[ùÿX⁄Kòõ‹ô\äN¬àô]\õé¬àBàYä›úôX\€€èOOI€€õ[ôWŸ\ÿXõY	 ^ÿõﬁò€\‹”ò[YOI⁄Y[âŒÿõﬁö[õô\íSI…Œ‹ô]\õéﬂZYä›úôX\€€èOOIŸúôYIﬂù[Xô\ä›ô[ùûWŸôYWÿŸ[ùﬂ
+OL
+^ÿõﬁò€\‹”ò[YOI⁄Y[âŒÿõﬁö[õô\íSI…Œ‹ô]\õéﬂBàYä›ú^[Y[ù‹›]\œOOI‹ZY	 ^¬à€€ú›[Iœè∏ß!H\ùX⁄\][€à^pÍYH[àY€ôOÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èîZY[Y[ù€€ôö\õpÍH\à›ö\I  ›úZYÿ]…»8†(à	 €ô]»]J›úZYÿ]
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ›[YVõ€ôNâ–[Y\öXÿK”X\ù[ö\]YIÀ]T›[Nâ‹⁄‹ù	À[YT›[Nâ‹⁄‹ù	ﬂJNâ… J…ÀèŸ]èâŒ¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYúY›]\Œú›[ôŒâ»ŸYYéåâÀõ‹ô\éâÃ\€€YÿçŸòÕ	ﬂNÿ\TXõX‘^[Y[ùöY] õﬁ[XõX‘^[Y[ùÿX⁄KòôÀXõX‘^[Y[ùÿX⁄Kòõ‹ô\äN¬àô]\õé¬àBà€€ú›⁄⁄XŸOX⁄⁄XŸQ]_ﬂN¬àYä⁄⁄XŸKõX[ùX[‹ZYÿ]
+^¬à€€ú›[Iœè∏ß!H\ùX⁄\][€à^pÍYH›\àXŸOÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èìH€€\^HH€€ôö\õpÍHH∞ÍXŸ\[€àH€àZY[Y[ù	  ⁄⁄XŸKõX[ùX[‹ZYÿ]…»8†(à	 €ô]»]J⁄⁄XŸKõX[ùX[‹ZYÿ]
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ›[YVõ€ôNâ–[Y\öXÿK”X\ù[ö\]YIÀ]T›[Nâ‹⁄‹ù	À[YT›[Nâ‹⁄‹ù	ﬂJNâ… J…ÀèŸ]èâŒ¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYúY›]\Œú›[ôŒâ»ŸYYéåâÀõ‹ô\éâÃ\€€YÿçŸòÕ	ﬂNÿ\TXõX‘^[Y[ùöY] õﬁ[XõX‘^[Y[ùÿX⁄KòôÀXõX‘^[Y[ùÿX⁄Kòõ‹ô\äN¬àô]\õé¬àBàYä⁄⁄XŸKú^[Y[ù‹ôYô\ô[òŸOOOI€€ú⁄]I ^¬à€€ú›[Iœèº'„Á˚Ó#»ZY[Y[ù›\àXŸH⁄⁄\⁄Oÿèè]à›[OHõX\ô⁄[ã]‹ç‹èï\öYàXõX»›\àXŸHàà›[OHôõ€ù\⁄^ôNåKå\ô[Hèâ ‹XõX”€ú⁄]TöXŸSXô[
+
+J…œÿèèŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èï€à[úÿ‹ö\[€à\›[úôY⁄\›∞ÍYKàH€€\^H€€ôö\õY\òH€àZY[Y[ù‹ú‹]x†&Z[HôXŸ]úòKèŸ]èèù]€àYHúXõX‘›⁄]⁄€õ[ôHà›[OHù⁄YåL	N€X\ô⁄[ã]‹åLèº'‰¨»ö[ò[[Y[ù^Y\à[àY€ôOÿù]€èâŒ¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYúY›]\Œú›[ôŒâ»ŸôôéN	Àõ‹ô\éâÃ\€€YŸåôNIﬂNÿ\TXõX‘^[Y[ùöY] õﬁ[XõX‘^[Y[ùÿX⁄KòôÀXõX‘^[Y[ùÿX⁄Kòõ‹ô\äN¬à	
+	»‹XõX‘›⁄]⁄€õ[ôI Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ]ÿZ]ÿãúú 	‹XõX◊‹Ÿ]››\õò[Y[ù‹^[Y[ù‹ôYô\ô[òŸIÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúY‹ôYô\ô[òŸNâ€€õ[ôIﬂJN‹XõX‘^[Y[ùÿX⁄O^‹^Y\íYõù[›]\Œõù[[õù[ôŒõù[õ‹ô\éõù[Nÿ]ÿZ]ô[ô\îXõX‘^[Y[ùõﬁ
+‹⁄⁄\›ö\TôX€€ò⁄[NùùY_JNﬂN¬àô]\õé¬àBàYä\›ò]òZ[XõJ^¬à€€ú›[Iœèº'‰¨»ZY[Y[ù[àY€ôH[€Y[ù[∞Í[Y[ù[ô\‹€öXõOÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èì8†&[‹ôÿ[ö\ÿ]]\àö[ò[\ŸHX›Y[[Y[ùH€€ôöY›\ò][€à\»ZY[Y[ùÀèŸ]èâŒ¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYúY›]\Œú›[ôŒâ»ŸôôéN	Àõ‹ô\éâÃ\€€YŸåôNIﬂNÿ\TXõX‘^[Y[ùöY] õﬁ[XõX‘^[Y[ùÿX⁄KòôÀXõX‘^[Y[ùÿX⁄Kòõ‹ô\äN¬àô]\õé¬àBà€€ú›[ô[ôœV…ÿ‹ôX]Y	À	‹[ô[ô…◊Kö[ò€Y\ ›ö[ô ›ú^[Y[ù‹›]\ﬂ	… JN¬àYä[ô[ô…âà[‹[€úÀú⁄⁄\›ö\TôX€€ò⁄[J^¬àÀ»∞ÍX€€ò⁄[X][€à⁄[[ò⁄Y]\ŸHà[ôHX›X[\ÿ][€à›H[àõ›Y]\à0ÍZ∞ËÍ[X›[€õ∞ÍBàÀ»ôH⁄]ò[XZ\»0ÍX€[ò⁄\à[à‹\H€€ôö\õX][€ãÇà€€ôö\õTXõX‘›ö\T^[Y[ù
+Yù[ò[ŸJKù[ä\ﬁ[ò»ZYOû⁄YäZY
+^ÿ]ÿZ]ô[ô\îXõX‘^[Y[ùõﬁ
+‹⁄⁄\›ö\TôX€€ò⁄[NùùY_JNﬂ_JN¬àBà€€ú›[Iœ]èèà›[OHôõ€ù\⁄^ôNåKåúô[Hèº'‰≠à€€[Y[ùô]^]H^Y\àœÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èê⁄⁄\⁄\»€à[ŸHHZY[Y[ù›\àŸ]H[úÿ‹ö\[€ãèŸ]èèŸ]èâ »à	œ]à€\‹œHô‹öYÃàà›[OHôÿ\é\€X\ô⁄[ã]‹åLúèâ ¬à	œù]€àYHúXõX‘^Q[ùûHà€\‹œHúö[X\ûHà›[OHõZ[ãZZY⁄ççèè‹[à›[OHôõ€ù\⁄^ôNåKå\ô[Hèº'‰¨»^Y\à[àY€ôO‹‹[èèúèè‹[à›[OHôõ€ù\⁄^ôNãçÕúô[NŸõ€ù]ŸZY⁄çÃèëÿY€ô\àH[\»8†(àÍX›\ö\ÍH\à›ö\O‹‹[èèÿù]€èâ »à	œù]€àYHúXõX‘^S€ú⁄]Hà›[OHõZ[ãZZY⁄ççÿòX⁄Ÿ‹õ›[ôàŸôôéÿõ‹ô\éåú€€YÃMŒMŒÿ€€‹éàÃLçòåÕèè‹[à›[OHôõ€ù\⁄^ôNåKå\ô[Hèº'„Á˚Ó#»^Y\à›\àXŸO‹‹[èèúèè‹[à›[OHôõ€ù\⁄^ôNãçÕúô[NŸõ€ù]ŸZY⁄çÃèâ ‹XõX”€ú⁄]TöXŸSXô[
+
+J…»\öYàXõXœ‹‹[èèÿù]€èâ »à	œŸ]èâ »à	œ]à›[OHõX\ô⁄[ã]‹åLú‹Y[ôŒåLÿõ‹ô\ã\òY]\ŒåLúÿòX⁄Ÿ‹õ›[ôàŸôôéÿõ‹ô\éå\€€YŸMNYHèè]à›[OHôõ€ù]ŸZY⁄éLŸõ€ù\⁄^ôNãéô[HèîZY[Y[ù[àY€ôHXÿŸ\0ÍOŸ]èè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNãçÃô[N€[ôKZZY⁄åKåÕN€X\ô⁄[éå‹èîŸ[€à€à\\ôZ[€àò]öYÿ]]\à]\»[ﬁY[ú»HZY[Y[ù\‹€öXõ\»›\à›ö\KèŸ]èè]à›[OHô\‹^Nô‹öYŸ‹öY][\]KX€€[[úŒúô\X]
+Z[õX^
+YúäJNŸÿ\çúèâ ¬à	œ]à›[OHòõ‹ô\éå\€€YŸôMXNÿõ‹ô\ã\òY]\ŒåL‹Y[ôŒé\›^X[Y€éòŸ[ù\éÿòX⁄Ÿ‹õ›[ôàŸôôàèè]à›[OHô\‹^Nôõ^ÿ[Y€ãZ][\ŒòŸ[ù\é⁄ù\›YûKX€€ù[ùòŸ[ù\éŸÿ\çú⁄ZY⁄åéèè‹[à›[OHôõ€ù]ŸZY⁄éMLŸõ€ù\⁄^ôNãçÃúô[NÿòX⁄Ÿ‹õ›[ôàÃMÕ–éÿ€€‹éàŸôôéÿõ‹ô\ã\òY]\Œç‹Y[ôŒå‹\Ÿõ€ù\›[Nö][X»èïíT–O‹‹[èè‹[à\öXK[Xô[HìX\›\òÿ\ôà›[OHô\‹^Nö[õ[ôKYõ^ÿ[Y€ãZ][\ŒòŸ[ù\àèèH›[OHô\‹^Nö[õ[ôKXõÿ⁄Œ›⁄YåM\⁄ZY⁄åM\ÿõ‹ô\ã\òY]\ŒçL	NÿòX⁄Ÿ‹õ›[ôà—PåPé€X\ô⁄[ã\öY⁄ãM\èè⁄OèH›[OHô\‹^Nö[õ[ôKXõÿ⁄Œ›⁄YåM\⁄ZY⁄åM\ÿõ‹ô\ã\òY]\ŒçL	NÿòX⁄Ÿ‹õ›[ôà—çŒQLPé€‹X⁄]NãéLàèè⁄Oè‹‹[èèŸ]èè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNãçç‹ô[Hèêÿ\ùHò[òÿZ\ôOŸ]èèŸ]èâ ¬à	œ]à›[OHòõ‹ô\éå\€€YŸôMXNÿõ‹ô\ã\òY]\ŒåL‹Y[ôŒé\›^X[Y€éòŸ[ù\éÿòX⁄Ÿ‹õ›[ôàŸôôàèè]à›[OHöZY⁄åéŸ\‹^Nôõ^ÿ[Y€ãZ][\ŒòŸ[ù\é⁄ù\›YûKX€€ù[ùòŸ[ù\àèè[Y»‹òœHöŒãÀ›\ÿYù⁄Z⁄[YYXKõ‹ôÀ›⁄Z⁄\YXKÿ€€[[€úÀÿãÿå–\W‘^W€Ÿ€Àú›ô»à[Hê\H^Hà›[OHô\‹^Nòõÿ⁄Œ€X^]⁄YçN€X^ZZY⁄åç›⁄Yò]]Œ⁄ZY⁄ò]]»èèŸ]èè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNãçç‹ô[Hèê\H^OŸ]èèŸ]èâ ¬à	œ]à›[OHòõ‹ô\éå\€€YŸôMXNÿõ‹ô\ã\òY]\ŒåL‹Y[ôŒé\›^X[Y€éòŸ[ù\éÿòX⁄Ÿ‹õ›[ôàŸôôàèè]à›[OHöZY⁄åéŸ\‹^Nôõ^ÿ[Y€ãZ][\ŒòŸ[ù\é⁄ù\›YûKX€€ù[ùòŸ[ù\àèè[Y»‹òœHöŒãÀ›\ÿYù⁄Z⁄[YYXKõ‹ôÀ›⁄Z⁄\YXKÿ€€[[€úÀŸãŸåã—€€Ÿ€W‘^W”Ÿ€Àú›ô»à[Hë€€Ÿ€H^Hà›[OHô\‹^Nòõÿ⁄Œ€X^]⁄Yçç€X^ZZY⁄åç›⁄Yò]]Œ⁄ZY⁄ò]]»èèŸ]èè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNãçç‹ô[Hèë€€Ÿ€H^OŸ]èèŸ]èâ ¬à	œ]à›[OHòõ‹ô\éå\€€YŸôMXNÿõ‹ô\ã\òY]\ŒåL‹Y[ôŒé\›^X[Y€éòŸ[ù\éÿòX⁄Ÿ‹õ›[ôàŸôôàèè]à›[OHöZY⁄åéŸ\‹^Nôõ^ÿ[Y€ãZ][\ŒòŸ[ù\é⁄ù\›YûKX€€ù[ùòŸ[ù\àèè[Y»‹òœHöŒãÀ›\ÿYù⁄Z⁄[YYXKõ‹ôÀ›⁄Z⁄\YXKÿ€€[[€úÀÕÀÕÃÀ‘ô]õ€]€Ÿ€Àú›ô»à[Hîô]õ€]^Hà›[OHô\‹^Nòõÿ⁄Œ€X^]⁄YçÃú€X^ZZY⁄ååú›⁄Yò]]Œ⁄ZY⁄ò]]»èèŸ]èè]à€\‹œHõ]]Yà›[OHôõ€ù\⁄^ôNãçç‹ô[Hèîô]õ€]^OŸ]èèŸ]èâ ¬à	œŸ]èèŸ]èâ »à
+[ô[ôœ…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèï[àZY[Y[ù[àY€ôHH0ÍZ∞Ë0Í]0ÍH€€[Y[òÍHXZ\»∏†&Y\›\»[ò€‹ôH€€ôö\õpÍKèŸ]èâŒâ… J¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éŸõ€ù\⁄^ôNãçÕúô[N›^X[Y€éòŸ[ù\àè∏ß*ZY[Y[ù[àY€ôH›\àÿY€ô\àH[\À›HZY[Y[ù›\àXŸH]H\öYàXõX»H€€\^KèŸ]èâŒ¬àXõX‘^[Y[ùÿX⁄O^‹^Y\íYúY›]\Œú›[ôŒâ»ŸéòôôâÀõ‹ô\éâÃ\€€YÿÿôŸçIﬂN¬à\TXõX‘^[Y[ùöY] õﬁ[XõX‘^[Y[ùÿX⁄KòôÀXõX‘^[Y[ùÿX⁄Kòõ‹ô\äN¬à	
+	»‹XõX‘^Q[ùûI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›èI
+	»‹XõX‘^Q[ùûI N⁄YäXä\ô]\õéÿãô\ÿXõY]ùYNÿãù^€€ù[ùI”›]ô\ù\ôHHZY[Y[ù8†)âŒ¬à]ÿZ]ÿãúú 	‹XõX◊‹Ÿ]››\õò[Y[ù‹^[Y[ù‹ôYô\ô[òŸIÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúY‹ôYô\ô[òŸNâ€€õ[ôIﬂJN¬à€€ú›O[ô]»Tì
+ÿÿ][€ãöôYäN›KúŸX\ò⁄\ò[\Àô[]J	‹›ö\I N›KúŸX\ò⁄\ò[\Àô[]J	‹Ÿ\‹⁄[€ó⁄Y	 N›KúŸX\ò⁄\ò[\Àô[]J	‹^W‹^Y\â N¬à€€ú›Ÿ\]KúŸX\ò⁄……âŒâœ…Œ¬à€€ú››XÿŸ\‹œ]Kù‘›ö[ô 
+J‹Ÿ\
+…‹›ö\O\›XÿŸ\‹…ú^W‹^Y\èI Ÿ[ò€ŸUTíP€€\€ô[ù
+Y
+J……úŸ\‹⁄[€ó⁄Y^–“P“”’U‘—T‘“S”ó“QIŒ¬à€€ú›ÿ[òŸ[]Kù‘›ö[ô 
+J‹Ÿ\
+…‹›ö\OXÿ[òŸ[	ú^W‹^Y\èI Ÿ[ò€ŸUTíP€€\€ô[ù
+Y
+N¬à€€ú›Ÿ]Nò⁄X⁄€›]\úõ‹éò⁄X⁄€›]\úõ‹üOX]ÿZ]ÿãôù[ò›[€úÀö[ùõ⁄ŸJ	‹›ö\KX‹ôX]KY[ùûKX⁄X⁄€›]	ÀÿõŸNû‹XõX◊›⁄Ÿ[éù⁄Ÿ[ã›\õò[Y[ù⁄YúôY’›\ãöY^Y\ó⁄YúY›XÿŸ\‹◊›\õú›XÿŸ\‹Àÿ[òŸ[›\õòÿ[òŸ[_JN¬àYä⁄X⁄€›]\úõ‹ü⁄X⁄€›]Àô\úõ‹ä^ÿãô\ÿXõYYò[ŸNÿãù^€€ù[ùI¸'‰¨»^Y\à	 ‹XõX”[€ô^J›ù›[ÿŸ[ù N‹ô]\õàÿ\›
+⁄X⁄€›]Àô\úõ‹ü⁄X⁄€›]\úõ‹èÀõY\‹ÿYŸ_	“[\‹‹⁄XõH8†&[›]úö\àHZY[Y[ùâ NﬂBàYä⁄X⁄€›]Àù\õ
+[ÿÿ][€ãöôYèX⁄X⁄€›]ù\õ¬à[Ÿ^ÿãô\ÿXõYYò[ŸNÿãù^€€ù[ùI¸'‰¨»^Y\à[àY€ôIŒ›ÿ\›
+	”Y[àHZY[Y[ù[ô\‹€öXõKâ NﬂBàN¬à€€ú›€ú⁄]PùèI
+	»‹XõX‘^S€ú⁄]I N¬àYä€ú⁄]Pùä[€ú⁄]Pùãõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€ú⁄]Pùãô\ÿXõY]ùYN€€ú⁄]Pùãù^€€ù[ùI—[úôY⁄\›ô[Y[ù8†)âŒ¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊‹Ÿ]››\õò[Y[ù‹^[Y[ù‹ôYô\ô[òŸIÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúY‹ôYô\ô[òŸNâ€€ú⁄]IﬂJN¬àYä\úõ‹ä^€€ú⁄]Pùãô\ÿXõYYò[ŸN€€ú⁄]Pùãù^€€ù[ùI¸'„Á˚Ó#»^Y\à›\àXŸIŒ‹ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJNﬂBàXõX‘^[Y[ùÿX⁄O^‹^Y\íYõù[›]\Œõù[[õù[ôŒõù[õ‹ô\éõù[N¬àÿ\›
+	‘ZY[Y[ù›\àXŸH[úôY⁄\›∞ÍH8ß!I N¬à]ÿZ]ô[ô\îXõX‘^[Y[ùõﬁ
+‹⁄⁄\›ö\TôX€€ò⁄[NùùY_JN¬àN¬àXÿ]⁄
+J^¬àYäŸ\OOO\XõX‘^[Y[ùŸ\Iâà\XõX‘^[Y[ùÿX⁄Kö[
+Xõﬁö[õô\íSIœèº'‰¨»ZY[Y[ùHH\ùX⁄\][€èÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èî›]][ô\‹€öXõH›\àH[€Y[ùèŸ]èâŒ¬àYö[ò[^¬àYäŸ\OOO\XõX‘^[Y[ùŸ\IâúXõX‘^[Y[ùÿY[ô—õ‹èOO\Y
+\XõX‘^[Y[ùÿY[ô—õ‹è[ù[¬àBàBÇàù[ò›[€àô[ô\ïX[R[ùö]][€ëX⁄\⁄[€ä
+^¬à€€ú›õﬁI
+	»‹XõX’X[R[ùö]][€ëX⁄\⁄[€â N¬à€€ú›YI
+	»‹XõX‘^Y\îŸ[X›	 OÀùò[YN¬àYäXõﬁ
+\ô]\õé¬à€€ú›[ùè]X[R[ùö]][€úÀôö[ô
+OOöKù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô Kú^Y\ó⁄Y
+OOOT›ö[ô Y	… IâöKú›]\œOOI‹[ô[ô… N¬àYäZ[ùä^ÿõﬁò€\‹”ò[YOI⁄Y[âŒÿõﬁú›[Kô\‹^OI€õ€ôIŒÿõﬁö[õô\íSI…Œ‹ô]\õüBà€€ú›X[O]X[\Àôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô [ùãùX[W⁄Y
+JN¬à€€ú›[ùö]\è\^Y\úÀôö[ô
+Oî›ö[ô öY
+OOOT›ö[ô [ùãö[ùö]YÿûW‹^Y\ó⁄Y	… JN¬àõﬁò€\‹”ò[YOI‹^Y\âŒ¬àõﬁú›[Kô\‹^OIÿõÿ⁄…Œ¬àõﬁú›[KòòX⁄Ÿ‹õ›[ôI»ŸôôéN	Œÿõﬁú›[Kòõ‹ô\èIÃ\€€YŸåôNIŒ¬àõﬁö[õô\íSIœèº'‰iHõ‹‹⁄][€à8†&pÍ\]Z\Oÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\€[ôKZZY⁄åKçàèâ ¬à
+[ùö]\è…œèâ Ÿ\ÿ [ùö]\ãõò[YJJ…œÿèà8†&XHõ‹‹ÍHHôZõ⁄[ôôH	Œâ’H\»0Í]0ÍHZõ›]0ÍH0Ë	 J¬à	œèâ Ÿ\ÿ X[OÀõò[Y_	ÿŸ]H0Í\]Z\I J…œÿèãàHô\›\»XúôHH⁄⁄\⁄\àà⁄HHôYù\Ÿ\À€à[úÿ‹ö\[€à\›€€úŸ\ù∞ÍYH[àè∞‚\]Z\H[0ÍX]⁄\ôOÿèãèŸ]èâ ¬à	œ]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹åLèèù]€àYHòXÿŸ\X[R[ùö]][€àà€\‹œHúö[X\ûHè∏ß!HXÿŸ\\à8†&pÍ\]Z\Oÿù]€èèù]€àYHôX€[ôUX[R[ùö]][€àèº'„¨àôYù\Ÿ\à»0Í\]Z\H[0ÍX]⁄\ôOÿù]€èèŸ]èâŒ¬à	
+	»ÿXÿŸ\X[R[ùö]][€â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›èI
+	»ÿXÿŸ\X[R[ùö]][€â Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊‹ô\‹€ô›X[W⁄[ùö]][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYÿXÿŸ\ùùY_JN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	‚\]Z\HXÿŸ\0ÍYH8ß!I Nÿ]ÿZ]ôYúô\⁄XõX‘ôY⁄\›ò][€ä
+N¬àN¬à	
+	»ŸX€[ôUX[R[ùö]][€â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›èI
+	»ŸX€[ôUX[R[ùö]][€â Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊‹ô\‹€ô›X[W⁄[ùö]][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYÿXÿŸ\ôò[Ÿ_JN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õàÿ\›
+\úõ‹ãõY\‹ÿYŸJN¬àÿ\›
+	’Hô\›\»[à0‚\]Z\H[0ÍX]⁄\ôH<'„¨â Nÿ]ÿZ]ôYúô\⁄XõX‘ôY⁄\›ò][€ä
+N¬àN¬àBàôYúô\⁄XõX‘^Y\îŸ[X›
+
+N¬à	
+	»‹XõX‘^Y\îŸ[X›	 Kõ€ò⁄[ôŸOJ
+OOû›\]TŸ[X›YôY⁄\›ò][€î›]\ 
+N‹ô[ô\ïX[R[ùö]][€ëX⁄\⁄[€ä
+N‹ô[ô\îXõX‘^[Y[ùõﬁ
+
+NﬂN¬à€€ú›^T^Y\ëúõ€U\õ\XõX‘\ò[\ÀôŸ]
+	‹^W‹^Y\â N¬àYä^T^Y\ëúõ€U\õ	âñÀããâ
+	»‹XõX‘^Y\îŸ[X›	 Kõ‹[€ú◊Kú€€YJœOõÀùò[YOOO\^T^Y\ëúõ€U\õ
+JI
+	»‹XõX‘^Y\îŸ[X›	 Kùò[YO\^T^Y\ëúõ€U\õ¬à\]TŸ[X›YôY⁄\›ò][€î›]\ 
+N¬àô[ô\ïX[R[ùö]][€ëX⁄\⁄[€ä
+N¬à€€ú››ö\Tô]\õè\XõX‘\ò[\ÀôŸ]
+	‹›ö\I N¬à€€ú››ö\TŸ\‹⁄[€íY\XõX‘\ò[\ÀôŸ]
+	‹Ÿ\‹⁄[€ó⁄Y	 N¬àYä›ö\Tô]\õèOOI‹›XÿŸ\‹……âú^T^Y\ëúõ€U\õ
+^¬àÀ»H‹\›ö\HâŸ\›]]‹ö\ÍH]I›[ôHŸ][Hõ⁄\»›\à[ôHúòZYHŸ\‹⁄[€àHô]›\à⁄X⁄€›]ÇàÀ»Hõ›Y]\àÍ[X›[€õ∞ÍK\»òYúòpÎò⁄\‹Ÿ[Y[ù»]]€X]\]Y\»]\»∞Í[›]ô\ù\ô\»HYŸHô\›[ù⁄[[ò⁄Y]^Çà€€ú›ô]\õíŸ^OI‹›ŸW‹›ö\W‹ô]\õó‹ŸY[ó… ‘›ö[ô ›ö\TŸ\‹⁄[€íY	€õÀ\Ÿ\‹⁄[€â N¬à€€ú›[ôXYT⁄›€è\Ÿ\‹⁄[€î›‹òYŸKôŸ]][Jô]\õíŸ^JOOOIÃIŒ¬àYäX[ôXYT⁄›€ä^¬àŸ\‹⁄[€î›‹òYŸKúŸ]][Jô]\õíŸ^K	ÃI N¬àÿ\›
+	‘ZY[Y[ù[ùõﬁpÍH8ß!H∞Í\öYöXÿ][€à]\∞Í»H›ö\x†)â N¬àBà€€ôö\õTXõX‘›ö\T^[Y[ù
+^T^Y\ëúõ€U\õ›ö\TŸ\‹⁄[€íYùYJKù[ä\ﬁ[ò»ZYOû¬à]ÿZ]ô[ô\îXõX‘^[Y[ùõﬁ
+‹⁄⁄\›ö\TôX€€ò⁄[NùùY_JN¬àYäX[ôXYT⁄›€ä^¬àYäZY
+]ÿ\›
+	¯ß!HZY[Y[ù€€ôö\õpÍH\à›ö\I N¬à[ŸHÿ\›
+	‘ZY[Y[ùôpÈ›H\à›ö\K€€ôö\õX][€à[à€›\ú¯†)â N¬àBàÀ»ô]⁄YH[[pÍYX][Y[ù\»\ò[pÍô\»›ö\H›\à[\0Íò⁄\à›]õ›]ôX]H‹\àÀ»‹ú»	›[àôYúô\⁄	›[à⁄[ôŸ[Y[ùHõ›Y]\à›H	›[àô]›\à\úöpÍôKÇàû^¬à€€ú›€X[è[ô]»Tì
+ÿÿ][€ãöôYäN¬à€X[ãúŸX\ò⁄\ò[\Àô[]J	‹›ö\I N¬à€X[ãúŸX\ò⁄\ò[\Àô[]J	‹Ÿ\‹⁄[€ó⁄Y	 N¬à€X[ãúŸX\ò⁄\ò[\Àô[]J	‹^W‹^Y\â N¬à\›‹ûKúô\XŸT›]JﬂK	…À€X[ãù‘›ö[ô 
+JN¬àXÿ]⁄
+ŸJ^ﬂBàJN¬àY[Ÿ^¬àô[ô\îXõX‘^[Y[ùõﬁ
+
+N¬àBàYä›ö\Tô]\õèOOIÿÿ[òŸ[	 ]ÿ\›
+	‘ZY[Y[ù[õù[0ÍKàH]^Hô\ô[ôôH]X[ôHô]^â N¬à	
+	»‹XõX—›Y\›Y[Xô\â Kõ€ò⁄[ôŸOJ
+OOû¬à€€ú›‹ò\I
+	»‹XõX—›Y\›€ôU‹ò\	 N¬à€€ú›€ôOI
+	»‹XõX—›Y\›€ôI N¬àYä	
+	»‹XõX—›Y\›Y[Xô\â Kò⁄X⁄ŸY
+^¬à‹ò\ò€\‹”\›úô[[›ôJ	⁄Y[â N¬àŸ][Y[›]
+
+
+OOú€ôKôõÿ›\ 
+KL
+N¬àY[Ÿ^¬à‹ò\ò€\‹”\›òY
+	⁄Y[â N¬à€ôKùò[YOI…Œ¬àBàN¬Çà]XõX‘ôYúô\⁄Ÿ\OL¬à\ﬁ[ò»ù[ò›[€àôYúô\⁄XõX‘ôY⁄\›ò][€ä
+^¬à€€ú›Ÿ\OJ ‹XõX‘ôYúô\⁄Ÿ\N¬àû^¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹XõX◊›€‹ö‹‹XŸW‹€ò\⁄››åâÀ‹›⁄Ÿ[éù⁄Ÿ[üJN¬àYä\úõ‹üY]_Ÿ\HOO\XõX‘ôYúô\⁄Ÿ\J\ô]\õé¬à^Y\úœY]Kú^Y\úﬂ^Y\úŒ¬àŸX\€€úœY]KúŸX\€€úﬂŸX\€€úŒ¬à€€ú›úô\⁄›\èJ]Kù›\õò[Y[ùﬂ◊JKôö[ô
+OùöYOO\ôY’›\ãöY
+N¬àYäúô\⁄›\ä\ôY’›\èYúô\⁄›\é¬à›\õò[Y[ùœY]Kù›\õò[Y[ùﬂ›\õò[Y[ùŒ€X]⁄\œY]KõX]⁄\ﬂX]⁄\ŒŸ€ÿ[œY]Kô€ÿ[ﬂ€ÿ[Œ¬àÿYô\Ÿ[ù][€ìY]Y]J
+Kòÿ]⁄
+
+
+OOûﬂJN¬àôY⁄\›ò][€úœY]Kù›\õò[Y[ù‹^Y\úﬂôY⁄\›ò][€úŒ¬à›\õò[Y[ù‹õ›\]ô[œY]Kù›\õò[Y[ùŸ‹õ›\€]ô[ﬂ›\õò[Y[ù‹õ›\]ô[Œ¬àô[ô\îXõX‘]ZX⁄‘›] 
+N¬àX[\œY]KùX[\ﬂX[\Œ¬àX[T^Y\úœY]KùX[W‹^Y\úﬂX[T^Y\úŒ¬àX[R[ùö]][€úœY]KùX[W‹^Y\ó⁄[ùö]][€úﬂX[R[ùö]][€úŒ¬àX]⁄\‹⁄Y€õY[ùœY]KõX]⁄‹^Y\óÿ\‹⁄Y€õY[ùﬂX]⁄\‹⁄Y€õY[ùŒ¬àô[ô\îXõX‘ôY⁄\›ò][€ì\›
+
+N¬àôYúô\⁄XõX‘^Y\îŸ[X›
+
+N¬à\]TŸ[X›YôY⁄\›ò][€î›]\ 
+N¬àô[ô\ïX[R[ùö]][€ëX⁄\⁄[€ä
+N¬àô[ô\îXõX‘^[Y[ùõﬁ
+ÿòX⁄Ÿ‹õ›[ôôYúô\⁄ùùY_JN¬àÀ»ôH\»ôX€€ú›ùZ\ôHHõ‹õ][Z\ôH0Í\]Z\H[ô[ù]YH8†&]][\ÿ]]\àHô[\]ÇàÀ»HòYúòpÎò⁄\‹Ÿ[Y[ù]]€X]\]YHH»ô\›HX›Yà›\à\»€õ∞ÍY\ÀXZ\»ôHô\Ÿ]\»	⁄[úÿ‹ö\[€à0Í\]Z\KÇàYä\[Ÿàô[ô\îXõX’X[PùZ[\èOOIŸù[ò›[€â…âà]⁄[ô›Àó◊‹›ŸTXõX’X[QY][ô \ô[ô\îXõX’X[PùZ[\ä
+N¬àôYúô\⁄ŸX\€€îò[ö⁄[ô‹ 
+N¬àôY⁄\›ò][€îô\Ÿ[ù][€èÀù\]J
+N¬à\]U›\õò[Y[ù€›[ù›€ú 
+N¬àXÿ]⁄
+J^ﬂBàBÇàõ€››]KúôYúô\⁄\ôYúô\⁄XõX‘ôY⁄\›ò][€é¬Çàù[ò›[€à⁄›‘ôY⁄\›ò][€ê€€ôö\õX][€ä^Y\ìò[YK]J^¬à€€ú›‹œSù[Xô\ä]OÀú‹⁄][€ü
+N¬à€€ú›\‘›XèHHY]OÀö\◊‹›Xú›]]N¬à€€ú››Xî‹œSù[Xô\ä]OÀú›Xú›]]W‹‹⁄][€ü
+N¬à€€ú›ô^X[OSX]òŸZ[
+X]õX^
+LK‹ KÕJJçN¬à€€ú›]OZ\‘›Xè…¸'ÁË[úÿ‹ö\[€à€€ôö\õpÍYH8†%ô[\pÈÿ[ù	Œâ¯ß!H[úÿ‹ö\[€à€€ôö\õpÍYIŒ¬à€€ú›⁄[è\XõX‘ôY⁄\›ò][€ë]U[YJ]OÀúôY⁄\›\ôYÿ]ô]»]J
+Kù“T”‘›ö[ô 
+JN¬à€€ú›]Z[Z\‘›XÇà»èâŸ\ÿ ^Y\ìò[YJ_OÿèãH\»Hèâ‹‹ﬂYH[úÿ‹ö]ÿèà]X›Y[[Y[ùèúô[\pÈÿ[ù	‹›Xî‹œ…»∞¨	 ‹›Xî‹Œâ…ﬂOÿèãèúèâ›⁄[è…œ‹[à›[OHôõ€ù\⁄^ôNåL‹ÿ€€‹éàÕçÕàèº'Âdà[úÿ‹ö]H	 Ÿ\ÿ ⁄[äJ…œ‹‹[èèúèâŒâ…ﬂOúèî›\ú][⁄H»[ôHõ›]ô[H0Í\]Z\H∏†&Y\›€€ôö\õpÍYH]YH‹ú‹]x†&][à‹õ›\H€€\]HèçHõ›Y]\úœÿèà\›]Z[ùà\à^[\KèåM[úÿ‹ö]»Hà0Í\]Z\\»HH
+»ô[\pÈÿ[ùœÿèãà0‡èåMH[úÿ‹ö]œÿèãŸ\»Hõ›Y]\ú»]öY[õô[ùHèåŸH0Í\]Z\H€€\0ÍOÿèãèúèèúèë0Í»]YHõ›\»]ZY€õ€ú»èâ€ô^X[_H[úÿ‹ö]œÿèã€à›]]Ÿ\òH]]€X]\]Y[Y[ùZ\»0Ëõ›\ãòààèâŸ\ÿ ^Y\ìò[YJ_Oÿèã€à[úÿ‹ö\[€à\›öY[à[úôY⁄\›∞ÍYKèúèâ›⁄[è…œ‹[à›[OHôõ€ù\⁄^ôNåL‹ÿ€€‹éàÕçÕàèº'Âdà[úÿ‹ö]H	 Ÿ\ÿ ⁄[äJ…œ‹‹[èèúèâŒâ…ﬂOúèïH\»X›Y[[Y[ùHèâ‹‹ﬂYH[úÿ‹ö]ÿèãò¬à€€ú›€Yÿ›[Y[ùôŸ][[Y[ùûRY
+	‹ôY⁄\›ò][€ê€€ôö\õS›ô\õ^I N⁄Yä€
+[€úô[[›ôJ
+N¬à€€ú››èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â N€›ãöYI‹ôY⁄\›ò][€ê€€ôö\õS›ô\õ^IŒ€›ãú›[Kò‹‹’^I‹‹⁄][€éôö^Y⁄[úŸ]åÿòX⁄Ÿ‹õ›[ôúôÿòJçMJNﬁãZ[ô^éNNNNNŸ\‹^Nôõ^ÿ[Y€ãZ][\ŒòŸ[ù\é⁄ù\›YûKX€€ù[ùòŸ[ù\é‹Y[ôŒåå	Œ¬à›ãö[õô\íSX]à›[OHù⁄YõZ[äLùùÀ
+NÿòX⁄Ÿ‹õ›[ôàŸôôéÿõ‹ô\ã\òY]\ŒåN‹Y[ôŒååúÿõﬁ\⁄Y›ŒåååôÿòJåé
+N›^X[Y€éòŸ[ù\àèè]à›[OHôõ€ù\⁄^ôNåå\Ÿõ€ù]ŸZY⁄éL€X\ô⁄[ãXõ›€NåLúèâ›]_OŸ]èè]à›[OHôõ€ù\⁄^ôNåMú€[ôKZZY⁄åKçMNÿ€€‹éàÃÃÕMMHèâŸ]Z[OŸ]èèù]€àYHúôY⁄\›ò][€ê€€ôö\õS⁄»à€\‹œHúö[X\ûHà›[OHõX\ô⁄[ã]‹åå€Z[ã]⁄YåMLèì“œÿù]€èèŸ]èò¬àÿ›[Y[ùòõŸKò\[ô⁄[
+›äN¬à€€ú›€‹ŸOJ
+OOõ›ãúô[[›ôJ
+N¬à›ãú]Y\ûTŸ[X›‹ä	»‹ôY⁄\›ò][€ê€€ôö\õS⁄… Kõ€ò€X⁄œX€‹ŸN¬à›ãõ€ò€X⁄œYOOû⁄YäKù\ôŸ]OO[›äX€‹ŸJ
+_N¬àBÇà	
+	»‹XõX“õ⁄[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäôY’›\ãôõ‹õX]OOI€XY›YI…âù›\õò[Y[ùXY[ôS\ ôY’›\äHOO[ù[	âë]Kõõ› 
+Oè]›\õò[Y[ùXY[ôS\ ôY’›\äJ\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI¯¶Â\»[úÿ‹ö\[€ú»€€ù\õZ[∞ÍY\ÀâŒ¬à€€ú›YI
+	»‹XõX‘^Y\îŸ[X›	 Kùò[YN⁄Yä\Y
+\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI–⁄⁄\⁄\»€àõ€KâŒ¬à€€ú›èI
+	»‹XõX“õ⁄[â Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊››\õò[Y[ù‹ôY⁄\›ò][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYÿX›[€éâ⁄õ⁄[âﬂJN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN¬à€€ú›Ÿ[X›Yò[YOJ	
+	»‹XõX‘^Y\îŸ[X›	 KúŸ[X›Y‹[€úœÀñÃOÀù^€€ù[ù	“õ›Y]\â Kúô\XŸJ◊ ¯†%äâÀ	… Kùö[J
+N¬à	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùY]OÀö\◊‹›Xú›]]O…¸'ÁË[úÿ‹ö\[€à€€ôö\õpÍYHàH\»X›Y[[Y[ùô[\pÈÿ[ùâŒâ¸'ÁËà[úÿ‹ö\[€à€€ôö\õpÍYHIŒ¬à⁄›‘ôY⁄\›ò][€ê€€ôö\õX][€äŸ[X›Yò[YK]JN¬à]ÿZ]ôYúô\⁄XõX‘ôY⁄\›ò][€ä
+N¬àN¬àYä	
+	»‹XõX”ô]‘^Y\íõ⁄[â JI
+	»‹XõX”ô]‘^Y\íõ⁄[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›ò[YOI
+	»‹XõX”ô]‘^Y\ìò[YI Kùò[YKùö[J
+N¬àYä[ò[YJ\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI—[ùôH€àõ€H›\à8†&Z[úÿ‹ö\ôKâŒ¬à€€ú›èI
+	»‹XõX”ô]‘^Y\íõ⁄[â Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊‹ôY⁄\›\ó€ô]◊››\õò[Y[ù‹^Y\âÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY€ò[YNõò[Y_JN¬àãô\ÿXõYYò[ŸN¬àYä\úõ‹ä\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN¬à	
+	»‹XõX”ô]‘^Y\ìò[YI Kùò[YOI…Œ¬à	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùY]OÀú›]\œOOI›ÿZ]\›	¬à»	¸'ÁË][›H]Z[ùàH\»[úÿ‹ö]€€[YHô[\pÈÿ[ùà<'·•HpÍôHõ⁄\…¬àà	¸'ÁËà[úÿ‹ö\[€à€€ôö\õpÍYHH<'·•HpÍôHõ⁄\…Œ¬à]ÿZ]ôYúô\⁄XõX‘ôY⁄\›ò][€ä
+N¬àN¬à	
+	»‹XõX”X]ôI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›YI
+	»‹XõX‘^Y\îŸ[X›	 Kùò[YN⁄Yä\Y
+\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI–⁄⁄\⁄\»€àõ€KâŒ¬à€€ú›èI
+	»‹XõX”X]ôI Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊››\õò[Y[ù‹ôY⁄\›ò][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYÿX›[€éâÿXúŸ[ù	ﬂJN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN¬à	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI“[úÿ‹ö\[€àô]\∞ÍYKâŒ¬à]ÿZ]ôYúô\⁄XõX‘ôY⁄\›ò][€ä
+N¬àN¬à	
+	»‹XõX–Y›Y\›	 Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäôY’›\ãôõ‹õX]OOI€XY›YI…âù›\õò[Y[ùXY[ôS\ ôY’›\äHOO[ù[	âë]Kõõ› 
+Oè]›\õò[Y[ùXY[ôS\ ôY’›\äJ\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI¯¶Â\»[úÿ‹ö\[€ú»€€ù\õZ[∞ÍY\ÀâŒ¬à€€ú›‹›I
+	»‹XõX‘^Y\îŸ[X›	 Kùò[YN¬à€€ú››Y\›ò[YOI
+	»‹XõX—›Y\›ò[YI Kùò[YKùö[J
+N¬àYäZ‹›
+\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI–⁄⁄\⁄\»8†&XXõ‹ô€àõ€H[ú»H\›H⁄KY\‹›\ÀàH]^Zõ›]\à[à[ùö]0ÍHpÍõYH⁄HH\»0ÍZ∞Ë[úÿ‹ö]âŒ¬àYäY›Y\›ò[YJ\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI—[ùôHHõ€HH€à[ùö]0ÍKâŒ¬à€€ú›^\›[ô—›Y\›\^Y\úÀôö[ô
+OúöYOOI
+	»‹XõX‘ô]ö[›\—›Y\›	 OÀùò[YJN¬àYä^\›[ô—›Y\›	âúôY⁄\›ò][€úÀú€€YJèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âúãú^Y\ó⁄YOOY^\›[ô—›Y\›öY	âúãúô\Ÿ[ù
+J\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI–Ÿ][ùö]0ÍH\›0ÍZ∞Ë[úÿ‹ö]0ËŸ]H0ÍY][€ãâŒ¬à€€ú›\ÿYŸPôYõ‹ôO\XõX—›Y\›\ÿYŸJ‹›
+N¬àYä\ÿYŸPôYõ‹ôKúô[XZ[ö[ôœL
+\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI’H\»0ÍZ∞Ë][\ÍH\»H[ùö]][€ú»›\àŸH›\õõ⁄KâŒ¬à€€ú›€ôOI
+	»‹XõX—›Y\›€ôI Kùò[YKùö[J
+N¬à€€ú›YY[Xô\èI
+	»‹XõX—›Y\›Y[Xô\â Kò⁄X⁄ŸY¬àYäYY[Xô\ââà\€ôJ\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùI‘›\àZõ›]\à€à[ùö]0ÍH€€[YHY[XúôHH‹õ›\K[ô\]YH€€àù[pÍ\õ»H[ÿö[KâŒ¬à€€ú›èI
+	»‹XõX–Y›Y\›	 Nÿãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊‹ôY⁄\›\ó››\õò[Y[ùŸ›Y\›	À‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY⁄‹›‹^Y\ó⁄Yö‹›Ÿ›Y\›€ò[YNô›Y\›ò[YK‹€ôW€ù[Xô\éú€ô_ù[ÿYÿ\◊€Y[Xô\éòYY[Xô\üJN¬àãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õà	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN¬à	
+	»‹XõX—›Y\›ò[YI Kùò[YOI…Œ…
+	»‹XõX‘ô]ö[›\—›Y\›	 Kùò[YOI…Œ…
+	»‹XõX—›Y\›€ôI Kùò[YOI…Œ…
+	»‹XõX—›Y\›Y[Xô\â Kò⁄X⁄ŸYYò[ŸN¬à€€ú›\ŸY\XõX—›Y\›\ÿYŸJ‹›
+Kù\ŸY
+ÃN¬à€€ú›ô[XZ[ö[ôœSX]õX^
+PìP◊—’QT’”SRU]\ŸY
+N¬à€€ú›‹›\‘ôY⁄\›\ôY\ôY⁄\›ò][€úÀú€€YJèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âúãú^Y\ó⁄YOOZ‹›	âúãúô\Ÿ[ù
+N¬à	
+	»‹XõX‘ôY‘›]\… Kù^€€ù[ùJ]OÀú›]\œOOI›ÿZ]\›	œ…¸'ÁË][›H]Z[ùà8†&Z[ùö]0ÍH\›[úÿ‹ö]€€[YHô[\pÈÿ[ùâŒâ¸'ÁËà[ùö]0ÍHZõ›]0ÍH]€€ôö\õpÍHI J ]OÀõY[Xô\è…»[\›]\‹⁄H[úôY⁄\›∞ÍH€€[YHY[XúôHH‹õ›\KâŒâ… J Z‹›\‘ôY⁄\›\ôY	âúôY’›\ãôõ‹õX]OOI€XY›YIœ…»Hô\›\»õ€à[úÿ‹ö]]H›\õõ⁄KâŒâ… J…»8†(à	 ‹ô[XZ[ö[ô …»[ùö]][€â  ô[XZ[ö[ôœåO…‹…Œâ… J…»ô\›[ùI  ô[XZ[ö[ôœåO…‹…Œâ… J…ÀâŒ¬à]ÿZ]ôYúô\⁄XõX‘ôY⁄\›ò][€ä
+N¬àN¬àYä⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[
+X€X\í[ù\ùò[
+⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[
+N¬à⁄[ô›Àó◊‹›ŸTXõX‘ôY⁄\›ò][€í[ù\ùò[]⁄[ô›ÀúŸ][ù\ùò[
+
+
+OOû¬àÀ»[ô[ùH€€\‹⁄][€à	›[ôH0Í\]Z\K]X›[ôHôX€€ú›ùX›[€àHõ‹õ][Z\ôKÇàôYúô\⁄XõX‘ôY⁄\›ò][€ä
+N¬àK
+N¬àY[Ÿ^¬àôY–õﬁö[õô\íSX€€ú›[][€ì€õBà»	œ]à€\‹œHúôXY€õK[õ›Hèèèº'‰`{Ó#»€€ú›[][€à[ö\]Y[Y[ùÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èêŸHY[àYôöX⁄H\»∞Í\›[]À€\‹Ÿ[Y[ù»][ôõ‹õX][€ú»Xõ\]Y\»H‹õ›\Kà›\à¯†&Z[úÿ‹ö\ôH0Ë[à›ÍK][\ŸHHY[à8†&Z[úÿ‹ö\[€àõ‹ôH]H›\õõ⁄KèŸ]èèŸ]èâ¬àà	œ€\‹œHõ]]Yèê]X›[ôH[úÿ‹ö\[€à›]ô\ùHX›Y[[Y[ùè‹âŒ¬àBÇà€€ú›[ùûP⁄⁄XŸPÿ\ôI
+	»‹XõX—[ùûP⁄⁄XŸPÿ\ô	 N¬à€€ú›€€–ÿ\ôI
+	»‹XõX‘ôY⁄\›ò][€êÿ\ô	 N¬à€€ú›X[Pÿ\ôI
+	»‹XõX’X[PùZ[\êÿ\ô	 N¬àYä€€ú›[][€ì€õJ^¬à[ùûP⁄⁄XŸPÿ\ôÀò€\‹”\›òY
+	⁄Y[â N¬à€€–ÿ\ôÀò€\‹”\›òY
+	⁄Y[â N¬àX[Pÿ\ôÀò€\‹”\›òY
+	⁄Y[â N¬àBàù[ò›[€àŸ]XõX—[ùûS[ŸJ[ŸJ^¬àYäY[ùûP⁄⁄XŸPÿ\ô\€€–ÿ\ô]X[Pÿ\ô
+\ô]\õé¬à€€ú›ô[Z][OI
+	»‹XõX’öY]… Kò€\‹”\›ò€€ùZ[ú 	‹›ŸK\ô[Z][I N¬àYäô[Z][Iâà[[ŸJ[[ŸOI‹€€…Œ¬à[ùûP⁄⁄XŸPÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀH[[ŸIâà\ô[Z][JN¬à	
+	»ÿ⁄€‹ŸT€€”[ŸI OÀúŸ]]öXù]J	ÿ\öXK\ô\‹ŸY	À›ö[ô [ŸOOOI‹€€… JN¬à	
+	»ÿ⁄€‹ŸUX[S[ŸI OÀúŸ]]öXù]J	ÿ\öXK\ô\‹ŸY	À›ö[ô [ŸOOOI›X[I JN¬à€€–ÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀ[ŸHOOI‹€€… N¬àX[Pÿ\ôò€\‹”\›ùŸŸ€J	⁄Y[âÀ[ŸHOOI›X[I N¬àYä[ŸJ]⁄[ô›Àúÿ‹õ€ ›‹åôZ]ö[‹éâ‹€[€›	ﬂJN¬àBàYäôY’›\ä^¬à	
+	»ÿ⁄€‹ŸUX[S[ŸI Kò€\‹”\›úô[[›ôJ	⁄Y[â N¬àYäôY’›\ãôõ‹õX]OOI€XY›YI ^¬à€€ú›]OY[ùûP⁄⁄XŸPÿ\ôÀú]Y\ûTŸ[X›‹ä	ÀúŸX›[€ù]I N⁄Yä]J]]Kù^€€ù[ùI¸'„‡H[úÿ‹ö\[€à]H›ÍHHY›YIŒ¬à€€ú›[Y[ùûP⁄⁄XŸPÿ\ôÀú]Y\ûTŸ[X›‹ä	Àõ]]Y	 N⁄Yä[
+Z[ö[õô\íSI–Ÿ]HYŸH€€òŸ\õôH[ö\]Y[Y[ùŸHèî›ÍHHY›YOÿèãà[H\õY]H€€ôö\õY\àH\ùX⁄\][€à0ËŸ]Hõ›\õ∞ÍYH›HHô[ö\à]ôX»€à0Í\]Z\Kà8†&Z[úÿ‹ö\[€à0ËHY›YH[K[pÍõYH][\ŸH[à]]ôHY[ãâŒ¬àBà€€ú›X[PùèI
+	»ÿ⁄€‹ŸUX[S[ŸI N¬àYäX[Pùä^¬à€€ú›X[U]O]X[Pùãú]Y\ûTŸ[X›‹ä	Ÿ]ñ‹›[JèHôõ€ù\⁄^ôNåKåúô[HóI N¬àYäX[U]J]X[U]Kù^€€ù[ùI“ôHöY[ú»]ôX»[€à0Í\]Z\IŒ¬à€€ú›X[R[]X[Pùãú]Y\ûTŸ[X›‹ê[
+	Ÿ]â N¬àYäX[R[õ[ô›
+HX[Pùãù]OI‚\]Z\HHHõ›Y]\ú»X^[][K]ôX»ù\‹]x†&pË€Í\]Z\Y\ú»›H[ùö]0Í\…Œ¬àBà	
+	»ÿ⁄€‹ŸT€€”[ŸI Kõ€ò€X⁄œJ
+OOúŸ]XõX—[ùûS[ŸJ	‹€€… N¬à	
+	»ÿ⁄€‹ŸUX[S[ŸI Kõ€ò€X⁄œJ
+OOû¬àÀ»õ›]ô[H›]ô\ù\ôHõ€€ùZ\ôHàô\\ù\à	›[àõ‹õ][Z\ôHõ‹ôKÇà⁄[ô›Àó◊‹›ŸTXõX’X[QY][ôœYò[ŸN¬àô[ô\îXõX’X[PùZ[\ä
+N¬àŸ]XõX—[ùûS[ŸJ	›X[I N¬àN¬à	
+	»ÿòX⁄—úõ€T€€”[ŸI Kõ€ò€X⁄œJ
+OOúŸ]XõX—[ùûS[ŸJù[
+N¬à	
+	»ÿòX⁄—úõ€UX[S[ŸI Kõ€ò€X⁄œJ
+OOû¬à⁄[ô›Àó◊‹›ŸTXõX’X[QY][ôœYò[ŸN¬àŸ]XõX—[ùûS[ŸJù[
+N¬àN¬àŸ]XõX—[ùûS[ŸJù[
+N¬àY[ŸHYä[ùûP⁄⁄XŸPÿ\ô
+^¬à[ùûP⁄⁄XŸPÿ\ôò€\‹”\›òY
+	⁄Y[â N¬àBÇàYäôY’›\èÀôõ‹õX]OOI€XY›YI ^¬àÀ»[àY[àH›ÍHHY›YHôH⁄]ò[XZ\»YôöX⁄\à\»[ò⁄Y[ú»€\‹Ÿ[Y[ù»H›\õõ⁄K‹ÿZ\€€ãÇà…‹XõX’X[Tò[ö⁄[ô…À	‹XõX‘ŸX\€€îÿ€‹ô\ú…À	‹XõX‘ŸX\€€ê\‹⁄\›…À	‹XõX‘ŸX\€€ï⁄[ú…À	‹XõX”\››\õò[Y[ù]Z[…À	‹XõX“\›‹ûI◊Kôõ‹ëXX⁄
+YOû¬à€€ú›[I
+	»… ⁄Y
+Nÿ€€ú›ÿ\ôY[Àò€‹Ÿ\›
+	Àòÿ\ô	 N⁄Yäÿ\ô
+Xÿ\ôò€\‹”\›òY
+	⁄Y[â N¬àJN¬àBÇà€€ú›X[PùZ[\èI
+	»‹XõX’X[PùZ[\â N¬à€€ú›X[PùZ[\êÿ\ôI
+	»‹XõX’X[PùZ[\êÿ\ô	 N¬àù[ò›[€àô[ô\îXõX’X[PùZ[\ä
+^¬àYä]X[PùZ[\ü]X[PùZ[\êÿ\ô
+\ô]\õé¬àYä\ôY’›\ä^¬àX[PùZ[\êÿ\ôò€\‹”\›òY
+	⁄Y[â N‹ô]\õé¬àBà€€ú›ôY‹œ\ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âúãúô\Ÿ[ù	âúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	 N¬à€€ú›€€ôö\õYYYœ[ô]»Ÿ]
+ôY‹ÀõX\
+èOúãú^Y\ó⁄Y
+JN¬à€€ú››\úô[ùX[RYœ[ô]»Ÿ]
+X[\Àôö[\äOùù›\õò[Y[ù⁄YOO\ôY’›\ãöY
+KõX\
+OùöY
+JN¬à€€ú›[ôXYP\‹⁄Y€ôY[ô]»Ÿ]
+X[T^Y\úÀôö[\äOò›\úô[ùX[RYÀö\ ùX[W⁄Y
+JKõX\
+Oùú^Y\ó⁄Y
+JN¬à€€ú›[ô[ô’X[R[ùö]RYœ[ô]»Ÿ]
+X[R[ùö]][€úÀôö[\äOOöKù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âöKú›]\œOOI‹[ô[ô… KõX\
+OOöKú^Y\ó⁄Y
+JN¬à€€ú›‹ôX]‹úœ\^Y\úÀôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àX[PùZ[\ãö[õô\íSBà	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôõ[ôX\ãY‹òYY[ù
+MYYÀŸYYçYôãŸéòôôäNÿõ‹ô\éå\€€YŸŸMŸòàèè]à›[OHôõ€ù\⁄^ôNåKå\ô[NŸõ€ù]ŸZY⁄éèº'Â$0‚]\HH8†%€ŸH0Í\]Z\OŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\€[ôKZZY⁄åKçàèèèïHöY[ú»]ôX»€à0Í\]Z\Hœÿèà[X[ôH0Ëèëõ‹ú‹ÿOÿèàHH€€[][ö\]Y\à€àèò€ŸH0Í\]Z\Oÿèà›\à›]õ⁄\à[úÿ‹ö\ôH€à0Í\]Z\H]H›\õõ⁄HOŸ]èè]à€\‹œHú‹XŸHèèŸ]èè[ú]YHúXõX’X[P€ŸHà[ú][ŸOHõù[Y\öX»à]]ÿ€€\]OHõ€ôK][YKX€ŸHàX^[ô›HçààXŸZ€\èHê€ŸH0Í\]Z\H\ú€€õô[
+à⁄Yôúô\ Hèè]à€\‹œHú‹XŸHèèŸ]èèù]€àYHúXõX’ò[Y]UX[P€ŸHà\OHòù]€àà€\‹œHúö[X\ûHà›[OHù⁄YåL	Hèïò[Y\àH€ŸOÿù]€èè]àYHúXõX’X[P€ŸT›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèèŸ]èèŸ]èâ ¬à	œ]àYHúXõX’X[Qõ‹õPYù\ê€ŸHà€\‹œHöY[àèâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸòôòŸôèè]à›[OHôõ€ù\⁄^ôNåKå\ô[NŸõ€ù]ŸZY⁄éèº'Êb¸'„Ôx†#x¶`ªÓ#»0‚]\Hà8†%Y[ùYöYK]⁄OŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èê⁄⁄\⁄\»€àõ€H\õZH\»Y[Xúô\»X›Yú»H‹õ›\KèŸ]èè]à€\‹œHú‹XŸHèèŸ]èèŸ[X›YHúXõX’X[P‹ôX]‹àèè‹[€àò[YOHàèê⁄⁄\⁄\»€àõ€O€‹[€èâ ÿ‹ôX]‹úÀõX\
+Oâœ‹[€àò[YOHâ ﬁöY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… J…œ‹Ÿ[X›èŸ]èâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúÿòX⁄Ÿ‹õ›[ôàŸòôòŸôèè]à›[OHôõ€ù\⁄^ôNåKå\ô[NŸõ€ù]ŸZY⁄éèº'ÊË{Ó#»0‚]\H»8†%Y[ù]0ÍHH8†&pÍ\]Z\OŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èê⁄⁄\⁄\»[àõ€H€›\ù][ô\]YHÿõYÿ]⁄\ô[Y[ùH€›[]\à\»XZ[›ÀèŸ]èè]à€\‹œHú‹XŸHèèŸ]èè[ú]YHúXõX’X[Sò[YHàX^[ô›HåÃàXŸZ€\èHë^à\»[€úÀX[Hõ‹ôê»›Àããàèè]à€\‹œHú‹XŸHèèŸ]èè]àYHúXõX’X[P€€‹ê⁄⁄XŸ\»à€\‹œHúõ›»à›[OHôÿ\éŸõ^]‹ò\ù‹ò\èèù]€à\OHòù]€àà]K]X[KX€€‹èHàÃLLNç»à›[OHòòX⁄Ÿ‹õ›[ôàÃLLNçŒÿ€€‹éù⁄]Hèìõ⁄\èÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàÃçMåŸXàà›[OHòòX⁄Ÿ‹õ›[ôàÃçMåŸXéÿ€€‹éù⁄]Hèêõ]Oÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàŸéòYò»à›[OHòòX⁄Ÿ‹õ›[ôàŸéòYòŒÿ€€‹éàÃLLNçŒÿõ‹ô\éå\€€YÿÿôYLHèêõ[òœÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàŸÃçåçàà›[OHòòX⁄Ÿ‹õ›[ôàŸÃçåçéÿ€€‹éù⁄]Hèîõ›YŸOÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàÃMòLÕHà›[OHòòX⁄Ÿ‹õ›[ôàÃMòLÕNÿ€€‹éù⁄]Hèïô\ùÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàŸXXåÃà›[OHòòX⁄Ÿ‹õ›[ôàŸXXåÃÿ€€‹éàÃLLNç»èíò][ôOÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàŸéMÃÃMàà›[OHòòX⁄Ÿ‹õ›[ôàŸéMÃÃMéÿ€€‹éù⁄]Hèì‹ò[ôŸOÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàÕÿÃÿYYà›[OHòòX⁄Ÿ‹õ›[ôàÕÿÃÿYYÿ€€‹éù⁄]Hèïö[€]ÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàŸXÕNHà›[OHòòX⁄Ÿ‹õ›[ôàŸXÕNNÿ€€‹éù⁄]Hèîõ‹ŸOÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàÕŒÕLàà›[OHòòX⁄Ÿ‹õ›[ôàÕŒÕLéÿ€€‹éù⁄]HèìX\úõ€èÿù]€èèù]€à\OHòù]€àà]K]X[KX€€‹èHàÕçÕàà›[OHòòX⁄Ÿ‹õ›[ôàÕçÕéÿ€€‹éù⁄]Hèë‹ö\œÿù]€èèŸ]èè]àYHúXõX’X[P€€‹î›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹çúèê]X›[ôH€›[]\àÍ[X›[€õ∞ÍYKèŸ]èèŸ]èâ ¬à	œ]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLúèè]à›[OHôõ€ù\⁄^ôNåKå\ô[NŸõ€ù]ŸZY⁄éèº'‰iH0‚]\H8†%€€\‹ŸH€à‹õ›\OŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èï€à0Í\]Z\H]]0ÍùôH‹∞ÍpÍYH]ôX»èåH0ËHõ›Y]\úœÿèãà‹ú»HHÍ[∞Í\ò][€ãHõﬁX]Hõ‹õpÍH\àH‹∞ÍX]]\ã\»Y[Xúô\»^X[ùXÿŸ\0ÍH]Ÿ\»›Y\›»\›€€úŸ\ù∞ÍKàH∏†&Y\»€ò»\»ÿõYÍHHH€€\0Í]\à›]H›Z]Hà‹ú»HHÍ[∞Í\ò][€àö[ò[K\»XŸ\»[ò€‹ôHXúô\»Ÿ\õ€ùô[\Y\»]ôX»\»õ›Y]\ú»[úÿ‹ö]»[àè∞‚\]Z\H[0ÍX]⁄\ôOÿèãàH]^Í[X›[€õô\à[ö\]Y[Y[ù\»Y[Xúô\»0ÍZ∞Ë[úÿ‹ö]»]H›\õõ⁄H»[»]úõ€ù[ú›Z]H€€ôö\õY\à]x†&Z[»XÿŸ\[ùHôZõ⁄[ôôH€à0Í\]Z\Kà\»[ùö]0Í\»‹ú»‹õ›\H€€ùZõ›]0Í\»\ôX›[Y[ùèŸ]èè]àYHúXõX’X[SX]Põﬁà›[OHõX\ô⁄[ã]‹åLúèè€\‹œHõ]]YèîÍ[X›[€õôH8†&XXõ‹ô€àõ€Kè‹èŸ]èè]àYHúXõX’X[T€›‘›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèèèåÕ€Í\]Z\Y\ú»Zõ›]0Í\œÿèà8†(àXŸ\»ô\›[ù\œŸ]èè]à›[OHöZY⁄å\ÿòX⁄Ÿ‹õ›[ôàŸNXŸYé€X\ô⁄[éåMèèŸ]èèèº'‰iH€€\‹⁄][€àH€à0Í\]Z\Oÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[éç€[ôKZZY⁄åKçàèïH]^€€\0Í]\à\»XŸ\»]]›\àH⁄H€€[YHHô]^àèåHY[XúôH
+»»[ùö]0Í\œÿèãèåàY[Xúô\»
+»à[ùö]0Í\œÿèãèå»Y[Xúô\»
+»H[ùö]0ÍOÿèà›HèçY[Xúô\œÿèãàH›[ô\›H[Z]0ÍH0Ë€Í\]Z\Y\ú»[à\»H⁄KèŸ]èè]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸôôéNÿõ‹ô\éå\€€YŸåôNN€X\ô⁄[ééèèè∏°.{Ó#»Xÿ€‹ô\»Y[Xúô\œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç€[ôKZZY⁄åKçMHèï[àY[XúôHH‹õ›\HZõ›]0ÍHX⁄HôpÈ€⁄][ôHèúõ‹‹⁄][€à8†&pÍ\]Z\Oÿèãà‹ú‹]x†&Z[Í[X›[€õô\òH€€àõ€H›\àHY[à8†&Z[úÿ‹ö\[€ã[›\úòHèòXÿŸ\\èÿèà›HèúôYù\Ÿ\èÿèãà¯†&Z[ôYù\ŸK[ô\›H[úÿ‹ö]XZ\»ô\\‹ŸH[àè∞‚\]Z\H[0ÍX]⁄\ôOÿèãèŸ]èèŸ]èèè∏ß•H[ùö]0Í\»‹ú»‹õ›\Oÿèè]àYHúXõX’X[Q›Y\›»èè[ú]]K]X[KY›Y\›XŸZ€\èHìõ€HH8†&Z[ùö]0ÍHHèèŸ]èè]à€\‹œHúõ›»à›[OHõX\ô⁄[ã]‹éèèù]€àYHúXõX–YX[Q›Y\›à\OHòù]€àà€\‹œHúö[X\ûHèä»Zõ›]\à[à]]ôH[ùö]0ÍOÿù]€èèŸ]èèŸ]èâ ¬à	œ]à€\‹œHú‹XŸHèèŸ]èèù]€àYHúXõX–‹ôX]UX[Hà€\‹œHúö[X\ûHà›[OHù⁄YåL	N‹Y[ôŒåMŸõ€ù\⁄^ôNåKå\ô[Hèº'Â)Hò[Y\à[€à0Í\]Z\Oÿù]€èâ ¬à	œ]àYHúXõX’X[T›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèèŸ]èèŸ]èâŒ¬Çà€€ú›‹ôX]‹îŸ[I
+	»‹XõX’X[P‹ôX]‹â N¬à€€ú›X]PõﬁI
+	»‹XõX’X[SX]Põﬁ	 N¬à€€ú›€ŸR[ú]I
+	»‹XõX’X[P€ŸI N¬à€€ú›€ŸT›]\œI
+	»‹XõX’X[P€ŸT›]\… N¬à€€ú›õ‹õPYù\ê€ŸOI
+	»‹XõX’X[Qõ‹õPYù\ê€ŸI N¬à]ò[Y]YX[P€ŸOI…Œ¬à	
+	»‹XõX’ò[Y]UX[P€ŸI Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬à€€ú›€ŸOX€ŸR[ú]ùò[YKùö[J
+N¬àYäK◊óÕüIÀù\›
+€ŸJJ^ÿ€ŸT›]\Àù^€€ù[ùI—[ùôH[à€ŸHŸX‹ô]ò[YH0Ëà⁄Yôúô\ÀâŒ‹ô]\õüBà€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊›ò[Y]W›X[Wÿ€ŸIÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöYÿ€ŸNò€Ÿ_JN¬àYä\úõ‹üY]J^ÿ€ŸT›]\Àù^€€ù[ùY\úõ‹èÀõY\‹ÿYŸ_	–€ŸH0Í\]Z\H[ùò[YH›Hõ€à]]‹ö\ÍKà[X[ôH€à€ŸH0Ë8†&XYZ[ö\›ò]]\ãâŒŸõ‹õPYù\ê€ŸKò€\‹”\›òY
+	⁄Y[â N›ò[Y]YX[P€ŸOI…Œ‹ô]\õüBàò[Y]YX[P€ŸOX€ŸN¬à⁄[ô›Àó◊‹›ŸTXõX’X[QY][ôœ]ùYN¬à€€ú››€ô\íYT›ö[ô ]JN¬àYäÀããò‹ôX]‹îŸ[õ‹[€ú◊Kú€€YJœOõÀùò[YOOO[›€ô\íY
+J^¬à‹ôX]‹îŸ[ùò[YO[›€ô\íY¬à‹ôX]‹îŸ[ô\ÿXõY]ùYN¬àô[ô\ìX]\ 
+N¬à€€ú››€ô\ìò[YO\^Y\úÀôö[ô
+OûöYOO[›€ô\íY
+OÀõò[Y_	€Y[XúôIŒ¬à€€ú›^\›[ô’X[O]X[\Àôö[ô
+Oùù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô ò‹ôX]YÿûW‹^Y\ó⁄Y	… OOO[›€ô\íY	âùö\◊‹ôYõ‹õYYOO]ùYJN¬à€€ú›‹ôX]PùèI
+	»‹XõX–‹ôX]UX[I N¬àYä^\›[ô’X[J^¬à€€ú›\ôX›Yœ]X[T^Y\úÀôö[\äOùùX[W⁄YOOY^\›[ô’X[KöY
+KõX\
+Oùú^Y\ó⁄Y
+N¬à€€ú›[ô[ô“Yœ]X[R[ùö]][€úÀôö[\äOOöKùX[W⁄YOOY^\›[ô’X[KöY	âöKú›]\œOOI‹[ô[ô… KõX\
+OOöKú^Y\ó⁄Y
+N¬à€€ú›ÿÿ›\YYY\ôX›YÀõ[ô›
+‹[ô[ô“YÀõ[ô›¬à€ŸT›]\Àö[õô\íSI¸'ÁËà€ŸHò[Y0ÍH›\àèâ Ÿ\ÿ ›€ô\ìò[YJJ…œÿèãàHô]õ›]ô\»€à0Í\]Z\Hèâ Ÿ\ÿ ^\›[ô’X[Kõò[YJJ…œÿèà⁄KY\‹€›\Àà	 ”X]õX^
+K[ÿÿ›\YY
+J…»XŸI  X]õX^
+K[ÿÿ›\YY
+OåO…‹…Œâ… J…»[ò€‹ôH\‹€öXõI  X]õX^
+K[ÿÿ›\YY
+OåO…‹…Œâ… J…ÀâŒ¬à€€ú›ò[YR[ú]I
+	»‹XõX’X[Sò[YI N⁄Yäò[YR[ú]
+^€ò[YR[ú]ùò[YOY^\›[ô’X[Kõò[Y_	…Œ€ò[YR[ú]ô\ÿXõY]ùY_BàŸ[X›YX[P€€‹èT›ö[ô ^\›[ô’X[Kò€€‹ü	… Kù”›Ÿ\êÿ\ŸJ
+N¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	»‹XõX’X[P€€‹ê⁄⁄XŸ\»Ÿ]K]X[KX€€‹óI Kôõ‹ëXX⁄
+èOû¬à€€ú›X›]ôOXãô]\Ÿ]ùX[P€€‹èOO\Ÿ[X›YX[P€€‹é¬àãô\ÿXõY]ùYN¬àãú›[Kõ›][ôOXX›]ôO…Ã‹€€YÃçLLÃâŒâ€õ€ôIŒ¬àãú›[Kõ›][ôSŸôúŸ]XX›]ôO…Ãú	ŒâÃ	Œ¬àJN¬à€€ú›€€‹î›]\œI
+	»‹XõX’X[P€€‹î›]\… N⁄Yä€€‹î›]\ X€€‹î›]\Àù^€€ù[ùI¸'‰eH€›[]\àX›Y[Hà	  ÿ›[Y[ùú]Y\ûTŸ[X›‹ä	»‹XõX’X[P€€‹ê⁄⁄XŸ\»Ÿ]K]X[KX€€‹èHâ ‹Ÿ[X›YX[P€€‹ä…»óI OÀù^€€ù[ù	Ÿ0ÍYö[öYI N¬àYä‹ôX]Pùä^ÿ‹ôX]Pùãô\ÿXõY[ÿÿ›\YYèMNÿ‹ôX]Pùãù^€€ù[ù[ÿÿ›\YYèMO…¯ß!H0‚\]Z\H€€\0ÍIŒâ¯ß•H€€\0Í]\à[€à0Í\]Z\IﬂBàY[Ÿ^¬à€ŸT›]\Àù^€€ù[ùI¸'ÁËà€ŸHò[Y0ÍH›\à	 €›€ô\ìò[YJ…ÀàH]^XZ[ù[ò[ù€€\‹Ÿ\à€à0Í\]Z\KâŒ¬àYä‹ôX]Pùä^ÿ‹ôX]Pùãô\ÿXõYYò[ŸNÿ‹ôX]Pùãù^€€ù[ùI¸'Â)Hò[Y\à[€à0Í\]Z\IﬂBàBàY[Ÿ^¬à‹ôX]‹îŸ[ô\ÿXõYYò[ŸN¬à€ŸT›]\Àù^€€ù[ùI¸'ÁËà€ŸHò[Y0ÍKà⁄⁄\⁄\»€àõ€HZ\»€€\‹ŸH€à0Í\]Z\KâŒ¬àBàõ‹õPYù\ê€ŸKò€\‹”\›úô[[›ôJ	⁄Y[â N¬àô\]Y\›[ö[X][€ëúò[YJ
+
+OOôõ‹õPYù\ê€ŸKúÿ‹õ€[ù’öY] ÿôZ]ö[‹éâ‹€[€›	Àõÿ⁄Œâ‹›\ù	ﬂJJN¬àN¬à€ŸR[ú]òY]ô[ù\›[ô\ä	⁄[ú]	À
+
+OOû¬àYäò[Y]YX[P€ŸIâò€ŸR[ú]ùò[YKùö[J
+HOO]ò[Y]YX[P€ŸJ^¬àò[Y]YX[P€ŸOI…Œ¬à⁄[ô›Àó◊‹›ŸTXõX’X[QY][ôœYò[ŸN¬à‹ôX]‹îŸ[ô\ÿXõYYò[ŸNÿ‹ôX]‹îŸ[ùò[YOI…Œ¬àõ‹õPYù\ê€ŸKò€\‹”\›òY
+	⁄Y[â N¬à€ŸT›]\Àù^€€ù[ùI”H€ŸHH0Í]0ÍH[ŸYöpÍHàò[YK[H0Ëõ›]ôX]KâŒ¬àBàJN¬àù[ò›[€àô[ô\ìX]\ 
+^¬à€€ú›‹ôX]‹èX‹ôX]‹îŸ[ùò[YN¬àYäX‹ôX]‹ä^€X]Põﬁö[õô\íSIœ€\‹œHõ]]YèîÍ[X›[€õôH8†&XXõ‹ô€àõ€Kè‹âŒ‹ô]\õüBà€€ú›^\›[ô’X[O]X[\Àôö[ô
+Oùù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô ò‹ôX]YÿûW‹^Y\ó⁄Y	… OOOT›ö[ô ‹ôX]‹äIâùö\◊‹ôYõ‹õYYOO]ùYJN¬à€€ú›\ôX›õ›‹œY^\›[ô’X[O›X[T^Y\úÀôö[\äOùùX[W⁄YOOY^\›[ô’X[KöY
+Nñ◊N¬à€€ú›[ô[ô‘õ›‹œY^\›[ô’X[O›X[R[ùö]][€úÀôö[\äOOöKùX[W⁄YOOY^\›[ô’X[KöY	âöKú›]\œOOI‹[ô[ô… Nñ◊N¬à€€ú›XÿŸ\Yõ›‹œY^\›[ô’X[O›X[R[ùö]][€úÀôö[\äOOöKùX[W⁄YOOY^\›[ô’X[KöY	âöKú›]\œOOIÿXÿŸ\Y	 Nñ◊N¬à€€ú›ÿÿ›\YY€›[ùY\ôX›õ›‹Àõ[ô›
+‹[ô[ô‘õ›‹Àõ[ô›¬à€€ú›\ôX›Yœ[ô]»Ÿ]
+\ôX›õ›‹ÀõX\
+Oùú^Y\ó⁄Y
+JN¬à€€ú›[ô[ô“Yœ[ô]»Ÿ]
+[ô[ô‘õ›‹ÀõX\
+OOöKú^Y\ó⁄Y
+JN¬à€€ú››\úô[ùX[R[Y^\›[ô’X[Bà»	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸYYéåéÿõ‹ô\éå\€€YÿçŸòÕ€X\ô⁄[ãXõ›€NåLúèèèº'‰iH€à0Í\]Z\HX›Y[H8†%	 Ÿ\ÿ ^\›[ô’X[Kõò[YJJ…œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹ç\èì\»õ›Y]\ú»€€ôö\õpÍ\»]\»›Y\›»€€ù€€úŸ\ù∞Í\Àà\»õ›Y]\ú»[à][ùH⁄]ô[ù[ò€‹ôHXÿŸ\\ãèŸ]èâ ¬à\ôX›õ›‹ÀõX\
+Oûÿ€€ú›\^Y\úÀôö[ô
+OúöYOO]ú^Y\ó⁄Y
+N‹ô]\õà…œ]à›[OHõX\ô⁄[ã]‹çúè∏ß!H	 Ÿ\ÿ õò[YJJ ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J…œŸ]èâŒâ…ﬂJKöõ⁄[ä	… J¬à[ô[ô‘õ›‹ÀõX\
+OOûÿ€€ú›\^Y\úÀôö[ô
+OúöYOOZKú^Y\ó⁄Y
+N‹ô]\õà…œ]à›[OHõX\ô⁄[ã]‹çúè∏£Ï»	 Ÿ\ÿ õò[YJJ…»‹[à€\‹œHõ]]Yè∏†(à[à][ùHH€€ôö\õX][€è‹‹[èèŸ]èâŒâ…ﬂJKöõ⁄[ä	… J¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹é\èèèâ €ÿÿ›\YY€›[ù
+…ÀÕHXŸ\»∞Í\Ÿ\ù∞ÍY\œÿèà8†(à	 ”X]õX^
+K[ÿÿ›\YY€›[ù
+J…»XŸI  X]õX^
+K[ÿÿ›\YY€›[ù
+OåO…‹…Œâ… J…»0Ë€€\0Í]\èŸ]èèŸ]èâ¬àà	…Œ¬à€€ú›]òZ[XõO\^Y\úÀôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸIâúöYOOX‹ôX]‹ââò€€ôö\õYYYÀö\ öY
+JKú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àX]Põﬁö[õô\íSX›\úô[ùX[R[
+ €€ôö\õYYYÀö\ ‹ôX]‹äO…œ]à€\‹œHúôXY€õK[õ›Hà›[OHõX\ô⁄[ãXõ›€NåLè∏°.{Ó#»H\»0ÍZ∞Ë[úÿ‹ö]0ËŸH›ÍKà€à[úÿ‹ö\[€à^\›[ùH\›€€úŸ\ù∞ÍYKèŸ]èâŒâ… J¬à	œèìY[Xúô\»H‹õ›\H\‹€öXõ\œÿèè]à€\‹œHõ]]Yà›[OHõX\ô⁄[éå‹€[ôKZZY⁄åKçMHèïH]^Í[X›[€õô\à[ö\]Y[Y[ù\»èõY[Xúô\»0ÍZ∞Ë[úÿ‹ö]»]€€ôö\õpÍ\»0ËŸH›\õõ⁄Oÿèãà\»Y[Xúô\»0ÍZ∞Ë[ú»€à0Í\]Z\H›H0ÍZ∞Ë[à][ùHH€€ôö\õX][€à€€ùYôöX⁄0Í\»⁄KY\‹›\»]ôH€€ù\»õ‹‹Í\»[ôH]^pÍYHõ⁄\ÀèŸ]èâ ¬à
+]òZ[XõKõX\
+Oû¬à€€ú›\‹⁄Y€ôYX[ôXYP\‹⁄Y€ôYö\ öY
+N¬à€€ú›[ô[ôœ\[ô[ô’X[R[ùö]RYÀö\ öY
+N¬à€€ú›[ò]òZ[XõOX\‹⁄Y€ôY[ô[ôﬂ\ôX›YÀö\ öY
+_[ô[ô“YÀö\ öY
+N¬à€€ú›ôY⁄\›\ôYX€€ôö\õYYYÀö\ öY
+N¬àô]\õà	œXô[€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùôõ^\›\ù€X\ô⁄[éç\€‹X⁄]Nâ  [ò]òZ[XõO…ÀçMIŒâÃI J…»èè[ú]\OHò⁄X⁄ÿõﬁà]K]X[K[X]OHâ ‹öY
+…»à›[OHù⁄Yò]]»à	  [ò]òZ[XõO…Ÿ\ÿXõY	Œâ… J…œè‹[èâ Ÿ\ÿ õò[YJJ \‹⁄Y€ôY…»‹[à€\‹œHõ]]Yè∏†(à0ÍZ∞Ë[ú»[ôH0Í\]Z\O‹‹[èâŒä[ô[ôœ…»‹[à€\‹œHõ]]Yè∏†(àõ‹‹⁄][€à8†&pÍ\]Z\H[à][ùO‹‹[èâŒäôY⁄\›\ôY…»‹[à€\‹œHõ]]Yè∏†(à0ÍZ∞Ë[úÿ‹ö]‹‹[èâŒâ… JJJ…œ‹‹[èè€Xô[âŒ¬àJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[à]]ôHY[XúôH0ÍZ∞Ë[úÿ‹ö]]€€ôö\õpÍH∏†&Y\›\‹€öXõH›\àŸ]H0Í\]Z\Kè‹â N¬àX]Põﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]X[K[X]WI Kôõ‹ëXX⁄
+ÿèOòÿãõ€ò⁄[ôŸOJ
+OOû¬à€€ú›[ôõœ]X[SX]U\ÿYŸJ
+N¬àYä[ôõÀù›[çJ^¬àÿãò⁄X⁄ŸYYò[ŸN¬àÿ\›
+	’€à0Í\]Z\H\›[Z]0ÍYH0ËHXŸ\À€€ôö\õX][€ú»[à][ùH€€\ö\Ÿ\Àâ N¬àBà\]UX[T€›‘›]\ 
+N¬àJN¬à\]UX[T€›‘›]\ 
+N¬àBà‹ôX]‹îŸ[õ€ò⁄[ôŸO\ô[ô\ìX]\Œ¬à€€ú››Y\›–õﬁI
+	»‹XõX’X[Q›Y\›… N¬Çàù[ò›[€àX[SX]U\ÿYŸJ
+^¬à€€ú›‹ôX]‹èX‹ôX]‹îŸ[ùò[YN¬à€€ú›^\›[ô’X[O]X[\Àôö[ô
+Oùù›\õò[Y[ù⁄YOO\ôY’›\ãöY	âî›ö[ô ò‹ôX]YÿûW‹^Y\ó⁄Y	… OOOT›ö[ô ‹ôX]‹ü	… Iâùö\◊‹ôYõ‹õYYOO]ùYJN¬à€€ú›^\›[ô—\ôX›Y^\›[ô’X[O›X[T^Y\úÀôö[\äOùùX[W⁄YOOY^\›[ô’X[KöY
+Kõ[ô›åN¬à€€ú›^\›[ô‘[ô[ôœY^\›[ô’X[O›X[R[ùö]][€úÀôö[\äOOöKùX[W⁄YOOY^\›[ô’X[KöY	âöKú›]\œOOI‹[ô[ô… Kõ[ô›å¬à€€ú›ò\ŸSÿÿ›\YYY^\›[ô’X[O ^\›[ô—\ôX›
+Ÿ^\›[ô‘[ô[ô NåN¬à€€ú›X]P€›[ùVÀããõX]Põﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]X[K[X]WNò⁄X⁄ŸY	 WKõ[ô›¬à€€ú›ö[Y›Y\›œVÀããô›Y\›–õﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]X[KY›Y\›I WKõX\
+Oûùò[YKùö[J
+JKôö[\äõ€€X[äKõ[ô›¬à€€ú›YY[X]P€›[ù
+Ÿö[Y›Y\›Œ¬à€€ú››[Xò\ŸSÿÿ›\YY
+ÿYY¬àô]\õà€X]P€›[ùö[Y›Y\›À\ŸYòYY›[ò\ŸSÿÿ›\YYô[XZ[ö[ôŒìX]õX^
+K]›[
+_N¬àBÇàù[ò›[€à\]UX[T€›‘›]\ 
+^¬à€€ú›[ôõœ]X[SX]U\ÿYŸJ
+N¬à€€ú››]\œI
+	»‹XõX’X[T€›‘›]\… N¬àYä›]\ \›]\Àö[õô\íSIœèâ ⁄[ôõÀù›[
+…ÀÕHXŸ\»ÿÿ›\0ÍY\»›H∞Í\Ÿ\ù∞ÍY\œÿèà8†(à	 ⁄[ôõÀúô[XZ[ö[ô …»XŸI  [ôõÀúô[XZ[ö[ôœåO…‹…Œâ… J…»ô\›[ùI  [ôõÀúô[XZ[ö[ôœåO…‹…Œâ… N¬à€€ú›YùèI
+	»‹XõX–YX[Q›Y\›	 N¬àYäYùä^¬àYùãô\ÿXõYZ[ôõÀúô[XZ[ö[ôœL¬àYùãù^€€ù[ùZ[ôõÀúô[XZ[ö[ôœL…‚\]Z\H€€\0ÍH
+Hõ›Y]\ú IŒâ »Zõ›]\à[à]]ôH[ùö]0ÍIŒ¬àBàBÇà	
+	»‹XõX–YX[Q›Y\›	 Kõ€ò€X⁄œJ
+OOû¬à€€ú›öY[œVÀããô›Y\›–õﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]X[KY›Y\›I WN¬à€€ú›[ôõœ]X[SX]U\ÿYŸJ
+N¬àYä[ôõÀúô[XZ[ö[ôœL
+\ô]\õàÿ\›
+	’€à0Í\]Z\H\›0ÍZ∞Ë€€\0ÍH›H›]\»Ÿ\»XŸ\»€€ù∞Í\Ÿ\ù∞ÍY\Àâ N¬àÀ»[à⁄[\öYH0ÍZ∞ËYôöX⁄0ÍHôH€€ú€€[YH\»[ôHXŸKÇà€€ú›[\QöY[YöY[Àôö[ô
+Oà^ùò[YKùö[J
+JN¬àYä[\QöY[
+^Ÿ[\QöY[ôõÿ›\ 
+N‹ô]\õüBà€€ú›[ú]Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	⁄[ú]	 N¬à[ú]úŸ]]öXù]J	Ÿ]K]X[KY›Y\›	À	… N¬à[ú]úXŸZ€\èI”õ€HH8†&Z[ùö]0ÍH	  öY[Àõ[ô›
+ÃJN¬à[ú]ú›[KõX\ô⁄[ï‹IŒ	Œ¬à[ú]òY]ô[ù\›[ô\ä	⁄[ú]	À\]UX[T€›‘›]\ N¬à›Y\›–õﬁò\[ô⁄[
+[ú]
+N¬à[ú]ôõÿ›\ 
+N¬à\]UX[T€›‘›]\ 
+N¬àN¬à›Y\›–õﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]X[KY›Y\›I Kôõ‹ëXX⁄
+[ú]Oö[ú]òY]ô[ù\›[ô\ä	⁄[ú]	À\]UX[T€›‘›]\ JN¬à\]UX[T€›‘›]\ 
+N¬Çà]Ÿ[X›YX[P€€‹èI…Œ¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	»‹XõX’X[P€€‹ê⁄⁄XŸ\»Ÿ]K]X[KX€€‹óI Kôõ‹ëXX⁄
+ùèOû¬àùãõ€ò€X⁄œJ
+OOû¬àŸ[X›YX[P€€‹èXùãô]\Ÿ]ùX[P€€‹é¬àÿ›[Y[ùú]Y\ûTŸ[X›‹ê[
+	»‹XõX’X[P€€‹ê⁄⁄XŸ\»Ÿ]K]X[KX€€‹óI Kôõ‹ëXX⁄
+èOû¬àãú›[Kõ›][ôOXèOOXùè…Ã‹€€YÃçLLÃâŒâ€õ€ôIŒ¬àãú›[Kõ›][ôSŸôúŸ]XèOOXùè…Ãú	ŒâÃ	Œ¬àJN¬à€€ú›œI
+	»‹XõX’X[P€€‹î›]\… N¬àYä \Àù^€€ù[ùI¸'‰eH€›[]\à⁄⁄\⁄YHà	 ÿùãù^€€ù[ù¬àN¬àJN¬Çà	
+	»‹XõX–‹ôX]UX[I Kõ€ò€X⁄œX\ﬁ[ò 
+OOû¬àYäôY’›\ãôõ‹õX]OOI€XY›YI…âù›\õò[Y[ùXY[ôS\ ôY’›\äHOO[ù[	âë]Kõõ› 
+Oè]›\õò[Y[ùXY[ôS\ ôY’›\äJ\ô]\õà›]\Àù^€€ù[ùI¯¶Â\»[úÿ‹ö\[€ú»€€ù\õZ[∞ÍY\ÀâŒ¬à€€ú›‹ôX]‹èX‹ôX]‹îŸ[ùò[YN¬à€€ú›€ŸO]ò[Y]YX[P€ŸN¬à€€ú›ò[YOI
+	»‹XõX’X[Sò[YI Kùò[YKùö[J
+N¬à€€ú›€€‹è\Ÿ[X›YX[P€€‹é¬à€€ú››]\œI
+	»‹XõX’X[T›]\… N¬àYäX€ŸJ\ô]\õà›]\Àù^€€ù[ùI’ò[YH8†&XXõ‹ô€à€ŸHŸX‹ô]0Í\]Z\KâŒ¬àYäX‹ôX]‹ä\ô]\õà›]\Àù^€€ù[ùI–⁄⁄\⁄\»€àõ€KâŒ¬àYä[ò[YJ\ô]\õà›]\Àù^€€ù[ùI—€õôH[àõ€H0Ë€à0Í\]Z\KâŒ¬àYäX€€‹ä\ô]\õà›]\Àù^€€ù[ùI–⁄⁄\⁄\»H€›[]\à\»XZ[›»H€à0Í\]Z\KâŒ¬à€€ú›X]\œVÀããõX]Põﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]X[K[X]WNò⁄X⁄ŸY	 WKõX\
+Oûô]\Ÿ]ùX[SX]JN¬à€€ú››Y\›œVÀããô›Y\›–õﬁú]Y\ûTŸ[X›‹ê[
+	÷Ÿ]K]X[KY›Y\›I WKõX\
+Oûùò[YKùö[J
+JKôö[\äõ€€X[äN¬à€€ú›\ÿYŸO]X[SX]U\ÿYŸJ
+N¬àYä\ÿYŸKù›[çJ\ô]\õà›]\Àù^€€ù[ùI’€à0Í\]Z\HôH]]\»0Í\\‹Ÿ\àHXŸ\Àõ›Y]\ú»[à][ùH€€\ö\ÀâŒ¬à€€ú›ùèI
+	»‹XõX–‹ôX]UX[I Nÿùãô\ÿXõY]ùYN¬à€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊ÿ‹ôX]W›X[W›⁄]€Y[Xô\óÿ€ŸW›åâÀ¬à›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄Yò‹ôX]‹ãÿ€ŸNò€ŸK›X[W€ò[YNõò[YK›X[Wÿ€€‹éò€€‹ã‹^Y\ó⁄YŒõX]\ÀŸ›Y\›€ò[Y\Œô›Y\›¬àJN¬àùãô\ÿXõYYò[ŸN¬àYä\úõ‹ä^¬à€€ú›\ŸœT›ö[ô \úõ‹ãõY\‹ÿYŸ_	… N¬àYäŸ0ÍZ∞Ëä∞Í\]Z\_[ôXYKäùX[K⁄Kù\›
+\Ÿ J\ô]\õà›]\Àù^€€ù[ùI’[à\»õ›]ôX]^õ›Y]\ú»Í[X›[€õ∞Í\»\\ùY[ù0ÍZ∞Ë0Ë[ôH]]ôH0Í\]Z\Kàô]\ôK[HZ\»∞ÍY\‹ÿZYKâŒ¬àYäŸ0ÍZ∞Ë[úÿ‹ö][ôXYHôY⁄\›\ôY⁄Kù\›
+\Ÿ J\ô]\õà›]\Àù^€€ù[ùI’[àõ›Y]\àÍ[X›[€õ∞ÍH\›0ÍZ∞Ë[úÿ‹ö]à[]]0ÍùôHZõ›]0ÍH[ö\]Y[Y[ù¯†&Z[∏†&X\\ùY[ù\»0ÍZ∞Ë0Ë[ôH]]ôH0Í\]Z\KâŒ¬àô]\õà›]\Àù^€€ù[ù[\ŸŒ¬àBà›]\Àù^€€ù[ùI¸'ÁËà0‚\]Z\H[úôY⁄\›∞ÍYHH\»õ›]ôX]^Y[Xúô\»Í[X›[€õ∞Í\»€ù[ôHõ‹‹⁄][€à0ËXÿŸ\\à›HôYù\Ÿ\ãà\»õ›Y]\ú»0ÍZ∞Ë€€ôö\õpÍ\»]\»›Y\›»ô\›[ù[ú»€àõﬁX]Kà\»XŸ\»[ò€‹ôHXúô\»Ÿ\õ€ù€€\0Í]0ÍY\»[à0‚\]Z\H[0ÍX]⁄\ôH‹ú»HHÍ[∞Í\ò][€àö[ò[KâŒ¬à⁄[ô›Àó◊‹›ŸTXõX’X[QY][ôœYò[ŸN¬à	
+	»‹XõX’X[P€ŸI Kùò[YOI…Œ…
+	»‹XõX’X[Sò[YI Kùò[YOI…Œ›ò[Y]YX[P€ŸOI…Œ‹Ÿ[X›YX[P€€‹èI…Œÿ‹ôX]‹îŸ[ô\ÿXõYYò[ŸNÿ‹ôX]‹îŸ[ùò[YOI…Œ…
+	»‹XõX’X[Qõ‹õPYù\ê€ŸI OÀò€\‹”\›òY
+	⁄Y[â N¬àû^¬à€€ú›€ò\X]ÿZ]ÿãúú 	ŸŸ]‹XõX◊›€‹ö‹‹XŸW‹€ò\⁄››åâÀ‹›⁄Ÿ[éù⁄Ÿ[üJN¬àYä\€ò\ô\úõ‹ââú€ò\ô]J^¬à^Y\úœ\€ò\ô]Kú^Y\úﬂ^Y\úŒ‹ôY⁄\›ò][€úœ\€ò\ô]Kù›\õò[Y[ù‹^Y\úﬂôY⁄\›ò][€úŒ¬àX[\œ\€ò\ô]KùX[\ﬂX[\Œ›X[T^Y\úœ\€ò\ô]KùX[W‹^Y\úﬂX[T^Y\úŒ›X[R[ùö]][€úœ\€ò\ô]KùX[W‹^Y\ó⁄[ùö]][€úﬂX[R[ùö]][€úŒ¬àô[ô\îXõX’X[PùZ[\ä
+N¬àBàXÿ]⁄
+J^ﬂBàN¬àBàYä]⁄[ô›Àó◊‹›ŸTXõX’X[QY][ô \ô[ô\îXõX’X[PùZ[\ä
+N¬ÇÇà€€ú›PSW–””‘ó”QUO^¬à	»ÃLLNç…Œñ…”õ⁄\âÀ	”õ⁄\ú…À	”õ⁄\ôIÀ	”õ⁄\ô\…◊Kà	»ÃçMåŸXâŒñ…–õ]IÀ	–õ]\…À	–õ]YIÀ	–õ]Y\…◊Kà	»ŸéòYò…Œñ…–õ[ò…À	–õ[ò‹…À	–õ[ò⁄IÀ	–õ[ò⁄\…◊Kà	»ŸÃçåçâŒñ…‘õ›YŸIÀ	‘õ›YŸ\…◊Kà	»ÃMòLÕIŒñ…’ô\ù	À	’ô\ù…À	’ô\ùIÀ	’ô\ù\…◊Kà	»ŸXXåÃ	Œñ…“ò][ôIÀ	“ò][ô\…◊Kà	»ŸéMÃÃMâŒñ…”‹ò[ôŸIÀ	”‹ò[ôŸ\…◊Kà	»ÕÿÃÿYY	Œñ…’ö[€]	À	’ö[€]…À	’ö[€]IÀ	’ö[€]\…◊Kà	»ŸXÕNIŒñ…‘õ‹ŸIÀ	‘õ‹Ÿ\…◊Kà	»ÕŒÕLâŒñ…”X\úõ€âÀ	”X\úõ€ú…◊Kà	»ÕçÕâŒñ…—‹ö\…À	—‹ö\ŸIÀ	—‹ö\Ÿ\…◊BàN¬àù[ò›[€à[ôô\úôYX[P€€‹äX[J^¬àYäX[OÀò€€‹ä\ô]\õà›ö[ô X[Kò€€‹äKù”›Ÿ\êÿ\ŸJ
+N¬à€€ú›ò[YOT›ö[ô X[OÀõò[Y_	… Kùö[J
+Kù”›Ÿ\êÿ\ŸJ
+N¬àõ‹ä€€ú›⁄^ò[Y\◊HŸàÿöôX›ô[ùöY\ PSW–””‘ó”QUJJ^¬àYäò[Y\Àú€€YJèOõãù”›Ÿ\êÿ\ŸJ
+OOO[ò[YJJ\ô]\õà^¬àBàô]\õà	»ŸYYåôå…Œ¬àBàù[ò›[€àX[P€€‹ìXô[
+X[J^¬à€€ú›^Z[ôô\úôYX[P€€‹äX[JN¬à€€ú›Y]OUPSW–””‘ó”QUV⁄^N¬àô]\õàY]O€Y]VÃNâ”õ€à∞ÍX⁄\ÍYIŒ¬àBàù[ò›[€àX[U^€€‹ä^
+^¬àô]\õà…»ŸéòYò…À	»ŸXXåÃ	◊Kö[ò€Y\ ^
+O…»ÃLLNç…Œâ»ŸôôôôôâŒ¬àBÇà€€ú›X\[ô]»X\
+^Y\úÀõX\
+OñﬁöYJJN¬à€€ú›X\[ô]»X\
+X[\ÀõX\
+OñﬁöYJJN¬ÇàÀ»çåà8†%ùYHXõ\]YH0ÍYpÍYH]^›Í\»HY›YHà]X›[ôH€õ∞ÍYHH›\õõ⁄H€\‹⁄\]YKÇàYäÿ[ù”XY›YTŸ\‹⁄[€ââúôY’›\ä^¬à€€ú›[öŸYXY›YO[XY›Y\Àôö[ô
+OõöYOO\ôY’›\ãõXY›YW⁄Y
+_ù[¬à€€ú›[ö”XY›YRY\XõX‘\ò[\ÀôŸ]
+	€XY›YI N¬àYä[[öŸYXY›YH
+[ö”XY›YRY	âõ[ö”XY›YRYOO\ôY’›\ãõXY›YW⁄Y
+J^¬à	
+	»‹XõX’öY]… Kö[õô\íSIœXY\à€\‹œHù‹èèOè[Y»‹òœHããŸò]öX€€ãúôœ›èMLà€\‹œHòúò[ô[X\ö»à[Hî’‚Hèî’‚H’TìêSQSïKÕO⁄Oè⁄XY\èè]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]HèìY[àHY›YH[ô\‹€öXõO⁄èè€\‹œHõ]]YèêŸHY[àôH€‹úô\‹€ô\»0ËHY›YHHŸH›ÍKà]X›[à›\õõ⁄HôHŸ\òHYôöX⁄0ÍH0ËÿHXŸKè‹èŸ]èâŒ¬àô]\õé¬àBÇà€€ú›XY›YU›\õò[Y[ùYœ[ô]»Ÿ]
+›\õò[Y[ùÀôö[\äOùôõ‹õX]OOI€XY›YI…âùõXY›YW⁄YOO[[öŸYXY›YKöY
+KõX\
+OùöY
+JN¬à€€ú›XY›YSX]⁄\œ[X]⁄\Àôö[\äOOõXY›YU›\õò[Y[ùYÀö\ Kù›\õò[Y[ù⁄Y
+JN¬à€€ú›XY›YSX]⁄Yœ[ô]»Ÿ]
+XY›YSX]⁄\ÀõX\
+OOõKöY
+JN¬à€€ú›XY›YUX[RYœ[ô]»Ÿ]
+
+N¬àXY›YSX]⁄\Àôõ‹ëXX⁄
+OOû€XY›YUX[RYÀòY
+Kö€YW›X[W⁄Y
+N€XY›YUX[RYÀòY
+Kò]ÿ^W›X[W⁄Y
+NﬂJN¬à€€ú›XY›YT^Y\íYœ[ô]»Ÿ]
+^Y\úÀôö[\äOúòX›]ôIâúö\◊Ÿ‹õ›\€Y[Xô\àOOYò[ŸJKõX\
+OúöY
+JN¬àX[T^Y\úÀôö[\äOõXY›YUX[RYÀö\ ùX[W⁄Y
+JKôõ‹ëXX⁄
+OõXY›YT^Y\íYÀòY
+ú^Y\ó⁄Y
+JN¬à€ÿ[Àôö[\äœOõXY›YSX]⁄YÀö\ ÀõX]⁄⁄Y
+JKôõ‹ëXX⁄
+œOû⁄YäÀúÿ€‹ô\ó‹^Y\ó⁄Y
+[XY›YT^Y\íYÀòY
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+N⁄YäÀò\‹⁄\›\ó‹^Y\ó⁄Y
+[XY›YT^Y\íYÀòY
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+NﬂJN¬à€€ú››]œ[ô]»X\
+^Y\úÀôö[\äOõXY›YT^Y\íYÀö\ öY
+JKõX\
+Oñ‹öY⁄YúöYò[YNúõò[YKŒåNåŒåWJJN¬à€ÿ[Àôö[\äœOõXY›YSX]⁄YÀö\ ÀõX]⁄⁄Y
+JKôõ‹ëXX⁄
+œOû⁄Yä›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J\›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ⁄YäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âú›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J\›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ ŒﬂJN¬àXY›YSX]⁄\Àôõ‹ëXX⁄
+OOûÿ€€ú›œSù[Xô\äKö€YW‹ÿ€‹ô_
+K\œSù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+N⁄YäœOOX\ \ô]\õéÿ€€ú›⁄[õô\èZœò\œ€Kö€YW›X[W⁄YõKò]ÿ^W›X[W⁄Y›X[T^Y\úÀôö[\äOùùX[W⁄YOO]⁄[õô\äKôõ‹ëXX⁄
+Oû⁄Yä›]Àö\ ú^Y\ó⁄Y
+J\›]ÀôŸ]
+ú^Y\ó⁄Y
+Kù  ŒﬂJNﬂJN¬àù[ò›[€àXY›YTò[ö‹ \úãŸ^J^€]ô]è[ù[ò[öœL‹ô]\õà\úãú€‹ù
+
+KäOOòñ⁄Ÿ^WKXV⁄Ÿ^W_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJKõX\
+
+JOOû⁄Yä⁄Ÿ^WHOO\ô]ä^‹ò[öœZJÃN‹ô]è^⁄Ÿ^W_\ô]\õàÀããûò[öﬂNﬂJNﬂBà€€ú›ÿ€‹ô\úœ[XY›YTò[ö‹ Àããú›]Àùò[Y\ 
+WKôö[\äOûôœå
+K	Ÿ… N¬à€€ú›\‹⁄\›œ[XY›YTò[ö‹ Àããú›]Àùò[Y\ 
+WKôö[\äOûòOå
+K	ÿI N¬à€€ú›⁄[õô\úœ[XY›YTò[ö‹ Àããú›]Àùò[Y\ 
+WKôö[\äOûùœå
+K	›… N¬Çà€€ú›Ÿ\‹⁄[€îôY‹œ\ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO\ôY’›\ãöY
+N¬à€€ú›€€ôö\õYY\Ÿ\‹⁄[€îôY‹Àôö[\äèOúãúô\Ÿ[ù	âúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	 Kõ[ô›¬à€€ú›ÿZ][ôœ\Ÿ\‹⁄[€îôY‹Àôö[\äèOúãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	 Kõ[ô›¬à€€ú›XY›YSY[Xô\úœ\^Y\úÀôö[\äOúòX›]ôIâò€€ôö\õYYXY›YRYÀö\ öY
+JKú€‹ù
+
+KäOOòKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬Çà€€ú›Ÿ\‹⁄[€úœ]›\õò[Y[ùÀôö[\äOùôõ‹õX]OOI€XY›YI…âùõXY›YW⁄YOO[[öŸYXY›YKöY
+Kú€‹ù
+
+KäOOî›ö[ô Kù›\õò[Y[ùŸ]JKõÿÿ[P€€\\ôJ›ö[ô ãù›\õò[Y[ùŸ]JJJN¬à€€ú›^YY\Ÿ\‹⁄[€úÀôö[\äœOõXY›YSX]⁄\Àú€€YJOOõKù›\õò[Y[ù⁄YOO\ÀöY
+JN¬à€€ú›]\›Ÿ\‹⁄[€è\^YYõ[ô›‹^YY‹^YYõ[ô›LWNõù[¬à€€ú›]\›X]⁄[]\›Ÿ\‹⁄[€è XY›YSX]⁄\Àôö[\äOOõKù›\õò[Y[ù⁄YOO[]\›Ÿ\‹⁄[€ãöY
+Kú‹
+
+_ù[
+Nõù[¬Çà]\››ŸR[Iœ]à€\‹œHòÿ\ôà›[OHòòX⁄Ÿ‹õ›[ôàŸéòôéHèèà€\‹œHúŸX›[€ù]Hèº'Â)H\õöY\à›ÍHHHY›YO⁄èè€\‹œHõ]]Yèê]X›[àX]⁄∏†&XH[ò€‹ôH0Í]0ÍHõ›pÍH[ú»Ÿ]HY›YKà]X›[ôH0Í\]Z\HH›\õõ⁄H∏†&Y\›YôöX⁄0ÍYKè‹èŸ]èâŒ¬àYä]\›Ÿ\‹⁄[€ââõ]\›X]⁄
+^¬à€€ú›€YO]X\ôŸ]
+]\›X]⁄ö€YW›X[W⁄Y
+K]ÿ^O]X\ôŸ]
+]\›X]⁄ò]ÿ^W›X[W⁄Y
+N¬à€€ú›X[Pÿ\ô]X[OOû⁄Yä]X[J\ô]\õà	…Œÿ€€ú›Y[Xô\úœ]X[T^Y\úÀôö[\äOùùX[W⁄YOO]X[KöY
+KõX\
+OúX\ôŸ]
+ú^Y\ó⁄Y
+JKôö[\äõ€€X[äN‹ô]\õà	œ]à€\‹œHúXõXÀ]X[KXÿ\ôèè]à€\‹œHúXõXÀ]X[KZXYèèèâ Ÿ\ÿ X[Kõò[YJJ…œÿèèŸ]èè]à€\‹œHúXõXÀ]X[K\^Y\ú»èâ  Y[Xô\úÀõX\
+Oâœ]à€\‹œHúXõXÀ]X[K\^Y\àèâ Ÿ\ÿ õò[YJJ…œŸ]èâ Köõ⁄[ä	… _	œ]à€\‹œHõ]]Yèê€€\‹⁄][€àõ€à[úôY⁄\›∞ÍYOŸ]èâ J…œŸ]èèŸ]èâŒﬂN¬à\››ŸR[Iœ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'Â)H\õöY\à›ÍHHHY›YO⁄èè]à€\‹œHõ]]Yèâ Ÿ\ÿ ]\›Ÿ\‹⁄[€ãõò[Y_]\›Ÿ\‹⁄[€ãù›\õò[Y[ùŸ]JJ…»8†(à	 Ÿ\ÿ ]\›Ÿ\‹⁄[€ãù›\õò[Y[ùŸ]JJ…œŸ]èè]à€\‹œHú^Y\àà›[OHõX\ô⁄[ã]‹åLèè]à€\‹œHúõ›»à›[OHöù\›YûKX€€ù[ùú‹XŸKXô]ŸY[éŸÿ\éèèèâ Ÿ\ÿ €YOÀõò[Y_	‚\]Z\HI J…œÿèè‹[à€\‹œHúÿ€‹ôHèâ ”ù[Xô\ä]\›X]⁄ö€YW‹ÿ€‹ô_
+J…»H	 ”ù[Xô\ä]\›X]⁄ò]ÿ^W‹ÿ€‹ô_
+J…œ‹‹[èèèâ Ÿ\ÿ ]ÿ^OÀõò[Y_	‚\]Z\Hâ J…œÿèèŸ]èèŸ]èè]à›[OHô\‹^Nôõ^Ÿÿ\åLú€›ô\ôõ›À^ò]]Œ€X\ô⁄[ã]‹åLúèâ ›X[Pÿ\ô
+€YJJ›X[Pÿ\ô
+]ÿ^JJ…œŸ]èèŸ]èâŒ¬àBÇà	
+	»‹XõX’öY]… Kö[õô\íSBà	œXY\à€\‹œHù‹èèOº'„‡H	 Ÿ\ÿ [öŸYXY›YKõò[YJJ…œ⁄Oè]à€\‹œHúXõXÀ\›Xàèî’‚H’TìêSQSïKÕH8†(à[úÿ‹ö\[€à]H›ÍHHY›YOŸ]èè⁄XY\èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hè∏ß!H[úÿ‹ö\[€à0ËŸH›ÍO⁄èâ ¬à	œ]à€\‹œHú^Y\àà›[OHòòX⁄Ÿ‹õ›[ôàŸéòôéHèèèâ Ÿ\ÿ ôY’›\ãõò[Y_
+	‘›ÍHH	 ‹ôY’›\ãù›\õò[Y[ùŸ]JJJ…œÿèè]à€\‹œHõ]]Yèâ Ÿ\ÿ ôY’›\ãù›\õò[Y[ùŸ]JJ…»8†(àHX]⁄8†&Y[ùö\õ€àåZ[èŸ]èèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃ»à›[OHõX\ô⁄[ã]‹åLèè]à€\‹œHú^Y\àèè‹[à€\‹œHõ]]Yèº'‰„H\úòZ[à∞Í\Ÿ\ù∞ÍO‹‹[èèúèèèâ Ÿ\ÿ ôY’›\ãùô[ùY_	‡∞ÍX⁄\Ÿ\â J…œÿèèŸ]èè]à€\‹œHú^Y\àèè‹[à€\‹œHõ]]Yèº'Âf]\ôO‹‹[èèúèèèâ Ÿ\ÿ ôY’›\ãú›\ù›[YO‘›ö[ô ôY’›\ãú›\ù›[YJKú€XŸJJNâ‡∞ÍX⁄\Ÿ\â J…œÿèèŸ]èè]à€\‹œHú^Y\àèè‹[à€\‹œHõ]]Yèº'‰≠àö^‹‹[èèúèèèâ  ù[Xô\äôY’›\ãô[ùûWŸôYWÿŸ[ùﬂ
+KÃL
+Kù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]Œìù[Xô\äôY’›\ãô[ùûWŸôYWÿŸ[ùﬂ
+ILLÃéåX^[][QúòX›[€ëY⁄]ŒåüJJ…»8†´»\ùX⁄\[ùÿèèŸ]èèŸ]èâ ¬à
+ôY’›\ãúô\Ÿ\ùò][€ó‹ôYô\ô[òŸO…œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèî∞Í\Ÿ\ùò][€ààèâ Ÿ\ÿ ôY’›\ãúô\Ÿ\ùò][€ó‹ôYô\ô[òŸJJ…œÿèèŸ]èâŒâ… J¬à	œ]à€\‹œHõ]]Yà›[OHõX\ô⁄[éåLèêŸHY[à€€òŸ\õôH[ö\]Y[Y[ùŸH›ÍKà\»[ôõ‹õX][€ú»YôöX⁄0ÍY\»[à\‹€›\»€€òŸ\õô[ù[ö\]Y[Y[ùHY›YHèâ Ÿ\ÿ [öŸYXY›YKõò[YJJ…œÿèãèŸ]èâ ¬à	œ]à€\‹œHú^Y\àèèèâ ÿ€€ôö\õYY
+…À…  ôY’›\ãõX^‹^Y\úﬂL
+J…»€€ôö\õpÍ\œÿèâ  ÿZ][ôœ…»8†(à	 ›ÿZ][ô …»ô[\pÈÿ[ù	  ÿZ][ôœåO…‹…Œâ… Nâ… J…œŸ]èâ ¬à	œ]à€\‹œHúôXY€õK[õ›Hà›[OHõX\ô⁄[éåLèèèïH\»Y[XúôHHHY›YHœÿèàŸ[HH\õY]H8†&Z[úÿ‹ö\ôHX⁄KXZ\»H∏†&Y\»\ùX⁄\[ù0ËŸH›ÍH]YH⁄HH€\]Y\»›\à0™»ôH\ùX⁄\H0ËŸH›ÍH0ÆÀèŸ]èâ ¬à	œ]à€\‹œHú‹XŸHèèŸ]èèŸ[X›YHõXY›YTŸ\‹⁄[€îXõX‘^Y\àèè‹[€àò[YOHàèê⁄⁄\⁄\»€àõ€H\õZH\»Y[Xúô\»HHY›YO€‹[€èâ €XY›YSY[Xô\úÀõX\
+Oâœ‹[€àò[YOHâ ‹öY
+…»èâ Ÿ\ÿ õò[YJJ…œ€‹[€èâ Köõ⁄[ä	… J…œ‹Ÿ[X›â ¬à	œ]à€\‹œHú‹XŸHèèŸ]èè]à€\‹œHúõ›»èèù]€àYHõXY›YTŸ\‹⁄[€îXõX“õ⁄[àà€\‹œHúö[X\ûHè∏ß!HôH\ùX⁄\H0Ë—H›ÍOÿù]€èèù]€àYHõXY›YTŸ\‹⁄[€îXõX”X]ôHè∏ßcôHôH\ùX⁄\H\»0Ë—H›ÍOÿù]€èèŸ]èâ ¬à	œ]àYHõXY›YTŸ\‹⁄[€îXõX‘›]\»à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèèŸ]èâ ¬à	œ»›[OHõX\ô⁄[ã]‹åNèº'‰iH\ùX⁄\[ù»[úÿ‹ö]»0Ë—H›ÍO⁄œè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ãXõ›€NéèêŸ]H\›H\›[ô0Í\[ô[ùHHH\›H\»Y[Xúô\»HHY›YKèŸ]èè]àYHõXY›YTŸ\‹⁄[€îXõX‘ôY⁄\›\ôYèèŸ]èâ ¬à	œŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'„‡H	 Ÿ\ÿ [öŸYXY›YKõò[YJJ…œ⁄èè]à€\‹œHú^Y\àèèèîÿZ\€€àèÿèà	 Ÿ\ÿ [öŸYXY›YKú›\ù◊€€äJ [öŸYXY›YKô[ô◊€€è…»8°§à	 Ÿ\ÿ [öŸYXY›YKô[ô◊€€äNâ… J…œŸ]èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ã]‹éèí[ôõ‹õX][€ú»HHY›YHÍ[X›[€õ∞ÍYH[ö\]Y[Y[ùèŸ]èèŸ]èâ ¬à	œ]à€\‹œHô‹öYÃ»èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hè∏¶ØHYZ[]\ú»ù]]\úœ⁄èâ  ÿ€‹ô\úÀõX\
+Oâœ]à€\‹œHúò[ö»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁô …»ù]	  ôœåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àù]›\àH[€Y[ùè‹â J…œŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'„´»YZ[]\ú»\‹Ÿ]\úœ⁄èâ  \‹⁄\›ÀõX\
+Oâœ]à€\‹œHúò[ö»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁòJ…»\‹ŸI  òOåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH\‹ŸH›\àH[€Y[ùè‹â J…œŸ]èâ ¬à	œ]à€\‹œHòÿ\ôèèà€\‹œHúŸX›[€ù]Hèº'‰dH‹^Y\è⁄èè]à€\‹œHõ]]Yà›[OHõX\ô⁄[ãXõ›€Néèìõ€XúôHH›Í\»HY›YHÿY€∞Í\ÀèŸ]èâ  ⁄[õô\úÀõX\
+Oâœ]à€\‹œHúò[ö»èèèâ  úò[öœOOLO…¸'‰dIŒûúò[ö J…œÿèè‹[èâ Ÿ\ÿ õò[YJJ…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁù …»öX›⁄\ôI  ùœåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôHöX›⁄\ôH›\àH[€Y[ùè‹â J…œŸ]èâ ¬à	œŸ]èâ €\››ŸR[¬Çà€€ú›ô[ô\îôY⁄\›\ôYJ
+OOû…
+	»€XY›YTŸ\‹⁄[€îXõX‘ôY⁄\›\ôY	 Kö[õô\íS\Ÿ\‹⁄[€îôY‹Àôö[\äèOúãúô\Ÿ[ù
+KõX\
+èOûÿ€€ú›\X\ôŸ]
+ãú^Y\ó⁄Y
+N‹ô]\õà	œ]à€\‹œHú^Y\àõ›»èè‹[à›[OHôõ^åHèâ Ÿ\ÿ Àõò[Y_	“õ›Y]\â J…œ‹‹[èè‹[à€\‹œHô›Y\›XòYŸHèâ  ãúôY⁄\›ò][€ó‹›]\œOOI›ÿZ]\›	ﬂãö\◊‹›Xú›]]O…‘ô[\pÈÿ[ù	Œâ–€€ôö\õpÍI J…œ‹‹[èèŸ]èâŒﬂJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[à[úÿ‹ö]›\àH[€Y[ùè‹âŒﬂN¬àô[ô\îôY⁄\›\ôY
+
+N¬à	
+	»€XY›YTŸ\‹⁄[€îXõX“õ⁄[â Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›YI
+	»€XY›YTŸ\‹⁄[€îXõX‘^Y\â Kùò[YN⁄Yä\Y
+\ô]\õà	
+	»€XY›YTŸ\‹⁄[€îXõX‘›]\… Kù^€€ù[ùI–⁄⁄\⁄\»€àõ€KâŒÿ€€ú›èI
+	»€XY›YTŸ\‹⁄[€îXõX“õ⁄[â Nÿãô\ÿXõY]ùYNÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊››\õò[Y[ù‹ôY⁄\›ò][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYÿX›[€éâ⁄õ⁄[âﬂJNÿãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õà	
+	»€XY›YTŸ\‹⁄[€îXõX‘›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN…
+	»€XY›YTŸ\‹⁄[€îXõX‘›]\… Kù^€€ù[ùY]OÀú›]\œOOI›ÿZ]\›	œ…¸'ÁËH\»[úÿ‹ö]€€[YHô[\pÈÿ[ùâŒâ¸'ÁËà[úÿ‹ö\[€à]H›ÍH€€ôö\õpÍYHIŒ‹Ÿ][Y[›]
+
+
+OOõÿÿ][€ãúô[ÿY
+
+KL
+NﬂN¬à	
+	»€XY›YTŸ\‹⁄[€îXõX”X]ôI Kõ€ò€X⁄œX\ﬁ[ò 
+OOûÿ€€ú›YI
+	»€XY›YTŸ\‹⁄[€îXõX‘^Y\â Kùò[YN⁄Yä\Y
+\ô]\õà	
+	»€XY›YTŸ\‹⁄[€îXõX‘›]\… Kù^€€ù[ùI–⁄⁄\⁄\»€àõ€KâŒÿ€€ú›èI
+	»€XY›YTŸ\‹⁄[€îXõX”X]ôI Nÿãô\ÿXõY]ùYNÿ€€ú›Ÿ\úõ‹üOX]ÿZ]ÿãúú 	‹XõX◊››\õò[Y[ù‹ôY⁄\›ò][€âÀ‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄YúYÿX›[€éâÿXúŸ[ù	ﬂJNÿãô\ÿXõYYò[ŸN⁄Yä\úõ‹ä\ô]\õà	
+	»€XY›YTŸ\‹⁄[€îXõX‘›]\… Kù^€€ù[ùY\úõ‹ãõY\‹ÿYŸN…
+	»€XY›YTŸ\‹⁄[€îXõX‘›]\… Kù^€€ù[ùI“[úÿ‹ö\[€àô]\∞ÍYKâŒ‹Ÿ][Y[›]
+
+
+OOõÿÿ][€ãúô[ÿY
+
+KL
+NﬂN¬àô]\õé¬àBÇàù[ò›[€à›\õò[Y[ù›[ô[ô‹ ›\õò[Y[ùY
+^¬à€€ú›]X[\Àôö[\äOûù›\õò[Y[ù⁄YOO]›\õò[Y[ùY
+N¬à€€ú›õ›‹œ]õX\
+Oä⁄YûöYò[YNûõò[YKZéåéåéååúåòŒåŒåJJN¬à€€ú›X\[ô]»X\
+õ›‹ÀõX\
+OñﬁöYJJN¬àX]⁄\Àôö[\äOOõKù›\õò[Y[ù⁄YOO]›\õò[Y[ùY
+Kôõ‹ëXX⁄
+OOû¬à€€ú›€YO[X\ôŸ]
+Kö€YW›X[W⁄Y
+K]ÿ^O[X\ôŸ]
+Kò]ÿ^W›X[W⁄Y
+N»YäZ€Y_X]ÿ^J\ô]\õé¬à€YKõZä Œÿ]ÿ^KõZä Œ⁄€YKòú
+œSù[Xô\äKö€YW‹ÿ€‹ô_
+N⁄€YKòò œSù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+Nÿ]ÿ^Kòú
+œSù[Xô\äKò]ÿ^W‹ÿ€‹ô_
+Nÿ]ÿ^Kòò œSù[Xô\äKö€YW‹ÿ€‹ô_
+N¬àYäù[Xô\äKö€YW‹ÿ€‹ôJOìù[Xô\äKò]ÿ^W‹ÿ€‹ôJJ^⁄€YKùä Œÿ]ÿ^Kô
+ Œ⁄€YKú œLﬂBà[ŸHYäù[Xô\äKò]ÿ^W‹ÿ€‹ôJOìù[Xô\äKö€YW‹ÿ€‹ôJJ^ÿ]ÿ^Kùä Œ⁄€YKô
+ Œÿ]ÿ^Kú œLﬂBà[Ÿ^⁄€YKõä Œÿ]ÿ^Kõä Œ⁄€YKú  Œÿ]ÿ^Kú  ﬂBàJN¬àõ›‹Àú€‹ù
+
+KäOOòãúÀXKúﬂ
+ãòúXãòò KJKòúXKòò _ãòúXKòúKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àô]\õàõ›‹Œ¬àBÇà€€ú›X›]ôTŸX\€€è\ŸX\€€úÀôö[ô
+Oûö\◊ÿX›]ôJ_ŸX\€€ú÷ÃN¬à]ÿ€‹èV◊KŸX\€€ê\‹œV◊N¬àù[ò›[€à€€X›ŸX\€€îò[ö⁄[ô‹ 
+^¬à€€ú›ŸX\€€è\ŸX\€€úÀôö[ô
+Oûö\◊ÿX›]ôJ_ŸX\€€ú÷ÃN¬à€€ú›Yœ[ô]»Ÿ]
+›\õò[Y[ùÀôö[\äOûôõ‹õX]OOI€XY›YI…âä\ŸX\€€üúŸX\€€ó⁄YOO\ŸX\€€ãöY
+JKõX\
+OûöY
+JN¬à€€ú›ZYœ[ô]»Ÿ]
+X]⁄\Àôö[\äOùYÀö\ ù›\õò[Y[ù⁄Y
+JKõX\
+OûöY
+JN¬à€€ú›‹œ[ô]»X\
+^Y\úÀõX\
+OñﬁöY⁄YûöYò[YNûõò[YKŒåNå›Y\›ûö\◊Ÿ‹õ›\€Y[Xô\èOOYò[Ÿ_WJJN¬à€ÿ[Àôö[\äœOõZYÀö\ ÀõX]⁄⁄Y
+IâàYÀö\◊€›€óŸ€ÿ[
+Kôõ‹ëXX⁄
+œOû⁄Yä‹Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+JY‹ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ⁄Yä‹Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+JY‹ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ ŒﬂJN¬à€€ú›ò[ö–ûOZŸ^OOû€]ô]ö[›\œ[ù[ò[öœL‹ô]\õàÀããô‹Àùò[Y\ 
+WKôö[\äOû⁄Ÿ^WJKú€‹ù
+
+KäOOòñ⁄Ÿ^WKXV⁄Ÿ^W_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJKõX\
+
+JOOû⁄Yä⁄Ÿ^WHOO\ô]ö[›\ ^‹ô]ö[›\œ^⁄Ÿ^WN‹ò[öœZJÃ_\ô]\õàÀããûò[öﬂ_J_N¬àÿ€‹è\ò[ö–ûJ	Ÿ… N‹ŸX\€€ê\‹œ\ò[ö–ûJ	ÿI N¬àBà€€X›ŸX\€€îò[ö⁄[ô‹ 
+N¬à]XõX‘ÿ€‹ô\ú—^[ôYYò[ŸN¬à€€ú›ô[ô\îXõX‘ŸX\€€îÿ€‹ô\úœJ
+OOû¬à€€ú›ö\⁄XõO\XõX‘ÿ€‹ô\ú—^[ôY‹ÿ€‹éúÿ€‹ãú€XŸJL
+N¬à	
+	»‹XõX‘ŸX\€€îÿ€‹ô\ú… Kö[õô\íS]ö\⁄XõKõX\
+Oâœ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ ô›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁô …»ù]	  ôœåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àù][úôY⁄\›∞ÍKè‹âŒ¬à€€ú›èI
+	»›ŸŸ€TXõX‘ŸX\€€îÿ€‹ô\ú… N⁄Yää^ÿãò€\‹”\›ùŸŸ€J	⁄Y[âÀÿ€‹ãõ[ô›LL
+Nÿãù^€€ù[ù\XõX‘ÿ€‹ô\ú—^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂBàN¬àô[ô\îXõX‘ŸX\€€îÿ€‹ô\ú 
+N¬àYä	
+	»›ŸŸ€TXõX‘ŸX\€€îÿ€‹ô\ú… JI
+	»›ŸŸ€TXõX‘ŸX\€€îÿ€‹ô\ú… Kõ€ò€X⁄œJ
+OOû‹XõX‘ÿ€‹ô\ú—^[ôYH\XõX‘ÿ€‹ô\ú—^[ôY‹ô[ô\îXõX‘ŸX\€€îÿ€‹ô\ú 
+NﬂN¬Çà]XõX–\‹⁄\›—^[ôYYò[ŸN¬à€€ú›ô[ô\îXõX‘ŸX\€€ê\‹⁄\›œJ
+OOû¬à€€ú›ö\⁄XõO\XõX–\‹⁄\›—^[ôY‹ŸX\€€ê\‹ŒúŸX\€€ê\‹Àú€XŸJL
+N¬à	
+	»‹XõX‘ŸX\€€ê\‹⁄\›… Kö[õô\íS]ö\⁄XõKõX\
+Oâœ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ ô›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁòJ…»\‹ŸI  òOåO…‹…Œâ… J…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH\‹ŸH[úôY⁄\›∞ÍYKè‹âŒ¬à€€ú›èI
+	»›ŸŸ€TXõX‘ŸX\€€ê\‹⁄\›… N⁄Yää^ÿãò€\‹”\›ùŸŸ€J	⁄Y[âÀŸX\€€ê\‹Àõ[ô›LL
+Nÿãù^€€ù[ù\XõX–\‹⁄\›—^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂBàN¬àô[ô\îXõX‘ŸX\€€ê\‹⁄\› 
+N¬àYä	
+	»›ŸŸ€TXõX‘ŸX\€€ê\‹⁄\›… JI
+	»›ŸŸ€TXõX‘ŸX\€€ê\‹⁄\›… Kõ€ò€X⁄œJ
+OOû‹XõX–\‹⁄\›—^[ôYH\XõX–\‹⁄\›—^[ôY‹ô[ô\îXõX‘ŸX\€€ê\‹⁄\› 
+NﬂN¬Çàù[ò›[€àô[ô\ï›\õò[Y[ù‹ö]ôJ
+^¬à€€ú›õﬁI
+	»‹XõX’›\õò[Y[ù‹ö]ôI N⁄YäXõﬁ
+\ô]\õàò[ŸN¬à€€ú›ŸX\€€íY\ôY’›\èÀúŸX\€€ó⁄YX›]ôTŸX\€€èÀöY¬à€€ú›ŸX\€€è\ŸX\€€úÀôö[ô
+œOúÀöYOO\ŸX\€€íY
+_X›]ôTŸX\€€é¬à€€ú›ŸX\€€ï›\õò[Y[ùYœ[ô]»Ÿ]
+›\õò[Y[ùÀôö[\äOùôõ‹õX]OOI€XY›YI…âä\ŸX\€€íYúŸX\€€ó⁄YOO\ŸX\€€íY
+JKõX\
+OùöY
+JN¬à€€ú›ö[ö\⁄Y›\õò[Y[ùYœ[ô]»Ÿ]
+›\õò[Y[ùÀôö[\äOùú›]\œOOIŸö[ö\⁄Y	…âúŸX\€€ï›\õò[Y[ùYÀö\ öY
+JKõX\
+OùöY
+JN¬à€€ú›€€\]Y[X]⁄\Àôö[\äOOõKú›]\œOOIŸö[ö\⁄Y	ﬂö[ö\⁄Y›\õò[Y[ùYÀö\ Kù›\õò[Y[ù⁄Y
+JN¬à€€ú›õ›‹œ\XõX‘^Y\îò][ô‹—[òXõY	âúŸX\€€ï›\õò[Y[ùYÀú⁄^ôO›‹^Y\ú—úõ€Q]J€€\]Y€ÿ[ÀX]⁄\‹⁄Y€õY[ùÀ^Y\úÀŸX\€€ï›\õò[Y[ùY Kú€XŸJJNñ◊N¬àõﬁò€\‹”\›ùŸŸ€J	⁄Y[âÀ\õ›‹Àõ[ô›
+N⁄Yä\õ›‹Àõ[ô›
+^ÿõﬁúô\XŸP⁄[ô[ä
+N‹ô]\õàò[ŸNﬂBà€€ú›[Iœ]à€\‹œHù‹Yö]ôKZXY[ô»èè€X[ìT»ì’QUTî»0‡8†&R”ìëUTè‹€X[èèº'‰dH‹HHHÿZ\€€è⁄èèâ Ÿ\ÿ ŸX\€€èÀõò[Y_	‘ÿZ\€€à[à€›\ú… J…»0≠»›\»\»∞Í\›[]»ò[Y0Í\»HHÿZ\€€è‹èŸ]èè€â ‹õ›‹ÀõX\
+
+JOOâœOè‹[à€\‹œHù‹Yö]ôK\ò[ö»à\öXK[Xô[HîXŸH	  JÃJJ…»èâ  JÃJJ…œ‹‹[èè‹[à€\‹œHù‹Yö]ôK[ò[YHèâ Ÿ\ÿ õò[YJJ…œ‹[à€\‹œHù‹Yö]ôKY]Z[èâ ﬁõX]⁄\ …»X]⁄	  õX]⁄\œåO…‹…Œâ… J…»0≠»8¶ØH	 ﬁô …»0≠»<'„´»	 ﬁòJ…œ‹‹[èè‹‹[èè‹[à€\‹œHù‹Yö]ôK\ÿ€‹ôHèâ ﬁò]ôÀù”ÿÿ[T›ö[ô 	ŸúãQîâÀ€Z[ö[][QúòX›[€ëY⁄]ŒåKX^[][QúòX›[€ëY⁄]Œå_JJ…œ€X[ãÃL‹€X[è‹‹[èè€Oâ Köõ⁄[ä	… J…œ€€è€\‹œHù‹Yö]ôKXÿ\[€àèì[ﬁY[õôHHHÿZ\€€à0≠»›\»\»X]⁄»\»›\õõ⁄\»\õZ[∞Í\»€€ù›[][0Í\Àè‹âŒ¬àYäõﬁö[õô\íSOOZ[
+Xõﬁö[õô\íSZ[‹ô]\õàùYN¬àBàôYúô\⁄ŸX\€€îò[ö⁄[ô‹œJ
+OOûÿ€€X›ŸX\€€îò[ö⁄[ô‹ 
+N‹ô[ô\îXõX‘ŸX\€€îÿ€‹ô\ú 
+N‹ô[ô\îXõX‘ŸX\€€ê\‹⁄\› 
+Nÿ€€ú›\’‹\ô[ô\ï›\õò[Y[ù‹ö]ôJ
+N⁄YäôY’›\ä^…
+	»‹XõX‘ŸX\€€îÿ€‹ô\ú… OÀò€‹Ÿ\›
+	Àòÿ\ô	 OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ\ÿ€‹ãõ[ô›
+N…
+	»‹XõX‘ŸX\€€ê\‹⁄\›… OÀò€‹Ÿ\›
+	Àòÿ\ô	 OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ\ŸX\€€ê\‹Àõ[ô›
+N…
+	»‹ôY⁄\›ò][€îŸX\€€îò[ö⁄[ô‹… OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ\ÿ€‹ãõ[ô›	âà\ŸX\€€ê\‹Àõ[ô›	âàZ\’‹
+Nﬂ_N¬àô[ô\ï›\õò[Y[ù‹ö]ôJ
+N¬Çà€€ú›ŸX\€€ï⁄[î›]œ[ô]»X\
+^Y\úÀõX\
+OñﬁöY⁄YûöYò[YNûõò[YKX]⁄⁄[úŒå›\õò[Y[ù⁄[úŒåŒåNå]ôŒåò][ô’›[åò][ô”X]⁄\Œå›Y\›ûö\◊Ÿ‹õ›\€Y[Xô\èOOYò[Ÿ_WJJN¬à€€ú›ŸX\€€ï›\úœ]›\õò[Y[ùÀôö[\äOùôõ‹õX]OOI€XY›YI…âùú›]\œOOIŸö[ö\⁄Y	…âäXX›]ôTŸX\€€üúŸX\€€ó⁄YOOXX›]ôTŸX\€€ãöY
+JN¬à€€ú›ŸX\€€ï›\íY—õ‹ï⁄[úœ[ô]»Ÿ]
+ŸX\€€ï›\úÀõX\
+OùöY
+JN¬à€€ú›ŸX\€€ìX]⁄\—õ‹ï⁄[úœ[X]⁄\Àôö[\äOOúŸX\€€ï›\íY—õ‹ï⁄[úÀö\ Kù›\õò[Y[ù⁄Y
+JN¬à€€ú›ŸX\€€ìX]⁄Y—õ‹ï⁄[úœ[ô]»Ÿ]
+ŸX\€€ìX]⁄\—õ‹ï⁄[úÀõX\
+OOõKöY
+JN¬Çà€ÿ[Àôö[\äœOúŸX\€€ìX]⁄Y—õ‹ï⁄[úÀö\ ÀõX]⁄⁄Y
+JKôõ‹ëXX⁄
+œOû¬àYäŸX\€€ï⁄[î›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J\ŸX\€€ï⁄[î›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ¬àYäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âúŸX\€€ï⁄[î›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J\ŸX\€€ï⁄[î›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ Œ¬àJN¬ÇàŸX\€€ìX]⁄\—õ‹ï⁄[úÀôõ‹ëXX⁄
+OOû¬à]⁄[õô\è[ù[¬àYäù[Xô\äKö€YW‹ÿ€‹ôJOìù[Xô\äKò]ÿ^W‹ÿ€‹ôJJ]⁄[õô\è[Kö€YW›X[W⁄Y¬à[ŸHYäù[Xô\äKò]ÿ^W‹ÿ€‹ôJOìù[Xô\äKö€YW‹ÿ€‹ôJJ]⁄[õô\è[Kò]ÿ^W›X[W⁄Y¬àX]⁄\‹⁄Y€õY[ùÀôö[\äOOòKõX]⁄⁄YOO[KöY	âòKùX[W⁄Y
+Kôõ‹ëXX⁄
+OOû¬à€€ú›œ\ŸX\€€ï⁄[î›]ÀôŸ]
+Kú^Y\ó⁄Y
+N⁄Yä\ \ô]\õé¬àYä⁄[õô\ââî›ö[ô KùX[W⁄Y
+OOOT›ö[ô ⁄[õô\äJ\ÀõX]⁄⁄[ú  Œ¬àYäXõX‘^Y\îò][ô‹—[òXõY
+^¬à€€ú›úè\ò][ô—õ‹ìX]⁄^Y\äKKú^Y\ó⁄YKùX[W⁄Y€ÿ[ N¬àYäúä^‹Àúò][ô’›[
+œ\úãúò][ôŒ‹Àúò][ô”X]⁄\  ŒﬂBàBàJN¬àJN¬ÇàŸX\€€ï›\úÀôõ‹ëXX⁄
+Oû¬à€€ú››[ô[ô‹œ]›\õò[Y[ù›[ô[ô‹ öY
+N¬à€€ú›⁄[\[€è\›[ô[ô‹÷ÃN¬àYäX⁄[\[€ä\ô]\õé¬à€€ú›X]⁄Yœ[ô]»Ÿ]
+X]⁄\Àôö[\äOOõKù›\õò[Y[ù⁄YOO]öY
+KõX\
+OOõKöY
+JN¬à€€ú›⁄[\[€î^Y\úœ[ô]»Ÿ]
+X]⁄\‹⁄Y€õY[ùÀôö[\äOOùX]⁄YÀö\ KõX]⁄⁄Y
+Iâî›ö[ô KùX[W⁄Y
+OOOT›ö[ô ⁄[\[€ãöY
+JKõX\
+OOòKú^Y\ó⁄Y
+JN¬à⁄[\[€î^Y\úÀôõ‹ëXX⁄
+YOû⁄YäŸX\€€ï⁄[î›]Àö\ Y
+J\ŸX\€€ï⁄[î›]ÀôŸ]
+Y
+Kù›\õò[Y[ù⁄[ú  ﬂJN¬àJN¬àŸX\€€ï⁄[î›]Àôõ‹ëXX⁄
+œOû‹Àò]ôœ\Àúò][ô”X]⁄\œ‹Àúò][ô’›[‹Àúò][ô”X]⁄\ŒåﬂJN¬à€€ú›⁄[îõ›‹œVÀããúŸX\€€ï⁄[î›]Àùò[Y\ 
+WKôö[\äOûõX]⁄⁄[úﬂù›\õò[Y[ù⁄[úﬂôﬂòJBàú€‹ù
+
+KäOOòãù›\õò[Y[ù⁄[úÀXKù›\õò[Y[ù⁄[úﬂãõX]⁄⁄[úÀXKõX]⁄⁄[úﬂãôÀXKôﬂãòKXKò_ãò]ôÀXKò]ôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]XõX’⁄[ú—^[ôYYò[ŸN¬à€€ú›ô[ô\îXõX‘ŸX\€€ï⁄[úœJ
+OOû¬à€€ú›ö\⁄XõO\XõX’⁄[ú—^[ôY›⁄[îõ›‹Œù⁄[îõ›‹Àú€XŸJJN¬à	
+	»‹XõX‘ŸX\€€ï⁄[ú… Kö[õô\íS]ö\⁄XõKõX\
+
+JOOÇà	œ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ  ⁄[îõ›‹Àö[ô^Ÿä
+JÃJJ…œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèâ  ô›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J¬à	œ]à€\‹œHõ]]Yèâ ﬁõX]⁄⁄[ú …»öX›⁄\ôI  õX]⁄⁄[úœåO…‹…Œâ… J…»8†(à8¶ØH	 ﬁô …»8†(à<'„´»	 ﬁòJ XõX‘^Y\îò][ô‹—[òXõY	âûúò][ô”X]⁄\œ…»8†(à8´d	 ﬁò]ôÀù—ö^Y
+JJ…ÀÃL	Œâ… J…œŸ]èè‹‹[èâ ¬à	œà€\‹œHúöY⁄èº'„·à	 ﬁù›\õò[Y[ù⁄[ú …œÿèèŸ]èâ¬à
+Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôHöX›⁄\ôH[úôY⁄\›∞ÍYH›\àŸ]HÿZ\€€ãè‹âŒ¬à€€ú›èI
+	»›ŸŸ€TXõX‘ŸX\€€ï⁄[ú… N⁄Yää^ÿãò€\‹”\›ùŸŸ€J	⁄Y[âÀ⁄[îõ›‹Àõ[ô›MJNÿãù^€€ù[ù\XõX’⁄[ú—^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\àH\›IŒﬂBàN¬àô[ô\îXõX‘ŸX\€€ï⁄[ú 
+N¬àYä	
+	»›ŸŸ€TXõX‘ŸX\€€ï⁄[ú… JI
+	»›ŸŸ€TXõX‘ŸX\€€ï⁄[ú… Kõ€ò€X⁄œJ
+OOû‹XõX’⁄[ú—^[ôYH\XõX’⁄[ú—^[ôY‹ô[ô\îXõX‘ŸX\€€ï⁄[ú 
+NﬂN¬ÇàYäXõX‘^Y\îò][ô‹—[òXõY
+^¬à€€ú›‹‹ò\I
+	»‹XõX’‹^Y\îŸX\€€ï‹ò\	 K‹õﬁI
+	»‹XõX‘ŸX\€€ï‹^Y\ú… N¬àYä‹‹ò\
+]‹‹ò\ò€\‹”\›úô[[›ôJ	⁄Y[â N¬à€€ú›‹]‹^Y\ú—úõ€Q]JŸX\€€ìX]⁄\—õ‹ï⁄[úÀ€ÿ[ÀX]⁄\‹⁄Y€õY[ùÀ^Y\úÀŸX\€€ï›\íY—õ‹ï⁄[ú Kú€XŸJL
+N¬àYä‹õﬁ
+]‹õﬁö[õô\íS]‹õX\
+
+JOOâœ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ  OOOL…¸'‰dIŒäJÃJJJ…œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Yèâ ﬁõX]⁄\ …»X]⁄	  õX]⁄\œåO…‹…Œâ… J…»8†(à8¶ØH	 ﬁô …»8†(à<'„´»	 ﬁòJ…œŸ]èè‹‹[èèà€\‹œHúöY⁄è∏´d	 ﬁò]ôÀù—ö^Y
+JJ…œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôHõ›H\‹€öXõKè‹âŒ¬àBÇà€€ú›\›‹ûTŸX\€€è\ôY’›\èÀúŸX\€€ó⁄YŸX\€€úÀôö[ô
+œOúÀö\◊ÿX›]ôJOÀöYù[¬à€€ú›ö[ö\⁄Y\›‹ûO]›\õò[Y[ùÀôö[\äOùú›]\œOOIŸö[ö\⁄Y	…âùôõ‹õX]OOI€XY›YI…âäZ\›‹ûTŸX\€€üúŸX\€€ó⁄YOOZ\›‹ûTŸX\€€äJN¬à€€ú›]\›Yö[ö\⁄Y\›‹ûVÃ_ù[¬àYä]\›
+^¬à€€ú›X[\œ]X[\Àôö[\äOûù›\õò[Y[ù⁄YOO[]\›öY
+N¬à€€ú›O[X]⁄\Àôö[\äOOõKù›\õò[Y[ù⁄YOO[]\›öY
+Kú€‹ù
+
+KäOOäKõX]⁄€‹ô\ü
+KJãõX]⁄€‹ô\ü
+JN¬à€€ú›]\›X]⁄Yœ[ô]»Ÿ]
+KõX\
+OOõKöY
+JN¬Çà€€ú››\õò[Y[ù€ÿ[›]œ[ô]»X\
+^Y\úÀõX\
+OñﬁöY⁄YûöYò[YNûõò[YKŒåNå›Y\›ûö\◊Ÿ‹õ›\€Y[Xô\èOOYò[Ÿ_WJJN¬à€ÿ[Àôö[\äœOõ]\›X]⁄YÀö\ ÀõX]⁄⁄Y
+JKôõ‹ëXX⁄
+œOû¬àYä›\õò[Y[ù€ÿ[›]Àö\ Àúÿ€‹ô\ó‹^Y\ó⁄Y
+J]›\õò[Y[ù€ÿ[›]ÀôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+Kô  Œ¬àYäÀò\‹⁄\›\ó‹^Y\ó⁄Y	âù›\õò[Y[ù€ÿ[›]Àö\ Àò\‹⁄\›\ó‹^Y\ó⁄Y
+J]›\õò[Y[ù€ÿ[›]ÀôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+KòJ Œ¬àJN¬à]›\õò[Y[ùÿ€‹ô\úœVÀããù›\õò[Y[ù€ÿ[›]Àùò[Y\ 
+WKôö[\äOûô Bàú€‹ù
+
+KäOOòãôÀXKôﬂãòKXKò_Kõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]ô]è[ù[ò[öœL¬à›\õò[Y[ùÿ€‹ô\úœ]›\õò[Y[ùÿ€‹ô\úÀõX\
+
+JOOû¬àYäô»OO]ô]ä^›ò[öœZJÃN›ô]è^ôﬂBàô]\õàÀããûò[öŒùò[öﬂN¬àJN¬à]XõX’›\õò[Y[ùÿ€‹ô\ú—^[ôYYò[ŸN¬à€€ú›ô[ô\ï›\õò[Y[ùÿ€‹ô\úœJ
+OOû¬à€€ú›ö\⁄XõO\XõX’›\õò[Y[ùÿ€‹ô\ú—^[ôY››\õò[Y[ùÿ€‹ô\úŒù›\õò[Y[ùÿ€‹ô\úÀú€XŸJL
+N¬à	
+	»‹XõX’›\õò[Y[ùÿ€‹ô\ú… Kö[õô\íS]ö\⁄XõKõX\
+OÇà	œ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ ô›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁô …»ù]	  ôœåO…‹…Œâ… J…œÿèèŸ]èâ¬à
+Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[àù][úôY⁄\›∞ÍKè‹âŒ¬àN¬àô[ô\ï›\õò[Y[ùÿ€‹ô\ú 
+N¬Çà]›\õò[Y[ù\‹œVÀããù›\õò[Y[ù€ÿ[›]Àùò[Y\ 
+WKôö[\äOûòJBàú€‹ù
+
+KäOOòãòKXKò_ãôÀXKôﬂKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à]Tô]è[ù[Tò[öœL¬à›\õò[Y[ù\‹œ]›\õò[Y[ù\‹ÀõX\
+
+JOOû¬àYäòHOO]Tô]ä^›Tò[öœZJÃN›Tô]è^ò_Bàô]\õàÀããûò[öŒùTò[öﬂN¬àJN¬à]XõX’›\õò[Y[ù\‹⁄\›—^[ôYYò[ŸN¬à€€ú›ô[ô\ï›\õò[Y[ù\‹⁄\›œJ
+OOû¬à€€ú›ö\⁄XõO\XõX’›\õò[Y[ù\‹⁄\›—^[ôY››\õò[Y[ù\‹Œù›\õò[Y[ù\‹Àú€XŸJL
+N¬à	
+	»‹XõX’›\õò[Y[ù\‹⁄\›… Kö[õô\íS]ö\⁄XõKõX\
+OÇà	œ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ ﬁúò[ö …œÿèè‹[èâ Ÿ\ÿ õò[YJJ ô›Y\›…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J…œ‹‹[èèà€\‹œHúöY⁄èâ ﬁòJ…»\‹ŸI  òOåO…‹…Œâ… J…œÿèèŸ]èâ¬à
+Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôH\‹ŸH[úôY⁄\›∞ÍYKè‹âŒ¬àN¬àô[ô\ï›\õò[Y[ù\‹⁄\› 
+N¬à€€ú›ùï›\õò[Y[ùÿ€‹ô\úœI
+	»›ŸŸ€TXõX’›\õò[Y[ùÿ€‹ô\ú… N¬àYäùï›\õò[Y[ùÿ€‹ô\ú ^¬àùï›\õò[Y[ùÿ€‹ô\úÀò€\‹”\›ùŸŸ€J	⁄Y[âÀ›\õò[Y[ùÿ€‹ô\úÀõ[ô›LL
+N¬àùï›\õò[Y[ùÿ€‹ô\úÀõ€ò€X⁄œJ
+OOû‹XõX’›\õò[Y[ùÿ€‹ô\ú—^[ôYH\XõX’›\õò[Y[ùÿ€‹ô\ú—^[ôY‹ô[ô\ï›\õò[Y[ùÿ€‹ô\ú 
+Nÿùï›\õò[Y[ùÿ€‹ô\úÀù^€€ù[ù\XõX’›\õò[Y[ùÿ€‹ô\ú—^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂN¬àBà€€ú›ùï›\õò[Y[ù\‹⁄\›œI
+	»›ŸŸ€TXõX’›\õò[Y[ù\‹⁄\›… N¬àYäùï›\õò[Y[ù\‹⁄\› ^¬àùï›\õò[Y[ù\‹⁄\›Àò€\‹”\›ùŸŸ€J	⁄Y[âÀ›\õò[Y[ù\‹Àõ[ô›LL
+N¬àùï›\õò[Y[ù\‹⁄\›Àõ€ò€X⁄œJ
+OOû‹XõX’›\õò[Y[ù\‹⁄\›—^[ôYH\XõX’›\õò[Y[ù\‹⁄\›—^[ôY‹ô[ô\ï›\õò[Y[ù\‹⁄\› 
+Nÿùï›\õò[Y[ù\‹⁄\›Àù^€€ù[ù\XõX’›\õò[Y[ù\‹⁄\›—^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂN¬àBàYäXõX‘^Y\îò][ô‹—[òXõY
+^¬à€€ú›‹ò\I
+	»‹XõX’›\õò[Y[ù‹^Y\ï‹ò\	 Kõﬁ‹I
+	»‹XõX’›\õò[Y[ù‹^Y\ú… Kùï‹I
+	»›ŸŸ€TXõX’›\õò[Y[ù‹^Y\ú… N¬àYä‹ò\
+]‹ò\ò€\‹”\›úô[[›ôJ	⁄Y[â N¬à€€ú›‹›\õò[Y[ù]‹^Y\ú—úõ€Q]JK€ÿ[ÀX]⁄\‹⁄Y€õY[ùÀ^Y\úÀô]»Ÿ]
+€]\›öYJJN¬à]XõX’›\õò[Y[ù‹^[ôYYò[ŸN¬à€€ú›ô[ô\ï›\õò[Y[ù‹J
+OOû¬à€€ú›ö\⁄XõO\XõX’›\õò[Y[ù‹^[ôY›‹›\õò[Y[ùù‹›\õò[Y[ùú€XŸJL
+N¬àYäõﬁ‹
+Xõﬁ‹ö[õô\íS]ö\⁄XõKõX\
+
+JOOû¬à€€ú›‹œ]‹›\õò[Y[ùö[ô^Ÿä
+JÃN¬àô]\õà	œ]à€\‹œHúò[ö»	  ô›Y\›…Ÿ›Y\›\õ›…Œâ… J…»èèèâ  ‹œOOLO…¸'‰dIŒú‹ J…œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Yèâ ﬁõX]⁄\ …»X]⁄	  õX]⁄\œåO…‹…Œâ… J…»8†(à8¶ØH	 ﬁô …»8†(à<'„´»	 ﬁòJ…œŸ]èè‹‹[èèà€\‹œHúöY⁄è∏´d	 ﬁò]ôÀù—ö^Y
+JJ…œÿèèŸ]èâŒ¬àJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[ôHõ›H\‹€öXõKè‹âŒ¬àYäùï‹
+^ÿùï‹ò€\‹”\›ùŸŸ€J	⁄Y[âÀ‹›\õò[Y[ùõ[ô›LL
+Nÿùï‹ù^€€ù[ù\XõX’›\õò[Y[ù‹^[ôY…‘∞ÍYZ\ôIŒâ—0Í]ô[‹\âŒﬂBàN¬àô[ô\ï›\õò[Y[ù‹
+
+N¬àYäùï‹
+Xùï‹õ€ò€X⁄œJ
+OOû‹XõX’›\õò[Y[ù‹^[ôYH\XõX’›\õò[Y[ù‹^[ôY‹ô[ô\ï›\õò[Y[ù‹
+
+NﬂN¬àBà€€ú›úœ[X[\ÀõX\
+Oä⁄YûöYò[YNûõò[YKZéåéåéååúåòŒåŒåJJN¬à€€ú›õO[ô]»X\
+úÀõX\
+OñﬁöYJJN¬àKôõ‹ëXX⁄
+OOû¬à€€ú›]õKôŸ]
+Kö€YW›X[W⁄Y
+KO]õKôŸ]
+Kò]ÿ^W›X[W⁄Y
+N⁄YäZXJ\ô]\õé¬àõZä ŒÿKõZä Œ⁄òú
+œ[Kö€YW‹ÿ€‹ôN⁄òò œ[Kò]ÿ^W‹ÿ€‹ôNÿKòú
+œ[Kò]ÿ^W‹ÿ€‹ôNÿKòò œ[Kö€YW‹ÿ€‹ôN¬àYäKö€YW‹ÿ€‹ôOõKò]ÿ^W‹ÿ€‹ôJ^⁄ùä ŒÿKô
+ Œ⁄ú œLﬂBà[ŸHYäKò]ÿ^W‹ÿ€‹ôOõKö€YW‹ÿ€‹ôJ^ÿKùä Œ⁄ô
+ ŒÿKú œLﬂBà[Ÿ^⁄õä ŒÿKõä Œ⁄ú  ŒÿKú  ﬂBàJN¬àúÀú€‹ù
+
+KäOOòãúÀXKúﬂ
+ãòúXãòò KJKòúXKòò _ãòúXKòúKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬à	
+	»‹XõX’X[Tò[ö⁄[ô… Kö[õô\íS]úÀõX\
+
+JOOâœ]à€\‹œHúò[ö»èèèâ  OOOL…¸'‰dIŒäJÃJJJ…œÿèè‹[èèèâ Ÿ\ÿ õò[YJJ…œÿèè]à€\‹œHõ]]Yèâ ﬁõZä…»Rà8†(à	 ﬁùä…»à8†(à	 ﬁõä…»à8†(à	 ﬁô
+…»8†(à	 ﬁòú
+…»î8†(à	 ﬁòò …»ê»8†(àYôà	  
+òú^òò OèL… …Œâ… J òú^òò J…œŸ]èè‹‹[èèà€\‹œHúöY⁄èâ ﬁú …»œÿèèŸ]èâ Köõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[à€\‹Ÿ[Y[ù\‹€öXõKè‹âŒ¬Çà€€ú›⁄[\[€ïX[RY]úÀõ[ô››ú÷ÃKöYõù[¬à	
+	»‹XõX’X[\… Kö[õô\íS[X[\ÀõX\
+X[OOû¬à€€ú›ôœZ[ôô\úôYX[P€€‹äX[JKôœ]X[U^€€‹äô KXô[]X[P€€‹ìXô[
+X[JN¬à€€ú›^Y\ú“[]X[T^Y\úÀôö[\äOùùX[W⁄YOO]X[KöY
+KõX\
+Oûÿ€€ú›\X\ôŸ]
+ú^Y\ó⁄Y
+N‹ô]\õà…œ]à€\‹œHúXõXÀ]X[K\^Y\àèâ Ÿ\ÿ õò[YJJ ö\◊Ÿ‹õ›\€Y[Xô\èOOYò[ŸO…»‹[à€\‹œHô›Y\›XòYŸHèë›Y\›‹‹[èâŒâ… J…œŸ]èâŒâ…ﬂJKöõ⁄[ä	… N¬à€€ú›‹õ›€è]X[KöYOOX⁄[\[€ïX[RY…¸'‰dH	Œâ…Œ¬à€€ú›⁄[\]X[KöYOOX⁄[\[€ïX[RY…œ]à€\‹œHúXõXÀ]X[K\⁄\ùèº'„·à0‚\]Z\HöX›‹öY]\ŸOŸ]èâŒâ…Œ¬à€€ú›]ôœSù[Xô\äX[KùX[W‹ÿ€‹ô_
+Oå…œ]à€\‹œHúXõXÀ]X[KX]ô\òYŸHèº'‰-∏¶ØHèìõ›H0Í\]Z\H0Í]ò[pÍYH\à⁄Y[àõ›[XÿY[^Hà	 ”ù[Xô\äX[KùX[W‹ÿ€‹ôJKù—ö^Y
+JJ…ÀÕOÿèâ  X[KõY[ù[€è…»8†(à	 Ÿ\ÿ X[KõY[ù[€äNâ… J…œŸ]èâŒâ…Œ‹ô]\õà	œ]à€\‹œHúXõXÀ]X[KXÿ\ôèè]à€\‹œHúXõXÀ]X[KZXYà›[OHòòX⁄Ÿ‹õ›[ôâ ÿô …Œÿ€€‹éâ Ÿô …»èè]èâ ÿ‹õ›€äŸ\ÿ X[Kõò[YJJ…œŸ]èâ ÿ⁄[\
+…œ]à€\‹œHúXõXÀ]X[K\⁄\ùèº'‰eHXZ[›»à	 Ÿ\ÿ Xô[
+J…œŸ]èèŸ]èâ ÿ]ô …œ]à€\‹œHúXõXÀ]X[K\^Y\ú»èâ  ^Y\ú“[	œ]à€\‹œHõ]]Yèê]X›[àõ›Y]\èŸ]èâ J…œŸ]èèŸ]èâŒ¬àJKöõ⁄[ä	… _
+XõX’X[Tô]öY]—[òXõY	âñ…‹[ô[ô…À	‹ôYò]◊‹ô\]Y\›Y	◊Kö[ò€Y\ XõX’X[Tô]öY]‘›]\Àôö[ô
+Oî›ö[ô ù›\õò[Y[ù⁄Y
+OOOT›ö[ô ]\›öY
+JOÀú›]\ O…œ]à€\‹œHúXõXÀ\ô]öY]À]ÿZ]èèèº'ÂÏ˚Ó#»€€\‹⁄][€à[àò[Y][€èÿèè]èì\»€ÀYŸ\›[€õòZ\ô\»∞Í\Ÿ[ù»\‹‹Ÿ[ùHà]\ô\»›\à€õô\à]\à]ö\Àà\»0Í\]Z\\»Ÿ\õ€ùXõpÍY\»0Í»ò[Y][€ãèŸ]èèŸ]èâŒâœ€\‹œHõ]]Yèê]X›[ôH0Í\]Z\Kè‹â N¬à€€ú›XõX–\‹⁄Y€ôY[ô]»Ÿ]
+X[T^Y\úÀõX\
+Oî›ö[ô ú^Y\ó⁄Y
+JJN¬à€€ú›XõX‘›Xúœ\ôY⁄\›ò][€úÀôö[\äèOúãù›\õò[Y[ù⁄YOO[]\›öY	âúãúô\Ÿ[ù	âúãö\◊‹›Xú›]]IâúãúôY⁄\›ò][€ó‹›]\»OOI›ÿZ]\›	…âà\XõX–\‹⁄Y€ôYö\ ›ö[ô ãú^Y\ó⁄Y
+JJKõX\
+èOúX\ôŸ]
+ãú^Y\ó⁄Y
+JKôö[\äõ€€X[äN¬àYäXõX‘›XúÀõ[ô›
+I
+	»‹XõX’X[\… Kö[úŸ\ùYòXŸ[ùS
+	ÿôYõ‹ôY[ô	À	œ]à€\‹œHúXõXÀX€€[[€ã\›Xú»èèèº'ÁËô[\pÈÿ[ù»€€[][úœÿèè]à€\‹œHõ]]Yèí[»]]ô[ùõ›Y\à›\à∏†&Z[\‹ùH]Y[H0Í\]Z\KèŸ]èè]èâ ‹XõX‘›XúÀõX\
+Oâœ‹[èâ Ÿ\ÿ õò[YJJ…œ‹‹[èâ Köõ⁄[ä	… J…œŸ]èèŸ]èâ N¬à	
+	»‹XõX‘ô\›[… Kö[õô\íS[KõX\
+
+KJOOû¬à€€ú›YœY€ÿ[Àôö[\äœOôÀõX]⁄⁄YOO[KöY
+N¬à€€ú›€ÿ[õÿ⁄œJX[RY
+OOû¬à€€ú›õ›‹œ[YÀôö[\äœOî›ö[ô ÀùX[W⁄Y
+OOOT›ö[ô X[RY
+JKõX\
+œOû¬à€€ú›ÿ€‹ô\è\X\ôŸ]
+Àúÿ€‹ô\ó‹^Y\ó⁄Y
+N¬à€€ú›\‹⁄\›\èYÀò\‹⁄\›\ó‹^Y\ó⁄Y‹X\ôŸ]
+Àò\‹⁄\›\ó‹^Y\ó⁄Y
+Nõù[¬àô]\õà	œ]à€\‹œHú€X[à›[OHõX\ô⁄[ã]‹ç\è∏¶ØH	 Ÿ\ÿ ÿ€‹ô\èÀõò[Y_	œ… J \‹⁄\›\è…»‹[à€\‹œHõ]]Yè∏°§	 Ÿ\ÿ \‹⁄\›\ãõò[YJJ…œ‹‹[èâŒâ… J…œŸ]èâŒ¬àJKöõ⁄[ä	… N¬àô]\õàõ›‹ﬂ	œ]à€\‹œHú€X[]]Yà›[OHõX\ô⁄[ã]‹ç\èê]X›[àù]]\èŸ]èâŒ¬àN¬à€€ú›ò]Y\XõX‘^Y\îò][ô‹—[òXõY€X]⁄\‹⁄Y€õY[ùÀôö[\äOOòKõX]⁄⁄YOO[KöY	âòKùX[W⁄Y
+KõX\
+OOû¬à€€ú›\X\ôŸ]
+Kú^Y\ó⁄Y
+Kúè\ò][ô—õ‹ìX]⁄^Y\äKKú^Y\ó⁄YKùX[W⁄Y€ÿ[ N¬àô]\õàúââúﬁ€ò[YNúõò[YKéúúãúò][ôÀX[NòKùX[W⁄YNõù[¬àJKôö[\äõ€€X[äNñ◊N¬à€€ú›ô\›\ò]Yõ[ô›”X]õX^
+ããúò]YõX\
+OûúäJNõù[¬à€€ú›õ›P€€JX[RY
+OOû¬à€€ú›õ›‹œ\ò]Yôö[\äOî›ö[ô ùX[JOOOT›ö[ô X[RY
+JKú€‹ù
+
+KäOOòãúãXKúüKõò[YKõÿÿ[P€€\\ôJãõò[YJJN¬àô]\õàõ›‹ÀõX\
+èOâœ]à€\‹œHú€X[à›[OHúY[ôŒçèâ  ãúèOOXô\›…¯´d	Œâ… JŸ\ÿ ãõò[YJJ…»èâ €ãúãù—ö^Y
+JJ…ÀÃLÿèèŸ]èâ Köõ⁄[ä	… _	œ]à€\‹œHú€X[]]Yèê]X›[ôHõ›OŸ]èâŒ¬àN¬à€€ú›õ›\“[\XõX‘^Y\îò][ô‹—[òXõY…œ]à€\‹œHõõ›\ÀX€€[[ú»à›[OHõX\ô⁄[ã]‹åLèâ ¬à	œ]à€\‹œHú^Y\àõ›\ÀX€€[[àà›[OHõX\ô⁄[éåèèèâ Ÿ\ÿ X\ôŸ]
+Kö€YW›X[W⁄Y
+OÀõò[Y_	œ… J…œÿèâ €õ›P€€
+Kö€YW›X[W⁄Y
+J…œŸ]èâ ¬à	œ]à€\‹œHú^Y\àõ›\ÀX€€[[àà›[OHõX\ô⁄[éåèèèâ Ÿ\ÿ X\ôŸ]
+Kò]ÿ^W›X[W⁄Y
+OÀõò[Y_	œ… J…œÿèâ €õ›P€€
+Kò]ÿ^W›X[W⁄Y
+J…œŸ]èâ ¬à	œŸ]èâŒâ…Œ¬àô]\õà	œ]à€\‹œHú^Y\àèè]à€\‹œHõ]]YèìX]⁄	  JÃJJ Kú]⁄…»8†(à	 Ÿ\ÿ Kú]⁄
+Nâ… J…œŸ]èâ ¬à	œ]à€\‹œHö\›‹ûK\ÿ€‹ô[[ôHà›[OHõX\ô⁄[ã]‹çúèâ ¬à	œà€\‹œHö\›‹ûK]X[K[ò[YHèâ Ÿ\ÿ X\ôŸ]
+Kö€YW›X[W⁄Y
+OÀõò[Y_	œ… J…œÿèâ ¬à	œ]à€\‹œHúÿ€‹ôHèâ €Kö€YW‹ÿ€‹ôJ…»H	 €Kò]ÿ^W‹ÿ€‹ôJ…œŸ]èâ ¬à	œà€\‹œHö\›‹ûK]X[K[ò[YHèâ Ÿ\ÿ X\ôŸ]
+Kò]ÿ^W›X[W⁄Y
+OÀõò[Y_	œ… J…œÿèâ ¬à	œ]à€\‹œHö\›‹ûKY€ÿ[»€YHèâ Ÿ€ÿ[õÿ⁄ Kö€YW›X[W⁄Y
+J…œŸ]èâ ¬à	œ]à€\‹œHö\›‹ûKY€ÿ[»]ÿ^Hèâ Ÿ€ÿ[õÿ⁄ Kò]ÿ^W›X[W⁄Y
+J…œŸ]èâ ¬à	œŸ]èâ €õ›\“[
+…œŸ]èâŒ¬àJKöõ⁄[ä	… _	œ€\‹œHõ]]Yèê]X›[à∞Í\›[]è‹âŒ¬àH[ŸH¬à	
+	»‹XõX’X[Tò[ö⁄[ô… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[à›\õõ⁄H\‹€öXõKè‹âŒ¬à	
+	»‹XõX’›\õò[Y[ùÿ€‹ô\ú… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[à›\õõ⁄H\‹€öXõKè‹âŒ»	
+	»‹XõX’›\õò[Y[ù\‹⁄\›… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[à›\õõ⁄H\‹€öXõKè‹âŒ»Yä	
+	»‹XõX’›\õò[Y[ù‹^Y\ú… JI
+	»‹XõX’›\õò[Y[ù‹^Y\ú… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[ôHõ›H\‹€öXõKè‹âŒ¬à	
+	»‹XõX’X[\… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[ôH0Í\]Z\Kè‹âŒ¬à	
+	»‹XõX‘ô\›[… Kö[õô\íSIœ€\‹œHõ]]Yèê]X›[à∞Í\›[]è‹âŒ¬àBà€€ú›\›]Z[œI
+	»‹XõX”\››\õò[Y[ù]Z[… N¬à€€ú›ŸŸ€S\›I
+	»›ŸŸ€S\››\õò[Y[ùXõX… N¬àYäŸŸ€S\›
+^›ŸŸ€S\›ô\ÿXõYH[]\››ŸŸ€S\›úŸ]]öXù]J	ÿ\öXKY^[ôY	À	Ÿò[ŸI N›ŸŸ€S\›ù^€€ù[ù[]\›…—0Í]ô[‹\à\»\õöY\ú»∞Í\›[]…Œâ–]X›[à∞Í\›[]	ŒﬂBàYäŸŸ€S\›	âõ\›]Z[ ^¬àŸŸ€S\›õ€ò€X⁄œJ
+OOû¬àYäôY’›\ââõ]\›
+^€ÿÿ][€ãöôYè\XõX“\›‹ûU\õ
+⁄Ÿ[ã]\›öY
+N‹ô]\õéﬂBà€€ú›‹[ö[ôœ[\›]Z[Àò€\‹”\›ò€€ùZ[ú 	⁄Y[â N¬à\›]Z[Àò€\‹”\›ùŸŸ€J	⁄Y[âÀ[‹[ö[ô N¬àŸŸ€S\›ù^€€ù[ù[‹[ö[ôœ…‘∞ÍYZ\ôH\»\õöY\ú»∞Í\›[]…Œâ—0Í]ô[‹\à\»\õöY\ú»∞Í\›[]…Œ¬àŸŸ€S\›úŸ]]öXù]J	ÿ\öXKY^[ôY	À›ö[ô ‹[ö[ô JN¬àN¬àBÇàYäôY’›\ââùŸŸ€S\›	âõ]\›
+^›ŸŸ€S\›ù^€€ù[ùI’õ⁄\à\»\õöY\ú»∞Í\›[]»8°§âŒ›ŸŸ€S\›úô[[›ôP]öXù]J	ÿ\öXKY^[ôY	 NﬂBÇà€€ú›Xí\›I
+	»‹XõX“\›‹ûI N¬àXí\›ö[õô\íSI…Œ¬àXí\›ò€‹Ÿ\›
+	Àòÿ\ô	 OÀò€\‹”\›ùŸŸ€J	⁄Y[âÀôY’›\èÀôõ‹õX]OOI€XY›YI N¬àö[ö\⁄Y\›‹ûKôõ‹ëXX⁄
+Oû¬à€€ú›Yÿ›[Y[ùò‹ôX]Q[[Y[ù
+	Ÿ]â NŸò€\‹”ò[YOI‹^Y\àõ›…Œ¬àö[õô\íSIœ‹[à›[OHôõ^åHèèèâ Ÿ\ÿ õò[Y_
+	’›\õõ⁄HH	 ›ù›\õò[Y[ùŸ]JJJ…œÿèè]à€\‹œHõ]]Yèâ ›ù›\õò[Y[ùŸ]J…»8†(à\õZ[∞ÍOŸ]èè‹‹[èâŒ¬à€€ú›èYÿ›[Y[ùò‹ôX]Q[[Y[ù
+	ÿI Nÿãù^€€ù[ùI’õ⁄\à\»∞Í\›[]…Œÿãò€\‹”ò[YOI‹ö[X\ûIŒ¬àãöôYè\XõX“\›‹ûU\õ
+⁄Ÿ[ãöY
+N¬àò\[ô⁄[
+äN‹Xí\›ò\[ô⁄[
+
+N¬àJN¬àYäYö[ö\⁄Y\›‹ûKõ[ô›
+\Xí\›ö[õô\íSIœ€\‹œHõ]]Yèê]X›[à›\õõ⁄H\õZ[∞ÍH[ú»Ÿ]HÿZ\€€ãè‹âŒ¬àYäôY’›\ââúôY’›\ãôõ‹õX]OOI€XY›YI…âù⁄[ô›Àî’—TôY⁄\›ò][€îô\Ÿ[ù][€ä^¬àôY⁄\›ò][€îô\Ÿ[ù][€è]⁄[ô›Àî’—TôY⁄\›ò][€îô\Ÿ[ù][€ãõ[›[ù
+›⁄Ÿ[ã\\õêT’TìŸ][ùûS[ŸNúŸ]XõX—[ùûS[ŸKÿYò][ôŒò\ﬁ[ò»^Y\íYOûÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹XõX◊‹ôY⁄\›ò][€ó‹^Y\ó‹ò][ô…À‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöY‹^Y\ó⁄Yú^Y\íYJN⁄Yä\úõ‹ä]õ›»\úõ‹é‹ô]\õà]NﬂKÿYù[\Œò\ﬁ[ò 
+OOûÿ€€ú›Ÿ]K\úõ‹üOX]ÿZ]ÿãúú 	ŸŸ]‹XõX◊››\õò[Y[ù⁄⁄[ô◊‹ù[\…À‹›⁄Ÿ[éù⁄Ÿ[ã››\õò[Y[ù⁄YúôY’›\ãöYJN⁄Yä\úõ‹ä]õ›»\úõ‹é‹ô]\õà]NﬂK›[ô[ô‹Œù›\õò[Y[ù›[ô[ô‹Àò]SX]⁄äããò\ô‹ OOúò][ô—õ‹ìX]⁄^Y\äããò\ô‹ K]Nä
+OOä››\õò[Y[ùúôY’›\ã›\õò[Y[ùÀŸX\€€úÀ^Y\úÀôY⁄\›ò][€úÀX[\ÀX[T^Y\úÀX]⁄\À€ÿ[ÀX]⁄\‹⁄Y€õY[ùÀò][ô—‹õ›\ò[YK€€‹ôÿ[ö^ô\úŒúôY⁄\›ò][€ê€€‹ôÿ[ö^ô\úÀ\–€€‹ôÿ[ö^ô\éúôY⁄\›ò][€í\–€€‹ôÿ[ö^ô\ã\ú€€ò[[ú›ùX›[€éúôY⁄\›ò][€î\ú€€ò[[ú›ùX›[€ãò][ô’⁄[ô›‹ŒúôY⁄\›ò][€îò][ô’⁄[ô›‹À]⁄\ŒîÀú‹‹ù‘]⁄\À‹õ›\]ô[Œù›\õò[Y[ù‹õ›\]ô[ﬂJ_JN¬àôYúô\⁄ŸX\€€îò[ö⁄[ô‹ 
+N¬à\]U›\õò[Y[ù€›[ù›€ú 
+N¬àÿYô\Ÿ[ù][€ìY]Y]J
+Kòÿ]⁄
+
+
+OOûﬂJN¬àBüBò]]›]J
+N¬ôÿ›[Y[ùòY]ô[ù\›[ô\ä	ÿ€X⁄…ÀOOûÿ€€ú›YKù\ôŸ]Àò€‹Ÿ\›Àä	ÀùXñŸ]K]öY]œHò€€€\àóI N⁄Yä
+\Ÿ][Y[›]
+ÿY\ô[ëù[ôÀ
+NﬂJN¬

@@ -32,11 +32,11 @@ test('team vote is displayed only when the administrator opened it',()=>{
 });
 
 test('twenty premium football avatars coexist with personal photo upload',async()=>{
-  const js=read('football-avatar-picker-v4403.js');
+  const js=read('football-avatar-picker-v4404.js');
   assert.match(js,/5 mascottes/);
   assert.match(js,/10 joueurs/);
   assert.match(js,/5 joueuses/);
-  assert.match(js,/Ajouter une photo/);
+  assert.match(js,/Importer ma photo/);
   assert.match(js,/update_my_player_profile_details/);
   assert.equal((js.match(/'[^']+'/g)||[]).filter(x=>/Lion capitaine|Joueuse gardienne/.test(x)).length,2);
   for(let i=1;i<=20;i++)assert.ok(fs.existsSync(path.join(root,'assets/avatars-v4403/avatar-'+String(i).padStart(2,'0')+'.webp')),'avatar '+i);
@@ -46,6 +46,25 @@ test('twenty premium football avatars coexist with personal photo upload',async(
   d.querySelector('[data-foot-avatar="20"]').click();await new Promise(r=>setTimeout(r,20));
   assert.equal(saved.name,'update_my_player_profile_details');assert.match(saved.args.p_avatar_url,/avatar-20\.webp$/);
   dom.window.close();
+});
+
+test('modify photo opens the premium gallery even when an avatar already exists',async()=>{
+  const js=read('football-avatar-picker-v4404.js');
+  const dom=new JSDOM('<!doctype html><body><div id="view-myplayer"><section class="player-hub-hero"><button id="swe4338PhotoBtn">Modifier ma photo</button><input id="swe4338PhotoInput" type="file"></section></div></body>',{url:'https://app.swetournament.fr',runScripts:'outside-only'}),w=dom.window,d=w.document;
+  w.S={session:{user:{id:'user'}},playerDashboard:{profile:{age:28,avatar_url:'https://example.com/photo.webp'}}};w.sb={rpc:async()=>({data:true,error:null})};w.eval(js);await new Promise(r=>setTimeout(r,100));
+  d.getElementById('swe4338PhotoBtn').click();
+  assert.equal(d.getElementById('sweAvatarPicker4404Modal').classList.contains('hidden'),false);
+  assert.equal(d.querySelectorAll('#sweAvatarPicker4404Modal [data-foot-avatar]').length,20);
+  assert.ok(d.querySelector('#sweAvatarPicker4404Modal [data-upload-own-photo]'));
+  dom.window.close();
+});
+
+test('co-organizer profile has no creation warning and linked groups are deduplicated',()=>{
+  const guard=read('profile-coorg-photo-guard-v4354.js'),app=read('app.js');
+  assert.doesNotMatch(guard,/Création de SWÉ indisponible en mode co-gestionnaire/);
+  assert.match(guard,/stop\?\.remove\(\)/);
+  assert.match(app,/seenGroups\.has\(key\)/);
+  assert.match(app,/otherGroups=groups\.filter/);
 });
 
 test('enhancement layer renders rights and the latest pending rating without replacing navigation',async()=>{
