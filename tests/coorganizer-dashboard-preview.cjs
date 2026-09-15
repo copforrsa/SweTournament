@@ -27,7 +27,7 @@ fs.mkdirSync(shots,{recursive:true});
   await page.screenshot({path:path.join(shots,'coorganizer-dashboard-after-desktop.png'),fullPage:true});
   await page.locator('[data-dismiss-intro]').click();
   assert.equal(await page.locator('.swe-coorg-access-card.start').count(),0);
-  await page.locator('#sweCoorgTournamentSelect').selectOption('00000000-0000-4000-8000-000000000102');
+  await page.evaluate(async()=>{S.activeTour=S.tournaments[1].id;await loadTournament();renderAll()});
   await page.locator('#sweCoorgDashboard4399').filter({hasText:'0 sur 4 équipes évaluées'}).waitFor();
   assert.equal(await page.locator('[data-coorg-view="matches"]').isDisabled(),true);
   await page.setViewportSize({width:390,height:900});
