@@ -26,7 +26,7 @@ function allowed(view,txt){
  if(view==='tournaments')return /(creer un nouveau tournoi|gerer les tournois|terminer un tournoi|supprimer un tournoi|droits admin temporaires)/.test(txt);
  if(view==='teams')return /(generer des equipes|codes equipe|gerer les equipes|validation des equipes|droits admin temporaires)/.test(txt);
  if(view==='league')return /(ligue|droits admin temporaires)/.test(txt);
- if(view==='ranking'||view==='rankings')return /(classement|top player|droits admin temporaires)/.test(txt);
+ if(view==='ranking'||view==='rankings')return true;
  if(view==='cooler'||view==='third-half'||view==='glaciere')return /(3e mi-temps|troisieme mi-temps|glaciere|droits admin temporaires)/.test(txt);
  if(view==='permissions')return false;
  return false;

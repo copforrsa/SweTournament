@@ -46,7 +46,7 @@ function coorgAllowed(v,s,txt){
  if(v==='tournaments')return !!p.can_create_tournaments||/(creer un nouveau tournoi|gerer les tournois|terminer un tournoi|supprimer un tournoi)/.test(txt);
  if(v==='teams')return !!p.can_generate_teams||/(generer des equipes|codes equipe|gerer les equipes|validation des equipes)/.test(txt);
  if(v==='league')return /(^|\s)ligue(\s|$)/.test(txt);
- if(v==='ranking'||v==='rankings')return /(classement|top player)/.test(txt);
+ if(v==='ranking'||v==='rankings')return true;
  if(v==='cooler'||v==='third-half'||v==='glaciere')return /(3e mi-temps|troisieme mi-temps|glaciere)/.test(txt);
  if(v==='permissions')return false;
  return true;

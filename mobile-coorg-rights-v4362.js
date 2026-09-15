@@ -29,8 +29,9 @@ function allowed(view){
  if(view==='matches')return !!p.can_enter_scores;
  if(view==='tournaments')return !!p.can_create_tournaments;
  if(view==='teams')return !!p.can_generate_teams;
+ if(view==='ranking'||view==='rankings')return true;
  if(view==='permissions')return false;
- if(view==='league'||view==='cooler'||view==='third-half'||view==='glaciere'||view==='ranking'||view==='rankings')return false;
+ if(view==='league'||view==='cooler'||view==='third-half'||view==='glaciere')return false;
  return false;
 }
 function deny(btn){
