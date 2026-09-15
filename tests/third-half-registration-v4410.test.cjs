@@ -10,7 +10,7 @@ const sql=fs.readFileSync(path.join(root,'supabase/migrations/20260915160000_thi
 
 test('the registration page owns the cooler contribution flow',()=>{
   assert.match(app,/id="publicThirdHalfRegistration"/);
-  assert.match(app,/get_public_third_half_registration_v1/);
+  assert.match(app,/get_public_third_half_registration_v2/);
   assert.match(app,/save_my_third_half_payment_link_v1/);
   assert.match(app,/Participer à la glacière/);
   assert.match(app,/Math\.min\(500/);

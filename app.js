@@ -65,6 +65,7 @@ window.addEventListener('pageshow',()=>{if(!userIsEditing())setTimeout(safeAppSy
 const $=s=>document.querySelector(s);
 const toast=t=>{const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function setStableHtml(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html;}
 function playerAvatarHtml(pl,size='sm'){
   const src=String(pl?.avatar_url||'').trim();
   if(!src)return '<span class="swe-player-avatar swe-player-avatar-'+size+' swe-player-avatar-fallback" aria-hidden="true">⚽</span>';
@@ -4439,7 +4440,7 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=4410',{updateViaCache:'none'})
+  navigator.serviceWorker.register('./sw.js?v=4411',{updateViaCache:'none'})
     .then(reg=>{
       reg.update().catch(()=>{});
       navigator.serviceWorker.addEventListener('controllerchange',()=>{
@@ -5178,7 +5179,7 @@ async function loadPublicPage(token,bootState){
       if(!Number.isNaN(d.getTime())) deadline=d.toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',', ' •');
     }
     const item=(icon,label,value,extra='')=>'<div class="player" style="margin:0;background:#fbfaf6;border:1px solid #eadfca;min-height:74px"><div class="muted" style="font-size:.78rem">'+icon+' '+label+'</div><div style="font-size:1.08rem;font-weight:900;margin-top:3px">'+value+'</div>'+(extra?'<div class="muted" style="font-size:.75rem;margin-top:2px">'+extra+'</div>':'')+'</div>';
-    box.innerHTML=
+    setStableHtml(box,
       item('👥','Inscrits',activeRegs.length+' / '+maxPlayers,(substitutes?substitutes+' remplaçant'+(substitutes>1?'s':''):'')+(waiting?(substitutes?' • ':'')+waiting+' en attente':''))+
       item('🎟️','Places restantes',Math.max(0,maxPlayers-activeRegs.length),activeRegs.length>=maxPlayers?'Complet — liste d’attente':'')+
       (()=>{
@@ -5189,7 +5190,7 @@ async function loadPublicPage(token,bootState){
       })()+
       item('📅','Rendez-vous',esc(regTour.tournament_date||'À préciser')+(regTour.start_time?' • '+esc(String(regTour.start_time).slice(0,5)):''),esc(regTour.venue||'Terrain à préciser'))+
       item('⏳','Fin des inscriptions',esc(deadline))+
-      item('💶','Participation',fee+' €','par joueur');
+      item('💶','Participation',fee+' €','par joueur'));
   }
   renderPublicQuickStats();
 
@@ -5312,9 +5313,9 @@ async function loadPublicPage(token,bootState){
     const count=$('#publicRegCount');if(count)count.textContent=activePublic.length+'/'+maxPublic+' inscrits • '+remainingPublic+' place'+(remainingPublic>1?'s':'')+' restante'+(remainingPublic>1?'s':'')+(subsPublic.length?' • '+subsPublic.length+' remplaçant'+(subsPublic.length>1?'s':''):'')+(waiting.length?' • '+waiting.length+' en attente':'');
     const list=$('#publicRegisteredList');if(list){
       const expanded=!!$('#publicMoreRegistrations')?.open;
-      list.innerHTML=listRows.slice(0,5).join('')+(listRows.length>5?'<details id="publicMoreRegistrations"'+(expanded?' open':'')+'><summary><span class="when-closed">Voir les '+(listRows.length-5)+' autres inscrits</span><span class="when-open">Masquer la suite de la liste</span></summary>'+listRows.slice(5).join('')+'</details>':'');
+      setStableHtml(list,listRows.slice(0,5).join('')+(listRows.length>5?'<details id="publicMoreRegistrations"'+(expanded?' open':'')+'><summary><span class="when-closed">Voir les '+(listRows.length-5)+' autres inscrits</span><span class="when-open">Masquer la suite de la liste</span></summary>'+listRows.slice(5).join('')+'</details>':''));
     }
-    const wlist=$('#publicWaitList');if(wlist){wlist.innerHTML=waitRows;wlist.parentElement.classList.toggle('hidden',!waiting.length)}
+    const wlist=$('#publicWaitList');if(wlist){setStableHtml(wlist,waitRows);wlist.parentElement.classList.toggle('hidden',!waiting.length)}
   }
 
   if(regTour){
@@ -5394,6 +5395,14 @@ async function loadPublicPage(token,bootState){
       const amount=Math.max(0,Math.min(500,Number(state.suggested_amount_cents||0)));
       const owner=String(pid)===String(state.responsible_player_id||'');
       const ownerName=state.responsible_player_name||'À désigner';
+      const players=Array.isArray(state.eligible_responsibles)?state.eligible_responsibles:[];
+      const tasks=Array.isArray(state.logistics_tasks)?state.logistics_tasks:[];
+      const taskMap=new Map(tasks.map(x=>[x.key,x]));
+      const assigned=(key)=>taskMap.get(key)?.player_id||state.responsible_player_id||'';
+      const playerOptions=(selected)=>players.map(p=>'<option value="'+esc(p.player_id)+'" '+(String(p.player_id)===String(selected)?'selected':'')+'>'+esc(p.name)+'</option>').join('');
+      const logistics='<div class="third-half-logistics"><div class="third-half-logistics-title"><b>📋 Les indispensables de la glacière</b><span>Attribués automatiquement au responsable, puis délégables.</span></div><div class="third-half-task-grid">'+[
+        ['cooler','🧊','Une glacière'],['ice','❄️','Des glaçons'],['beers','🍺','Au moins 12 bières']
+      ].map(([key,icon,label])=>{const task=taskMap.get(key);return '<div class="third-half-task"><span>'+icon+'</span><div><b>'+label+'</b><small>'+esc(task?.player_name||ownerName)+'</small></div></div>'}).join('')+'</div><div class="third-half-shopping-tip">🛒 Pour maîtriser le budget, nous recommandons les achats en grande surface.</div></div>';
       let action='';
       if(!state.responsible_player_id){
         action='<div class="third-half-pending">Le responsable de la glacière sera choisi parmi les inscrits.</div>';
@@ -5402,16 +5411,34 @@ async function loadPublicPage(token,bootState){
       }else if(!reg){
         action='<div class="third-half-pending">Inscris-toi au Swé pour accéder à la participation glacière.</div>';
       }else if(owner&&state.can_manage){
-        action='<div class="third-half-owner-form"><b>🧊 Tu es responsable de la glacière</b><div class="muted">Ajoute ton lien personnel. Aucun montant libre : la demande est limitée à 5 €.</div><div class="grid g2"><label><span class="muted">Solution</span><select id="publicCoolerProvider"><option value="">Choisir…</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option '+(state.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Montant fixe</span><select id="publicCoolerAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(amount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label></div><label><span class="muted">Ton lien HTTPS</span><input id="publicCoolerLink" type="url" maxlength="500" placeholder="https://..." value="'+esc(state.payment_link||'')+'"></label><button id="publicSaveCoolerLink" class="primary" type="button">Activer mon lien pour les inscrits</button></div>';
+        const contributionMode=state.responsible_contribution_mode||'money';
+        const contributionAmount=Math.max(50,Math.min(500,Number(state.responsible_contribution_amount_cents||amount||300)));
+        const contributionItem=state.responsible_contribution_item||'beers_12';
+        action='<div class="third-half-owner-form"><div class="third-half-owner-banner"><div><span>TA MISSION</span><b>Tu coordonnes la 3e mi-temps</b></div><em>Responsable</em></div>'+logistics+
+          '<div class="third-half-owner-section"><b>1. Ta participation personnelle</b><div class="muted">Choisis soit une participation financière, soit ce que tu apportes directement.</div><div class="grid g2"><label><span class="muted">Type de participation</span><select id="publicCoolerContributionMode"><option value="money" '+(contributionMode==='money'?'selected':'')+'>Participation financière</option><option value="supplies" '+(contributionMode==='supplies'?'selected':'')+'>Apport matériel</option></select></label><label id="publicCoolerContributionMoney"><span class="muted">Montant personnel</span><select id="publicCoolerContributionAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(contributionAmount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label><label id="publicCoolerContributionSupplies"><span class="muted">Ce que tu apportes</span><select id="publicCoolerContributionItem">'+[['cooler','Une glacière'],['ice','Des glaçons'],['beers_12','Au moins 12 bières'],['soft_drinks','Boissons sans alcool'],['snacks','Snacks / apéritif'],['other','Autre apport']].map(([v,l])=>'<option value="'+v+'" '+(contributionItem===v?'selected':'')+'>'+l+'</option>').join('')+'</select></label></div></div>'+
+          '<div class="third-half-owner-section"><b>2. Qui apporte quoi ?</b><div class="muted">Les trois missions sont pour toi par défaut. Tu peux en confier une à un autre joueur déjà inscrit.</div><div class="third-half-delegation-grid"><label>🧊 Glacière<select id="publicCoolerTaskCooler">'+playerOptions(assigned('cooler'))+'</select></label><label>❄️ Glaçons<select id="publicCoolerTaskIce">'+playerOptions(assigned('ice'))+'</select></label><label>🍺 12 bières minimum<select id="publicCoolerTaskBeers">'+playerOptions(assigned('beers'))+'</select></label></div><button id="publicSaveCoolerPlan" class="third-half-plan-button" type="button">Enregistrer ma participation et les missions</button></div>'+
+          '<div class="third-half-owner-section third-half-payment-config"><b>3. Ton lien pour les participations du groupe</b><div class="muted">Le lien est personnel et l’argent arrive directement sur ton compte. Le montant demandé à chaque membre reste plafonné à 5 €.</div><div class="grid g2"><label><span class="muted">Solution</span><select id="publicCoolerProvider"><option value="">Choisir…</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option '+(state.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Montant demandé</span><select id="publicCoolerAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(amount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label></div><label><span class="muted">Ton lien HTTPS</span><input id="publicCoolerLink" type="url" maxlength="500" placeholder="https://..." value="'+esc(state.payment_link||'')+'"></label><button id="publicSaveCoolerLink" class="primary" type="button">'+(state.payment_link_ready?'Mettre à jour mon lien':'Activer mon lien pour les inscrits')+'</button></div></div>';
       }else if(owner&&!state.can_manage){
-        action='<div class="third-half-pending"><b>'+esc(ownerName)+', tu as été choisi pour la glacière.</b><br>Connecte-toi avec le compte SWÉ lié à ton profil pour ajouter ton lien personnel.</div>';
+        action='<div class="third-half-owner-locked"><b>'+esc(ownerName)+', tu es responsable de la glacière.</b><p>Connecte-toi avec le compte SWÉ lié à ton profil pour indiquer ta participation, répartir les missions et ajouter ton lien de paiement.</p><a href="'+esc(APP_URL+'?start=player&joinSwe='+encodeURIComponent(regTour.id))+'">Se connecter et configurer la glacière →</a></div>'+logistics;
       }else if(state.payment_link_ready&&state.payment_link){
-        action='<a class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
+        action=logistics+'<a class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
       }else{
-        action='<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
+        action=logistics+'<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
       }
       box.className='third-half-registration';
-      box.innerHTML='<div class="third-half-registration-head"><div><span>MODULE 3E MI-TEMPS</span><h3>🧊 La glacière du match</h3></div><div class="third-half-owner"><small>Responsable</small><b>'+esc(ownerName)+'</b></div></div>'+publicThirdHalfPackagesHtml(state)+action;
+      setStableHtml(box,'<div class="third-half-registration-head"><div><span>MODULE 3E MI-TEMPS</span><h3>🧊 La glacière du match</h3></div><div class="third-half-owner"><small>Responsable</small><b>'+esc(ownerName)+'</b></div></div>'+publicThirdHalfPackagesHtml(state)+action);
+      const mode=$('#publicCoolerContributionMode');
+      const toggleContribution=()=>{const supplies=mode?.value==='supplies';$('#publicCoolerContributionMoney')?.classList.toggle('hidden',supplies);$('#publicCoolerContributionSupplies')?.classList.toggle('hidden',!supplies);};
+      if(mode){mode.onchange=toggleContribution;toggleContribution();}
+      const savePlan=$('#publicSaveCoolerPlan');if(savePlan)savePlan.onclick=async()=>{
+        const contributionMode=$('#publicCoolerContributionMode')?.value||'';
+        const contributionAmount=Number($('#publicCoolerContributionAmount')?.value||0);
+        const contributionItem=$('#publicCoolerContributionItem')?.value||'';
+        savePlan.disabled=true;savePlan.textContent='Enregistrement…';
+        const {error}=await sb.rpc('save_my_third_half_plan_v1',{p_tournament_id:regTour.id,p_player_id:pid,p_contribution_mode:contributionMode,p_contribution_amount_cents:contributionAmount,p_contribution_item:contributionItem,p_cooler_player_id:$('#publicCoolerTaskCooler')?.value||null,p_ice_player_id:$('#publicCoolerTaskIce')?.value||null,p_beers_player_id:$('#publicCoolerTaskBeers')?.value||null});
+        savePlan.disabled=false;if(error){savePlan.textContent='Enregistrer ma participation et les missions';return toast(error.message);}
+        toast('Plan glacière enregistré ✅');await loadPublicThirdHalfRegistration(true);
+      };
       const save=$('#publicSaveCoolerLink');if(save)save.onclick=async()=>{
         const provider=$('#publicCoolerProvider')?.value||'',link=$('#publicCoolerLink')?.value.trim()||'',fixed=Number($('#publicCoolerAmount')?.value||0);
         if(!provider)return toast('Choisis ta solution de paiement.');if(!/^https:\/\/\S+$/i.test(link))return toast('Ajoute un lien HTTPS valide.');if(fixed<50||fixed>500)return toast('Le montant doit rester entre 0,50 € et 5 €.');
@@ -5425,7 +5452,7 @@ async function loadPublicPage(token,bootState){
     async function loadPublicThirdHalfRegistration(force=false){
       if(!publicThirdHalf||!regTour.third_half_active)return renderPublicThirdHalfRegistration();
       if(!force&&Date.now()-publicThirdHalfLoadedAt<20000)return renderPublicThirdHalfRegistration();
-      const {data,error}=await sb.rpc('get_public_third_half_registration_v1',{p_token:token,p_tournament_id:regTour.id});
+      const {data,error}=await sb.rpc('get_public_third_half_registration_v2',{p_token:token,p_tournament_id:regTour.id});
       if(!error&&data){publicThirdHalfState=data;publicThirdHalfLoadedAt=Date.now();}
       renderPublicThirdHalfRegistration();
     }
