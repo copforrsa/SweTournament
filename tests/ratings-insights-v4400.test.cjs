@@ -24,7 +24,21 @@ test('the six post-match appreciations have the requested deltas and are unique'
 test('co-organizer insights and scoped health badges are wired',()=>{
   const ui=read('coorganizer-insights-v4400.js');
   for(const label of ['Joueurs rencontrés','Présence dans la saison','Joueurs notés','À noter'])assert.ok(ui.includes(label),label);
+  assert.match(ui,/MutationObserver/);
+  assert.match(ui,/data-insights="unrated"/);
+  assert.match(ui,/Voir les joueurs/);
+  assert.match(ui,/dataset\.sweInsights/);
   const health=read('player-experience-v4349.js');
   assert.match(health,/\['view-players','view-teams','view-tournaments','view-matches'\]/);
   assert.match(health,/E\('view-myplayer'\).*data-health-player/);
+});
+
+test('co-organizer match rating falls back to the season value',()=>{
+  const dashboard=read('coorganizer-dashboard-v4399.js');
+  const sql=read('supabase/migrations/20260915093000_coorganizer_stable_stats_match_rating_v4401.sql');
+  assert.match(dashboard,/season_match_rating/);
+  assert.match(dashboard,/Moyenne de la saison/);
+  assert.match(dashboard,/swe:coorg-insights-ready/);
+  assert.match(sql,/'season_match_rating',v_match_rating/);
+  assert.match(sql,/round\(avg\(score\),1\)/);
 });
