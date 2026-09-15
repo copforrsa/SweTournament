@@ -31,12 +31,21 @@ test('team vote is displayed only when the administrator opened it',()=>{
   assert.match(js,/data-action-kind="team"\]\.expired/);
 });
 
-test('fifteen football avatars coexist with personal photo upload',()=>{
-  const js=read('football-avatar-picker-v4402.js'),svg=read('football-avatars-v4402.svg');
-  assert.match(js,/length:15/);
+test('twenty premium football avatars coexist with personal photo upload',async()=>{
+  const js=read('football-avatar-picker-v4403.js');
+  assert.match(js,/5 mascottes/);
+  assert.match(js,/10 joueurs/);
+  assert.match(js,/5 joueuses/);
   assert.match(js,/Ajouter une photo/);
   assert.match(js,/update_my_player_profile_details/);
-  assert.equal((svg.match(/<view id="avatar-/g)||[]).length,15);
+  assert.equal((js.match(/'[^']+'/g)||[]).filter(x=>/Lion capitaine|Joueuse gardienne/.test(x)).length,2);
+  for(let i=1;i<=20;i++)assert.ok(fs.existsSync(path.join(root,'assets/avatars-v4403/avatar-'+String(i).padStart(2,'0')+'.webp')),'avatar '+i);
+  const dom=new JSDOM('<!doctype html><body><div id="view-myplayer"><section class="player-hub-hero"><button id="swe4338PhotoBtn">Ajouter une photo</button></section></div></body>',{url:'https://app.swetournament.fr',runScripts:'outside-only'}),w=dom.window,d=w.document;
+  let saved=null;w.S={session:{user:{id:'user'}},playerDashboard:{profile:{age:28,avatar_url:null}}};w.sb={rpc:async(name,args)=>(saved={name,args},{data:true,error:null})};w.eval(js);await new Promise(r=>setTimeout(r,120));
+  assert.equal(d.querySelectorAll('[data-foot-avatar]').length,20);
+  d.querySelector('[data-foot-avatar="20"]').click();await new Promise(r=>setTimeout(r,20));
+  assert.equal(saved.name,'update_my_player_profile_details');assert.match(saved.args.p_avatar_url,/avatar-20\.webp$/);
+  dom.window.close();
 });
 
 test('enhancement layer renders rights and the latest pending rating without replacing navigation',async()=>{
