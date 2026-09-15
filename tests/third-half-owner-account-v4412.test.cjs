@@ -7,12 +7,15 @@ const root=path.join(__dirname,'..');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const sql=fs.readFileSync(path.join(root,'supabase/migrations/20260916003000_third_half_owner_account_link_v4412.sql'),'utf8');
+const authClean=fs.readFileSync(path.join(root,'auth-player-clean-v4315.js'),'utf8');
 
 test('anonymous cooler owner gets account creation and login choices',()=>{
   assert.match(app,/Créer mon compte gratuitement/);
   assert.match(app,/J’ai déjà un compte/);
   assert.match(app,/Aucun abonnement organisateur n’est nécessaire/);
   assert.match(html,/coolerAccountCard/);
+  assert.match(authClean,/allowCoolerSignup/);
+  assert.match(authClean,/data-swe-auth-allow-signup/);
 });
 
 test('authentication returns to the original public tournament',()=>{
