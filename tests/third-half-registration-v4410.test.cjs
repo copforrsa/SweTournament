@@ -28,13 +28,13 @@ test('the payment link draft survives refreshes and reports validation inline',(
   assert.match(app,/Lien enregistré\. Il est maintenant visible par les autres inscrits/);
 });
 
-test('only the cooler owner needs an account to manage while everyone may contribute',()=>{
+test('only the payment-link owner needs an account while everyone may contribute',()=>{
   const flow=app.split("let action='';")[1].split("box.className='third-half-registration'")[0];
   assert.match(flow,/owner&&state\.can_manage/);
   assert.match(flow,/owner&&!state\.can_manage/);
   assert.match(app,/save_public_third_half_participation_v1/);
   assert.match(flow,/Aucun compte SWÉ n’est nécessaire pour répondre/);
-  assert.match(flow,/Le compte SWÉ est demandé uniquement au responsable/);
+  assert.match(flow,/Le compte SWÉ est demandé uniquement pour cette fonction/);
   assert.match(flow,/id="publicThirdHalfYes"/);
   assert.match(flow,/J’apporte quelque chose/);
   assert.doesNotMatch(flow,/id="publicCoolerContributorSelect"/);
