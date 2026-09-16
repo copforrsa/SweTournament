@@ -119,6 +119,13 @@ function mount(ctx){
   const co=d.isCoorganizer===true||(d.coorganizers||[]).includes(pid);const items=[];
   const organizerUrl=(()=>{try{const u=new URL(ctx.appUrl,location.href);if(t.workspace_id)u.searchParams.set('workspace',t.workspace_id);u.searchParams.set('start','home');return u.toString()}catch(_){return ctx.appUrl}})();
   if(!co){mission.hidden=false;setHtml(mission,'<details class="sp-coorg-instructions"><summary>Accès co-gestionnaire</summary><div class="sp-coorg-instructions-body"><p>Connecte-toi pour retrouver les consignes d’organisation qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace →</a></div></details>');return;}
+  // Dès que l'identité co-gestionnaire est reconnue, on quitte la page
+  // d'inscription pour ouvrir directement son tableau de bord.
+  if(!window.__sweCoorgRedirecting){
+   window.__sweCoorgRedirecting=true;
+   location.replace(organizerUrl);
+   return;
+  }
   if(co){
    if(String(d.personalInstruction||'').trim())items.push('Consigne personnalisée : '+String(d.personalInstruction).trim());
    if(b.observe===true&&t.status!=='finished')items.push('Surveillez les nouveaux joueurs pour leur donner une note.');
