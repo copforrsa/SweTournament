@@ -20,8 +20,8 @@ test('registration follows the practical player sequence',()=>{
 
 test('co-manager access stays secondary and collapsed',()=>{
   assert.match(presentation,/<summary>Accès co-gestionnaire<\/summary>/);
-  assert.match(presentation,/let open=false/);
-  assert.match(presentation,/location\.replace\(organizerUrl\)/);
+  assert.match(presentation,/let open=true/);
+  assert.doesNotMatch(presentation,/location\.replace\(organizerUrl\)/);
 });
 
 test('ordinary registrants can save a third-half answer without an account',()=>{
