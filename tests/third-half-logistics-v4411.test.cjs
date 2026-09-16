@@ -25,6 +25,7 @@ test('render notifications do not restart the interface after every click',()=>{
   const stability=fs.readFileSync(path.join(root,'ui-stability-v4234.js'),'utf8');
   assert.match(stability,/const wrapped=function\(\.\.\.args\)\{const out=original\.apply\(this,args\);dispatchRendered\(\);return out;\}/);
   assert.match(stability,/renderDispatchTimer=setTimeout/);
+  assert.match(stability,/swe-coorg-dashboard4399/);
   assert.doesNotMatch(stability,/document\.addEventListener\('click'/);
   assert.doesNotMatch(stability,/function boot\(\)\{wrapRenderAll\(\);dispatchRendered\(\);\}/);
 });

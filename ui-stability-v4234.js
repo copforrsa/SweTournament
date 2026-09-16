@@ -3,6 +3,10 @@
 let renderDispatchTimer=null;
 let lastRenderDispatch=0;
 function dispatchRendered(){
+  // Le tableau de bord co-gestionnaire possède ses propres données et ses
+  // propres mises à jour. Relancer tous les modules après un renderAll y
+  // reconstruisait la page entière et créait un clignotement visible.
+  if(document.body?.classList.contains('swe-coorg-dashboard4399'))return;
   // Plusieurs modules écoutent cet événement et reconstruisent une partie de
   // la page. On le réserve donc à un vrai renderAll et on regroupe les
   // rendus rapprochés : il ne doit jamais être déclenché par un simple clic.
