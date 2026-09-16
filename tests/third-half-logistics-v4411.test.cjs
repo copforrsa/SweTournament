@@ -90,6 +90,7 @@ test('the group can see announced donations and the visible pool',()=>{
   assert.match(app,/get_public_third_half_contributions_v1/);
   assert.match(app,/CAGNOTTE ANNONCÉE/);
   assert.match(app,/Ce que le groupe apporte/);
+  assert.match(app,/Voir les '\+\(donors\.length-4\)\+' autres contributions/);
   assert.match(app,/beers_3.*3 bières/);
   assert.match(app,/ti_punch.*Du ti-punch/);
   assert.match(app,/amuse-gueules/);
