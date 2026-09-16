@@ -10,12 +10,17 @@ const css=fs.readFileSync(path.join(root,'registration-presentation.css'),'utf8'
 const sql=fs.readFileSync(path.join(root,'supabase/migrations/20260916130000_public_third_half_participation_flow_v4419.sql'),'utf8');
 
 test('registration follows the practical player sequence',()=>{
-  for(const id of ['registrationIdentityStep','registrationAttendanceStep','registrationGuestsStep','registrationThirdHalfStep','registrationStatsStep'])assert.match(presentation,new RegExp(id));
-  assert.ok(presentation.indexOf("flow.append(identityStep,attendanceStep,guestsStep,thirdHalfStep,statsStep)")>-1);
+  for(const id of ['registrationIdentityStep','registrationAttendanceStep','registrationGuestsStep','registrationThirdHalfStep','registrationPlayerStats'])assert.match(presentation,new RegExp(id));
+  assert.ok(presentation.indexOf("flow.append(identityStep,attendanceStep,guestsStep,thirdHalfStep)")>-1);
   assert.match(presentation,/Oui, j’ai des invités/);
   assert.match(presentation,/Non, je viens seul/);
+  assert.match(presentation,/J’ai terminé d’ajouter mes invités/);
+  assert.match(presentation,/attendanceStep\.hidden=!pid\|\|!!reg/);
+  assert.match(presentation,/guestsStep\.hidden=!reg\|\|guestsDone/);
+  assert.match(presentation,/thirdEnabled=!!reg&&guestsDone/);
   assert.match(css,/\.sp-registration-flow/);
   assert.match(css,/\.sp-flow-step\.is-current/);
+  assert.match(css,/\.sp-flow-step\.is-complete \.sp-flow-content\{display:none/);
 });
 
 test('co-manager access stays secondary and collapsed',()=>{
