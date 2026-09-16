@@ -34,3 +34,9 @@ test('ordinary registrants can save a third-half answer without an account',()=>
   assert.match(sql,/grant execute on function public\.save_public_third_half_participation_v1[\s\S]*to anon, authenticated/);
   assert.match(sql,/revoke all on function public\.save_public_third_half_participation_v1[\s\S]*from public, anon, authenticated/);
 });
+
+test('an unsaved third-half contribution choice survives background renders',()=>{
+  assert.match(app,/rememberPreferenceDraft\(\{contribution_mode:input\.value\}\)/);
+  assert.match(app,/rememberPreferenceDraft\(\{contribution_amount_cents:Number\(preferenceAmount\.value\|\|0\)\}\)/);
+  assert.match(app,/rememberPreferenceDraft\(\{contribution_item:preferenceItem\.value\|\|''\}\)/);
+});

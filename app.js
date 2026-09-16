@@ -5538,14 +5538,21 @@ async function loadPublicPage(token,bootState){
         publicThirdHalfPreference.data={...(publicThirdHalfPreference.data||{}),participating};
         renderPublicThirdHalfRegistration();
       };
+      const rememberPreferenceDraft=patch=>{
+        if(publicThirdHalfPreference.playerId!==pid)return;
+        publicThirdHalfPreference.data={...(publicThirdHalfPreference.data||{}),...patch};
+      };
       if($('#publicThirdHalfYes'))$('#publicThirdHalfYes').onclick=()=>setPreferenceAnswer(true);
       if($('#publicThirdHalfNo'))$('#publicThirdHalfNo').onclick=()=>setPreferenceAnswer(false);
       document.querySelectorAll('input[name="publicThirdHalfContributionMode"]').forEach(input=>input.onchange=()=>{
         const supplies=input.value==='supplies';
+        rememberPreferenceDraft({contribution_mode:input.value});
         $('#publicThirdHalfMoneyField')?.classList.toggle('hidden',supplies);
         $('#publicThirdHalfSuppliesField')?.classList.toggle('hidden',!supplies);
         $('#publicCoolerPayLink')?.classList.toggle('hidden',supplies);
       });
+      const preferenceAmount=$('#publicThirdHalfContributionAmount');if(preferenceAmount)preferenceAmount.onchange=()=>rememberPreferenceDraft({contribution_amount_cents:Number(preferenceAmount.value||0)});
+      const preferenceItem=$('#publicThirdHalfContributionItem');if(preferenceItem)preferenceItem.onchange=()=>rememberPreferenceDraft({contribution_item:preferenceItem.value||''});
       const savePreference=$('#publicSaveThirdHalfPreference');if(savePreference)savePreference.onclick=async()=>{
         const participating=publicThirdHalfPreference.data?.participating;
         const contributionMode=participating?(document.querySelector('input[name="publicThirdHalfContributionMode"]:checked')?.value||'money'):null;
