@@ -86,6 +86,7 @@ test('players always see the planned cooler organization',()=>{
 
 test('the group can see announced donations and the visible pool',()=>{
   const publicContributions=fs.readFileSync(path.join(root,'supabase/migrations/20260916170000_third_half_public_contributions_v4427.sql'),'utf8');
+  const acceptedContributions=fs.readFileSync(path.join(root,'supabase/migrations/20260916171000_accept_extended_third_half_contributions_v4428.sql'),'utf8');
   assert.match(app,/get_public_third_half_contributions_v1/);
   assert.match(app,/CAGNOTTE ANNONCÉE/);
   assert.match(app,/Ce que le groupe apporte/);
@@ -95,4 +96,7 @@ test('the group can see announced donations and the visible pool',()=>{
   assert.match(publicContributions,/money_pool_cents/);
   assert.match(publicContributions,/beers_3/);
   assert.match(publicContributions,/ti_punch/);
+  assert.match(acceptedContributions,/save_public_third_half_participation_v1/);
+  assert.match(acceptedContributions,/beers_3/);
+  assert.match(acceptedContributions,/fruits/);
 });
