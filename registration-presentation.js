@@ -12,7 +12,7 @@ const started=m=>['live','playing','finished'].includes(m.status)||!!m.started_a
 function setHtml(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html;}
 function mount(ctx){
  const root=E('publicView'),initial=ctx.data();if(!root||!initial.tournament||initial.tournament.format==='league')return null;
- if(root.__registrationPresentation&&E('registrationProgress')){root.__registrationPresentation.setContext(ctx);return root.__registrationPresentation;}
+ if(root.__registrationPresentation&&E('registrationProgress')&&E('registrationFlow')){root.__registrationPresentation.setContext(ctx);return root.__registrationPresentation;}
  root.classList.add('swe-premium');document.body.classList.add('swe-premium-page');
  const header=root.querySelector(':scope > header');header.className='sp-hero';header.id='registrationHero';
  header.innerHTML='<div class="sp-brand">SWÉ <small>TOURNAMENT</small></div><div class="sp-pitch" aria-hidden="true"></div><div id="registrationState"></div><div id="registrationFormat" class="sp-eyebrow"></div><h1 id="publicWorkspaceName"></h1><p>Un terrain. Des équipes. Un moment à partager.</p><div id="registrationMeta" class="sp-meta"></div>';
@@ -51,11 +51,15 @@ function mount(ctx){
  [registration?.querySelector('.sp-name-label'),select,E('registrationSelectionLock'),selectedStatus,selectionHint?.classList.contains('muted')?selectionHint:null,E('publicTeamInvitationDecision')].filter(Boolean).forEach(el=>identityContent.append(el));
  [E('publicParticipationActions'),E('publicPaymentBox'),E('publicRegStatus')].filter(Boolean).forEach(el=>attendanceStep.querySelector('.sp-flow-content').append(el));
  const guestChoice=document.createElement('div');guestChoice.id='registrationGuestChoice';guestChoice.className='sp-binary-choice';guestChoice.innerHTML='<button type="button" data-guest-choice="yes">Oui, j’ai des invités</button><button type="button" data-guest-choice="no">Non, je viens seul</button>';
+ const registeredActions=document.createElement('div');registeredActions.id='registrationRegisteredActions';registeredActions.className='sp-registered-actions';registeredActions.innerHTML='<p><b>Tu es déjà inscrit.</b> Que veux-tu faire ?</p><div><button type="button" data-registered-action="cooler">🧊 Je participe à la glacière</button><button type="button" data-registered-action="guests">👤 J’ai des invités</button><button type="button" data-registered-action="team">⚽ Voir ma proposition d’équipe</button><button type="button" data-registered-action="leave" class="danger">Je me désinscris</button></div><section data-leave-reason hidden><label>Motif de désinscription<select><option value="">Choisir un motif…</option><option>Empêchement personnel</option><option>Blessure ou problème de santé</option><option>Changement professionnel</option><option>Transport / disponibilité</option><option>Autre motif</option></select></label><button type="button" data-confirm-leave>Confirmer ma désinscription</button></section>';
+ guestsStep.querySelector('.sp-flow-content').append(registeredActions);
  guestsStep.querySelector('.sp-flow-content').append(guestChoice);if(guest)guestsStep.querySelector('.sp-flow-content').append(guest);
  const guestContinue=document.createElement('button');guestContinue.id='registrationGuestContinue';guestContinue.className='sp-guest-continue';guestContinue.type='button';guestContinue.textContent='J’ai terminé d’ajouter mes invités →';guestContinue.hidden=true;guestsStep.querySelector('.sp-flow-content').append(guestContinue);
  if(E('publicThirdHalfRegistration'))thirdHalfStep.querySelector('.sp-flow-content').append(E('publicThirdHalfRegistration'));
  flow.append(identityStep,attendanceStep,guestsStep,thirdHalfStep);registration?.append(playerPanel,flow,mission);
- const guestChoices=new Map(),guestCompleted=new Map();
+ const guestChoices=new Map(),guestCompleted=new Map(),registeredAction=new Map();
+ registeredActions.addEventListener('click',event=>{const action=event.target.closest('[data-registered-action]')?.dataset.registeredAction,pid=select?.value;if(!action||!pid)return;registeredAction.set(pid,action);registeredActions.querySelector('[data-leave-reason]').hidden=action!=='leave';if(action==='leave')return;updateFlow();});
+ registeredActions.querySelector('[data-confirm-leave]').addEventListener('click',()=>{const reason=registeredActions.querySelector('select').value;if(!reason)return;E('publicRegStatus').textContent='Désinscription : '+reason+'.';E('publicLeave')?.click();});
  guestChoice.addEventListener('click',event=>{const button=event.target.closest('[data-guest-choice]'),pid=select?.value;if(!button||!pid)return;event.stopPropagation();const yes=button.dataset.guestChoice==='yes';guestChoices.set(pid,yes);guestCompleted.set(pid,!yes);guestsStep.classList.remove('is-editing');if(guest){guest.open=yes;if(yes)queueMicrotask(()=>E('publicGuestName')?.focus());}updateFlow();},true);
  guestContinue.addEventListener('click',()=>{const pid=select?.value;if(!pid)return;guestCompleted.set(pid,true);guestsStep.classList.remove('is-editing');updateFlow();});
  [identityStep,attendanceStep,guestsStep].forEach(step=>step.querySelector('.sp-step-edit').addEventListener('click',()=>{const pid=select?.value;if(!pid)return;if(step===guestsStep)guestCompleted.set(pid,false);step.classList.add('is-editing');updateFlow();}));
@@ -64,14 +68,17 @@ function mount(ctx){
   const usedGuests=pid?d.registrations.some(r=>r.tournament_id===d.tournament.id&&String(r.registered_by_player_id||'')===String(pid)):false;
   if(usedGuests&&!guestChoices.has(pid))guestChoices.set(pid,true);
   const guestAnswer=guestChoices.get(pid);
+  const action=registeredAction.get(pid)||'';
   identityStep.classList.toggle('is-complete',!!pid&&!identityStep.classList.contains('is-editing'));identityStep.classList.toggle('is-current',!pid||identityStep.classList.contains('is-editing'));
   attendanceStep.hidden=!pid;attendanceStep.classList.toggle('is-complete',!!reg&&!attendanceStep.classList.contains('is-editing'));attendanceStep.classList.toggle('is-current',!!pid&&(!reg||attendanceStep.classList.contains('is-editing')));
   const guestsDone=guestAnswer===false||(guestAnswer===true&&guestCompleted.get(pid)===true);
-  guestsStep.hidden=!reg;guestsStep.classList.toggle('is-complete',guestsDone&&!guestsStep.classList.contains('is-editing'));guestsStep.classList.toggle('is-current',!!reg&&(!guestsDone||guestsStep.classList.contains('is-editing')));
+  guestsStep.hidden=!reg;guestsStep.classList.toggle('is-complete',false);guestsStep.classList.toggle('is-current',!!reg);
   guestChoice.querySelectorAll('button').forEach(button=>{const selected=guestAnswer!==undefined&&((button.dataset.guestChoice==='yes')===guestAnswer);button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
-  if(guest){guest.hidden=guestAnswer!==true;if(guestAnswer!==true)guest.open=false;}
-  guestContinue.hidden=guestAnswer!==true;
-  const thirdBox=E('publicThirdHalfRegistration'),thirdEnabled=!!reg&&guestsDone&&thirdBox&&!thirdBox.classList.contains('hidden');thirdHalfStep.hidden=!thirdEnabled;
+  registeredActions.hidden=!!action;guestChoice.hidden=action!=='guests';
+  if(guest){guest.hidden=action!=='guests'||guestAnswer!==true;if(action!=='guests'||guestAnswer!==true)guest.open=false;}
+  guestContinue.hidden=action!=='guests'||guestAnswer!==true;
+  const teamDecision=E('publicTeamInvitationDecision');if(teamDecision){teamDecision.hidden=action!=='team';if(action==='team')registeredActions.append(teamDecision);}
+  const thirdBox=E('publicThirdHalfRegistration'),thirdEnabled=!!reg&&action==='cooler'&&thirdBox&&!thirdBox.classList.contains('hidden');thirdHalfStep.hidden=!thirdEnabled;
   thirdHalfStep.classList.toggle('is-current',thirdEnabled&&guestsDone);playerPanel.hidden=!pid;
   [identityStep,attendanceStep,guestsStep].forEach(step=>{const edit=step.querySelector('.sp-step-edit');edit.hidden=!step.classList.contains('is-complete');});
  }
