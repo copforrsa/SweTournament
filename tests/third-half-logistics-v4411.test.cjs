@@ -83,3 +83,16 @@ test('players always see the planned cooler organization',()=>{
   assert.match(app,/Gestion hors plateforme/);
   assert.doesNotMatch(app,/Voir l’organisation prévue/);
 });
+
+test('the group can see announced donations and the visible pool',()=>{
+  const publicContributions=fs.readFileSync(path.join(root,'supabase/migrations/20260916170000_third_half_public_contributions_v4427.sql'),'utf8');
+  assert.match(app,/get_public_third_half_contributions_v1/);
+  assert.match(app,/CAGNOTTE ANNONCÉE/);
+  assert.match(app,/Ce que le groupe apporte/);
+  assert.match(app,/beers_3.*3 bières/);
+  assert.match(app,/ti_punch.*Du ti-punch/);
+  assert.match(app,/amuse-gueules/);
+  assert.match(publicContributions,/money_pool_cents/);
+  assert.match(publicContributions,/beers_3/);
+  assert.match(publicContributions,/ti_punch/);
+});
