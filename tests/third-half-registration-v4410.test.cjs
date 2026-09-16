@@ -37,6 +37,9 @@ test('only the cooler owner needs an account to manage while everyone may contri
   assert.doesNotMatch(flow,/else if\(!reg\)/);
   assert.match(flow,/Aucun compte SWÉ ni aucune adhésion au groupe n’est nécessaire pour participer/);
   assert.match(flow,/Le compte SWÉ est demandé uniquement au responsable/);
+  assert.match(flow,/id="publicCoolerContributorSelect"/);
+  assert.match(flow,/Les invités inscrits au tournoi sont inclus/);
+  assert.match(flow,/id="publicCoolerPayLink"[\s\S]*contributorSelected\?'':'hidden'/);
 });
 
 test('only the selected linked player can configure a fixed HTTPS payment link',()=>{

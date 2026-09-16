@@ -5490,7 +5490,8 @@ async function loadPublicPage(token,bootState){
         const lockedMessage=linkState==='pending'?'<div class="third-half-link-pending"><b>⏳ Rattachement en attente</b><span>L’organisateur doit confirmer que ce profil t’appartient. Dès validation, recharge cette page pour configurer la glacière.</span></div>':linkState==='error'?'<div class="third-half-link-pending error"><b>Rattachement à vérifier</b><span>Connecte-toi puis demande à l’organisateur de confirmer ton profil joueur.</span></div>':'';
         action='<div class="third-half-owner-locked"><b>'+esc(ownerName)+', tu es responsable de la glacière.</b><p>Crée gratuitement ton compte joueur ou connecte-toi pour indiquer ta participation, répartir les missions et ajouter ton lien de paiement. Le compte SWÉ est demandé uniquement au responsable ; les autres participants n’en ont pas besoin.</p>'+lockedMessage+'<div class="third-half-account-actions"><a href="'+esc(APP_URL+'?'+signup.toString())+'">Créer mon compte gratuitement →</a><a class="secondary" href="'+esc(APP_URL+'?'+login.toString())+'">J’ai déjà un compte</a></div><small>Tu ne peux pas assurer cette mission ? Préviens l’organisateur afin qu’il désigne un autre inscrit.</small></div>'+logistics;
       }else if(state.payment_link_ready&&state.payment_link){
-        action=logistics+'<a class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Aucun compte SWÉ ni aucune adhésion au groupe n’est nécessaire pour participer. Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
+        const contributorSelected=players.some(p=>String(p.player_id)===String(pid));
+        action=logistics+'<div class="third-half-contributor"><label><b>Qui participe à la glacière ?</b><select id="publicCoolerContributorSelect"><option value="">Choisis ton nom</option>'+playerOptions(contributorSelected?pid:'')+'</select></label><div id="publicCoolerContributorHelp" class="muted">Sélectionne ton nom pour ouvrir le lien de participation. Les invités inscrits au tournoi sont inclus.</div></div><a id="publicCoolerPayLink" class="third-half-pay-button '+(contributorSelected?'':'hidden')+'" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Aucun compte SWÉ ni aucune adhésion au groupe n’est nécessaire pour participer. Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
       }else{
         action=logistics+'<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
       }
@@ -5501,6 +5502,13 @@ async function loadPublicPage(token,bootState){
       const mode=$('#publicCoolerContributionMode');
       const toggleContribution=()=>{const supplies=mode?.value==='supplies';$('#publicCoolerContributionMoney')?.classList.toggle('hidden',supplies);$('#publicCoolerContributionSupplies')?.classList.toggle('hidden',!supplies);};
       if(mode){mode.onchange=toggleContribution;toggleContribution();}
+      const contributor=$('#publicCoolerContributorSelect');
+      if(contributor)contributor.onchange=()=>{
+        const selected=players.some(p=>String(p.player_id)===String(contributor.value));
+        $('#publicCoolerPayLink')?.classList.toggle('hidden',!selected);
+        const help=$('#publicCoolerContributorHelp');
+        if(help)help.textContent=selected?'Ton nom est sélectionné. Tu peux participer sans créer de compte.':'Sélectionne ton nom pour ouvrir le lien de participation. Les invités inscrits au tournoi sont inclus.';
+      };
       const savePlan=$('#publicSaveCoolerPlan');if(savePlan)savePlan.onclick=async()=>{
         const contributionMode=$('#publicCoolerContributionMode')?.value||'';
         const contributionAmount=Number($('#publicCoolerContributionAmount')?.value||0);
