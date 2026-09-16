@@ -44,3 +44,17 @@ test('only the linked responsible account may save the logistics plan',()=>{
   assert.match(sql,/revoke all on function public\.save_my_third_half_plan_v1[\s\S]*from public, anon, authenticated/);
   assert.match(sql,/grant execute on function public\.save_my_third_half_plan_v1[\s\S]*to authenticated/);
 });
+
+test('admin assigns cooler and ice to members or non-members while payment requires registration',()=>{
+  const migration=fs.readFileSync(path.join(root,'supabase/migrations/20260916150000_admin_third_half_assignments_v4422.sql'),'utf8');
+  assert.match(app,/admin_get_third_half_assignments_v1/);
+  assert.match(app,/admin_save_third_half_assignments_v1/);
+  assert.match(app,/Responsable de la glacière/);
+  assert.match(app,/Responsable des glaçons/);
+  assert.match(app,/Non-membre/);
+  assert.match(app,/gérera la glacière hors plateforme/);
+  assert.match(migration,/p\.workspace_id = v_workspace and p\.active = true/);
+  assert.match(migration,/responsible_registered/);
+  assert.match(migration,/payment_link = case when v_responsible_changed or not v_registered then null/);
+  assert.match(migration,/'can_manage',[\s\S]*owner_tp\.present = true/);
+});
