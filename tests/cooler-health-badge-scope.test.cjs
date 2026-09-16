@@ -6,8 +6,10 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const sources=['player-experience-v4349.js','player-experience-v4340.js','player-health-badge-fix-v4358.js']
   .map(file=>fs.readFileSync(path.join(root,file),'utf8'));
+const loader=fs.readFileSync(path.join(root,'hotfix-v4244.js'),'utf8');
 
 test('health badges never appear in the cooler assignment panel',()=>{
   for(const source of sources)assert.match(source,/\.tournament-cooler-assignments/);
   assert.match(sources[2],/closest\('\.tournament-cooler-assignments'\).*remove\(\)/);
+  assert.match(loader,/4424-cooler-health-scope/);
 });
