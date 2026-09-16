@@ -5445,6 +5445,8 @@ async function loadPublicPage(token,bootState){
     let publicThirdHalfState=null;
     let publicThirdHalfLoadedAt=0;
     let publicThirdHalfPaymentDraft=null;
+    let publicThirdHalfPreference={playerId:null,data:null,loading:false};
+    let publicThirdHalfPreferenceSeq=0;
 
     function setPublicCoolerPaymentStatus(message,tone='error'){
       if(publicThirdHalfPaymentDraft){
@@ -5468,6 +5470,7 @@ async function loadPublicPage(token,bootState){
       const state=publicThirdHalfState;
       if(!publicThirdHalf||!regTour.third_half_active||!state?.enabled){box.className='hidden';box.innerHTML='';return;}
       const pid=$('#publicPlayerSelect')?.value||'';
+      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
       const amount=Math.max(0,Math.min(500,Number(state.suggested_amount_cents||0)));
       const owner=String(pid)===String(state.responsible_player_id||'');
       const ownerName=state.responsible_player_name||'À désigner';
@@ -5506,11 +5509,22 @@ async function loadPublicPage(token,bootState){
         const linkState=new URLSearchParams(location.search).get('coolerLink');
         const lockedMessage=linkState==='pending'?'<div class="third-half-link-pending"><b>⏳ Rattachement en attente</b><span>L’organisateur doit confirmer que ce profil t’appartient. Dès validation, recharge cette page pour configurer la glacière.</span></div>':linkState==='error'?'<div class="third-half-link-pending error"><b>Rattachement à vérifier</b><span>Connecte-toi puis demande à l’organisateur de confirmer ton profil joueur.</span></div>':'';
         action='<div class="third-half-owner-locked"><b>'+esc(ownerName)+', tu es responsable de la glacière.</b><p>Crée gratuitement ton compte joueur ou connecte-toi pour indiquer ta participation, répartir les missions et ajouter ton lien de paiement. Le compte SWÉ est demandé uniquement au responsable ; les autres participants n’en ont pas besoin.</p>'+lockedMessage+'<div class="third-half-account-actions"><a href="'+esc(APP_URL+'?'+signup.toString())+'">Créer mon compte gratuitement →</a><a class="secondary" href="'+esc(APP_URL+'?'+login.toString())+'">J’ai déjà un compte</a></div><small>Tu ne peux pas assurer cette mission ? Préviens l’organisateur afin qu’il désigne un autre inscrit.</small></div>'+logistics;
-      }else if(state.payment_link_ready&&state.payment_link){
-        const contributorSelected=players.some(p=>String(p.player_id)===String(pid));
-        action=logistics+'<div class="third-half-contributor"><label><b>Qui participe à la glacière ?</b><select id="publicCoolerContributorSelect"><option value="">Choisis ton nom</option>'+playerOptions(contributorSelected?pid:'')+'</select></label><div id="publicCoolerContributorHelp" class="muted">Sélectionne ton nom pour ouvrir le lien de participation. Les invités inscrits au tournoi sont inclus.</div></div><a id="publicCoolerPayLink" class="third-half-pay-button '+(contributorSelected?'':'hidden')+'" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Aucun compte SWÉ ni aucune adhésion au groupe n’est nécessaire pour participer. Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
       }else{
-        action=logistics+'<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
+        const preference=publicThirdHalfPreference.playerId===pid?publicThirdHalfPreference:null;
+        if(!pid){
+          action='<div class="third-half-pending">Sélectionne d’abord ton nom dans l’inscription.</div>';
+        }else if(!reg){
+          action='<div class="third-half-pending">Confirme d’abord ta présence au Swé pour répondre à la 3e mi-temps.</div>';
+        }else if(!preference||preference.loading){
+          action='<div class="third-half-pending">Chargement de ta réponse…</div>';
+        }else{
+          const pref=preference.data||{},participating=pref.participating===true,declined=pref.participating===false;
+          const contributionMode=pref.contribution_mode||'money';
+          const contributionAmount=Math.max(50,Math.min(500,Number(pref.contribution_amount_cents||amount||300)));
+          const contributionItem=pref.contribution_item||'soft_drinks';
+          const contributionFields='<div id="publicThirdHalfContributionFields" class="third-half-contribution-fields '+(participating?'':'hidden')+'"><div class="third-half-choice-grid"><label class="third-half-choice-card"><input type="radio" name="publicThirdHalfContributionMode" value="money" '+(contributionMode==='money'?'checked':'')+'><span><b>Participation financière</b><small>Versée directement à '+esc(ownerName)+'</small></span></label><label class="third-half-choice-card"><input type="radio" name="publicThirdHalfContributionMode" value="supplies" '+(contributionMode==='supplies'?'checked':'')+'><span><b>J’apporte quelque chose</b><small>Choisis un besoin concret du groupe</small></span></label></div><label id="publicThirdHalfMoneyField" class="third-half-field '+(contributionMode==='supplies'?'hidden':'')+'"><span>Montant</span><select id="publicThirdHalfContributionAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(contributionAmount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label><label id="publicThirdHalfSuppliesField" class="third-half-field '+(contributionMode==='supplies'?'':'hidden')+'"><span>Ce que tu apportes</span><select id="publicThirdHalfContributionItem">'+[['cooler','Une glacière'],['ice','Des glaçons'],['beers_12','Au moins 12 bières'],['soft_drinks','Des boissons sans alcool'],['snacks','Des snacks / de l’apéritif'],['other','Un autre apport']].map(([v,l])=>'<option value="'+v+'" '+(contributionItem===v?'selected':'')+'>'+l+'</option>').join('')+'</select></label>'+(state.payment_link_ready&&state.payment_link&&contributionMode==='money'?'<a id="publicCoolerPayLink" class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Ouvrir le lien '+esc(state.provider||'de paiement')+' • '+euroCents(contributionAmount)+'</a>':'')+'</div>';
+          action='<div class="third-half-response"><div class="third-half-response-title"><span class="third-half-response-number">4</span><div><b>Participeras-tu à la 3e mi-temps ?</b><small>Aucun compte SWÉ n’est nécessaire pour répondre.</small></div></div><div class="third-half-answer-buttons"><button id="publicThirdHalfYes" type="button" class="'+(participating?'selected':'')+'">✓ Oui, je participe</button><button id="publicThirdHalfNo" type="button" class="'+(declined?'selected':'')+'">Non, pas cette fois</button></div>'+contributionFields+'<div id="publicThirdHalfPreferenceStatus" class="third-half-payment-status hidden" role="status" aria-live="polite"></div><button id="publicSaveThirdHalfPreference" type="button" class="primary third-half-save-answer" '+(!participating&&!declined?'disabled':'')+'>'+(pref.updated_at?'Mettre à jour ma réponse':'Enregistrer ma réponse')+'</button></div><details class="third-half-logistics-disclosure"><summary>Voir l’organisation prévue</summary>'+logistics+'</details>';
+        }
       }
       box.className='third-half-registration';
       const thirdHalfHtml='<div class="third-half-registration-head"><div class="third-half-head-main"><div class="third-half-head-icon" aria-hidden="true">🧊</div><div class="third-half-head-copy"><span>ORGANISATION • 3E MI-TEMPS</span><h3>La glacière du match</h3><p>Boissons, glaçons et missions : tout est organisé ici.</p></div></div><div class="third-half-owner"><small>Responsable désigné</small><div><span class="third-half-owner-avatar" aria-hidden="true">'+esc(ownerInitial)+'</span><b>'+esc(ownerName)+'</b></div></div></div>'+publicThirdHalfPackagesHtml(state)+action;
@@ -5519,12 +5533,31 @@ async function loadPublicPage(token,bootState){
       const mode=$('#publicCoolerContributionMode');
       const toggleContribution=()=>{const supplies=mode?.value==='supplies';$('#publicCoolerContributionMoney')?.classList.toggle('hidden',supplies);$('#publicCoolerContributionSupplies')?.classList.toggle('hidden',!supplies);};
       if(mode){mode.onchange=toggleContribution;toggleContribution();}
-      const contributor=$('#publicCoolerContributorSelect');
-      if(contributor)contributor.onchange=()=>{
-        const selected=players.some(p=>String(p.player_id)===String(contributor.value));
-        $('#publicCoolerPayLink')?.classList.toggle('hidden',!selected);
-        const help=$('#publicCoolerContributorHelp');
-        if(help)help.textContent=selected?'Ton nom est sélectionné. Tu peux participer sans créer de compte.':'Sélectionne ton nom pour ouvrir le lien de participation. Les invités inscrits au tournoi sont inclus.';
+      const setPreferenceAnswer=participating=>{
+        if(publicThirdHalfPreference.playerId!==pid)return;
+        publicThirdHalfPreference.data={...(publicThirdHalfPreference.data||{}),participating};
+        renderPublicThirdHalfRegistration();
+      };
+      if($('#publicThirdHalfYes'))$('#publicThirdHalfYes').onclick=()=>setPreferenceAnswer(true);
+      if($('#publicThirdHalfNo'))$('#publicThirdHalfNo').onclick=()=>setPreferenceAnswer(false);
+      document.querySelectorAll('input[name="publicThirdHalfContributionMode"]').forEach(input=>input.onchange=()=>{
+        const supplies=input.value==='supplies';
+        $('#publicThirdHalfMoneyField')?.classList.toggle('hidden',supplies);
+        $('#publicThirdHalfSuppliesField')?.classList.toggle('hidden',!supplies);
+        $('#publicCoolerPayLink')?.classList.toggle('hidden',supplies);
+      });
+      const savePreference=$('#publicSaveThirdHalfPreference');if(savePreference)savePreference.onclick=async()=>{
+        const participating=publicThirdHalfPreference.data?.participating;
+        const contributionMode=participating?(document.querySelector('input[name="publicThirdHalfContributionMode"]:checked')?.value||'money'):null;
+        const contributionAmount=participating&&contributionMode==='money'?Number($('#publicThirdHalfContributionAmount')?.value||0):0;
+        const contributionItem=participating&&contributionMode==='supplies'?($('#publicThirdHalfContributionItem')?.value||''):null;
+        const status=$('#publicThirdHalfPreferenceStatus');
+        savePreference.disabled=true;savePreference.textContent='Enregistrement…';
+        if(status){status.className='third-half-payment-status pending';status.textContent='Enregistrement de ta réponse…';}
+        const {data,error}=await sb.rpc('save_public_third_half_participation_v1',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_participating:participating,p_contribution_mode:contributionMode,p_contribution_amount_cents:contributionAmount,p_contribution_item:contributionItem});
+        if(error||data?.saved!==true){savePreference.disabled=false;savePreference.textContent='Réessayer';if(status){status.className='third-half-payment-status error';status.textContent=error?.message||'Ta réponse n’a pas pu être enregistrée.';}return;}
+        publicThirdHalfPreference={playerId:pid,data:{...data,updated_at:new Date().toISOString()},loading:false};
+        renderPublicThirdHalfRegistration();toast('Participation à la 3e mi-temps enregistrée ✅');
       };
       const savePlan=$('#publicSaveCoolerPlan');if(savePlan)savePlan.onclick=async()=>{
         const contributionMode=$('#publicCoolerContributionMode')?.value||'';
@@ -5571,6 +5604,7 @@ async function loadPublicPage(token,bootState){
         renderPublicThirdHalfRegistration();
         await loadPublicThirdHalfRegistration(true);
       };
+      registrationPresentation?.updateFlow?.();
     }
 
     async function loadPublicThirdHalfRegistration(force=false){
@@ -5579,6 +5613,17 @@ async function loadPublicPage(token,bootState){
       const {data,error}=await sb.rpc('get_public_third_half_registration_v2',{p_token:token,p_tournament_id:regTour.id});
       if(!error&&data){publicThirdHalfState=data;publicThirdHalfLoadedAt=Date.now();}
       renderPublicThirdHalfRegistration();
+    }
+
+    async function loadPublicThirdHalfPreference(force=false){
+      const pid=$('#publicPlayerSelect')?.value||'',seq=++publicThirdHalfPreferenceSeq;
+      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
+      if(!pid||!reg||!publicThirdHalf||!regTour.third_half_active){publicThirdHalfPreference={playerId:pid||null,data:null,loading:false};renderPublicThirdHalfRegistration();return;}
+      if(!force&&publicThirdHalfPreference.playerId===pid&&publicThirdHalfPreference.data){renderPublicThirdHalfRegistration();return;}
+      publicThirdHalfPreference={playerId:pid,data:null,loading:true};renderPublicThirdHalfRegistration();
+      const {data,error}=await sb.rpc('get_public_third_half_participation_v1',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid});
+      if(seq!==publicThirdHalfPreferenceSeq||$('#publicPlayerSelect')?.value!==pid)return;
+      publicThirdHalfPreference={playerId:pid,data:error?{}:(data||{}),loading:false};renderPublicThirdHalfRegistration();
     }
 
     function publicGuestUsage(hostId){
@@ -5593,7 +5638,8 @@ async function loadPublicPage(token,bootState){
       const sel=$('#publicPlayerSelect');
       if(!sel)return;
       const previous=sel.value;
-      const members=players.filter(x=>x.active&&x.is_group_member!==false).sort((a,b)=>a.name.localeCompare(b.name));
+      const registeredIds=new Set(registrations.filter(r=>r.tournament_id===regTour.id&&r.present&&r.registration_status!=='cancelled').map(r=>String(r.player_id)));
+      const members=players.filter(x=>x.active&&(x.is_group_member!==false||registeredIds.has(String(x.id)))).sort((a,b)=>a.name.localeCompare(b.name));
       const signature=JSON.stringify(members.map(x=>[x.id,x.name]));
       if(sel.dataset.memberSignature===signature||document.activeElement===sel)return;
       sel.dataset.memberSignature=signature;
@@ -5814,12 +5860,13 @@ async function loadPublicPage(token,bootState){
       };
     }
     refreshPublicPlayerSelect();
-    $('#publicPlayerSelect').onchange=()=>{updateSelectedRegistrationStatus();renderTeamInvitationDecision();renderPublicPaymentBox();renderPublicThirdHalfRegistration();};
+    $('#publicPlayerSelect').onchange=()=>{updateSelectedRegistrationStatus();renderTeamInvitationDecision();renderPublicPaymentBox();loadPublicThirdHalfPreference();};
     const payPlayerFromUrl=publicParams.get('pay_player');
     if(payPlayerFromUrl&&[...$('#publicPlayerSelect').options].some(o=>o.value===payPlayerFromUrl))$('#publicPlayerSelect').value=payPlayerFromUrl;
     updateSelectedRegistrationStatus();
     renderTeamInvitationDecision();
     loadPublicThirdHalfRegistration(true);
+    loadPublicThirdHalfPreference();
     const stripeReturn=publicParams.get('stripe');
     const stripeSessionId=publicParams.get('session_id');
     if(stripeReturn==='success'&&payPlayerFromUrl){
@@ -5888,6 +5935,7 @@ async function loadPublicPage(token,bootState){
         renderTeamInvitationDecision();
         renderPublicPaymentBox({backgroundRefresh:true});
         loadPublicThirdHalfRegistration();
+        loadPublicThirdHalfPreference();
         // Ne pas reconstruire le formulaire équipe pendant que l’utilisateur le remplit.
         // Le rafraîchissement automatique de 8 s reste actif pour les données, mais ne reset plus l'inscription équipe.
         if(typeof renderPublicTeamBuilder==='function'&&!window.__swePublicTeamEditing)renderPublicTeamBuilder();

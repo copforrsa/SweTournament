@@ -12,7 +12,7 @@ test('the registration page owns the cooler contribution flow',()=>{
   assert.match(app,/id="publicThirdHalfRegistration"/);
   assert.match(app,/get_public_third_half_registration_v2/);
   assert.match(app,/save_my_third_half_payment_link_v1/);
-  assert.match(app,/Participer à la glacière/);
+  assert.match(app,/Participeras-tu à la 3e mi-temps/);
   assert.match(app,/Math\.min\(500/);
   assert.match(html,/tourCoolerSuggested" type="number" min="0" max="5"/);
 });
@@ -32,14 +32,12 @@ test('only the cooler owner needs an account to manage while everyone may contri
   const flow=app.split("let action='';")[1].split("box.className='third-half-registration'")[0];
   assert.match(flow,/owner&&state\.can_manage/);
   assert.match(flow,/owner&&!state\.can_manage/);
-  assert.match(flow,/state\.payment_link_ready&&state\.payment_link/);
-  assert.doesNotMatch(flow,/else if\(!pid\)/);
-  assert.doesNotMatch(flow,/else if\(!reg\)/);
-  assert.match(flow,/Aucun compte SWÉ ni aucune adhésion au groupe n’est nécessaire pour participer/);
+  assert.match(app,/save_public_third_half_participation_v1/);
+  assert.match(flow,/Aucun compte SWÉ n’est nécessaire pour répondre/);
   assert.match(flow,/Le compte SWÉ est demandé uniquement au responsable/);
-  assert.match(flow,/id="publicCoolerContributorSelect"/);
-  assert.match(flow,/Les invités inscrits au tournoi sont inclus/);
-  assert.match(flow,/id="publicCoolerPayLink"[\s\S]*contributorSelected\?'':'hidden'/);
+  assert.match(flow,/id="publicThirdHalfYes"/);
+  assert.match(flow,/J’apporte quelque chose/);
+  assert.doesNotMatch(flow,/id="publicCoolerContributorSelect"/);
 });
 
 test('only the selected linked player can configure a fixed HTTPS payment link',()=>{

@@ -24,7 +24,7 @@ function mount(ctx){
  soloButton.removeAttribute('style');teamButton.removeAttribute('style');entry.replaceChildren(soloButton,teamButton);
  ['publicRegistrationCard','publicTeamBuilderCard'].forEach(id=>{const card=E(id);card?.classList.add('sp-card');const title=card?.querySelector('h2');if(title)title.textContent=id==='publicRegistrationCard'?'À toi de jouer.':'Ton équipe, ton groupe.';});
  const select=E('publicPlayerSelect');
- if(select){let node=E('publicRegistration').firstElementChild;while(node&&node!==select){node.classList.add('sp-legacy-intro');node=node.nextElementSibling}const label=document.createElement('label');label.htmlFor=select.id;label.className='sp-name-label';label.textContent='Ton nom';select.before(label);const lock=document.createElement('div');lock.id='registrationSelectionLock';lock.className='sp-selection-lock';lock.hidden=true;select.after(lock);select.addEventListener('change',()=>{updateMissions();loadSelectedRating();});}
+ if(select){let node=E('publicRegistration').firstElementChild;while(node&&node!==select){node.classList.add('sp-legacy-intro');node=node.nextElementSibling}const label=document.createElement('label');label.htmlFor=select.id;label.className='sp-name-label';label.textContent='Ton nom';select.before(label);const lock=document.createElement('div');lock.id='registrationSelectionLock';lock.className='sp-selection-lock';lock.hidden=true;select.after(lock);select.addEventListener('change',()=>{updateMissions();loadSelectedRating();queueMicrotask(updateFlow);});}
  const guest=E('publicGuestFields');if(guest){const preceding=guest.previousElementSibling;if(preceding?.textContent.includes('Tu ne participes pas mais'))guest.append(preceding);}
  const status=E('publicRegStatus');if(status){status.textContent='';status.setAttribute('role','status');status.classList.add('sp-feedback');}
  const people=E('registrationPeople'),list=E('publicRegisteredList');if(list){if(list.previousElementSibling?.tagName==='H3')list.previousElementSibling.remove();people.append(list)}if(E('publicWaitWrap'))people.append(E('publicWaitWrap'));
@@ -37,10 +37,38 @@ function mount(ctx){
  E('publicSeasonTopPlayers')?.closest('.card')?.classList.add('hidden');
  root.querySelectorAll(':scope > .grid').forEach(el=>{if(!el.querySelector('.card:not(.hidden)'))el.classList.add('hidden')});
  const donor=E('publicThirdHalfDonorCard');if(donor)body.querySelector('.sp-main').append(donor);
- const mission=document.createElement('section');mission.id='registrationMissions';mission.className='sp-missions';mission.hidden=true;E('publicSelectedStatus')?.after(mission);
- const playerPanel=document.createElement('section');playerPanel.id='registrationPlayerStats';playerPanel.className='sp-player-stats';playerPanel.hidden=true;E('publicSelectedStatus')?.after(playerPanel);
- const participationActions=E('publicParticipationActions');
- if(participationActions&&E('publicSelectedStatus')){E('publicSelectedStatus').after(participationActions);participationActions.after(playerPanel);playerPanel.after(mission);}
+ const registration=E('publicRegistration'),mission=document.createElement('section');mission.id='registrationMissions';mission.className='sp-missions';mission.hidden=true;
+ const playerPanel=document.createElement('section');playerPanel.id='registrationPlayerStats';playerPanel.className='sp-player-stats';playerPanel.hidden=true;
+ const flow=document.createElement('div');flow.id='registrationFlow';flow.className='sp-registration-flow';
+ const makeStep=(id,number,title,description)=>{const section=document.createElement('section');section.id=id;section.className='sp-flow-step';section.innerHTML='<header><span>'+number+'</span><div><h3>'+title+'</h3><p>'+description+'</p></div></header><div class="sp-flow-content"></div>';return section;};
+ const identityStep=makeStep('registrationIdentityStep','1','Qui es-tu ?','Sélectionne ton nom dans la liste du groupe.');
+ const attendanceStep=makeStep('registrationAttendanceStep','2','Participes-tu au tournoi ?','Confirme ta présence en un geste.');
+ const guestsStep=makeStep('registrationGuestsStep','3','Viens-tu avec des invités ?','Ajoute-les maintenant pour réserver leur place.');
+ const thirdHalfStep=makeStep('registrationThirdHalfStep','4','La 3e mi-temps','Dis si tu restes et choisis ta participation.');
+ const statsStep=makeStep('registrationStatsStep','5','Tes notes et statistiques','Retrouve ton profil joueur après ton inscription.');
+ const identityContent=identityStep.querySelector('.sp-flow-content'),selectedStatus=E('publicSelectedStatus'),selectionHint=selectedStatus?.nextElementSibling;
+ [registration?.querySelector('.sp-name-label'),select,E('registrationSelectionLock'),selectedStatus,selectionHint?.classList.contains('muted')?selectionHint:null,E('publicTeamInvitationDecision')].filter(Boolean).forEach(el=>identityContent.append(el));
+ [E('publicParticipationActions'),E('publicPaymentBox'),E('publicRegStatus')].filter(Boolean).forEach(el=>attendanceStep.querySelector('.sp-flow-content').append(el));
+ const guestChoice=document.createElement('div');guestChoice.id='registrationGuestChoice';guestChoice.className='sp-binary-choice';guestChoice.innerHTML='<button type="button" data-guest-choice="yes">Oui, j’ai des invités</button><button type="button" data-guest-choice="no">Non, je viens seul</button>';
+ guestsStep.querySelector('.sp-flow-content').append(guestChoice);if(guest)guestsStep.querySelector('.sp-flow-content').append(guest);
+ if(E('publicThirdHalfRegistration'))thirdHalfStep.querySelector('.sp-flow-content').append(E('publicThirdHalfRegistration'));
+ statsStep.querySelector('.sp-flow-content').append(playerPanel);
+ flow.append(identityStep,attendanceStep,guestsStep,thirdHalfStep,statsStep);registration?.append(flow,mission);
+ const guestChoices=new Map();
+ guestChoice.addEventListener('click',event=>{const button=event.target.closest('[data-guest-choice]'),pid=select?.value;if(!button||!pid)return;const yes=button.dataset.guestChoice==='yes';guestChoices.set(pid,yes);if(guest){guest.open=yes;if(yes)setTimeout(()=>E('publicGuestName')?.focus(),40);}updateFlow();});
+ function updateFlow(){
+  const d=ctx.data(),pid=select?.value||'',reg=d.registrations.find(r=>r.tournament_id===d.tournament.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
+  const usedGuests=pid?d.registrations.some(r=>r.tournament_id===d.tournament.id&&String(r.registered_by_player_id||'')===String(pid)):false;
+  if(usedGuests&&!guestChoices.has(pid))guestChoices.set(pid,true);
+  const guestAnswer=guestChoices.get(pid);
+  identityStep.classList.toggle('is-complete',!!pid);identityStep.classList.toggle('is-current',!pid);
+  attendanceStep.hidden=!pid;attendanceStep.classList.toggle('is-complete',!!reg);attendanceStep.classList.toggle('is-current',!!pid&&!reg);
+  guestsStep.hidden=!reg;guestsStep.classList.toggle('is-complete',guestAnswer!==undefined);guestsStep.classList.toggle('is-current',!!reg&&guestAnswer===undefined);
+  guestChoice.querySelectorAll('button').forEach(button=>{const selected=guestAnswer!==undefined&&((button.dataset.guestChoice==='yes')===guestAnswer);button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
+  if(guest){guest.hidden=guestAnswer!==true;if(guestAnswer!==true)guest.open=false;}
+  const thirdBox=E('publicThirdHalfRegistration'),thirdEnabled=!!reg&&thirdBox&&!thirdBox.classList.contains('hidden');thirdHalfStep.hidden=!thirdEnabled;
+  statsStep.hidden=!pid;statsStep.classList.toggle('is-current',!!pid);playerPanel.hidden=!pid;
+ }
  let ratingResult=null,ratingPlayer=null,ratingState='',ratingSequence=0;
  async function loadSelectedRating(){
   const pid=select?.value,sequence=++ratingSequence;ratingResult=null;ratingPlayer=pid;ratingState=pid?'loading':'';updatePlayerStats();
@@ -90,7 +118,7 @@ function mount(ctx){
   const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
   const co=d.isCoorganizer===true||(d.coorganizers||[]).includes(pid);const items=[];
   const organizerUrl=(()=>{try{const u=new URL(ctx.appUrl,location.href);if(t.workspace_id)u.searchParams.set('workspace',t.workspace_id);u.searchParams.set('start','home');return u.toString()}catch(_){return ctx.appUrl}})();
-  if(!co){mission.hidden=false;setHtml(mission,'<div class="sp-eyebrow">ÉQUIPE D’ORGANISATION</div><h3>Tu es co-gestionnaire ?</h3><p>Connecte-toi avec ton compte co-gestionnaire pour retrouver les consignes qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Me connecter à mon espace →</a>');return;}
+  if(!co){mission.hidden=false;setHtml(mission,'<details class="sp-coorg-instructions"><summary>Accès co-gestionnaire</summary><div class="sp-coorg-instructions-body"><p>Connecte-toi pour retrouver les consignes d’organisation qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace →</a></div></details>');return;}
   if(co){
    if(String(d.personalInstruction||'').trim())items.push('Consigne personnalisée : '+String(d.personalInstruction).trim());
    if(b.observe===true&&t.status!=='finished')items.push('Surveillez les nouveaux joueurs pour leur donner une note.');
@@ -99,7 +127,7 @@ function mount(ctx){
   }
   if(!items.length)items.push('Aucune consigne spécifique pour le moment. Consulte ton espace organisateur pour retrouver tes actions disponibles.');
   mission.hidden=false;
-  const storageKey='swe-coorg-instructions-'+t.id;let open=true;try{open=localStorage.getItem(storageKey)!=='closed'}catch(_){}
+  const storageKey='swe-coorg-instructions-'+t.id;let open=false;try{open=localStorage.getItem(storageKey)==='open'}catch(_){}
   setHtml(mission,'<details class="sp-coorg-instructions" '+(open?'open':'')+'><summary>📣 Tes consignes de co-gestionnaire</summary><div class="sp-coorg-instructions-body"><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace organisateur →</a></div></details>');
   const details=mission.querySelector('.sp-coorg-instructions');if(details&&!details.dataset.wired){details.dataset.wired='1';details.addEventListener('toggle',()=>{try{localStorage.setItem(storageKey,details.open?'open':'closed')}catch(_){}});}
  }
@@ -160,9 +188,9 @@ function mount(ctx){
   if(E('publicLeave'))E('publicLeave').hidden=finished;
   if(finished)E('publicPaymentBox')?.classList.add('hidden');
   const hasHistory=d.tournaments.some(x=>x.format!=='league'&&x.status==='finished'&&d.matches.some(m=>m.tournament_id===x.id));historyArea.hidden=!hasHistory;
-  updateMissions();updatePlayerStats();
+  updateMissions();updatePlayerStats();updateFlow();
  }
- const controller={update,updateMissions,setContext:next=>{ctx=next;update();}};root.__registrationPresentation=controller;
+ const controller={update,updateFlow,updateMissions,setContext:next=>{ctx=next;update();}};root.__registrationPresentation=controller;
  ctx.setEntryMode('solo');update();if(select?.value)loadSelectedRating();return controller;
 }
 function briefingEditor(container,t,context){
