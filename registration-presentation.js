@@ -56,7 +56,7 @@ function mount(ctx){
  if(E('publicThirdHalfRegistration'))thirdHalfStep.querySelector('.sp-flow-content').append(E('publicThirdHalfRegistration'));
  flow.append(identityStep,attendanceStep,guestsStep,thirdHalfStep);registration?.append(playerPanel,flow,mission);
  const guestChoices=new Map(),guestCompleted=new Map();
- guestChoice.addEventListener('click',event=>{const button=event.target.closest('[data-guest-choice]'),pid=select?.value;if(!button||!pid)return;const yes=button.dataset.guestChoice==='yes';guestChoices.set(pid,yes);guestCompleted.set(pid,!yes);guestsStep.classList.remove('is-editing');if(guest){guest.open=yes;if(yes)queueMicrotask(()=>E('publicGuestName')?.focus());}updateFlow();});
+ guestChoice.addEventListener('click',event=>{const button=event.target.closest('[data-guest-choice]'),pid=select?.value;if(!button||!pid)return;event.stopPropagation();const yes=button.dataset.guestChoice==='yes';guestChoices.set(pid,yes);guestCompleted.set(pid,!yes);guestsStep.classList.remove('is-editing');if(guest){guest.open=yes;if(yes)queueMicrotask(()=>E('publicGuestName')?.focus());}updateFlow();},true);
  guestContinue.addEventListener('click',()=>{const pid=select?.value;if(!pid)return;guestCompleted.set(pid,true);guestsStep.classList.remove('is-editing');updateFlow();});
  [identityStep,attendanceStep,guestsStep].forEach(step=>step.querySelector('.sp-step-edit').addEventListener('click',()=>{const pid=select?.value;if(!pid)return;if(step===guestsStep)guestCompleted.set(pid,false);step.classList.add('is-editing');updateFlow();}));
  function updateFlow(){
