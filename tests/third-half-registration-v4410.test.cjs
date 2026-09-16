@@ -28,6 +28,17 @@ test('the payment link draft survives refreshes and reports validation inline',(
   assert.match(app,/Lien enregistré\. Il est maintenant visible par les autres inscrits/);
 });
 
+test('only the cooler owner needs an account to manage while everyone may contribute',()=>{
+  const flow=app.split("let action='';")[1].split("box.className='third-half-registration'")[0];
+  assert.match(flow,/owner&&state\.can_manage/);
+  assert.match(flow,/owner&&!state\.can_manage/);
+  assert.match(flow,/state\.payment_link_ready&&state\.payment_link/);
+  assert.doesNotMatch(flow,/else if\(!pid\)/);
+  assert.doesNotMatch(flow,/else if\(!reg\)/);
+  assert.match(flow,/Aucun compte SWÉ ni aucune adhésion au groupe n’est nécessaire pour participer/);
+  assert.match(flow,/Le compte SWÉ est demandé uniquement au responsable/);
+});
+
 test('only the selected linked player can configure a fixed HTTPS payment link',()=>{
   assert.match(sql,/responsible_player_id uuid references public\.players/);
   assert.match(sql,/gp\.user_id = auth\.uid\(\)/);

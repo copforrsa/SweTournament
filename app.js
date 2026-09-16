@@ -5452,7 +5452,6 @@ async function loadPublicPage(token,bootState){
       const state=publicThirdHalfState;
       if(!publicThirdHalf||!regTour.third_half_active||!state?.enabled){box.className='hidden';box.innerHTML='';return;}
       const pid=$('#publicPlayerSelect')?.value||'';
-      const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present);
       const amount=Math.max(0,Math.min(500,Number(state.suggested_amount_cents||0)));
       const owner=String(pid)===String(state.responsible_player_id||'');
       const ownerName=state.responsible_player_name||'À désigner';
@@ -5467,10 +5466,6 @@ async function loadPublicPage(token,bootState){
       let action='';
       if(!state.responsible_player_id){
         action='<div class="third-half-pending">Le responsable de la glacière sera choisi parmi les inscrits.</div>';
-      }else if(!pid){
-        action='<div class="third-half-pending">Choisis ton nom pour afficher l’action qui te concerne.</div>';
-      }else if(!reg){
-        action='<div class="third-half-pending">Inscris-toi au Swé pour accéder à la participation glacière.</div>';
       }else if(owner&&state.can_manage){
         if(!publicThirdHalfPaymentDraft||String(publicThirdHalfPaymentDraft.playerId)!==String(pid)){
           publicThirdHalfPaymentDraft={playerId:pid,provider:state.provider||'',link:state.payment_link||'',amount:amount||300,dirty:false,saving:false,message:'',tone:'success'};
@@ -5493,9 +5488,9 @@ async function loadPublicPage(token,bootState){
         const signup=new URLSearchParams({...authBase,coolerAction:'signup'}),login=new URLSearchParams({...authBase,coolerAction:'login'});
         const linkState=new URLSearchParams(location.search).get('coolerLink');
         const lockedMessage=linkState==='pending'?'<div class="third-half-link-pending"><b>⏳ Rattachement en attente</b><span>L’organisateur doit confirmer que ce profil t’appartient. Dès validation, recharge cette page pour configurer la glacière.</span></div>':linkState==='error'?'<div class="third-half-link-pending error"><b>Rattachement à vérifier</b><span>Connecte-toi puis demande à l’organisateur de confirmer ton profil joueur.</span></div>':'';
-        action='<div class="third-half-owner-locked"><b>'+esc(ownerName)+', tu es responsable de la glacière.</b><p>Crée gratuitement ton compte joueur ou connecte-toi pour indiquer ta participation, répartir les missions et ajouter ton lien de paiement. Aucun abonnement organisateur n’est nécessaire.</p>'+lockedMessage+'<div class="third-half-account-actions"><a href="'+esc(APP_URL+'?'+signup.toString())+'">Créer mon compte gratuitement →</a><a class="secondary" href="'+esc(APP_URL+'?'+login.toString())+'">J’ai déjà un compte</a></div><small>Tu ne peux pas assurer cette mission ? Préviens l’organisateur afin qu’il désigne un autre inscrit.</small></div>'+logistics;
+        action='<div class="third-half-owner-locked"><b>'+esc(ownerName)+', tu es responsable de la glacière.</b><p>Crée gratuitement ton compte joueur ou connecte-toi pour indiquer ta participation, répartir les missions et ajouter ton lien de paiement. Le compte SWÉ est demandé uniquement au responsable ; les autres participants n’en ont pas besoin.</p>'+lockedMessage+'<div class="third-half-account-actions"><a href="'+esc(APP_URL+'?'+signup.toString())+'">Créer mon compte gratuitement →</a><a class="secondary" href="'+esc(APP_URL+'?'+login.toString())+'">J’ai déjà un compte</a></div><small>Tu ne peux pas assurer cette mission ? Préviens l’organisateur afin qu’il désigne un autre inscrit.</small></div>'+logistics;
       }else if(state.payment_link_ready&&state.payment_link){
-        action=logistics+'<a class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
+        action=logistics+'<a class="third-half-pay-button" href="'+esc(state.payment_link)+'" target="_blank" rel="noopener noreferrer">Participer à la glacière • '+euroCents(amount)+'</a><div class="muted">Aucun compte SWÉ ni aucune adhésion au groupe n’est nécessaire pour participer. Le paiement est envoyé directement à '+esc(ownerName)+' via '+esc(state.provider||'sa solution de paiement')+'. SWÉ ne conserve pas ces fonds.</div>';
       }else{
         action=logistics+'<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
       }
