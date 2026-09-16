@@ -17,6 +17,17 @@ test('the registration page owns the cooler contribution flow',()=>{
   assert.match(html,/tourCoolerSuggested" type="number" min="0" max="5"/);
 });
 
+test('the payment link draft survives refreshes and reports validation inline',()=>{
+  assert.match(app,/let publicThirdHalfPaymentDraft=null/);
+  assert.match(app,/publicThirdHalfPaymentDraft\?\.dirty/);
+  assert.match(app,/keepPaymentEditor/);
+  assert.match(app,/id="publicCoolerProvider" required/);
+  assert.match(app,/id="publicCoolerLinkStatus"/);
+  assert.match(app,/Le lien saisi est conservé/);
+  assert.match(app,/data\?\.saved!==true/);
+  assert.match(app,/Lien enregistré\. Il est maintenant visible par les autres inscrits/);
+});
+
 test('only the selected linked player can configure a fixed HTTPS payment link',()=>{
   assert.match(sql,/responsible_player_id uuid references public\.players/);
   assert.match(sql,/gp\.user_id = auth\.uid\(\)/);

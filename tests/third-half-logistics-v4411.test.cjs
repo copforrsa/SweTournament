@@ -13,7 +13,8 @@ test('public refresh avoids rebuilding unchanged registration blocks',()=>{
   assert.match(app,/setStableHtml\(box,[\s\S]*Participation/);
   assert.match(app,/setStableHtml\(list,listRows/);
   assert.match(app,/setStableHtml\(wlist,waitRows\)/);
-  assert.match(app,/setStableHtml\(box,'<div class="third-half-registration-head/);
+  assert.match(app,/const thirdHalfHtml='<div class="third-half-registration-head/);
+  assert.match(app,/setStableHtml\(box,thirdHalfHtml\)/);
 });
 
 test('cooler owner configures a contribution and delegates required logistics',()=>{

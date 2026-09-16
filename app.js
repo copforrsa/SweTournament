@@ -5428,6 +5428,18 @@ async function loadPublicPage(token,bootState){
     const PUBLIC_GUEST_LIMIT=5;
     let publicThirdHalfState=null;
     let publicThirdHalfLoadedAt=0;
+    let publicThirdHalfPaymentDraft=null;
+
+    function setPublicCoolerPaymentStatus(message,tone='error'){
+      if(publicThirdHalfPaymentDraft){
+        publicThirdHalfPaymentDraft.message=message||'';
+        publicThirdHalfPaymentDraft.tone=tone;
+      }
+      const status=$('#publicCoolerLinkStatus');
+      if(!status)return;
+      status.textContent=message||'';
+      status.className=message?'third-half-payment-status '+tone:'third-half-payment-status hidden';
+    }
 
     function publicThirdHalfPackagesHtml(state){
       const packs=Array.isArray(state?.packages)?state.packages:[];
@@ -5460,13 +5472,21 @@ async function loadPublicPage(token,bootState){
       }else if(!reg){
         action='<div class="third-half-pending">Inscris-toi au Swé pour accéder à la participation glacière.</div>';
       }else if(owner&&state.can_manage){
+        if(!publicThirdHalfPaymentDraft||String(publicThirdHalfPaymentDraft.playerId)!==String(pid)){
+          publicThirdHalfPaymentDraft={playerId:pid,provider:state.provider||'',link:state.payment_link||'',amount:amount||300,dirty:false,saving:false,message:'',tone:'success'};
+        }else if(!publicThirdHalfPaymentDraft.dirty&&!publicThirdHalfPaymentDraft.saving){
+          publicThirdHalfPaymentDraft.provider=state.provider||'';
+          publicThirdHalfPaymentDraft.link=state.payment_link||'';
+          publicThirdHalfPaymentDraft.amount=amount||300;
+        }
+        const paymentDraft=publicThirdHalfPaymentDraft;
         const contributionMode=state.responsible_contribution_mode||'money';
         const contributionAmount=Math.max(50,Math.min(500,Number(state.responsible_contribution_amount_cents||amount||300)));
         const contributionItem=state.responsible_contribution_item||'beers_12';
         action='<div class="third-half-owner-form"><div class="third-half-owner-banner"><div><span>TA MISSION</span><b>Tu coordonnes la 3e mi-temps</b></div><em>Responsable</em></div>'+logistics+
           '<div class="third-half-owner-section"><b>1. Ta participation personnelle</b><div class="muted">Choisis soit une participation financière, soit ce que tu apportes directement.</div><div class="grid g2"><label><span class="muted">Type de participation</span><select id="publicCoolerContributionMode"><option value="money" '+(contributionMode==='money'?'selected':'')+'>Participation financière</option><option value="supplies" '+(contributionMode==='supplies'?'selected':'')+'>Apport matériel</option></select></label><label id="publicCoolerContributionMoney"><span class="muted">Montant personnel</span><select id="publicCoolerContributionAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(contributionAmount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label><label id="publicCoolerContributionSupplies"><span class="muted">Ce que tu apportes</span><select id="publicCoolerContributionItem">'+[['cooler','Une glacière'],['ice','Des glaçons'],['beers_12','Au moins 12 bières'],['soft_drinks','Boissons sans alcool'],['snacks','Snacks / apéritif'],['other','Autre apport']].map(([v,l])=>'<option value="'+v+'" '+(contributionItem===v?'selected':'')+'>'+l+'</option>').join('')+'</select></label></div></div>'+
           '<div class="third-half-owner-section"><b>2. Qui apporte quoi ?</b><div class="muted">Les trois missions sont pour toi par défaut. Tu peux en confier une à un autre joueur déjà inscrit.</div><div class="third-half-delegation-grid"><label>🧊 Glacière<select id="publicCoolerTaskCooler">'+playerOptions(assigned('cooler'))+'</select></label><label>❄️ Glaçons<select id="publicCoolerTaskIce">'+playerOptions(assigned('ice'))+'</select></label><label>🍺 12 bières minimum<select id="publicCoolerTaskBeers">'+playerOptions(assigned('beers'))+'</select></label></div><button id="publicSaveCoolerPlan" class="third-half-plan-button" type="button">Enregistrer ma participation et les missions</button></div>'+
-          '<div class="third-half-owner-section third-half-payment-config"><b>3. Ton lien pour les participations du groupe</b><div class="muted">Le lien est personnel et l’argent arrive directement sur ton compte. Le montant demandé à chaque membre reste plafonné à 5 €.</div><div class="grid g2"><label><span class="muted">Solution</span><select id="publicCoolerProvider"><option value="">Choisir…</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option '+(state.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Montant demandé</span><select id="publicCoolerAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(amount===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label></div><label><span class="muted">Ton lien HTTPS</span><input id="publicCoolerLink" type="url" maxlength="500" placeholder="https://..." value="'+esc(state.payment_link||'')+'"></label><button id="publicSaveCoolerLink" class="primary" type="button">'+(state.payment_link_ready?'Mettre à jour mon lien':'Activer mon lien pour les inscrits')+'</button></div></div>';
+          '<div class="third-half-owner-section third-half-payment-config"><b>3. Ton lien pour les participations du groupe</b><div class="muted">Le lien est personnel et l’argent arrive directement sur ton compte. Le montant demandé à chaque membre reste plafonné à 5 €.</div><div class="grid g2"><label><span class="muted">Solution obligatoire</span><select id="publicCoolerProvider" required aria-describedby="publicCoolerLinkStatus"><option value="">Choisir…</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option '+(paymentDraft.provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Montant demandé</span><select id="publicCoolerAmount">'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(Number(paymentDraft.amount)===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label></div><label><span class="muted">Ton lien HTTPS</span><input id="publicCoolerLink" type="url" maxlength="500" placeholder="https://..." value="'+esc(paymentDraft.link)+'" required aria-describedby="publicCoolerLinkStatus"></label><div id="publicCoolerLinkStatus" class="third-half-payment-status '+(paymentDraft.message?esc(paymentDraft.tone):'hidden')+'" role="status" aria-live="polite">'+esc(paymentDraft.message||'')+'</div><button id="publicSaveCoolerLink" class="primary" type="button" '+(paymentDraft.saving?'disabled':'')+'>'+(paymentDraft.saving?'Enregistrement…':state.payment_link_ready?'Mettre à jour mon lien':'Activer mon lien pour les inscrits')+'</button></div></div>';
       }else if(owner&&!state.can_manage){
         const back=new URL(location.href);back.searchParams.delete('coolerLink');
         const authBase={start:'player',joinSwe:String(regTour.id),coolerOwner:ownerName,coolerReturn:back.toString()};
@@ -5480,7 +5500,9 @@ async function loadPublicPage(token,bootState){
         action=logistics+'<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
       }
       box.className='third-half-registration';
-      setStableHtml(box,'<div class="third-half-registration-head"><div><span>MODULE 3E MI-TEMPS</span><h3>🧊 La glacière du match</h3></div><div class="third-half-owner"><small>Responsable</small><b>'+esc(ownerName)+'</b></div></div>'+publicThirdHalfPackagesHtml(state)+action);
+      const thirdHalfHtml='<div class="third-half-registration-head"><div><span>MODULE 3E MI-TEMPS</span><h3>🧊 La glacière du match</h3></div><div class="third-half-owner"><small>Responsable</small><b>'+esc(ownerName)+'</b></div></div>'+publicThirdHalfPackagesHtml(state)+action;
+      const keepPaymentEditor=owner&&state.can_manage&&publicThirdHalfPaymentDraft?.dirty&&!!box.querySelector('#publicCoolerLink');
+      if(!keepPaymentEditor)setStableHtml(box,thirdHalfHtml);
       const mode=$('#publicCoolerContributionMode');
       const toggleContribution=()=>{const supplies=mode?.value==='supplies';$('#publicCoolerContributionMoney')?.classList.toggle('hidden',supplies);$('#publicCoolerContributionSupplies')?.classList.toggle('hidden',!supplies);};
       if(mode){mode.onchange=toggleContribution;toggleContribution();}
@@ -5493,13 +5515,41 @@ async function loadPublicPage(token,bootState){
         savePlan.disabled=false;if(error){savePlan.textContent='Enregistrer ma participation et les missions';return toast(error.message);}
         toast('Plan glacière enregistré ✅');await loadPublicThirdHalfRegistration(true);
       };
+      const paymentProvider=$('#publicCoolerProvider'),paymentLink=$('#publicCoolerLink'),paymentAmount=$('#publicCoolerAmount');
+      const rememberPaymentDraft=()=>{
+        if(!publicThirdHalfPaymentDraft)return;
+        publicThirdHalfPaymentDraft.provider=paymentProvider?.value||'';
+        publicThirdHalfPaymentDraft.link=paymentLink?.value||'';
+        publicThirdHalfPaymentDraft.amount=Number(paymentAmount?.value||0);
+        publicThirdHalfPaymentDraft.dirty=true;
+        setPublicCoolerPaymentStatus('');
+      };
+      if(paymentProvider)paymentProvider.onchange=rememberPaymentDraft;
+      if(paymentLink)paymentLink.oninput=rememberPaymentDraft;
+      if(paymentAmount)paymentAmount.onchange=rememberPaymentDraft;
       const save=$('#publicSaveCoolerLink');if(save)save.onclick=async()=>{
         const provider=$('#publicCoolerProvider')?.value||'',link=$('#publicCoolerLink')?.value.trim()||'',fixed=Number($('#publicCoolerAmount')?.value||0);
-        if(!provider)return toast('Choisis ta solution de paiement.');if(!/^https:\/\/\S+$/i.test(link))return toast('Ajoute un lien HTTPS valide.');if(fixed<50||fixed>500)return toast('Le montant doit rester entre 0,50 € et 5 €.');
+        rememberPaymentDraft();
+        if(!provider){setPublicCoolerPaymentStatus('Choisis d’abord ta solution de paiement. Le lien saisi est conservé.');$('#publicCoolerProvider')?.focus();return;}
+        if(!/^https:\/\/\S+$/i.test(link)){setPublicCoolerPaymentStatus('Ajoute un lien complet commençant par https://.');$('#publicCoolerLink')?.focus();return;}
+        if(fixed<50||fixed>500){setPublicCoolerPaymentStatus('Le montant doit rester entre 0,50 € et 5 €.');$('#publicCoolerAmount')?.focus();return;}
+        publicThirdHalfPaymentDraft.saving=true;
         save.disabled=true;save.textContent='Enregistrement…';
-        const {error}=await sb.rpc('save_my_third_half_payment_link_v1',{p_tournament_id:regTour.id,p_player_id:pid,p_provider:provider,p_payment_link:link,p_suggested_amount_cents:fixed});
-        save.disabled=false;if(error){save.textContent='Activer mon lien pour les inscrits';return toast(error.message);}
-        toast('Lien glacière activé ✅');await loadPublicThirdHalfRegistration(true);
+        setPublicCoolerPaymentStatus('Enregistrement du lien…','pending');
+        const {data,error}=await sb.rpc('save_my_third_half_payment_link_v1',{p_tournament_id:regTour.id,p_player_id:pid,p_provider:provider,p_payment_link:link,p_suggested_amount_cents:fixed});
+        publicThirdHalfPaymentDraft.saving=false;
+        save.disabled=false;
+        if(error||data?.saved!==true){
+          console.error('save_my_third_half_payment_link_v1',error||data);
+          save.textContent=state.payment_link_ready?'Mettre à jour mon lien':'Activer mon lien pour les inscrits';
+          setPublicCoolerPaymentStatus(error?.message||'Le lien n’a pas pu être enregistré. Réessaie sans recharger la page.');
+          return;
+        }
+        publicThirdHalfPaymentDraft.dirty=false;
+        publicThirdHalfState={...state,provider,payment_link:link,suggested_amount_cents:fixed,status:'open',share_enabled:true,payment_link_ready:true};
+        setPublicCoolerPaymentStatus('Lien enregistré. Il est maintenant visible par les autres inscrits.','success');
+        renderPublicThirdHalfRegistration();
+        await loadPublicThirdHalfRegistration(true);
       };
     }
 
