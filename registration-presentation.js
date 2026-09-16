@@ -24,7 +24,7 @@ function mount(ctx){
  soloButton.removeAttribute('style');teamButton.removeAttribute('style');entry.replaceChildren(soloButton,teamButton);
  ['publicRegistrationCard','publicTeamBuilderCard'].forEach(id=>{const card=E(id);card?.classList.add('sp-card');const title=card?.querySelector('h2');if(title)title.textContent=id==='publicRegistrationCard'?'À toi de jouer.':'Ton équipe, ton groupe.';});
  const select=E('publicPlayerSelect');
- if(select){let node=E('publicRegistration').firstElementChild;while(node&&node!==select){node.classList.add('sp-legacy-intro');node=node.nextElementSibling}const label=document.createElement('label');label.htmlFor=select.id;label.className='sp-name-label';label.textContent='Ton nom';select.before(label);const lock=document.createElement('div');lock.id='registrationSelectionLock';lock.className='sp-selection-lock';lock.hidden=true;select.after(lock);select.addEventListener('change',()=>{updateMissions();loadSelectedRating();queueMicrotask(updateFlow);});}
+ if(select){let node=E('publicRegistration').firstElementChild;while(node&&node!==select){node.classList.add('sp-legacy-intro');node=node.nextElementSibling}const label=document.createElement('label');label.htmlFor=select.id;label.className='sp-name-label';label.textContent='Ton nom';select.before(label);const lock=document.createElement('div');lock.id='registrationSelectionLock';lock.className='sp-selection-lock';lock.hidden=true;select.after(lock);select.addEventListener('change',()=>{E('registrationIdentityStep')?.classList.remove('is-editing');updateMissions();loadSelectedRating();queueMicrotask(updateFlow);});}
  const guest=E('publicGuestFields');if(guest){const preceding=guest.previousElementSibling;if(preceding?.textContent.includes('Tu ne participes pas mais'))guest.append(preceding);}
  const status=E('publicRegStatus');if(status){status.textContent='';status.setAttribute('role','status');status.classList.add('sp-feedback');}
  const people=E('registrationPeople'),list=E('publicRegisteredList');if(list){if(list.previousElementSibling?.tagName==='H3')list.previousElementSibling.remove();people.append(list)}if(E('publicWaitWrap'))people.append(E('publicWaitWrap'));
@@ -40,7 +40,7 @@ function mount(ctx){
  const registration=E('publicRegistration'),mission=document.createElement('section');mission.id='registrationMissions';mission.className='sp-missions';mission.hidden=true;
  const playerPanel=document.createElement('section');playerPanel.id='registrationPlayerStats';playerPanel.className='sp-player-stats';playerPanel.hidden=true;
  const flow=document.createElement('div');flow.id='registrationFlow';flow.className='sp-registration-flow';
- const makeStep=(id,number,title,description)=>{const section=document.createElement('section');section.id=id;section.className='sp-flow-step';section.innerHTML='<header><span>'+number+'</span><div><h3>'+title+'</h3><p>'+description+'</p></div></header><div class="sp-flow-content"></div>';return section;};
+ const makeStep=(id,number,title,description)=>{const section=document.createElement('section');section.id=id;section.className='sp-flow-step';section.innerHTML='<header><span>'+number+'</span><div><h3>'+title+'</h3><p>'+description+'</p></div><button class="sp-step-edit" type="button" hidden>Modifier</button></header><div class="sp-flow-content"></div>';return section;};
  const identityStep=makeStep('registrationIdentityStep','1','Qui es-tu ?','Sélectionne ton nom dans la liste du groupe.');
  const attendanceStep=makeStep('registrationAttendanceStep','2','Participes-tu au tournoi ?','Confirme ta présence en un geste.');
  const guestsStep=makeStep('registrationGuestsStep','3','Viens-tu avec des invités ?','Ajoute-les maintenant pour réserver leur place.');
@@ -54,22 +54,24 @@ function mount(ctx){
  if(E('publicThirdHalfRegistration'))thirdHalfStep.querySelector('.sp-flow-content').append(E('publicThirdHalfRegistration'));
  flow.append(identityStep,attendanceStep,guestsStep,thirdHalfStep);registration?.append(playerPanel,flow,mission);
  const guestChoices=new Map(),guestCompleted=new Map();
- guestChoice.addEventListener('click',event=>{const button=event.target.closest('[data-guest-choice]'),pid=select?.value;if(!button||!pid)return;const yes=button.dataset.guestChoice==='yes';guestChoices.set(pid,yes);guestCompleted.set(pid,!yes);if(guest){guest.open=yes;if(yes)queueMicrotask(()=>E('publicGuestName')?.focus());}updateFlow();});
- guestContinue.addEventListener('click',()=>{const pid=select?.value;if(!pid)return;guestCompleted.set(pid,true);updateFlow();});
+ guestChoice.addEventListener('click',event=>{const button=event.target.closest('[data-guest-choice]'),pid=select?.value;if(!button||!pid)return;const yes=button.dataset.guestChoice==='yes';guestChoices.set(pid,yes);guestCompleted.set(pid,!yes);guestsStep.classList.remove('is-editing');if(guest){guest.open=yes;if(yes)queueMicrotask(()=>E('publicGuestName')?.focus());}updateFlow();});
+ guestContinue.addEventListener('click',()=>{const pid=select?.value;if(!pid)return;guestCompleted.set(pid,true);guestsStep.classList.remove('is-editing');updateFlow();});
+ [identityStep,attendanceStep,guestsStep].forEach(step=>step.querySelector('.sp-step-edit').addEventListener('click',()=>{const pid=select?.value;if(!pid)return;if(step===guestsStep)guestCompleted.set(pid,false);step.classList.add('is-editing');updateFlow();}));
  function updateFlow(){
   const d=ctx.data(),pid=select?.value||'',reg=d.registrations.find(r=>r.tournament_id===d.tournament.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
   const usedGuests=pid?d.registrations.some(r=>r.tournament_id===d.tournament.id&&String(r.registered_by_player_id||'')===String(pid)):false;
   if(usedGuests&&!guestChoices.has(pid))guestChoices.set(pid,true);
   const guestAnswer=guestChoices.get(pid);
-  identityStep.classList.toggle('is-complete',!!pid);identityStep.classList.toggle('is-current',!pid);
-  attendanceStep.hidden=!pid||!!reg;attendanceStep.classList.toggle('is-complete',!!reg);attendanceStep.classList.toggle('is-current',!!pid&&!reg);
+  identityStep.classList.toggle('is-complete',!!pid&&!identityStep.classList.contains('is-editing'));identityStep.classList.toggle('is-current',!pid||identityStep.classList.contains('is-editing'));
+  attendanceStep.hidden=!pid;attendanceStep.classList.toggle('is-complete',!!reg&&!attendanceStep.classList.contains('is-editing'));attendanceStep.classList.toggle('is-current',!!pid&&(!reg||attendanceStep.classList.contains('is-editing')));
   const guestsDone=guestAnswer===false||(guestAnswer===true&&guestCompleted.get(pid)===true);
-  guestsStep.hidden=!reg||guestsDone;guestsStep.classList.toggle('is-complete',guestsDone);guestsStep.classList.toggle('is-current',!!reg&&!guestsDone);
+  guestsStep.hidden=!reg;guestsStep.classList.toggle('is-complete',guestsDone&&!guestsStep.classList.contains('is-editing'));guestsStep.classList.toggle('is-current',!!reg&&(!guestsDone||guestsStep.classList.contains('is-editing')));
   guestChoice.querySelectorAll('button').forEach(button=>{const selected=guestAnswer!==undefined&&((button.dataset.guestChoice==='yes')===guestAnswer);button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
   if(guest){guest.hidden=guestAnswer!==true;if(guestAnswer!==true)guest.open=false;}
   guestContinue.hidden=guestAnswer!==true;
   const thirdBox=E('publicThirdHalfRegistration'),thirdEnabled=!!reg&&guestsDone&&thirdBox&&!thirdBox.classList.contains('hidden');thirdHalfStep.hidden=!thirdEnabled;
   thirdHalfStep.classList.toggle('is-current',thirdEnabled&&guestsDone);playerPanel.hidden=!pid;
+  [identityStep,attendanceStep,guestsStep].forEach(step=>{const edit=step.querySelector('.sp-step-edit');edit.hidden=!step.classList.contains('is-complete');});
  }
  let ratingResult=null,ratingPlayer=null,ratingState='',ratingSequence=0;
  async function loadSelectedRating(){
