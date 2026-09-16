@@ -54,7 +54,7 @@ function openPlayerProfile(){closeAccount();if(typeof setView==='function')setVi
 function openWorkspaceProfile(workspaceId){
  closeAccount();const s=state();if(!workspaceId)return;
  localStorage.setItem('swe_workspace_id',workspaceId);
- if(String(workspaceId)===String(s?.workspace?.id)){document.documentElement.classList.remove('swe-player-home-active');if(typeof setView==='function')setView('home');return}
+ if(String(workspaceId)===String(s?.workspace?.id)){if(typeof consumeStartMode==='function')consumeStartMode();document.documentElement.classList.remove('swe-player-home-active');if(typeof setView==='function')setView('home');return}
  const u=new URL(location.href);u.searchParams.set('workspace',workspaceId);u.searchParams.set('start','home');
  const sw=E('workspaceSwitcher');if(sw&&[...sw.options].some(o=>o.value===String(workspaceId))){history.replaceState({},'',u.pathname+u.search);sw.value=workspaceId;sw.dispatchEvent(new Event('change',{bubbles:true}));return}
  location.assign(u.toString());

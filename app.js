@@ -258,6 +258,18 @@ function setView(v){
   if(['home','myplayer','players','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
 }
 
+// `start` is an entry intent, not a persistent profile preference. Keeping
+// `?start=player` after the user returns to an organizer workspace made the
+// next reload reopen the player profile and looked like a random switch.
+function consumeStartMode(){
+  try{
+    const u=new URL(location.href);
+    if(!u.searchParams.has('start'))return;
+    u.searchParams.delete('start');
+    history.replaceState({},'',u.pathname+u.search+u.hash);
+  }catch(_error){}
+}
+
 // Navigation attachée immédiatement : elle reste fonctionnelle même si une
 // autre partie de l'initialisation rencontre une erreur.
 document.addEventListener('click',e=>{
@@ -1283,7 +1295,11 @@ async function boot(){
     if(!target)return toast('Tournoi test introuvable dans cet espace.');
     S.activeTour=target.id;await loadTournament();renderAll();setView('tournaments');
     if(!document.getElementById('testAdminReturn')){const a=document.createElement('a');a.id='testAdminReturn';a.href='/forssadmin/';a.textContent='← Retour au Super Admin';a.className='btn';document.getElementById('workspaceName').after(a);}
-  }else{const startMode=new URLSearchParams(location.search).get('start');if(startMode==='player')setView('myplayer');else if(startMode==='home')setView('home');}
+  }else{
+    const startMode=new URLSearchParams(location.search).get('start');
+    if(startMode==='player')setView('myplayer');else if(startMode==='home')setView('home');
+    if(startMode==='player'||startMode==='home')consumeStartMode();
+  }
 }
 $('#createWorkspace').onclick=async()=>{
   const btn=$('#createWorkspace');const name=$('#newWorkspace')?.value.trim();

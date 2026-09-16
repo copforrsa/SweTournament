@@ -4,8 +4,8 @@ const fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 const wait=()=>new Promise(r=>setTimeout(r,320));
-async function setup(role=null,rpc){
- const dom=new JSDOM(read('index.html'),{url:'https://app.swetournament.fr/',runScripts:'outside-only'}),w=dom.window,d=w.document;
+async function setup(role=null,rpc,url='https://app.swetournament.fr/'){
+ const dom=new JSDOM(read('index.html'),{url,runScripts:'outside-only'}),w=dom.window,d=w.document;
  w.matchMedia=()=>({matches:false});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};
  w.S={session:{user:{id:'player-1'}},workspace:role?{id:'workspace-1',role}:null,memberships:role?[{workspace_id:'workspace-1',role,workspaces:{name:'Mon groupe'}}]:[],workspaceFeatures:{tournaments_enabled:true,league_enabled:true,rankings_enabled:true},myPermissions:{can_view_players:true,can_enter_scores:true},lastView:'myplayer',playerDashboard:{profile:{nickname:'Nayasarah'},stats:{},requests:[]},tournaments:[]};
  w.isAdmin=()=>w.S.workspace?.role==='admin';w.isCoorg=()=>w.S.workspace?.role==='coorganizer';w.hasTemporaryAdmin=()=>false;w.hasAdminOps=w.isAdmin;
@@ -37,6 +37,14 @@ test('leaving player restores administrator and co-manager routes, including exi
   if(role==='coorganizer'){w.S.myPermissions.can_view_players=false;d.querySelector('.tabs [data-view=players]').click();assert.equal(w.S.lastView,'home');d.querySelector('.tabs [data-view=permissions]').click();assert.equal(w.S.lastView,'home')}
   d.querySelector('.tabs [data-view=myplayer]').click();await wait();assert.equal(d.documentElement.classList.contains('swe-player-home-active'),true);assert.equal(d.getElementById('inviteBox'),invitation);
  }finally{dom.window.close()}}
+});
+test('leaving the player profile consumes the one-shot start marker',async()=>{
+ const {w,d,dom}=await setup('admin',null,'https://app.swetournament.fr/?start=player&workspace=workspace-1');try{
+  assert.equal(new w.URL(w.location.href).searchParams.get('start'),'player');
+  d.querySelector('#swePlayerProfiles button:nth-child(2)').click();
+  const url=new w.URL(w.location.href);
+  assert.equal(w.S.lastView,'home');assert.equal(url.searchParams.has('start'),false);assert.equal(url.searchParams.get('workspace'),'workspace-1');
+ }finally{dom.window.close()}
 });
 test('account uses the existing logout and workspace switch handlers; offers use existing entry',async()=>{
  const {w,d,dom}=await setup('admin');try{

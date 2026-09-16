@@ -28,7 +28,7 @@ async function boot(){
  await load('/match-extras-v4306.js?v=4382-substitutes','match-extras-v4306');await load('/tournament-king-config-v4306.js?v=4377','tournament-king-config-v4306');await load('/live-enhance-v4306.js?v=4377','live-enhance-v4306');await load('/match-realtime-v4304.js?v=4377','match-realtime-v4361');await load('/match-tab-recovery-v4355.js?v=4377','match-tab-recovery-v4363');await load('/match-refresh-guard-v4361.js?v=4377','match-refresh-guard-v4361');await load('/public-registration-lock-v4307.js?v=4377','public-registration-lock-v4307');
  await load('/auth-access-clean-v4352.js?v=4399-player-r9','auth-access-clean-v4352-r9');await load('/mobile-nav-v4361.js?v=4377','mobile-nav-v4361');await load('/mobile-coorg-rights-v4362.js?v=4399-player-r9','mobile-coorg-rights-v4362-r9');await load('/coorganizer-invite-reliability-v4392.js?v=4392','coorganizer-invite-reliability-v4392');await load('/player-activity-attendance-v4393.js?v=4398-edge-stable','player-activity-attendance-v4393');await load('/rating-report-reliability-v4394.js?v=4394','rating-report-reliability-v4394');await load('/team-composition-visual-v4395.js?v=4395','team-composition-visual-v4395');await load('/coorganizer-dashboard-v4399.js?v=4399-player-r10','coorganizer-dashboard-v4399-r10');
  await load('/player-profile-compact.js?v=4399-player-r1','player-profile-compact');
- await load('/player-home.js?v=4400','player-home-v4400');
+ await load('/player-home.js?v=4417','player-home-v4417');
  await load('/coorganizer-insights-v4400.js?v=4401','coorganizer-insights-v4401');
  await load('/coorganizer-experience-v4402.js?v=4402','coorganizer-experience-v4402');
  await load('/football-avatar-picker-v4404.js?v=4405','football-avatar-picker-v4405');
