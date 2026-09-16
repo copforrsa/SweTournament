@@ -107,3 +107,4 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 #publicView.swe-premium .sp-team-callout h2,#publicView.swe-premium .sp-team-callout p{width:100%;margin-left:auto;margin-right:auto}
 #publicView.swe-premium .sp-royal-head,#publicView.swe-premium .sp-royal-head .sp-royal-format,#publicView.swe-premium .sp-royal-head h2,#publicView.swe-premium .sp-royal-head p{text-align:center}
 #publicView.swe-premium .sp-royal-head h2,#publicView.swe-premium .sp-royal-head p{width:100%;margin-left:auto;margin-right:auto}
+#registrationConfirmOverlay{display:none!important}
