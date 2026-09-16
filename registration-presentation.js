@@ -1,6 +1,8 @@
 /* One presentation layer, called by app.js after loading the existing public snapshot. */
 (()=>{
 'use strict';
+const removeBlockingRegistrationConfirmation=()=>document.getElementById('registrationConfirmOverlay')?.remove();
+new MutationObserver(removeBlockingRegistrationConfirmation).observe(document.documentElement,{childList:true,subtree:true});
 const E=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dayKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
 const date=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return '';if(v===dayKey(new Date()))return 'Aujourd’hui';const d=new Date(v+'T12:00:00Z');return Number.isFinite(d.getTime())?d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}):''};
