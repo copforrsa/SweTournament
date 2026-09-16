@@ -5942,11 +5942,35 @@ async function loadPublicPage(token,bootState){
     };
 
     let publicRefreshSeq=0;
+    let publicSnapshotSignature='';
+    const publicSnapshotFingerprint=snapshot=>{
+      const currentTeams=(snapshot.teams||[]).filter(t=>String(t.tournament_id)===String(regTour?.id));
+      const currentTeamIds=new Set(currentTeams.map(t=>String(t.id)));
+      return JSON.stringify({
+      tournament:(snapshot.tournaments||[]).find(t=>String(t.id)===String(regTour?.id))||null,
+      players:(snapshot.players||[]).map(p=>[p.id,p.name,p.active,p.is_group_member,p.guest_of_player_id,p.photo_url]),
+      registrations:(snapshot.tournament_players||[]).filter(r=>String(r.tournament_id)===String(regTour?.id)),
+      teams:currentTeams,
+      teamPlayers:(snapshot.team_players||[]).filter(tp=>currentTeamIds.has(String(tp.team_id))),
+      invitations:(snapshot.team_player_invitations||[]).filter(i=>String(i.tournament_id)===String(regTour?.id)),
+      assignments:snapshot.match_player_assignments||[],
+      levels:(snapshot.tournament_group_levels||[]).filter(l=>String(l.tournament_id)===String(regTour?.id))
+      });
+    };
+    publicSnapshotSignature=publicSnapshotFingerprint({tournaments,players,tournament_players:registrations,teams,team_players:teamPlayers,team_player_invitations:teamInvitations,match_player_assignments:matchAssignments,tournament_group_levels:tournamentGroupLevels});
     async function refreshPublicRegistration(){
       const seq=++publicRefreshSeq;
       try{
         const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
         if(error||!data||seq!==publicRefreshSeq)return;
+        const nextSignature=publicSnapshotFingerprint(data);
+        // Le contrôle périodique ne doit pas refaire bouger toute la page si
+        // personne n'a modifié les inscriptions ou l'organisation.
+        if(nextSignature===publicSnapshotSignature){
+          updateTournamentCountdowns();
+          return;
+        }
+        publicSnapshotSignature=nextSignature;
         players=data.players||players;
         seasons=data.seasons||seasons;
         const freshTour=(data.tournaments||[]).find(t=>t.id===regTour.id);
@@ -5968,7 +5992,7 @@ async function loadPublicPage(token,bootState){
         loadPublicThirdHalfRegistration();
         loadPublicThirdHalfPreference();
         // Ne pas reconstruire le formulaire équipe pendant que l’utilisateur le remplit.
-        // Le rafraîchissement automatique de 8 s reste actif pour les données, mais ne reset plus l'inscription équipe.
+        // Le rafraîchissement automatique ne reset plus l'inscription équipe.
         if(typeof renderPublicTeamBuilder==='function'&&!window.__swePublicTeamEditing)renderPublicTeamBuilder();
         refreshSeasonRankings();
         registrationPresentation?.update();
@@ -6054,9 +6078,10 @@ async function loadPublicPage(token,bootState){
     };
     if(window.__swePublicRegistrationInterval)clearInterval(window.__swePublicRegistrationInterval);
     window.__swePublicRegistrationInterval=window.setInterval(()=>{
-      // Pendant la composition d'une équipe, aucune reconstruction du formulaire.
-      refreshPublicRegistration();
-    },8000);
+      // Inutile d'actualiser un onglet masqué. La comparaison ci-dessus évite
+      // toute reconstruction visuelle lorsque les données sont inchangées.
+      if(document.visibilityState==='visible')refreshPublicRegistration();
+    },30000);
   }else{
     regBox.innerHTML=consultationOnly
       ? '<div class="readonly-note"><b>👁️ Consultation uniquement</b><div class="muted" style="margin-top:5px">Ce lien affiche les résultats, classements et informations publiques du groupe. Pour s’inscrire à un Swé, utilise le lien d’inscription propre au tournoi.</div></div>'

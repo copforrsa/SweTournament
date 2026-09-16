@@ -1,13 +1,19 @@
 (()=>{
 'use strict';
-let renderDispatchQueued=false;
+let renderDispatchTimer=null;
+let lastRenderDispatch=0;
 function dispatchRendered(){
-  if(renderDispatchQueued)return;
-  renderDispatchQueued=true;
-  requestAnimationFrame(()=>{
-    renderDispatchQueued=false;
+  // Plusieurs modules écoutent cet événement et reconstruisent une partie de
+  // la page. On le réserve donc à un vrai renderAll et on regroupe les
+  // rendus rapprochés : il ne doit jamais être déclenché par un simple clic.
+  if(renderDispatchTimer)clearTimeout(renderDispatchTimer);
+  renderDispatchTimer=setTimeout(()=>{
+    renderDispatchTimer=null;
+    const now=Date.now();
+    if(now-lastRenderDispatch<250)return;
+    lastRenderDispatch=now;
     document.dispatchEvent(new CustomEvent('swe:rendered'));
-  });
+  },180);
 }
 function wrapRenderAll(){
   try{
@@ -19,10 +25,7 @@ function wrapRenderAll(){
   }catch(_){ }
 }
 // hotfix-v4244.js owns loading these modules, including their order and cache key.
-function boot(){wrapRenderAll();dispatchRendered();}
+function boot(){wrapRenderAll();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 window.addEventListener('pageshow',wrapRenderAll);
-document.addEventListener('click',e=>{
-  if(e.target.closest?.('.tab,[data-view],button,a.button')) setTimeout(dispatchRendered,650);
-},true);
 })();

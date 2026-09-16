@@ -16,6 +16,17 @@ test('public refresh avoids rebuilding unchanged registration blocks',()=>{
   assert.match(app,/setStableHtml\(wlist,waitRows\)/);
   assert.match(app,/const thirdHalfHtml='<div class="third-half-registration-head/);
   assert.match(app,/setStableHtml\(box,thirdHalfHtml\)/);
+  assert.match(app,/let publicSnapshotSignature=''/);
+  assert.match(app,/if\(nextSignature===publicSnapshotSignature\)/);
+  assert.match(app,/\},30000\);/);
+});
+
+test('render notifications do not restart the interface after every click',()=>{
+  const stability=fs.readFileSync(path.join(root,'ui-stability-v4234.js'),'utf8');
+  assert.match(stability,/const wrapped=function\(\.\.\.args\)\{const out=original\.apply\(this,args\);dispatchRendered\(\);return out;\}/);
+  assert.match(stability,/renderDispatchTimer=setTimeout/);
+  assert.doesNotMatch(stability,/document\.addEventListener\('click'/);
+  assert.doesNotMatch(stability,/function boot\(\)\{wrapRenderAll\(\);dispatchRendered\(\);\}/);
 });
 
 test('payment owner configures a contribution while admin owns logistics',()=>{
