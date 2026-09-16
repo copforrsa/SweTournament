@@ -5697,7 +5697,7 @@ async function loadPublicPage(token,bootState){
       }
     }
     let publicPaymentSeq=0;
-    let publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};
+    let publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null,hidden:false};
     let publicPaymentLoadingFor=null;
     let publicStripeConfirmLastAt=0;
     let publicStripeConfirmRunning=false;
@@ -5727,6 +5727,11 @@ async function loadPublicPage(token,bootState){
       box.style.border=border||'1px solid #cbdcf5';
       if(box.innerHTML!==html)box.innerHTML=html;
     }
+    function hidePublicPaymentView(box,pid,status){
+      publicPaymentCache={playerId:pid,status,html:'',bg:null,border:null,hidden:true};
+      box.className='hidden';
+      if(box.innerHTML)box.innerHTML='';
+    }
     async function renderPublicPaymentBox(options={}){
       const box=$('#publicPaymentBox');
       if(!box)return;
@@ -5739,10 +5744,11 @@ async function loadPublicPage(token,bootState){
       }
       if(publicPaymentLoadingFor===pid)return;
       const seq=++publicPaymentSeq;
-      const samePlayer=publicPaymentCache.playerId===pid&&publicPaymentCache.html;
+      const samePlayer=publicPaymentCache.playerId===pid&&(publicPaymentCache.hidden||publicPaymentCache.html);
       if(samePlayer){
-        applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
-      }else{
+        if(publicPaymentCache.hidden){box.className='hidden';if(box.innerHTML)box.innerHTML='';}
+        else applyPublicPaymentView(box,publicPaymentCache.html,publicPaymentCache.bg,publicPaymentCache.border);
+      }else if(!options.backgroundRefresh){
         applyPublicPaymentView(box,'<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Vérification du statut…</div>','#f8fbff','1px solid #cbdcf5');
       }
       publicPaymentLoadingFor=pid;
@@ -5752,14 +5758,18 @@ async function loadPublicPage(token,bootState){
           sb.rpc('public_tournament_payment_choice_status',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid})
         ]);
         if(seq!==publicPaymentSeq||$('#publicPlayerSelect')?.value!==pid||!box.isConnected)return;
-        if(error||choiceError){publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null};box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';return;}
+        if(error||choiceError){
+          if(samePlayer&&publicPaymentCache.hidden)return;
+          publicPaymentCache={playerId:null,status:null,html:null,bg:null,border:null,hidden:false};
+          applyPublicPaymentView(box,'<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>','#f8fbff','1px solid #cbdcf5');return;
+        }
         const st=data||{};
         if(st.reason==='waitlist'){
           const html='<b>🟠 Paiement en attente de confirmation</b><div class="muted" style="margin-top:5px;line-height:1.6">Tu es actuellement remplaçant. Le paiement sera proposé automatiquement lorsqu’une place confirmée se libérera.</div>';
           publicPaymentCache={playerId:pid,status:st,html,bg:'#fff8e8',border:'1px solid #f2d18a'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
           return;
         }
-        if(st.reason==='online_disabled'){box.className='hidden';box.innerHTML='';return;}if(st.reason==='free'||Number(st.entry_fee_cents||0)<=0){box.className='hidden';box.innerHTML='';return;}
+        if(st.reason==='online_disabled'){hidePublicPaymentView(box,pid,st);return;}if(st.reason==='free'||Number(st.entry_fee_cents||0)<=0){hidePublicPaymentView(box,pid,st);return;}
         if(st.payment_status==='paid'){
           const html='<b>✅ Participation payée en ligne</b><div class="muted" style="margin-top:5px">Paiement confirmé par Stripe'+(st.paid_at?' • '+new Date(st.paid_at).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'}):'')+'.</div>';
           publicPaymentCache={playerId:pid,status:st,html,bg:'#eef8f2',border:'1px solid #b7dfc4'};applyPublicPaymentView(box,html,publicPaymentCache.bg,publicPaymentCache.border);
@@ -5825,7 +5835,7 @@ async function loadPublicPage(token,bootState){
           await renderPublicPaymentBox({skipStripeReconcile:true});
         };
       }catch(e){
-        if(seq===publicPaymentSeq&&!publicPaymentCache.html)box.innerHTML='<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>';
+        if(seq===publicPaymentSeq&&!publicPaymentCache.html&&!publicPaymentCache.hidden)applyPublicPaymentView(box,'<b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Statut indisponible pour le moment.</div>','#f8fbff','1px solid #cbdcf5');
       }finally{
         if(seq===publicPaymentSeq&&publicPaymentLoadingFor===pid)publicPaymentLoadingFor=null;
       }

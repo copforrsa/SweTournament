@@ -34,6 +34,12 @@ test('slow response for a former player cannot replace the selected player',asyn
  const first=p.render();p.select.value='bob';await p.render();finish({data:{available:true,entry_fee_cents:900,total_cents:950}});await first;
  assert.equal(p.box.className,'hidden');assert.equal(p.box.innerHTML,'');
 });
+test('a background refresh keeps disabled payment hidden without a layout flash',async()=>{
+ const p=setup();p.context.sb.rpc=async name=>({data:name.endsWith('choice_status')?{}:{available:false,reason:'online_disabled',entry_fee_cents:900}});
+ await p.render();assert.equal(p.box.className,'hidden');assert.equal(p.context.publicPaymentCache.hidden,true);
+ p.box.innerHTML='';await p.context.renderPublicPaymentBox({backgroundRefresh:true});
+ assert.equal(p.box.className,'hidden');assert.equal(p.box.innerHTML,'');
+});
 test('unknown payment preference fails closed even after a cached checkout',async()=>{
  const p=setup();await p.render();assert.match(p.box.innerHTML,/id="publicPayEntry"/);
  p.context.sb.rpc=async name=>name.endsWith('choice_status')?{error:{message:'Network error'}}:{data:{available:true,entry_fee_cents:900}};
