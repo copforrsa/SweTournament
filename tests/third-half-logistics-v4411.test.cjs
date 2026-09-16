@@ -28,6 +28,16 @@ test('cooler owner configures a contribution and delegates required logistics',(
   assert.match(sql,/'beers'.*'quantity', 12/s);
 });
 
+test('cooler heading has a clear premium hierarchy and identifies its owner',()=>{
+  assert.match(app,/third-half-head-icon/);
+  assert.match(app,/ORGANISATION • 3E MI-TEMPS/);
+  assert.match(app,/Boissons, glaçons et missions : tout est organisé ici/);
+  assert.match(app,/Responsable désigné/);
+  assert.match(app,/third-half-owner-avatar/);
+  assert.match(css,/\.third-half-registration-head[^{]*\{[^}]*border-top:4px solid #f0b429/);
+  assert.match(css,/@media\(max-width:700px\)[^{]*\{[^}]*\.cooler-package-grid[\s\S]*\.third-half-registration-head\{display:grid/);
+});
+
 test('only the linked responsible account may save the logistics plan',()=>{
   assert.match(sql,/gp\.user_id = auth\.uid\(\)/);
   assert.match(sql,/Chaque mission doit être confiée à un joueur inscrit/);

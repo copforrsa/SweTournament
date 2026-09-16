@@ -5471,6 +5471,7 @@ async function loadPublicPage(token,bootState){
       const amount=Math.max(0,Math.min(500,Number(state.suggested_amount_cents||0)));
       const owner=String(pid)===String(state.responsible_player_id||'');
       const ownerName=state.responsible_player_name||'À désigner';
+      const ownerInitial=ownerName.trim().charAt(0).toUpperCase()||'?';
       const players=Array.isArray(state.eligible_responsibles)?state.eligible_responsibles:[];
       const tasks=Array.isArray(state.logistics_tasks)?state.logistics_tasks:[];
       const taskMap=new Map(tasks.map(x=>[x.key,x]));
@@ -5512,7 +5513,7 @@ async function loadPublicPage(token,bootState){
         action=logistics+'<div class="third-half-pending">'+esc(ownerName)+' configure actuellement le lien de participation.</div>';
       }
       box.className='third-half-registration';
-      const thirdHalfHtml='<div class="third-half-registration-head"><div><span>MODULE 3E MI-TEMPS</span><h3>🧊 La glacière du match</h3></div><div class="third-half-owner"><small>Responsable</small><b>'+esc(ownerName)+'</b></div></div>'+publicThirdHalfPackagesHtml(state)+action;
+      const thirdHalfHtml='<div class="third-half-registration-head"><div class="third-half-head-main"><div class="third-half-head-icon" aria-hidden="true">🧊</div><div class="third-half-head-copy"><span>ORGANISATION • 3E MI-TEMPS</span><h3>La glacière du match</h3><p>Boissons, glaçons et missions : tout est organisé ici.</p></div></div><div class="third-half-owner"><small>Responsable désigné</small><div><span class="third-half-owner-avatar" aria-hidden="true">'+esc(ownerInitial)+'</span><b>'+esc(ownerName)+'</b></div></div></div>'+publicThirdHalfPackagesHtml(state)+action;
       const keepPaymentEditor=owner&&state.can_manage&&publicThirdHalfPaymentDraft?.dirty&&!!box.querySelector('#publicCoolerLink');
       if(!keepPaymentEditor)setStableHtml(box,thirdHalfHtml);
       const mode=$('#publicCoolerContributionMode');
