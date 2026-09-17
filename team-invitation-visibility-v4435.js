@@ -1,4 +1,4 @@
-/* Makes pending team proposals visible without changing registration data. */
+/* Public, stable summary of preformed teams and their proposal states. */
 (()=>{
   'use strict';
   const URL='https://fbppesfxkvledwjemwsn.supabase.co';
@@ -6,82 +6,73 @@
   const $=selector=>document.querySelector(selector);
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const query=new URLSearchParams(location.search);
-  const token=query.get('public');
-  const tournamentId=query.get('tournament');
+  const token=query.get('public'),tournamentId=query.get('tournament');
   if(!token||!tournamentId||!window.supabase?.createClient)return;
-
   const client=window.supabase.createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
-  let proposals=[];
-  let renderedKey='';
+  let groups=[],renderedKey='';
 
+  function badge(text,style){return '<span class="guest-badge" style="margin:2px;'+(style||'')+'">'+text+'</span>';}
   function decorateList(){
-    const list=$('#publicRegisteredList');
-    if(!list||!proposals.length)return;
+    const list=$('#publicRegisteredList'); if(!list)return;
     list.querySelectorAll('.player.row').forEach(row=>{
       const text=row.textContent||'';
-      const proposal=proposals.find(item=>item.status==='pending'&&text.includes(item.playerName));
-      if(!proposal||row.querySelector('[data-team-proposal-badge]'))return;
-      const target=row.querySelector('span[style*="flex"]')||row.querySelector('span');
-      if(!target)return;
-      const badge=document.createElement('span');
-      badge.dataset.teamProposalBadge='1';
-      badge.className='guest-badge';
-      badge.style.cssText='display:inline-block;margin:4px 0 0 4px;background:#fff7ed;border-color:#fdba74;color:#9a3412';
-      badge.textContent='⏳ Proposition : '+proposal.teamName;
-      target.appendChild(badge);
+      const captain=groups.find(group=>group.creatorName&&text.includes(group.creatorName));
+      const invitation=groups.flatMap(group=>group.invitations.map(item=>({...item,teamName:group.name}))).find(item=>item.status==='pending'&&text.includes(item.name));
+      if((!captain&&!invitation)||row.querySelector('[data-team-roster-badge]'))return;
+      const target=row.querySelector('span[style*="flex"]')||row.querySelector('span'); if(!target)return;
+      const item=document.createElement('span'); item.dataset.teamRosterBadge='1'; item.className='guest-badge';
+      if(captain){
+        const complete=captain.confirmed.length>=captain.teamSize;
+        item.style.cssText='display:inline-block;margin:4px 0 0 4px;'+(complete?'background:#ecfdf5;border-color:#86efac;color:#166534':'background:#eff6ff;border-color:#93c5fd;color:#1d4ed8');
+        item.textContent=complete?'⚽ Équipe complète : '+captain.name:'👥 Équipe en préparation : '+captain.confirmed.length+'/'+captain.teamSize;
+      }else{
+        item.style.cssText='display:inline-block;margin:4px 0 0 4px;background:#fff7ed;border-color:#fdba74;color:#9a3412';
+        item.textContent='⏳ Proposition : '+invitation.teamName;
+      }
+      target.appendChild(item);
     });
   }
 
   function renderPanel(){
-    const host=$('#registrationTeams')||$('#publicRegistrationCard')||$('#publicRegistration');
-    if(!host)return;
-    const key=proposals.map(item=>item.teamId+'|'+item.playerId+'|'+item.status).join(',');
-    if(renderedKey===key){decorateList();return;}
-    renderedKey=key;
-    $('#swePendingTeamProposals')?.remove();
-    if(!proposals.length)return;
-    const grouped=new Map();
-    proposals.forEach(item=>{
-      const group=grouped.get(item.teamId)||{name:item.teamName,creator:item.creatorName,players:[]};
-      group.players.push(item);grouped.set(item.teamId,group);
-    });
-    const panel=document.createElement('section');
-    panel.id='swePendingTeamProposals';
-    panel.className='card';
+    const host=$('#registrationTeams')||$('#publicRegistrationCard')||$('#publicRegistration'); if(!host)return;
+    const key=groups.map(group=>group.id+'|'+group.confirmed.join(',')+'|'+group.invitations.map(item=>item.id+'-'+item.status).join(',')).join(';');
+    if(renderedKey===key){decorateList();return;} renderedKey=key;
+    $('#swePendingTeamProposals')?.remove(); if(!groups.length)return;
+    const panel=document.createElement('section'); panel.id='swePendingTeamProposals'; panel.className='card';
     panel.style.cssText='border:1px solid #f6c76a;background:#fffaf0;margin:14px 0';
-    panel.innerHTML='<h2 class="sectiontitle">⏳ Propositions d’équipe à confirmer</h2><p class="muted" style="margin-top:0">Les joueurs concernés doivent sélectionner leur nom ci-dessus pour accepter ou refuser la proposition. Ils restent inscrits tant qu’ils n’ont pas répondu.</p>'+[...grouped.values()].map(group=>
-      '<div class="player" style="margin-top:8px"><b>'+esc(group.name)+'</b><div class="muted" style="margin-top:3px">Composition proposée</div><div style="margin-top:6px">'+
-        (group.creator?'<span class="guest-badge" style="margin:2px;background:#ecfdf5;border-color:#86efac;color:#166534">✅ '+esc(group.creator)+' · créateur</span>':'')+
-        group.players.map(item=>'<span class="guest-badge" style="margin:2px;'+(item.status==='accepted'?'background:#ecfdf5;border-color:#86efac;color:#166534':item.status==='rejected'?'background:#fef2f2;border-color:#fecaca;color:#991b1b':'')+'">'+(item.status==='accepted'?'✅ '+esc(item.playerName)+' · confirmé':item.status==='rejected'?'❌ '+esc(item.playerName)+' · a refusé, place libérée pour l’équipe aléatoire':'⏳ '+esc(item.playerName)+' · en attente')+'</span>').join('')+
-      '</div></div>'
-    ).join('');
-    host.before(panel);
-    decorateList();
-    // The main registration list can finish its own stable render just after
-    // this module. Decorate it once more without observing or rebuilding it.
-    setTimeout(decorateList,350);
-    setTimeout(decorateList,1200);
+    panel.innerHTML='<h2 class="sectiontitle">👥 Équipes en préparation</h2><p class="muted" style="margin-top:0">Une équipe est confirmée lorsque ses '+groups[0].teamSize+' joueurs le sont. Les invitations en attente restent libres ; après un refus, la place sera prise par un joueur aléatoire lors du tirage final.</p>'+groups.map(group=>{
+      const complete=group.confirmed.length>=group.teamSize;
+      const rejected=group.invitations.filter(item=>item.status==='rejected');
+      const pending=group.invitations.filter(item=>item.status==='pending');
+      return '<div class="player" style="margin-top:8px"><b>'+esc(group.name)+'</b> '+badge(complete?'✅ Équipe confirmée':'👥 Équipe en préparation · '+group.confirmed.length+'/'+group.teamSize,complete?'background:#ecfdf5;border-color:#86efac;color:#166534':'background:#eff6ff;border-color:#93c5fd;color:#1d4ed8')+
+        '<div class="muted" style="margin-top:5px">Composition</div><div style="margin-top:6px">'+
+        group.confirmed.map(name=>badge('✅ '+esc(name)+' · confirmé','background:#ecfdf5;border-color:#86efac;color:#166534')).join('')+
+        pending.map(item=>badge('⏳ '+esc(item.name)+' · en attente')).join('')+
+        rejected.map(item=>badge('❌ '+esc(item.name)+' · refusé','background:#fef2f2;border-color:#fecaca;color:#991b1b')+badge('🎲 Joueur aléatoire à attribuer','background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6')).join('')+
+        '</div></div>';
+    }).join('');
+    host.before(panel); decorateList(); setTimeout(decorateList,350); setTimeout(decorateList,1200);
   }
 
   async function load(){
-    const result=await client.rpc('get_public_workspace_snapshot',{p_token:token});
-    if(result.error)return;
-    const snapshot=result.data||{};
-    const players=new Map((snapshot.players||[]).map(player=>[String(player.id),player]));
-    const teams=new Map((snapshot.teams||[]).map(team=>[String(team.id),team]));
-    proposals=(snapshot.team_player_invitations||[])
-      .filter(invitation=>String(invitation.tournament_id)===String(tournamentId))
-      .map(invitation=>({
-        playerId:String(invitation.player_id),
-        playerName:players.get(String(invitation.player_id))?.name||'Joueur',
-        teamId:String(invitation.team_id),
-        teamName:teams.get(String(invitation.team_id))?.name||'Équipe',
-        creatorName:players.get(String(invitation.invited_by_player_id))?.name||'',
-        status:invitation.status||'pending'
-      }));
+    const result=await client.rpc('get_public_workspace_snapshot',{p_token:token}); if(result.error)return;
+    const snapshot=result.data||{},players=new Map((snapshot.players||[]).map(player=>[String(player.id),player]));
+    const tour=(snapshot.tournaments||[]).find(item=>String(item.id)===String(tournamentId))||{};
+    const teamSize=Math.max(2,Math.min(11,Number(tour.team_size)||5));
+    const rosterByTeam=new Map();
+    (snapshot.team_players||[]).forEach(row=>{const list=rosterByTeam.get(String(row.team_id))||[];list.push(String(row.player_id));rosterByTeam.set(String(row.team_id),list);});
+    const invitationsByTeam=new Map();
+    (snapshot.team_player_invitations||[]).filter(row=>String(row.tournament_id)===String(tournamentId)).forEach(row=>{const list=invitationsByTeam.get(String(row.team_id))||[];list.push(row);invitationsByTeam.set(String(row.team_id),list);});
+    groups=(snapshot.teams||[]).filter(team=>String(team.tournament_id)===String(tournamentId)&&team.is_preformed&&team.created_by_player_id).map(team=>{
+      const direct=rosterByTeam.get(String(team.id))||[];
+      const invitations=invitationsByTeam.get(String(team.id))||[];
+      const confirmedIds=new Set(direct);
+      invitations.filter(item=>item.status==='accepted').forEach(item=>confirmedIds.add(String(item.player_id)));
+      const creatorName=players.get(String(team.created_by_player_id))?.name||'';
+      return {id:String(team.id),name:team.name||'Équipe',creatorName,teamSize,confirmed:[...confirmedIds].map(id=>players.get(id)?.name||'Joueur'),invitations:invitations.filter(item=>item.status!=='accepted').map(item=>({id:String(item.id||item.player_id),name:players.get(String(item.player_id))?.name||'Joueur',status:item.status||'pending'}))};
+    });
     renderPanel();
   }
-
   document.addEventListener('swe:rendered',()=>{renderedKey='';renderPanel();});
   document.addEventListener('DOMContentLoaded',()=>setTimeout(load,350),{once:true});
   if(document.readyState!=='loading')setTimeout(load,350);
