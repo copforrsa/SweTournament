@@ -78,7 +78,7 @@ function mount(ctx){
   registeredActions.hidden=!!action;guestChoice.hidden=action!=='guests';
   if(guest){guest.hidden=action!=='guests'||guestAnswer!==true;if(action!=='guests'||guestAnswer!==true)guest.open=false;}
   guestContinue.hidden=action!=='guests'||guestAnswer!==true;
-  const teamDecision=E('publicTeamInvitationDecision');if(teamDecision){teamDecision.hidden=action!=='team';if(action==='team')registeredActions.append(teamDecision);}
+  const teamDecision=E('publicTeamInvitationDecision');if(teamDecision){teamDecision.hidden=action!=='team';if(action==='team')guestsStep.querySelector('.sp-flow-content').append(teamDecision);}
   const thirdBox=E('publicThirdHalfRegistration'),thirdEnabled=!!reg&&action==='cooler'&&thirdBox&&!thirdBox.classList.contains('hidden');thirdHalfStep.hidden=!thirdEnabled;
   thirdHalfStep.classList.toggle('is-current',thirdEnabled&&guestsDone);playerPanel.hidden=!pid;
   [identityStep,attendanceStep,guestsStep].forEach(step=>{const edit=step.querySelector('.sp-step-edit');edit.hidden=!step.classList.contains('is-complete');});
