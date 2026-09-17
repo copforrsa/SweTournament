@@ -40,15 +40,15 @@
     $('#swePendingTeamProposals')?.remove(); if(!groups.length)return;
     const panel=document.createElement('section'); panel.id='swePendingTeamProposals'; panel.className='card';
     panel.style.cssText='border:1px solid #f6c76a;background:#fffaf0;margin:14px 0';
-    panel.innerHTML='<h2 class="sectiontitle">👥 Équipes en préparation</h2><p class="muted" style="margin-top:0">Une équipe est confirmée lorsque ses '+groups[0].teamSize+' joueurs le sont. Les invitations en attente restent libres ; après un refus, la place sera prise par un joueur aléatoire lors du tirage final.</p>'+groups.map(group=>{
+    panel.innerHTML='<h2 class="sectiontitle">👥 Équipes en préparation</h2><p class="muted" style="margin-top:0">Une équipe est confirmée lorsque ses '+groups[0].teamSize+' joueurs le sont. Au tirage final, un joueur aléatoire sera attribué à chaque place libérée après un refus.</p>'+groups.map(group=>{
       const complete=group.confirmed.length>=group.teamSize;
-      const rejected=group.invitations.filter(item=>item.status==='rejected');
+      const rejected=group.invitations.filter(item=>item.status==='rejected'||item.status==='declined');
       const pending=group.invitations.filter(item=>item.status==='pending');
       return '<div class="player" style="margin-top:8px"><b>'+esc(group.name)+'</b> '+badge(complete?'✅ Équipe confirmée':'👥 Équipe en préparation · '+group.confirmed.length+'/'+group.teamSize,complete?'background:#ecfdf5;border-color:#86efac;color:#166534':'background:#eff6ff;border-color:#93c5fd;color:#1d4ed8')+
         '<div class="muted" style="margin-top:5px">Composition</div><div style="margin-top:6px">'+
         group.confirmed.map(name=>badge('✅ '+esc(name)+' · confirmé','background:#ecfdf5;border-color:#86efac;color:#166534')).join('')+
         pending.map(item=>badge('⏳ '+esc(item.name)+' · en attente')).join('')+
-        rejected.map(item=>badge('❌ '+esc(item.name)+' · refusé','background:#fef2f2;border-color:#fecaca;color:#991b1b')+badge('🎲 Joueur aléatoire à attribuer','background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6')).join('')+
+        rejected.map(item=>badge('❌ '+esc(item.name)+' · a refusé','background:#fef2f2;border-color:#fecaca;color:#991b1b')+badge('🎲 Joueur aléatoire attribué au tirage','background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6')).join('')+
         '</div></div>';
     }).join('');
     host.before(panel); decorateList(); setTimeout(decorateList,350); setTimeout(decorateList,1200); setTimeout(decorateList,2600);
