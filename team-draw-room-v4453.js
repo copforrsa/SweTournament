@@ -34,7 +34,7 @@
   async function open(tid){if(!tid||opening)return;opening=true;latest=null;selected=null;modal().innerHTML='<section class="swe-room"><b>Ouverture du salon…</b></section>';await refresh(tid);opening=false}
   async function action(button){const root=E('sweDrawRoom4453'), tid=latest?.tournament_id;if(!tid)return;button.disabled=true;try{
     if(button.dataset.sweVote){latest=await call('team_draw_room_vote_v1',{p_tournament_id:tid,p_proposal_id:selected,p_decision:button.dataset.sweVote});render('Ton avis est enregistré.');}
-    else if(button.dataset.sweRedraw){latest=await call('team_draw_room_redraw_v1',{p_tournament_id:tid});selected=latest.current_proposal_id;render('Nouvelle proposition créée : les joueurs ne la voient pas encore.');}
+    else if(button.dataset.sweRedraw){button.textContent='🎲 Nouveau tirage en cours…';latest=await call('team_draw_room_redraw_v1',{p_tournament_id:tid});selected=latest.current_proposal_id;render('Nouvelle proposition créée : les joueurs ne la voient pas encore.');}
     else if(button.dataset.swePublish){await call('team_draw_room_publish_v1',{p_tournament_id:tid,p_proposal_id:button.dataset.swePublish});close();const s=appState();if(s){s.activeTour=tid;s.teamCompetitionId=tid;}Promise.resolve(typeof loadTournament==='function'?loadTournament():null);alert('Composition publiée : les équipes sont maintenant visibles.');}
   }catch(err){render(err.message||'Action impossible.',true)}}
   document.addEventListener('click',event=>{
@@ -43,8 +43,8 @@
     if(target.matches('[data-coorg-action="team"]')){const s=appState(),tid=s?.teamCompetitionId||s?.activeTour;if(tid){event.preventDefault();event.stopImmediatePropagation();open(tid)}return;}
     if(target.matches('[data-swe-close]')){close();return;}
     if(target.matches('[data-swe-proposal]')){selected=target.dataset.sweProposal;render();return;}
-    if(target.matches('[data-swe-refresh],[data-swe-refresh-teams]')){refresh(latest?.tournament_id);return;}
-    action(target);
+    if(target.matches('[data-swe-refresh],[data-swe-refresh-teams]')){event.preventDefault();event.stopImmediatePropagation();refresh(latest?.tournament_id);return;}
+    event.preventDefault();event.stopImmediatePropagation();action(target);
   },true);
   function lockGenerator(){
     const s=appState(),t=(s?.tournaments||[]).find(x=>String(x.id)===String(s?.teamCompetitionId||s?.activeTour));
