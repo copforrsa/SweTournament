@@ -40,7 +40,7 @@
   document.addEventListener('click',event=>{
     const target=event.target.closest?.('[data-swe-open-draw-room],[data-coorg-action="team"],[data-swe-close],[data-swe-proposal],[data-swe-vote],[data-swe-redraw],[data-swe-publish],[data-swe-refresh]');if(!target)return;
     if(target.matches('[data-swe-open-draw-room]')){event.preventDefault();event.stopImmediatePropagation();open(target.dataset.sweOpenDrawRoom);return;}
-    if(target.matches('[data-coorg-action="team"]')){const tid=appState()?.activeTour;if(tid){event.preventDefault();event.stopImmediatePropagation();open(tid)}return;}
+    if(target.matches('[data-coorg-action="team"]')){const s=appState(),tid=s?.teamCompetitionId||s?.activeTour;if(tid){event.preventDefault();event.stopImmediatePropagation();open(tid)}return;}
     if(target.matches('[data-swe-close]')){close();return;}
     if(target.matches('[data-swe-proposal]')){selected=target.dataset.sweProposal;render();return;}
     if(target.matches('[data-swe-refresh]')){refresh(latest?.tournament_id,false);return;}
