@@ -33,10 +33,41 @@
     });
   }
 
+  // A refusal frees a slot, but the player is only selected during the final
+  // draw.  Make that future slot visible in the actual team card as well as
+  // in the proposal summary, without counting it as a confirmed player.
+  function decorateTeamCards(){
+    document.querySelectorAll('#registrationTeamGrid .sp-team').forEach(card=>{
+      const name=card.querySelector('h3')?.textContent?.trim();
+      const group=groups.find(item=>item.name===name);
+      const randomSlots=group?.invitations.filter(item=>item.status==='declined'||item.status==='rejected').length||0;
+      if(!randomSlots)return;
+      const roster=card.querySelector('ol'); if(!roster)return;
+      if(!roster.querySelector('[data-random-team-slot]')){
+        for(let index=0;index<randomSlots;index++){
+          const slot=document.createElement('li');
+          slot.dataset.randomTeamSlot='1';
+          slot.style.cssText='border:1px dashed #a78bfa;background:#f5f3ff;color:#5b21b6';
+          slot.textContent='🎲 Joueur aléatoire · attribué au tirage final';
+          roster.appendChild(slot);
+        }
+      }
+      const strength=card.querySelector('.sp-team-strength');
+      if(strength){
+        strength.textContent=group.confirmed.length+' / '+group.teamSize+' joueurs confirmés · '+randomSlots+' joueur'+(randomSlots>1?'s':'')+' aléatoire'+(randomSlots>1?'s':'')+' au tirage';
+      }
+    });
+  }
+
+  function decorate(){
+    decorateList();
+    decorateTeamCards();
+  }
+
   function renderPanel(){
     const host=$('#registrationTeams')||$('#publicRegistrationCard')||$('#publicRegistration'); if(!host)return;
     const key=groups.map(group=>group.id+'|'+group.confirmed.join(',')+'|'+group.invitations.map(item=>item.id+'-'+item.status).join(',')).join(';');
-    if(renderedKey===key){decorateList();return;} renderedKey=key;
+    if(renderedKey===key){decorate();return;} renderedKey=key;
     $('#swePendingTeamProposals')?.remove(); if(!groups.length)return;
     const panel=document.createElement('section'); panel.id='swePendingTeamProposals'; panel.className='card';
     panel.style.cssText='border:1px solid #f6c76a;background:#fffaf0;margin:14px 0';
@@ -51,7 +82,7 @@
         rejected.map(item=>badge('❌ '+esc(item.name)+' · a refusé','background:#fef2f2;border-color:#fecaca;color:#991b1b')+badge('🎲 Joueur aléatoire attribué au tirage','background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6')).join('')+
         '</div></div>';
     }).join('');
-    host.before(panel); decorateList(); setTimeout(decorateList,350); setTimeout(decorateList,1200); setTimeout(decorateList,2600);
+    host.before(panel); decorate(); setTimeout(decorate,350); setTimeout(decorate,1200); setTimeout(decorate,2600);
   }
 
   async function load(){
@@ -76,7 +107,7 @@
   document.addEventListener('swe:rendered',()=>{renderedKey='';renderPanel();});
   // The registered-player list can be expanded after its first render.  Decorate
   // those additional rows once, without observing or rebuilding the page.
-  document.addEventListener('click',()=>setTimeout(decorateList,80));
+  document.addEventListener('click',()=>setTimeout(decorate,80));
   document.addEventListener('DOMContentLoaded',()=>setTimeout(load,350),{once:true});
   if(document.readyState!=='loading')setTimeout(load,350);
 })();
