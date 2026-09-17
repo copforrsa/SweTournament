@@ -19,7 +19,7 @@
     if(!list||!proposals.length)return;
     list.querySelectorAll('.player.row').forEach(row=>{
       const text=row.textContent||'';
-      const proposal=proposals.find(item=>text.includes(item.playerName));
+      const proposal=proposals.find(item=>item.status==='pending'&&text.includes(item.playerName));
       if(!proposal||row.querySelector('[data-team-proposal-badge]'))return;
       const target=row.querySelector('span[style*="flex"]')||row.querySelector('span');
       if(!target)return;
@@ -35,7 +35,7 @@
   function renderPanel(){
     const host=$('#registrationTeams')||$('#publicRegistrationCard')||$('#publicRegistration');
     if(!host)return;
-    const key=proposals.map(item=>item.teamId+'|'+item.playerId).join(',');
+    const key=proposals.map(item=>item.teamId+'|'+item.playerId+'|'+item.status).join(',');
     if(renderedKey===key){decorateList();return;}
     renderedKey=key;
     $('#swePendingTeamProposals')?.remove();
@@ -43,7 +43,7 @@
     const grouped=new Map();
     proposals.forEach(item=>{
       const group=grouped.get(item.teamId)||{name:item.teamName,creator:item.creatorName,players:[]};
-      group.players.push(item.playerName);grouped.set(item.teamId,group);
+      group.players.push(item);grouped.set(item.teamId,group);
     });
     const panel=document.createElement('section');
     panel.id='swePendingTeamProposals';
@@ -52,11 +52,13 @@
     panel.innerHTML='<h2 class="sectiontitle">⏳ Propositions d’équipe à confirmer</h2><p class="muted" style="margin-top:0">Les joueurs concernés doivent sélectionner leur nom ci-dessus pour accepter ou refuser la proposition. Ils restent inscrits tant qu’ils n’ont pas répondu.</p>'+[...grouped.values()].map(group=>
       '<div class="player" style="margin-top:8px"><b>'+esc(group.name)+'</b><div class="muted" style="margin-top:3px">Composition proposée</div><div style="margin-top:6px">'+
         (group.creator?'<span class="guest-badge" style="margin:2px;background:#ecfdf5;border-color:#86efac;color:#166534">✅ '+esc(group.creator)+' · créateur</span>':'')+
-        group.players.map(name=>'<span class="guest-badge" style="margin:2px">⏳ '+esc(name)+' · en attente</span>').join('')+
+        group.players.map(item=>'<span class="guest-badge" style="margin:2px;'+(item.status==='accepted'?'background:#ecfdf5;border-color:#86efac;color:#166534':item.status==='rejected'?'background:#fef2f2;border-color:#fecaca;color:#991b1b':'')+'">'+(item.status==='accepted'?'✅ '+esc(item.playerName)+' · confirmé':item.status==='rejected'?'❌ '+esc(item.playerName)+' · a refusé, place libérée pour l’équipe aléatoire':'⏳ '+esc(item.playerName)+' · en attente')+'</span>').join('')+
       '</div></div>'
     ).join('');
     host.before(panel);
     decorateList();
+    // The main registration list can finish its own stable render just after
+    // this module. Decorate it once more without observing or rebuilding it.
     setTimeout(decorateList,350);
     setTimeout(decorateList,1200);
   }
@@ -68,13 +70,14 @@
     const players=new Map((snapshot.players||[]).map(player=>[String(player.id),player]));
     const teams=new Map((snapshot.teams||[]).map(team=>[String(team.id),team]));
     proposals=(snapshot.team_player_invitations||[])
-      .filter(invitation=>String(invitation.tournament_id)===String(tournamentId)&&invitation.status==='pending')
+      .filter(invitation=>String(invitation.tournament_id)===String(tournamentId))
       .map(invitation=>({
         playerId:String(invitation.player_id),
         playerName:players.get(String(invitation.player_id))?.name||'Joueur',
         teamId:String(invitation.team_id),
         teamName:teams.get(String(invitation.team_id))?.name||'Équipe',
-        creatorName:players.get(String(invitation.invited_by_player_id))?.name||''
+        creatorName:players.get(String(invitation.invited_by_player_id))?.name||'',
+        status:invitation.status||'pending'
       }));
     renderPanel();
   }
