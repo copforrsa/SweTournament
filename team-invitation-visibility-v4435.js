@@ -40,7 +40,10 @@
     document.querySelectorAll('#registrationTeamGrid .sp-team').forEach(card=>{
       const name=card.querySelector('h3')?.textContent?.trim();
       const group=groups.find(item=>item.name===name);
-      const randomSlots=group?.invitations.filter(item=>item.status==='declined'||item.status==='rejected').length||0;
+      const refusals=group?.invitations.filter(item=>item.status==='declined'||item.status==='rejected').length||0;
+      // The final draw may already have filled the freed slot.  In that case
+      // the card must show only the real player, never an obsolete placeholder.
+      const randomSlots=group?Math.min(refusals,Math.max(0,group.teamSize-group.confirmed.length)):0;
       if(!randomSlots)return;
       const roster=card.querySelector('ol'); if(!roster)return;
       if(!roster.querySelector('[data-random-team-slot]')){
@@ -75,11 +78,12 @@
       const complete=group.confirmed.length>=group.teamSize;
       const rejected=group.invitations.filter(item=>item.status==='rejected'||item.status==='declined');
       const pending=group.invitations.filter(item=>item.status==='pending');
+      const randomSlots=Math.min(rejected.length,Math.max(0,group.teamSize-group.confirmed.length));
       return '<div class="player" style="margin-top:8px"><b>'+esc(group.name)+'</b> '+badge(complete?'✅ Équipe confirmée':'👥 Équipe en préparation · '+group.confirmed.length+'/'+group.teamSize,complete?'background:#ecfdf5;border-color:#86efac;color:#166534':'background:#eff6ff;border-color:#93c5fd;color:#1d4ed8')+
         '<div class="muted" style="margin-top:5px">Composition</div><div style="margin-top:6px">'+
         group.confirmed.map(name=>badge('✅ '+esc(name)+' · confirmé','background:#ecfdf5;border-color:#86efac;color:#166534')).join('')+
         pending.map(item=>badge('⏳ '+esc(item.name)+' · en attente')).join('')+
-        rejected.map(item=>badge('❌ '+esc(item.name)+' · a refusé','background:#fef2f2;border-color:#fecaca;color:#991b1b')+badge('🎲 Joueur aléatoire attribué au tirage','background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6')).join('')+
+        rejected.map((item,index)=>badge('❌ '+esc(item.name)+' · a refusé','background:#fef2f2;border-color:#fecaca;color:#991b1b')+(index<randomSlots?badge('🎲 Joueur aléatoire attribué au tirage','background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6'):'' )).join('')+
         '</div></div>';
     }).join('');
     host.before(panel); decorate(); setTimeout(decorate,350); setTimeout(decorate,1200); setTimeout(decorate,2600);
