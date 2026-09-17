@@ -231,6 +231,7 @@ function renderHostWelcome(){
 function setView(v){
   const previousView=S.lastView;
   if(v==='permissions'&&!isAdmin())v='home';
+  if(v==='coorganizers'&&!isAdmin())v='home';
   if(v==='players'&&isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_view_players)v='home';
   if(v==='tournaments'&&!S.workspaceFeatures.tournaments_enabled)v='home';
   if(v==='league'&&!S.workspaceFeatures.league_enabled)v='home';
@@ -255,7 +256,7 @@ function setView(v){
   }
   if(v==='ranking')renderRanking();
   S.lastView=v;
-  if(['home','myplayer','players','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
+  if(['home','myplayer','players','coorganizers','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
 }
 
 // `start` is an entry intent, not a persistent profile preference. Keeping
@@ -391,6 +392,13 @@ function applyPermissions(){
     el.setAttribute('aria-disabled',!admin?'true':'false');
     el.title=admin?'Gérer les autorisations':'Réservé à l’administrateur';
   });
+  document.querySelectorAll('.admin-coorg-tab').forEach(el=>{
+    el.classList.toggle('hidden',!admin);
+    el.style.display=admin?'':'none';
+    el.disabled=!admin;
+    el.setAttribute('aria-disabled',!admin?'true':'false');
+  });
+  const coorgView=$('#view-coorganizers');if(coorgView&&!admin)coorgView.classList.remove('active');
   const permView=$('#view-permissions');if(permView&&!admin)permView.classList.remove('active');
   const access=$('#adminAccessCard');if(access)access.classList.toggle('hidden',!(admin||coorg));
   const inviteControls=$('#adminInviteControls');if(inviteControls)inviteControls.classList.toggle('hidden',!(admin||(coorg&&S.myPermissions.can_invite_coorganizers)));
@@ -4516,7 +4524,7 @@ if($('#copySeasonPublicShareLink'))$('#copySeasonPublicShareLink').onclick=async
 if($('#shareSeasonPublicShareLink'))$('#shareSeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');const season=S.seasons.find(x=>x.is_active)||S.seasons[0],seasonName=String(season?.name||'en cours').replace(/^saison\s+/i,''),message='Voici les résultats de la saison '+seasonName;if(navigator.share){try{await navigator.share({title:'Résultats de la saison SWÉ',text:message,url:link});return}catch(e){if(e.name==='AbortError')return}}try{await navigator.clipboard.writeText(message+'\n'+link);toast('Message et lien copiés ✅')}catch(e){toast('Partage indisponible')}};
 if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{const link=$('#seasonPublicShareLink').value;if(link)window.open(link,'_blank','noopener')};
 
-function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
+function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_members'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_invites'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js?v=4411',{updateViaCache:'none'})
