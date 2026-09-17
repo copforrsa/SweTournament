@@ -51,7 +51,7 @@
         rejected.map(item=>badge('❌ '+esc(item.name)+' · refusé','background:#fef2f2;border-color:#fecaca;color:#991b1b')+badge('🎲 Joueur aléatoire à attribuer','background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6')).join('')+
         '</div></div>';
     }).join('');
-    host.before(panel); decorateList(); setTimeout(decorateList,350); setTimeout(decorateList,1200);
+    host.before(panel); decorateList(); setTimeout(decorateList,350); setTimeout(decorateList,1200); setTimeout(decorateList,2600);
   }
 
   async function load(){
@@ -74,6 +74,9 @@
     renderPanel();
   }
   document.addEventListener('swe:rendered',()=>{renderedKey='';renderPanel();});
+  // The registered-player list can be expanded after its first render.  Decorate
+  // those additional rows once, without observing or rebuilding the page.
+  document.addEventListener('click',()=>setTimeout(decorateList,80));
   document.addEventListener('DOMContentLoaded',()=>setTimeout(load,350),{once:true});
   if(document.readyState!=='loading')setTimeout(load,350);
 })();
