@@ -70,6 +70,8 @@ function mount(ctx){
   if(usedGuests&&!guestChoices.has(pid))guestChoices.set(pid,true);
   const guestAnswer=guestChoices.get(pid);
   const action=registeredAction.get(pid)||'';
+  const actionTitle=guestsStep.querySelector('header h3'),actionDescription=guestsStep.querySelector('header p');
+  if(reg){actionTitle.textContent=action==='guests'?'Ajouter des invités':action==='cooler'?'La 3e mi-temps':action==='team'?'Ta proposition d’équipe':action==='leave'?'Te désinscrire':'Que veux-tu modifier ?';actionDescription.textContent=action?'Tu peux revenir à tes autres choix en sélectionnant à nouveau ton nom.':'Gère tes invités, la glacière, ton équipe ou ton inscription.';}else{actionTitle.textContent='Viens-tu avec des invités ?';actionDescription.textContent='Ajoute-les maintenant pour réserver leur place.';}
   identityStep.classList.toggle('is-complete',!!pid&&!identityStep.classList.contains('is-editing'));identityStep.classList.toggle('is-current',!pid||identityStep.classList.contains('is-editing'));
   attendanceStep.hidden=!pid;attendanceStep.classList.toggle('is-complete',!!reg&&!attendanceStep.classList.contains('is-editing'));attendanceStep.classList.toggle('is-current',!!pid&&(!reg||attendanceStep.classList.contains('is-editing')));
   const guestsDone=guestAnswer===false||(guestAnswer===true&&guestCompleted.get(pid)===true);
