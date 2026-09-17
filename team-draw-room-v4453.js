@@ -30,8 +30,8 @@
     const adminActions=state.can_admin?'<button type="button" data-swe-redraw '+(Number(state.redraws_used||0)>=Number(state.max_redraws||0)?'disabled':'')+'>🎲 Lancer un nouveau tirage</button><button type="button" class="primary" data-swe-publish="'+esc(current||'')+'">✓ Choisir et publier cette composition</button>':'';
     root.innerHTML='<section class="swe-room"><div class="swe-room-head"><div><div style="font-size:11px;letter-spacing:.08em;font-weight:900;color:#1762bf">SALON PRIVÉ DE TIRAGE</div><h2 class="sectiontitle" style="margin:4px 0">🗳️ '+esc(state.tournament_name||'Composition des équipes')+'</h2>'+deadline+'</div><button type="button" aria-label="Fermer" data-swe-close>×</button></div>' +(message?'<div class="swe-room-note '+(error?'swe-room-error':'')+'">'+esc(message)+'</div>':'')+'<div class="swe-room-grid"><div><p class="muted">Les propositions ne sont pas visibles par les joueurs tant que l’administrateur ne les publie pas.</p>'+proposalHtml+'<div class="swe-room-actions">'+voteActions+adminActions+'<button type="button" data-swe-refresh>Actualiser les avis</button></div>'+ (state.can_admin?'<p class="muted" style="margin:10px 0 0">Nouveaux tirages : '+esc(state.redraws_used||0)+' / '+esc(state.max_redraws||0)+'. Les matchs déjà créés bloquent volontairement tout nouveau tirage.</p>':'')+'</div><aside class="swe-voters"><b>Co-gestionnaires inscrits</b><p class="muted" style="margin:5px 0 8px">Leur avis éclaire la décision de l’administrateur.</p>'+voterHtml+'</aside></div></section>';
   }
-  async function refresh(tid,open){try{latest=await call(open?'team_draw_room_open_v1':'team_draw_room_state_v1',{p_tournament_id:tid});render()}catch(err){render(err.message||'Le salon ne peut pas être ouvert.',true)}}
-  async function open(tid){if(!tid||opening)return;opening=true;latest=null;selected=null;modal().innerHTML='<section class="swe-room"><b>Ouverture du salon…</b></section>';await refresh(tid,isAdminUser());opening=false}
+  async function refresh(tid){try{latest=await call('team_draw_room_join_v1',{p_tournament_id:tid});render()}catch(err){render(err.message||'Le salon ne peut pas être ouvert.',true)}}
+  async function open(tid){if(!tid||opening)return;opening=true;latest=null;selected=null;modal().innerHTML='<section class="swe-room"><b>Ouverture du salon…</b></section>';await refresh(tid);opening=false}
   async function action(button){const root=E('sweDrawRoom4453'), tid=latest?.tournament_id;if(!tid)return;button.disabled=true;try{
     if(button.dataset.sweVote){latest=await call('team_draw_room_vote_v1',{p_tournament_id:tid,p_proposal_id:selected,p_decision:button.dataset.sweVote});render('Ton avis est enregistré.');}
     else if(button.dataset.sweRedraw){latest=await call('team_draw_room_redraw_v1',{p_tournament_id:tid});selected=latest.current_proposal_id;render('Nouvelle proposition créée : les joueurs ne la voient pas encore.');}
@@ -43,7 +43,16 @@
     if(target.matches('[data-coorg-action="team"]')){const s=appState(),tid=s?.teamCompetitionId||s?.activeTour;if(tid){event.preventDefault();event.stopImmediatePropagation();open(tid)}return;}
     if(target.matches('[data-swe-close]')){close();return;}
     if(target.matches('[data-swe-proposal]')){selected=target.dataset.sweProposal;render();return;}
-    if(target.matches('[data-swe-refresh]')){refresh(latest?.tournament_id,false);return;}
+    if(target.matches('[data-swe-refresh]')){refresh(latest?.tournament_id);return;}
     action(target);
   },true);
+  function lockGenerator(){
+    const s=appState(),t=(s?.tournaments||[]).find(x=>String(x.id)===String(s?.teamCompetitionId||s?.activeTour));
+    const button=E('smartAutoTeams');
+    if(!button||!t)return;
+    const locked=['pending','redraw_requested'].includes(String(t.team_review_status||''));
+    if(locked){button.disabled=true;button.title='Le vote sur le tirage est en cours.';button.textContent='🗳️ Vote sur le tirage en cours';}
+  }
+  ['DOMContentLoaded','swe:rendered','swe:page-view'].forEach(name=>document.addEventListener(name,()=>setTimeout(lockGenerator,0)));
+  setTimeout(lockGenerator,700);
 })();
