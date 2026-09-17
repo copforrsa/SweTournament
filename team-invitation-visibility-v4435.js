@@ -54,6 +54,10 @@
     ).join('');
     host.before(panel);
     decorateList();
+    // The main registration list can finish its own stable render just after
+    // this module. Decorate it once more without observing or rebuilding it.
+    setTimeout(decorateList,350);
+    setTimeout(decorateList,1200);
   }
 
   async function load(){
