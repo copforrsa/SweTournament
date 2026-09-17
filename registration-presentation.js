@@ -156,7 +156,11 @@ function mount(ctx){
  const paragraphs=text=>String(text||'').split('\n').filter(Boolean).map(line=>'<p>'+esc(line)+'</p>').join('');
  function update(){
   const d=ctx.data(),t=d.tournament;if(!t)return;
-  const tm=d.matches.filter(m=>m.tournament_id===t.id),begun=tm.some(started),finished=t.status==='finished',visibleTeams=d.teams.filter(x=>x.tournament_id===t.id);
+  const tm=d.matches.filter(m=>m.tournament_id===t.id),begun=tm.some(started),finished=t.status==='finished';
+  // Generated compositions are private while the live review room is open.
+  // Only the administrator can make them public by validating the draw.
+  const drawInReview=['pending','redraw_requested'].includes(String(t.team_review_status||''));
+  const visibleTeams=drawInReview?[]:d.teams.filter(x=>x.tournament_id===t.id);
   const regs=d.registrations.filter(r=>r.tournament_id===t.id&&r.present),confirmed=regs.filter(r=>r.registration_status!=='waitlist'),subs=confirmed.filter(r=>r.is_substitute).length,waiting=regs.length-confirmed.length,max=Number(t.max_players||35),isFull=max>0&&regs.length>=max,isClosed=closed(t)||isFull;
   const stage=finished?3:begun?2:isClosed||t.team_review_status==='pending'||t.team_review_status==='approved'?1:0;
   const label=finished?'Tournoi terminé':begun?'Matchs en direct':t.team_review_status==='pending'?'Équipes en validation':t.team_review_status==='approved'?'Équipes validées':isFull?'Effectif complet':isClosed?'Inscriptions closes':'Inscriptions ouvertes';
