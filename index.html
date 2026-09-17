@@ -342,16 +342,6 @@
 
         <div class="muted" style="margin-top:10px;font-size:12px">Les paiements des joueurs via Stripe restent distincts des options et formules de l’organisateur.</div>
       </div>
-
-      <div class="card" id="homeCoorgVotesCard">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <div>
-            <h2 class="sectiontitle" style="margin-bottom:4px">🗳️ Suivi des évaluations</h2>
-            <div class="muted">Nombre de joueurs évalués par chaque co-gestionnaire.</div>
-          </div>
-        </div>
-        <div id="homeCoorgVotes" style="margin-top:12px"></div>
-      </div>
       <div class="card">
         <h2 class="sectiontitle">Actions rapides</h2>
         <div class="grid g2">
@@ -361,6 +351,9 @@
           <button data-go="ranking">🏆 Classements</button>
         </div>
       </div>
+    </div>
+
+    <div id="view-coorganizers" class="view">
       <div class="card" id="adminAccessCard">
         <h2 class="sectiontitle">Accès et co-organisateurs</h2>
         <div id="adminInviteControls">
@@ -379,6 +372,15 @@
           <input id="publicLink" readonly style="flex:1">
           <button id="copyPublicLink">Copier</button>
         </div>
+      </div>
+      <div class="card" id="homeCoorgVotesCard">
+        <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div>
+            <h2 class="sectiontitle" style="margin-bottom:4px">🗳️ Suivi des évaluations</h2>
+            <div class="muted">Nombre de joueurs évalués par chaque co-gestionnaire.</div>
+          </div>
+        </div>
+        <div id="homeCoorgVotes" style="margin-top:12px"></div>
       </div>
     </div>
 
@@ -790,6 +792,7 @@
       <button class="tab active" data-view="home">Accueil</button>
       <button class="tab" data-view="myplayer">Mon profil joueur</button>
       <button class="tab" data-view="players" id="playersTabLabel">Joueurs</button>
+      <button class="tab admin-coorg-tab hidden" data-view="coorganizers">Co-gestionnaires <span id="coorgAcceptedBadge" class="hidden" aria-label="Nouvelles invitations acceptées"></span></button>
       <button class="tab admin-permissions-tab hidden" data-view="permissions">Autorisations</button>
       <button class="tab" data-view="tournaments">Tournois</button>
       <button class="tab" data-view="teams">Équipes</button>
@@ -920,7 +923,7 @@
 <script src="./hotfix-v4227.js?v=4377" defer></script>
 <script src="./hotfix-v4228.js?v=4400" defer></script>
 
-<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=4377" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4426-coorg-stable" defer></script><script src="./hotfix-v4235.js?v=4399-player-r1" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4377" defer></script><script src="./hotfix-v4244.js?v=4424-cooler-health-scope" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script><script src="./team-invitation-visibility-v4435.js?v=4449" defer></script>
+<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=4377" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4426-coorg-stable" defer></script><script src="./hotfix-v4235.js?v=4399-player-r1" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4377" defer></script><script src="./hotfix-v4244.js?v=4458-coorg-nav" defer></script><script src="./match-refresh-coorg-v4458.js?v=4458" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script><script src="./team-invitation-visibility-v4435.js?v=4449" defer></script>
   <script src="./team-captain-consent-v4438.js?v=4438" defer></script>
   <script src="./team-proposal-action-v4441.js?v=4441" defer></script>
   <script src="./third-half-action-order-v4445.js?v=4447" defer></script><script src="./third-half-donor-summary-v4451.js?v=4451" defer></script><script src="./team-draw-room-access-v4452.js?v=4452" defer></script><script src="./team-draw-room-v4455.js?v=4455" defer></script><script src="./team-composition-visual-v4456.js?v=4456" defer></script></body></html>
