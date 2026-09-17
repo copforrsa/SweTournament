@@ -50,12 +50,13 @@
     panel.className='card';
     panel.style.cssText='border:1px solid #f6c76a;background:#fffaf0;margin:14px 0';
     panel.innerHTML='<h2 class="sectiontitle">⏳ Propositions d’équipe à confirmer</h2><p class="muted" style="margin-top:0">Les joueurs concernés doivent sélectionner leur nom ci-dessus pour accepter ou refuser la proposition. Ils restent inscrits tant qu’ils n’ont pas répondu.</p>'+[...grouped.values()].map(group=>
-      '<div class="player" style="margin-top:8px"><b>'+esc(group.name)+'</b><div class="muted" style="margin-top:3px">Proposée par '+esc(group.creator||'un membre')+'</div><div style="margin-top:6px">'+group.players.map(name=>'<span class="guest-badge" style="margin:2px">⏳ '+esc(name)+' · en attente</span>').join('')+'</div></div>'
+      '<div class="player" style="margin-top:8px"><b>'+esc(group.name)+'</b><div class="muted" style="margin-top:3px">Composition proposée</div><div style="margin-top:6px">'+
+        (group.creator?'<span class="guest-badge" style="margin:2px;background:#ecfdf5;border-color:#86efac;color:#166534">✅ '+esc(group.creator)+' · créateur</span>':'')+
+        group.players.map(name=>'<span class="guest-badge" style="margin:2px">⏳ '+esc(name)+' · en attente</span>').join('')+
+      '</div></div>'
     ).join('');
     host.before(panel);
     decorateList();
-    // The main registration list can finish its own stable render just after
-    // this module. Decorate it once more without observing or rebuilding it.
     setTimeout(decorateList,350);
     setTimeout(decorateList,1200);
   }
