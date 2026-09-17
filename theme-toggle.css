@@ -11,4 +11,10 @@ html[data-swe-theme="dark"] button:not(.primary):not(.danger):not(.green):not(.t
 html[data-swe-theme="dark"] .swe-theme-toggle{background:rgba(225,237,255,.14);border-color:rgba(225,237,255,.25);color:#fff}
 html[data-swe-theme="dark"] #homeStats>div,html[data-swe-theme="dark"] #homeWorkspaceStats .home-kpi,html[data-swe-theme="dark"] #view-home>.card:first-child,html[data-swe-theme="dark"] #view-home .grid.g2 button[data-go]{background:#13233a!important;border-color:#2b405b!important;color:#e7eef9!important}
 html[data-swe-theme="dark"] .rank{border-color:#263950}
+html[data-swe-theme="dark"] #homeCoorgVotes .swe-eval-row,html[data-swe-theme="dark"] #homeCoorgVotes .swe-eval-row4393{border-color:#293b52}
+html[data-swe-theme="dark"] #homeCoorgVotes .swe-eval-bar{background:#263951}
+html[data-swe-theme="dark"] #homeCoorgVotes .swe-eval-score{color:#e7eef9}
+html[data-swe-theme="dark"] #homeCoorgVotes .swe-eval-score strong{background:#173f67;color:#d9efff}
+html[data-swe-theme="dark"] #homeCoorgVotes .swe-eval-kpi{background:#13243a!important;border-color:#2b4663!important}
+html[data-swe-theme="dark"] #homeCoorgVotes .swe-eval-kpi b{color:#6ee7b7!important}
 @media(max-width:650px){html[data-swe-theme="dark"] body{background:#09111f}}
