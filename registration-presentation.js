@@ -159,11 +159,10 @@ function mount(ctx){
  function update(){
   const d=ctx.data(),t=d.tournament;if(!t)return;
   const tm=d.matches.filter(m=>m.tournament_id===t.id),begun=tm.some(started),finished=t.status==='finished';
-  // Generated compositions are private while the live review room is open.
-  // Only the administrator can make them public by validating the draw.
-  const drawInReview=['pending','redraw_requested'].includes(String(t.team_review_status||''));
-  const visibleTeams=drawInReview?[]:d.teams.filter(x=>x.tournament_id===t.id);
-  const regs=d.registrations.filter(r=>r.tournament_id===t.id&&r.present),confirmed=regs.filter(r=>r.registration_status!=='waitlist'),subs=confirmed.filter(r=>r.is_substitute).length,waiting=regs.length-confirmed.length,max=Number(t.max_players||35),isFull=max>0&&regs.length>=max,isClosed=closed(t)||isFull;
+  // Once teams exist, keep them visible: the public link remains the reference
+  // for the group, including while co-managers discuss the composition.
+  const visibleTeams=d.teams.filter(x=>x.tournament_id===t.id);
+  const regs=d.registrations.filter(r=>r.tournament_id===t.id&&r.present),confirmed=regs.filter(r=>r.registration_status!=='waitlist'),substitutesEnabled=confirmed.length>10,subs=substitutesEnabled?confirmed.filter(r=>r.is_substitute).length:0,waiting=regs.length-confirmed.length,max=Number(t.max_players||35),isFull=max>0&&regs.length>=max,isClosed=closed(t)||isFull;
   const stage=finished?3:begun?2:isClosed||t.team_review_status==='pending'||t.team_review_status==='approved'?1:0;
   const label=finished?'Tournoi terminé':begun?'Matchs en direct':t.team_review_status==='pending'?'Équipes en validation':t.team_review_status==='approved'?'Équipes validées':isFull?'Effectif complet':isClosed?'Inscriptions closes':'Inscriptions ouvertes';
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
@@ -171,17 +170,19 @@ function mount(ctx){
   const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',format=king?'Roi du terrain':'Tournoi classique',formatEl=E('registrationFormat');
   formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
   const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
-  const venueLabel=pitches||t.venue||'';
-  const fee=Number(t.entry_fee_cents||0)/100,fields=[['Date',date(t.tournament_date)],['Heure',t.start_time?String(t.start_time).slice(0,5):''],['Lieu',venueLabel],['Participation',fee.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})]];
+  const venueRaw=t.venue||'';
+  const venueLabel=king?'Arena':(venueRaw.split(/\\s*[—-]\\s*/)[0]||venueRaw||'');
+  const terrainLabel=king?'Carrefour, Mercedes, Boulogne':(pitches||venueRaw.split(/\\s*[—-]\\s*/).slice(1).join(', ')||'');
+  const fee=Number(t.entry_fee_cents||0)/100,fields=[['Date',date(t.tournament_date)],['Heure',t.start_time?String(t.start_time).slice(0,5):''],['Lieu',venueLabel],['Terrains',terrainLabel],['Participation',fee.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})]];
   setHtml(E('registrationMeta'),fields.filter(x=>x[1]).map(([label,value])=>'<span><b>'+label+'</b>'+esc(value)+'</span>').join(''));
   setHtml(progress,['Inscriptions','Équipes','Matchs en direct','Résultats'].map((s,i)=>'<span class="'+(i<stage?'done':i===stage?'current':'')+'"'+(i===stage?' aria-current="step"':'')+'><i>'+(i<stage?'✓':i+1)+'</i>'+s+'</span>').join(''));
   const remaining=Math.max(0,max-regs.length);
-  const rows=[['Format',format],['Durée des matchs',t.match_duration_minutes?t.match_duration_minutes+' min':''],['Terrains',pitches],['Réservation',t.reservation_reference]];
+  const rows=[['Format',format],['Durée des matchs',t.match_duration_minutes?t.match_duration_minutes+' min':''],['Terrains',terrainLabel],['Réservation',t.reservation_reference]];
   const level=d.groupLevels?.find(g=>g.tournament_id===t.id)?.avg_rating;if(level!==null&&level!==undefined)rows.push(['Niveau du groupe',Number(level).toFixed(1).replace('.',',')+' / 5']);
   setHtml(E('registrationSummary'),'<div class="sp-eyebrow">'+(isClosed?'LES PARTICIPANTS':'REJOINS LE GROUPE')+'</div><div class="sp-count"><strong>'+regs.length+' <small>/ '+max+'</small></strong><span>'+(!isClosed?remaining+' places restantes':'inscrits')+'</span></div><div class="sp-meter"><i style="width:'+Math.min(100,100*confirmed.length/max)+'%"></i></div><p class="sp-subtext">'+confirmed.length+' confirmé'+(confirmed.length>1?'s':'')+(subs?' · '+subs+' remplaçant'+(subs>1?'s':''):'')+(waiting?' · '+waiting+' en attente':'')+'</p>'+(!isClosed&&t.registration_deadline?'<div class="sp-split"><span>Fin des inscriptions</span><b>'+esc(dateTime(t.registration_deadline))+'</b></div><div class="sp-countdown" data-registration-deadline="'+esc(t.registration_deadline)+'"></div>':'')+rows.filter(x=>x[1]).map(([label,value])=>'<div class="sp-split"><span>'+label+'</span><b>'+esc(value)+'</b></div>').join(''));
   const general=String(t.registration_briefing?.general||'').trim(),note=E('registrationGeneral');note.hidden=!general;note.className='sp-card sp-general';setHtml(note,general?'<div class="sp-eyebrow">UN MOT DE L’ADMINISTRATEUR</div><h2>Les consignes du tournoi.</h2><p>'+esc(general)+'</p>':'');
   const size=Number(t.team_size||5);
-  setHtml(E('registrationParticipationRules').querySelector('div'),'<h3>Les remplaçants</h3><p>Les dernières inscriptions qui ne complètent pas encore une équipe de '+size+' joueurs sont placées en remplacement, dans l’ordre de date et d’heure d’inscription. Dès qu’une équipe supplémentaire est complète, leur statut évolue automatiquement.</p><h3>Les invitations</h3><p>Un membre du groupe peut inviter jusqu’à 5 personnes, même s’il ne participe pas. Choisis ton nom, puis retrouve un ancien invité ou ajoute une nouvelle personne dans « Mes invités ». Une personne déjà inscrite n’a pas besoin d’être ajoutée à nouveau.</p><h3>Le désistement de dernière minute</h3><p>Préviens le groupe et utilise « Je ne participe pas » pour signaler ton absence. En cas de désistement de dernière minute, tu paies ta tournée au groupe à la prochaine édition.</p>');
+  setHtml(E('registrationParticipationRules').querySelector('div'),'<h3>Les remplaçants</h3><p>Les remplaçants ne sont pris en compte qu’à partir du 11e joueur inscrit. Jusqu’à 10 joueurs, le tournoi peut encore être annulé ou réorganisé par l’organisation.</p><h3>Les invitations</h3><p>Un membre du groupe peut inviter jusqu’à 5 personnes, même s’il ne participe pas. Choisis ton nom, puis retrouve un ancien invité ou ajoute une nouvelle personne dans « Mes invités ». Une personne déjà inscrite n’a pas besoin d’être ajoutée à nouveau.</p><h3>Le désistement de dernière minute</h3><p>Préviens le groupe et utilise « Je ne participe pas » pour signaler ton absence. En cas de désistement de dernière minute, tu paies ta tournée au groupe à la prochaine édition.</p>');
   const rules=E('registrationRules');rules.querySelector('summary').textContent='Règles · '+format;
   if(king){
    refreshRules(d);
@@ -196,7 +197,7 @@ function mount(ctx){
   const teamsBox=E('registrationTeams');teamsBox.hidden=!visibleTeams.length;teamsBox.className='sp-card sp-teams';
   const startValue=t.tournament_date?(t.tournament_date+'T'+(t.start_time?String(t.start_time).slice(0,5):'00:00')+':00'):'';
   const assignedIds=new Set(d.teamPlayers.filter(tp=>visibleTeams.some(team=>team.id===tp.team_id)).map(tp=>String(tp.player_id)));
-  const publicSubs=confirmed.filter(r=>r.is_substitute&&!assignedIds.has(String(r.player_id)));
+  const publicSubs=substitutesEnabled?confirmed.filter(r=>r.is_substitute&&!assignedIds.has(String(r.player_id))):[];
   const teamPlayerCount=assignedIds.size;
   const substitutePanel=publicSubs.length?'<aside class="sp-royal-subs"><div><span class="sp-royal-subs-kicker">🟠 LES JOKERS DU TOURNOI</span><h3>Remplaçants de la cour</h3><p>Prêts à entrer dans n’importe quelle équipe.</p></div><ul>'+publicSubs.map(r=>'<li>'+esc(d.players.find(p=>p.id===r.player_id)?.name||'Joueur')+'</li>').join('')+'</ul></aside>':'';
   setHtml(teamsBox,visibleTeams.length?'<div class="sp-royal-head">'+(startValue?'<div class="sp-royal-countdown" data-tournament-start="'+esc(startValue)+'">⏱️ Calcul du coup d’envoi…</div>':'')+'<div class="sp-royal-format">'+(king?'👑 Roi du Terrain <small>(Format Royal)</small>':'⚽ Tournoi SWÉ')+'</div><h2>'+(king?'Les prétendants à la couronne':'Les équipes en lice')+'</h2><p>'+visibleTeams.length+' équipe'+(visibleTeams.length>1?'s':'')+' · '+teamPlayerCount+' joueur'+(teamPlayerCount>1?'s':'')+' en équipe'+(publicSubs.length?' · '+publicSubs.length+' remplaçant'+(publicSubs.length>1?'s':''):'')+'</p></div><div id="registrationTeamGrid" class="sp-team-grid">'+visibleTeams.map((team,index)=>{const roster=d.teamPlayers.filter(tp=>tp.team_id===team.id);return '<article class="sp-team" style="--shirt:'+(/^#[0-9a-f]{6}$/i.test(team.color||'')?team.color:'#2563eb')+'"><div class="sp-team-top"><span class="sp-team-seed">Équipe '+String(index+1).padStart(2,'0')+'</span><span class="sp-team-shirt" aria-hidden="true">◆</span></div><h3>'+esc(team.name)+'</h3><ol>'+roster.map(tp=>'<li><span>'+esc(d.players.find(p=>p.id===tp.player_id)?.name||'Joueur')+'</span></li>').join('')+'</ol><strong class="sp-team-strength">'+roster.length+' / '+Number(t.team_size||5)+' joueurs</strong></article>'}).join('')+'</div>'+substitutePanel:'');
