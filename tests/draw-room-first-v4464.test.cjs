@@ -16,7 +16,7 @@ test('first draw only runs inside room; double clicks do not duplicate it',async
  w.eval(fs.readFileSync(path.join(__dirname,'../team-draw-room-v4455.js'),'utf8'));
  const flush=async()=>{for(let i=0;i<20;i++)await Promise.resolve()};
  w.document.querySelector('#smartAutoTeams').click();await flush();
- assert.deepEqual(calls,['team_draw_room_open_v1']);
+ assert.deepEqual(calls.filter(x=>x!=='team_draw_room_ready_v1'),['team_draw_room_open_v1']);
  const draw=w.document.querySelector('[data-swe-redraw]');assert.match(draw.textContent,/premier tirage/);assert.equal(w.document.querySelector('[data-swe-publish]'),null);
  draw.click();draw.click();assert.equal(calls.filter(x=>x==='team_draw_room_redraw_v1').length,1);assert.equal(w.document.querySelector('[aria-busy="true"]').id,'sweDrawRoom4453');
  resolveDraw();await flush();assert.ok(w.document.querySelector('[data-swe-publish="p"]'));assert.ok(w.document.querySelector('.swe-reveal .swe-team'));

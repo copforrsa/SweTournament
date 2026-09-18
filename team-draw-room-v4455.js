@@ -1,4 +1,4 @@
-/* Private team-draw room: deliberate actions only, no polling or automatic redraw. */
+/* Private team-draw room: deliberate actions only, isolated readiness updates; no automatic redraw. */
 (()=>{
   'use strict';
   const E=id=>document.getElementById(id);
@@ -8,7 +8,7 @@
   const api=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
   const asArray=v=>Array.isArray(v)?v:[];
   const readableDate=v=>{const d=new Date(v||'');return Number.isNaN(d.getTime())?'—':d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})};
-  let latest=null, selected=null, opening=false,acting=false,refreshing=false,generation=0;
+  let latest=null, selected=null, opening=false,acting=false,refreshing=false,generation=0,readyState=null,readyBusy=false,readyTimer=null;
 
   function css(){
     if(E('sweDrawRoomCss4453'))return;
@@ -18,8 +18,26 @@
     document.head.append(style);
   }
   function modal(){css();let root=E('sweDrawRoom4453');if(root)return root;root=document.createElement('div');root.id='sweDrawRoom4453';root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');document.body.append(root);return root}
-  function close(){generation++;E('sweDrawRoom4453')?.remove();latest=null;selected=null;document.dispatchEvent(new CustomEvent('swe:draw-room-closed'));}
+  function close(){const tid=latest?.tournament_id;clearTimeout(readyTimer);if(tid&&readyState?.mine)call('team_draw_room_ready_v1',{p_tournament_id:tid,p_ready:false}).catch(()=>{});readyState=null;generation++;E('sweDrawRoom4453')?.remove();latest=null;selected=null;document.dispatchEvent(new CustomEvent('swe:draw-room-closed'));}
   async function call(name,args){const client=api();if(!client)throw new Error('Connexion indisponible. Recharge la page puis réessaie.');const {data,error}=await client.rpc(name,args);if(error)throw error;return data}
+  function renderReadiness(){
+    const host=E('sweRoomReadiness');if(!host)return;
+    const data=readyState||{};
+    const people=latest?.can_admin?asArray(data.participants).map(p=>'<div><span>'+esc(p.name)+'</span> : <b style="color:'+(p.ready?'#087f5b':'#64748b')+'">'+(p.ready?'● Prêt':'○ Pas prêt')+'</b></div>').join(''):'';
+    const html='<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button type="button" data-swe-ready '+(readyBusy?'disabled':'')+' style="background:'+(data.mine?'#087f5b':'#1762bf')+';color:white" aria-pressed="'+Boolean(data.mine)+'">'+(data.mine?'✓ Prêt — me retirer':'Je suis prêt')+'</button><b style="color:'+(data.admin_ready?'#087f5b':'#64748b')+'">Admin : '+(data.admin_ready?'● Prêt':'○ Pas prêt')+'</b></div><small>Disponibilité déclarée · statut actualisé toutes les 15 secondes.</small>'+people;
+    if(host.innerHTML!==html)host.innerHTML=html;
+  }
+  async function syncReadiness(value=null){
+    const tid=latest?.tournament_id,epoch=generation;if(!tid||readyBusy||acting)return;
+    readyBusy=true;renderReadiness();
+    try{const data=await call('team_draw_room_ready_v1',{p_tournament_id:tid,p_ready:value});if(epoch===generation&&E('sweDrawRoom4453'))readyState=data;}
+    catch(err){if(epoch===generation){readyState={...readyState,mine:false,admin_ready:false,participants:[]};const host=E('sweRoomReadiness');if(host)host.title='Statut indisponible : '+(err.message||'connexion interrompue');}}
+    finally{readyBusy=false;if(epoch===generation)renderReadiness();}
+  }
+  function scheduleReadiness(){
+    clearTimeout(readyTimer);
+    readyTimer=setTimeout(async()=>{if(!E('sweDrawRoom4453'))return;if(document.visibilityState!=='hidden')await syncReadiness(readyState?.mine?true:null);if(E('sweDrawRoom4453'))scheduleReadiness();},15000);
+  }
   const rating=v=>Number(v).toFixed(2).replace('.',',');
   function teams(snapshot){return asArray(snapshot?.teams).map(team=>'<div class="swe-team"><b>'+esc(team.name||'Équipe')+'</b>'+(team.average_rating!=null?'<div style="color:#1762bf;font-weight:800">Moyenne : '+rating(team.average_rating)+' / 5</div>':'')+'<small>'+asArray(team.players).map(p=>'<div>'+esc(p.name)+(p.locked?' 🔒':'')+(p.rating_is_estimate?'<span style="display:block;color:#865b12">Invité · estimation 2,5/5</span>':'')+'</div>').join('')+'</small></div>').join('')||'<span class="muted">Aucune équipe dans cette proposition.</span>'}
   function render(message='',error=false){
@@ -34,23 +52,25 @@
     const voteActions=state.can_vote&&current?'<button type="button" class="primary" data-swe-vote="keep">👍 Conserver la proposition '+esc(sequence)+'</button><button type="button" data-swe-vote="redraw">🔄 Demander un nouveau tirage</button>':'';
     const adminActions=state.can_admin&&state.first_draw_pending?'<button type="button" class="primary" data-swe-redraw>🎲 Lancer le premier tirage</button>':state.can_admin?'<button type="button" class="swe-redraw" data-swe-redraw '+(Number(state.redraws_used||0)>=Number(state.max_redraws||0)?'disabled':'')+'>🎲 Lancer un nouveau tirage</button><button type="button" class="primary" data-swe-publish="'+esc(current||'')+'">✓ Publier la proposition '+esc(sequence)+'</button>':'';
     root.innerHTML='<section class="swe-room"><div class="swe-room-head"><div><div style="font-size:11px;letter-spacing:.08em;font-weight:900;color:#1762bf">SALON PRIVÉ DE TIRAGE</div><h2 class="sectiontitle" style="margin:4px 0">🗳️ '+esc(state.tournament_name||'Composition des équipes')+'</h2>'+deadline+'</div><button type="button" aria-label="Fermer" data-swe-close>×</button></div>' +(message?'<div class="swe-room-note '+(error?'swe-room-error':'')+'">'+esc(message)+'</div>':'')+'<div class="swe-room-grid"><div><p class="muted">Les propositions ne sont pas visibles par les joueurs tant que l’administrateur ne les publie pas.</p>'+proposalHtml+'<div class="swe-room-actions">'+voteActions+adminActions+'<button type="button" data-swe-refresh-teams>↻ Actualiser les équipes</button><button type="button" data-swe-refresh>Actualiser les avis</button></div>'+ (state.can_admin?'<p class="muted" style="margin:10px 0 0">Nouveaux tirages : '+esc(state.redraws_used||0)+' / '+esc(state.max_redraws||0)+'. Les matchs déjà créés bloquent volontairement tout nouveau tirage.</p>':'')+'</div><aside class="swe-voters"><b>'+(state.can_admin?'Co-gestionnaires inscrits':'Avis anonymes')+'</b><p class="muted" style="margin:5px 0 8px">Les totaux figurent sur chaque proposition.</p>'+(state.can_admin?voterHtml:'<p>Les identités des votants sont réservées à l’administrateur.</p>')+'</aside></div></section>';
+    const ready=document.createElement('div');ready.id='sweRoomReadiness';ready.className='swe-room-note';root.querySelector('.swe-room-head').after(ready);renderReadiness();
     root.querySelector('.swe-room').scrollTop=scroll;
     if(state.my_final_choice){const n=document.createElement('p');n.className='swe-room-note';n.textContent='Ton choix enregistré : '+(state.my_final_choice.decision==='keep'?'conserver la proposition '+state.my_final_choice.sequence:'demander un nouveau tirage')+'. Tu peux modifier ce choix avant publication.';root.querySelector('.swe-room-actions').before(n);}
   }
   async function refresh(tid,initial=false){if(!tid||refreshing||acting)return;refreshing=true;const epoch=generation;try{const data=await call(initial?(isAdminUser()?'team_draw_room_open_v1':'team_draw_room_join_v1'):'team_draw_room_state_v1',{p_tournament_id:tid});if(epoch!==generation||!E('sweDrawRoom4453'))return;latest=data;render()}catch(err){if(epoch===generation&&E('sweDrawRoom4453'))render(err.message||'Le salon ne peut pas être ouvert.',true)}finally{refreshing=false}}
-  async function open(tid){if(!tid||opening||refreshing)return;generation++;opening=true;latest=null;selected=null;modal().innerHTML='<section class="swe-room"><b>Ouverture du salon…</b></section>';await refresh(tid,true);opening=false}
+  async function open(tid){if(!tid||opening||refreshing)return;generation++;opening=true;latest=null;selected=null;modal().innerHTML='<section class="swe-room"><b>Ouverture du salon…</b></section>';readyState=null;await refresh(tid,true);opening=false;if(E('sweDrawRoom4453')){syncReadiness();scheduleReadiness()}}
   async function action(button){const root=E('sweDrawRoom4453'), tid=latest?.tournament_id;if(!tid||acting||refreshing)return;acting=true;root?.querySelectorAll('button').forEach(b=>b.disabled=true);try{
     if(button.dataset.sweVote){latest=await call('team_draw_room_vote_v1',{p_tournament_id:tid,p_proposal_id:selected,p_decision:button.dataset.sweVote});render('Ton avis est enregistré.');}
     else if(button.hasAttribute('data-swe-redraw')){button.textContent='🎲 Composition des équipes…';root.classList.add('swe-drawing');root.setAttribute('aria-busy','true');latest=await call('team_draw_room_redraw_v1',{p_tournament_id:tid});selected=latest.current_proposal_id;render('Proposition créée : les joueurs ne la voient pas encore.');root.classList.add('swe-reveal');}
     else if(button.dataset.swePublish){await call('team_draw_room_publish_v1',{p_tournament_id:tid,p_proposal_id:button.dataset.swePublish});close();const s=appState();if(s){s.activeTour=tid;s.teamCompetitionId=tid;}Promise.resolve(typeof loadTournament==='function'?loadTournament():null);alert('Composition publiée : les équipes sont maintenant visibles.');}
   }catch(err){render(err.message||'Action impossible.',true)}finally{acting=false;root?.classList.remove('swe-drawing');root?.removeAttribute('aria-busy')}}
   document.addEventListener('click',event=>{
-    const target=event.target.closest?.('[data-swe-open-draw-room],[data-coorg-action="team"],[data-swe-close],[data-swe-proposal],[data-swe-vote],[data-swe-redraw],[data-swe-publish],[data-swe-refresh],[data-swe-refresh-teams],#smartAutoTeams,#applyTeamRedraw');if(!target)return;
+    const target=event.target.closest?.('[data-swe-open-draw-room],[data-coorg-action="team"],[data-swe-close],[data-swe-ready],[data-swe-proposal],[data-swe-vote],[data-swe-redraw],[data-swe-publish],[data-swe-refresh],[data-swe-refresh-teams],#smartAutoTeams,#applyTeamRedraw');if(!target)return;
     if(target.matches('#smartAutoTeams,#applyTeamRedraw')){const s=appState(),t=(s?.tournaments||[]).find(x=>String(x.id)===String(s?.teamCompetitionId||s?.activeTour));if(t?.draw_room_first_enabled){event.preventDefault();event.stopImmediatePropagation();open(t.id)}return;}
     if(acting||(refreshing&&!target.matches('[data-swe-close]'))){event.preventDefault();event.stopImmediatePropagation();return;}
     if(target.matches('[data-swe-open-draw-room]')){event.preventDefault();event.stopImmediatePropagation();open(target.dataset.sweOpenDrawRoom);return;}
     if(target.matches('[data-coorg-action="team"]')){const s=appState(),tid=s?.teamCompetitionId||s?.activeTour;if(tid){event.preventDefault();event.stopImmediatePropagation();open(tid)}return;}
     if(target.matches('[data-swe-close]')){close();return;}
+    if(target.matches('[data-swe-ready]')){event.preventDefault();event.stopImmediatePropagation();syncReadiness(!readyState?.mine);return;}
     if(target.matches('[data-swe-proposal]')){selected=target.dataset.sweProposal;render();return;}
     if(target.matches('[data-swe-refresh],[data-swe-refresh-teams]')){event.preventDefault();event.stopImmediatePropagation();refresh(latest?.tournament_id);return;}
     event.preventDefault();event.stopImmediatePropagation();action(target);
