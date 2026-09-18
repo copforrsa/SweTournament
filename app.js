@@ -5441,13 +5441,16 @@ async function loadPublicPage(token,bootState){
     const confirmed=regs.filter(r=>r.registration_status!=='waitlist'&&r.present);
     const waiting=regs.filter(r=>r.registration_status==='waitlist');
     const playerMap=new Map(players.map(x=>[x.id,x]));
+    const tournamentTeams=new Map(teams.filter(team=>team.tournament_id===regTour.id).map(team=>[String(team.id),team]));
+    const playerTeam=new Map(teamPlayers.filter(row=>tournamentTeams.has(String(row.team_id))).map(row=>[String(row.player_id),tournamentTeams.get(String(row.team_id))]));
     const listRows=confirmed.map((r,i)=>{
       const pl=playerMap.get(r.player_id);if(!pl)return '';
+      const team=playerTeam.get(String(r.player_id));
       const host=(pl?.is_group_member===false&&r.registered_by_player_id)?playerMap.get(r.registered_by_player_id):null;
       const guest=pl?.is_group_member!==false?'Membre du groupe':(host?('Guest de '+host.name):publicGuestLabel(pl));
       const first=isFirstTimePublicPlayer(pl.id,regTour.id);
       const when=publicRegistrationDateTime(r.registered_at||r.created_at);
-      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b>'+playerAvatarHtml(pl)+'<span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">🆕 1ère fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">🕒 Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:'+(r.is_substitute?'#b45309':'#15803d')+'">'+(r.is_substitute?'Remplaçant':'Confirmé')+'</span></div>';
+      return '<div class="player row" style="align-items:flex-start"><b style="min-width:34px">'+(i+1)+'.</b>'+playerAvatarHtml(pl)+'<span style="flex:1">'+esc(pl.name)+(first?' <span class="guest-badge">🆕 1ère fois</span>':'')+(guest&&!first?' <span class="guest-badge">'+esc(guest)+'</span>':'')+(team?'<div class="muted" style="margin-top:3px;font-size:12px;font-weight:800;color:#145b9b">⚽ Équipe '+esc(team.name||'sans nom')+'</div>':'')+(when?'<div class="muted" style="margin-top:3px;font-size:12px">🕒 Inscrit le '+esc(when)+'</div>':'')+'</span><span style="font-weight:700;color:'+(r.is_substitute?'#b45309':'#15803d')+'">'+(r.is_substitute?'Remplaçant':'Confirmé')+'</span></div>';
     }).filter(Boolean);
     const waitRows=waiting.map((r,i)=>{
       const pl=playerMap.get(r.player_id);if(!pl)return '';
