@@ -228,7 +228,9 @@ function renderStableMatches(allowHydrate=true){
     active.forEach(m=>byPitch.set(String(m.pitch||m.round_label||'Terrain'),m));
     const current=[...byPitch.values()];
     const previous=selectedMatchByTournament.get(String(t.id));
-    let selectedKey=current.some(m=>String(m.id)===String(previous))?String(previous):(current[0]?String(current[0].id):(finished.length?'finished':null));
+    // Keep the completed-match view selected after its own click. Previously
+    // it was immediately replaced by the first active pitch (Carrefour).
+    let selectedKey=previous==='finished'&&finished.length?'finished':(current.some(m=>String(m.id)===String(previous))?String(previous):(current[0]?String(current[0].id):(finished.length?'finished':null)));
     selectedMatchByTournament.set(String(t.id),selectedKey);
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
     current.forEach(m=>{

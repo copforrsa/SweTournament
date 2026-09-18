@@ -19,7 +19,7 @@ assert.ok(engine.split(remount).length >= 3,
   'both hydration and ordinary stable rendering must rebuild the launch counter');
 assert.match(refresh, /renderMatches\(\);[\s\S]*SWE_MOUNT_MATCH_EXTRAS_4306\?\.\(true\)/,
   'the desktop targeted refresh must rebuild the launch counter');
-assert.ok(loader.includes('/match-engine-v4300.js?v=4474'),
+assert.ok(loader.includes('/match-engine-v4300.js?v=4475'),
   'the corrected match engine must use a fresh browser cache key');
 assert.ok(index.includes('match-refresh-coorg-v4458.js?v=4472'),
   'the corrected desktop refresh must use a fresh browser cache key');
@@ -39,6 +39,8 @@ assert.match(engine, /Matchs terminés \('/,
   'completed matches must be grouped under one fixed tab');
 assert.match(engine, /swe4300-finished-tab[\s\S]*outside the horizontal terrain strip/,
   'the completed-match control must stay reachable on mobile');
+assert.match(engine, /previous==='finished'&&finished\.length\?'finished'/,
+  'the completed-match view must remain selected after its click');
 assert.match(engine, /const rows=\[\.\.\.\(state\.matches\|\|\[\]\)\]\.sort\(\(a,b\)=>Number\(a\.match_order\|\|0\)-Number\(b\.match_order\|\|0\)\)/,
   'match numbering must stay in chronological order');
 assert.ok(quick.includes("swe4460-goal swe4460-goal-'+teamTone(g.team_id)"),
