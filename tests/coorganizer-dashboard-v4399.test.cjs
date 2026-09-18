@@ -67,6 +67,6 @@ test('dashboard renders Naya immediately even when server calls never resolve',a
   w.S={session:{user:{email:'laurencesarahlouison@gmail.com',user_metadata:{}}},workspace:{id:'ws',role:'coorganizer'},memberships:[{workspace_id:'ws',role:'coorganizer',workspaces:{name:'Tournoi du dimanche'}}],tournaments:[{id:'tour',name:'Tournoi du dimanche'}],activeTour:'tour',playerDashboard:{profile:{nickname:'Nayasarah'}},myPermissions:{can_view_players:true},workspaceFeatures:{rankings_enabled:true},players:[],teams:[],matches:[],tPlayers:[],skillAggregates:[],matchAssignments:[],goals:[]};
   w.isCoorg=()=>true;w.ratingForMatchPlayer=()=>null;w.setView=()=>{};w.sb={rpc:()=>new Promise(()=>{})};
   w.eval(js);d.dispatchEvent(new w.Event('DOMContentLoaded'));await new Promise(r=>setTimeout(r,240));
-  const root=d.getElementById('sweCoorgDashboard4399');assert.ok(root);assert.match(root.textContent,/Nayasarah/);assert.doesNotMatch(root.textContent,/Chargement de ton espace/);
+  const root=d.getElementById('sweCoorgDashboard4399');assert.ok(root);assert.match(root.firstElementChild.textContent,/Actions à réaliser/);assert.match(root.textContent,/Nayasarah/);assert.doesNotMatch(root.textContent,/Chargement de ton espace/);
   dom.window.close();
 });

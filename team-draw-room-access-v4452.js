@@ -2,6 +2,7 @@
 (()=>{
   'use strict';
   const E=id=>document.getElementById(id);
+  const esc=v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const state=()=>{try{return typeof S!=='undefined'?S:null}catch(_){return null}};
   const admin=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
   const coorg=()=>{try{return typeof isCoorg==='function'&&isCoorg()}catch(_){return false}};
@@ -27,8 +28,8 @@
     const card=old||document.createElement('section');
     card.id='sweDrawRoomAdminAccess4452';card.className='card';
     card.style.cssText='border:1px solid #8db7f4;background:linear-gradient(135deg,#f5faff,#edf7ff);margin-bottom:14px';
-    card.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><div style="font-size:11px;font-weight:900;letter-spacing:.08em;color:#1d4ed8">SALON DE TIRAGE</div><h2 class="sectiontitle" style="margin:4px 0">🗳️ Une composition attend ta décision</h2><p class="muted" style="margin:0">Les co-gestionnaires inscrits sont notifiés sur leur accueil. À la fin du délai, les équipes sont publiées ; tu peux aussi les valider toi-même à tout moment.</p></div></div><div style="display:grid;gap:8px;margin-top:12px">'+open.map(t=>'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:#fff"><span><b>'+String(t.name||'Tournoi')+'</b><small style="display:block;color:#526478">⏱ Jusqu’au '+date(t.team_review_deadline)+'</small></span><button type="button" class="primary" data-swe-open-draw-room="'+t.id+'">Ouvrir le salon →</button></div>').join('')+'</div>';
-    if(!old)home.prepend(card);
+    card.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><div style="font-size:11px;font-weight:900;letter-spacing:.08em;color:#1d4ed8">SALON DE TIRAGE</div><h2 class="sectiontitle" style="margin:4px 0">📋 Actions à réaliser — salon de tirage</h2><p class="muted" style="margin:0">Ouvre le salon pour lancer le tirage, consulter les avis et publier les équipes.</p></div></div><div style="display:grid;gap:8px;margin-top:12px">'+open.map(t=>'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:#fff"><span><b>'+esc(t.name||'Tournoi')+'</b><small style="display:block;color:#526478">'+(t.team_review_deadline?'⏱ Avis attendus avant '+date(t.team_review_deadline):'Premier tirage à lancer dans le salon')+'</small></span><button type="button" class="primary" data-swe-open-draw-room="'+t.id+'">Ouvrir le salon →</button></div>').join('')+'</div>';
+    if(home.firstElementChild!==card)home.prepend(card);
   }
 
   function renderCoorg(){
@@ -38,7 +39,7 @@
     if(team){
       const title=team.querySelector('h3'),copy=team.querySelector('p'),button=team.querySelector('[data-coorg-action="team"]'),deadline=team.querySelector('.swe-coorg-deadline');
       if(title)title.textContent='Salon de tirage';
-      if(copy)copy.textContent='L’admin a ouvert le salon : consulte la proposition, puis garde-la ou demande un nouveau tirage.';
+      if(copy)copy.textContent='Rejoins le salon. Dès le premier tirage, conserve la proposition ou demande un nouveau tirage.';
       if(button&&!button.disabled)button.textContent=button.textContent.includes('Modifier')?'Modifier mon avis':'Ouvrir le salon';
       if(deadline)deadline.textContent=deadline.textContent.replace('Avant le','Jusqu’au');
     }
