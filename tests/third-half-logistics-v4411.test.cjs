@@ -33,7 +33,9 @@ test('render notifications do not restart the interface after every click',()=>{
 test('payment owner configures a contribution while admin owns logistics',()=>{
   assert.match(app,/Ta participation personnelle/);
   assert.doesNotMatch(app,/id="publicCoolerTaskCooler"/);
-  assert.match(app,/Au moins 12 bières/);
+  assert.match(app,/beers_3:'3 bières'/);
+  assert.match(app,/beers_5:'5 bières'/);
+  assert.match(app,/beers_6:'6 bières'/);
   assert.match(app,/save_my_third_half_plan_v1/);
   assert.match(css,/\.third-half-public-plan-grid/);
   assert.match(sql,/responsible_contribution_mode/);
