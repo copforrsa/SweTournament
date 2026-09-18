@@ -9,7 +9,7 @@ assert.match(source,/swe4477PlayerAlphabet/,'the player list must expose an alph
 assert.match(source,/avatar_url/,'the directory must use the player profile photo');
 assert.match(source,/swe4477-player-name/,'player names must receive the prominent name style');
 assert.match(source,/scrollIntoView\(\{behavior:'smooth',block:'center'\}\)/,'alphabet navigation must jump to the selected player');
-assert.ok(loader.includes("players-directory-nav-v4477.js?v=4478-sticky-tools"),'the directory enhancement must load in the app');
+assert.ok(loader.includes("players-directory-nav-v4477.js?v=5000-fixed-player-tools"),'the directory enhancement must load in the app');
 console.log('players directory nav v4477: ok');
 
 
