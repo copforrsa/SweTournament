@@ -34,6 +34,42 @@ begin
     where p.id = p_payment_player_id and p.workspace_id = v_workspace and p.active = true
   ) then raise exception 'Le responsable du lien ne fait pas partie de ce groupe'; end if;
 
+
+
+-- Compatibilité : les anciens écrans ne confondent plus le porteur de glacière avec le propriétaire du lien.
+create or replace function public.admin_save_third_half_assignments_v1(
+  p_tournament_id uuid,
+  p_cooler_player_id uuid,
+  p_ice_player_id uuid
+)
+returns jsonb
+language sql
+security invoker
+set search_path = public, private, pg_temp
+as $$
+  select public.admin_save_third_half_assignments_v2(
+    p_tournament_id,
+    (
+      select f.responsible_player_id
+      from public.third_half_funds f
+      where f.tournament_id = p_tournament_id
+        and f.responsible_player_id is not null
+        and exists (
+          select 1
+          from public.tournament_players tp
+          where tp.tournament_id = p_tournament_id
+            and tp.player_id = f.responsible_player_id
+            and tp.present = true
+            and tp.registration_status <> 'cancelled'
+        )
+    ),
+    p_cooler_player_id,
+    p_ice_player_id
+  );
+$$;
+
+revoke all on function public.admin_save_third_half_assignments_v1(uuid,uuid,uuid) from public, anon, authenticated;
+grant execute on function public.admin_save_third_half_assignments_v1(uuid,uuid,uuid) to authenticated;
   if p_cooler_player_id is not null and not exists (
     select 1 from public.players p
     where p.id = p_cooler_player_id and p.workspace_id = v_workspace and p.active = true
