@@ -18,7 +18,7 @@ const editable=m=>{
   const t=tour(m);
   if(superAdmin())return true;
   if(!t||t.status==='finished')return false;
-  if(String(m.status)==='finished')return groupAdmin();
+  if(String(m.status)==='finished')return groupAdmin()||(typeof canEditCurrentMatches==='function'&&canEditCurrentMatches());
   return typeof canEditCurrentMatches==='function'&&canEditCurrentMatches();
 };
 function roster(m,tid,history=false){
