@@ -42,6 +42,8 @@ function installCss(){
   .swe4300-pitch-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 1px 8px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
   .swe4300-pitch-tab{flex:0 0 auto;min-height:42px;border:1px solid #bfd2e5;border-radius:12px;background:#f5f9fd;color:#17324d;font-weight:900;padding:9px 13px;white-space:nowrap}
   .swe4300-pitch-tab.active{background:linear-gradient(135deg,#1769e0,#10b7c9);border-color:transparent;color:#fff;box-shadow:0 5px 14px rgba(23,105,224,.23)}
+  .swe4300-finished-tab{display:block;width:100%;min-height:44px;margin:2px 0 10px;border:1px solid #7c9bb8;border-radius:12px;background:#edf4fa;color:#17324d;font-weight:900;padding:10px 13px;text-align:left}
+  .swe4300-finished-tab.active{background:linear-gradient(135deg,#475569,#0f172a);border-color:transparent;color:#fff}
   #matchesList .swe4300-match.finished{opacity:.58;background:#f3f4f6;order:99}
   .swe4300-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px;font-size:12px;font-weight:800;color:#64748b}
   .swe4300-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
@@ -234,11 +236,13 @@ function renderStableMatches(allowHydrate=true){
       button.textContent='⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};tabs.appendChild(button);
     });
-    if(finished.length){
-      const button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(selectedKey==='finished'?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',selectedKey==='finished'?'true':'false');button.textContent='✓ Matchs terminés ('+finished.length+')';
-      button.onclick=()=>{selectedMatchByTournament.set(String(t.id),'finished');renderStableMatches(false)};tabs.appendChild(button);
-    }
     box.appendChild(tabs);
+    if(finished.length){
+      // This control deliberately sits outside the horizontal terrain strip:
+      // it remains reachable with one tap on every phone.
+      const button=document.createElement('button');button.type='button';button.className='swe4300-finished-tab'+(selectedKey==='finished'?' active':'');button.setAttribute('aria-pressed',selectedKey==='finished'?'true':'false');button.textContent='✓ Matchs terminés ('+finished.length+')';
+      button.onclick=()=>{selectedMatchByTournament.set(String(t.id),'finished');renderStableMatches(false)};box.appendChild(button);
+    }
     if(selectedKey==='finished'){
       const note=document.createElement('div');note.className='swe4300-note';note.textContent='Historique des matchs. Seul l’administrateur du groupe peut corriger un résultat avant la clôture du tournoi.';box.appendChild(note);
       finished.forEach(m=>box.appendChild(buildCard(m,rows.indexOf(m))));
