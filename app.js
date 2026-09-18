@@ -3364,11 +3364,15 @@ $('#createTournament').onclick=async()=>{
       entry_fee_cents:Math.round(Number(feeRaw)*100),
       reservation_reference:$('#tourReservationRef')?.value.trim()||null,
       discovery_mode:$('#tourDiscoveryMode')?.value||'unlisted',
+      admin_payment_provider:$('#tourAdminPaymentProvider')?.value||null,
+      admin_payment_link:$('#tourAdminPaymentLink')?.value.trim()||null,
+      admin_payment_link_enabled:!!$('#tourAdminPaymentLinkEnabled')?.checked,
       allow_external_players:!!$('#tourAllowExternal')?.checked,
       external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked
     };
     if(S.workspaceFeatures.team_review_enabled){row.team_review_requested=true;row.team_review_duration_minutes=120;}
     if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active « Accepter des joueurs externes » pour rendre ce Swé visible aux joueurs solo.');
+    if(row.admin_payment_link_enabled&&(!row.admin_payment_provider||!row.admin_payment_link))throw new Error('Choisis la solution de paiement et ajoute ton lien HTTPS avant de l’afficher.');
     if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant d’exiger un paiement en ligne.');
     if(S.workspaceFeatures.third_half_enabled)row.cooler_suggested_cents=Math.min(500,Math.round(Math.max(0,Number($('#tourCoolerSuggested')?.value)||0)*100));
     const {data,error}=await sb.from('tournaments').insert(row).select().single();
@@ -5472,13 +5476,16 @@ async function loadPublicPage(token,bootState){
     const reservedPitchNames=(regTour.reserved_pitch_ids||[]).map(id=>S.sportsPitches.find(p=>p.id===id)?.name).filter(Boolean);
     const publicTerrainLabel=reservedPitchNames.length?reservedPitchNames.join(', '):(regTour.venue||'À préciser');
     const publicTime=regTour.start_time?String(regTour.start_time).slice(0,5):'À préciser';
+    const publicAdminPayment=regTour.admin_payment_link_enabled&&regTour.admin_payment_link
+      ? '<div class="player" style="margin-top:12px;background:#f3f8ff;border:1px solid #c6d9ee"><b>💳 Paiement de la participation</b><div class="muted" style="margin-top:5px">Paiement direct à l’organisateur via '+esc(regTour.admin_payment_provider||'son lien de paiement')+'.</div><a class="primary" style="display:inline-flex;margin-top:10px;text-decoration:none" href="'+esc(regTour.admin_payment_link)+'" target="_blank" rel="noopener noreferrer">Ouvrir le lien '+esc(regTour.admin_payment_provider||'de paiement')+'</a></div>'
+      : '';
     regBox.innerHTML=
       '<div class="player"><b>'+esc(regTour.name||('Tournoi du '+regTour.tournament_date))+'</b><div id="publicRegCount" class="muted">'+confirmed+'/'+(regTour.max_players||35)+' inscrits'+(substitutes?' • '+substitutes+' remplaçant'+(substitutes>1?'s':''):'')+(waiting?' • '+waiting+' en attente':'')+'</div>'+
       (regTour.format!=='league'?(()=>{const plan=tournamentAutoPlan(confirmed);return '<div style="margin-top:7px;font-weight:800">⚙️ Scénario actuel : '+(plan.teams?plan.teams+' équipe'+(plan.teams>1?'s':'')+' • '+plan.pitches+' terrain'+(plan.pitches>1?'s':'')+(plan.subs?' • '+plan.subs+' remplaçant'+(plan.subs>1?'s':'')+' commun'+(plan.subs>1?'s':''):''):'moins de 10 joueurs — équipes non générables')+'</div>'})():'')+
       (regTour.registration_deadline?'<div style="margin-top:8px;padding:9px 11px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0"><b>⏱️ Compte à rebours des inscriptions</b><div data-registration-deadline="'+esc(regTour.registration_deadline)+'" style="margin-top:4px"></div><div class="muted">Fin des inscriptions : '+new Date(regTour.registration_deadline).toLocaleString('fr-FR',{timeZone:'America/Martinique',dateStyle:'short',timeStyle:'short'})+'</div></div>':'')+'</div>'+
       (regTour.format!=='league'
         ? '<div class="player" style="margin-top:12px;background:#eef8f2;border:1px solid #b7dfc4"><b>📍 Infos pratiques</b><div class="muted" style="margin-top:6px;line-height:1.7">Complexe / terrains : <b>'+esc(publicTerrainLabel)+'</b><br>Heure de réservation : <b>'+esc(publicTime)+'</b><br>Prix : <b>'+esc(publicFee)+' € / participant</b>'+(regTour.reservation_reference?'<br>Réservation : <b>'+esc(regTour.reservation_reference)+'</b>':'')+'</div><div class="muted" style="margin-top:8px;line-height:1.7"><b>Programme :</b><br>8h45 : arrivée, paiement + échauffement<br>9h00 : début du tournoi — les premières équipes arrivées commencent'+(regTour.third_half_active?'<br>11h00 : 3e mi-temps':'')+'</div></div>'
-        : '')+
+        : '')+publicAdminPayment+
       (publicAutoPlan&&confirmed>=10?'<div class="player" style="margin-top:12px;background:#eef8f2;border:1px solid #b7dfc4"><b>⚙️ Format prévu avec '+confirmed+' inscrits</b><div class="muted" style="margin-top:5px;line-height:1.6">'+publicAutoPlan.teams+' équipes • '+publicAutoPlan.pitches+' terrain'+(publicAutoPlan.pitches>1?'s':'')+(publicAutoPlan.subs?' • '+publicAutoPlan.subs+' remplaçant'+(publicAutoPlan.subs>1?'s':'')+' commun'+(publicAutoPlan.subs>1?'s':''):'')+'.'+(publicAutoPlan.subs?' Les remplaçants pourront jouer pour n’importe quelle équipe.':'')+'</div></div>':'')+
       '<div class="player" style="margin-top:12px;background:#f8fbf9"><b>✅ Inscription</b><div class="muted" style="margin-top:6px;line-height:1.6">Inscris-toi en cliquant sur <b>« Je participe »</b>. Si tu viens accompagné, indique le nom de tes invités. Chaque membre peut ajouter jusqu’à <b>5 invités maximum</b>.</div></div>'+
       '<div class="space"></div><select id="publicPlayerSelect"><option value="">Choisis ton nom</option></select>'+
