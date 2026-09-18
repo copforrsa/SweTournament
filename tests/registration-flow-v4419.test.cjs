@@ -15,9 +15,9 @@ test('registration follows the practical player sequence',()=>{
   assert.match(presentation,/Oui, j’ai des invités/);
   assert.match(presentation,/Non, je viens seul/);
   assert.match(presentation,/J’ai terminé d’ajouter mes invités/);
-  assert.match(presentation,/attendanceStep\.hidden=!pid\|\|!!reg/);
-  assert.match(presentation,/guestsStep\.hidden=!reg\|\|guestsDone/);
-  assert.match(presentation,/thirdEnabled=!!reg&&guestsDone/);
+  assert.match(presentation,/attendanceStep\.hidden=!pid/);
+  assert.match(presentation,/guestsStep\.hidden=!reg\|\|action==='cooler'/);
+  assert.match(presentation,/thirdEnabled=!!reg&&action==='cooler'/);
   assert.match(css,/\.sp-registration-flow/);
   assert.match(css,/\.sp-flow-step\.is-current/);
   assert.match(css,/\.sp-flow-step\.is-complete \.sp-flow-content\{display:none/);
