@@ -168,9 +168,11 @@ function mount(ctx){
   const label=finished?'Tournoi terminé':begun?'Matchs en direct':t.team_review_status==='pending'?'Équipes en validation':t.team_review_status==='approved'?'Équipes validées':isFull?'Effectif complet':isClosed?'Inscriptions closes':'Inscriptions ouvertes';
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
   setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
-  const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',format=king?'Roi du terrain':'Tournoi classique';E('registrationFormat').textContent=format+' · '+(t.team_size||5)+' contre '+(t.team_size||5);
+  const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',format=king?'Roi du terrain':'Tournoi classique',formatEl=E('registrationFormat');
+  formatEl.textContent=format+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
   const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
-  const venueLabel=pitches||t.venue||'';
+  const rawVenue=pitches||t.venue||'';
+  const venueLabel=king&&!/Terres du Roi/i.test(rawVenue)?rawVenue.replace(/Carrefour/i,'Terres du Roi : Carrefour'):rawVenue;
   const fee=Number(t.entry_fee_cents||0)/100,fields=[['Date',date(t.tournament_date)],['Heure',t.start_time?String(t.start_time).slice(0,5):''],['Lieu',venueLabel],['Participation',fee.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})]];
   setHtml(E('registrationMeta'),fields.filter(x=>x[1]).map(([label,value])=>'<span><b>'+label+'</b>'+esc(value)+'</span>').join(''));
   setHtml(progress,['Inscriptions','Équipes','Matchs en direct','Résultats'].map((s,i)=>'<span class="'+(i<stage?'done':i===stage?'current':'')+'"'+(i===stage?' aria-current="step"':'')+'><i>'+(i<stage?'✓':i+1)+'</i>'+s+'</span>').join(''));
