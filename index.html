@@ -515,6 +515,15 @@
           <label class="player row" style="justify-content:flex-start;margin-top:10px"><input id="tourExternalPaymentRequired" type="checkbox" style="width:auto"><span><b>Exiger le paiement en ligne pour les joueurs externes</b><div class="muted">Disponible uniquement si ton profil organisateur et Stripe sont éligibles.</div></span></label>
           <label class="player row" style="justify-content:flex-start;margin-top:10px"><input id="tourOnlinePaymentEnabled" type="checkbox" style="width:auto"><span><b>💳 Proposer la collecte en ligne aux membres</b><div class="muted">Si désactivé, aucune information de paiement en ligne ne sera affichée.</div></span></label><div id="tourExternalPaymentNote" class="muted" style="margin-top:6px"></div>
         </div>
+        <div class="player" style="margin-top:12px;background:#f3f8ff;border:1px solid #c6d9ee">
+          <b>💳 Lien de paiement administrateur</b>
+          <div class="muted" style="margin:5px 0 10px">Indépendant de la Glacière. Il sert à recevoir directement les participations au tournoi.</div>
+          <div class="grid g2">
+            <label><span class="muted">Solution</span><select id="tourAdminPaymentProvider"><option value="">Choisir…</option><option value="Revolut">Revolut</option><option value="PayPal">PayPal</option><option value="Lydia">Lydia</option><option value="Autre">Autre</option></select></label>
+            <label><span class="muted">Ton lien HTTPS</span><input id="tourAdminPaymentLink" type="url" maxlength="500" placeholder="https://..."></label>
+          </div>
+          <label class="row" style="justify-content:flex-start;margin-top:10px"><input id="tourAdminPaymentLinkEnabled" type="checkbox" style="width:auto"><span><b>Afficher ce lien aux inscrits</b><div class="muted">L’argent arrive directement sur ton compte.</div></span></label>
+        </div>
         <div id="thirdHalfTournamentCreate" class="player hidden" style="margin-top:12px;background:#fff8ed;border:1px solid #fed7aa">
           <label class="row" style="justify-content:flex-start"><input id="tourThirdHalfActive" type="checkbox" style="width:auto"><span><b>🧊 Activer la 3e mi-temps / Glacière pour ce tournoi</b></span></label>
           <div class="muted" style="margin:5px 0 10px">Prépare l’organisation dès maintenant. Le lien Revolut/PayPal sera confié après l’inscription du responsable : c’est nécessaire pour que son lien personnel soit bien sécurisé.</div>
