@@ -11,7 +11,7 @@ async function boot(){
  applyBuild();purgeLegacyClient();loadCss('/desktop-layout-v4328.css?v=4377','desktop-layout-v4328');document.documentElement.dataset.sweMatchClient=mobileClient()?'mobile':'desktop';
  await load('/hotfix-v4269-rating-update.js?v=4400','v4269-rating-update-v4400');
  await load('/player-experience-v4349.js?v=4424-cooler-health-scope','player-experience-v4349-v4400');
- await load('/hotfix-v4278-rating-cooler-president.js?v=4401-rating-navigation','v4278-rating-cooler-president-v4401');
+ await load('/hotfix-v4278-rating-cooler-president.js?v=4461-stable-ratings','v4278-rating-cooler-president-v4401');
  await load('/brand-refresh-v4347.js?v=4377','brand-refresh-v4347');
  await load('/version-notice-v4346.js?v=4399','version-notice-v4346');
  await load('/admin-access-gate-v4258.js?v=4377','admin-access-gate');

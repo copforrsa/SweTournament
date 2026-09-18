@@ -44,6 +44,7 @@
 .swe-rate-nav{display:grid;grid-template-columns:minmax(190px,1fr) auto;gap:10px;align-items:center}.swe-rate-nav label{display:grid;gap:4px;font-size:11px;font-weight:900;color:#345}.swe-rate-nav select{min-height:40px;padding:8px;border:1px solid #cbded4;border-radius:10px;background:#fff}.swe-rate-nav-actions{display:flex;flex-wrap:wrap;gap:7px}.swe-rate-nav-actions button{border:1px solid #cbded4;background:#fff;border-radius:999px;padding:8px 11px;font-weight:800;color:#163957}.swe-rate-nav-actions button[aria-pressed="true"]{background:#08795b;color:#fff;border-color:#08795b}.swe-rate-nav-summary{margin:9px 0 0;color:#607067;font-size:12px;font-weight:700}.swe-rate-player[hidden],.swe-rate-card[hidden]{display:none!important}
 @media(max-width:820px){.swe-rate-player{grid-template-columns:1fr 1fr}.swe-rate-player>strong{grid-column:1/-1}.swe-cooler-grid,.swe-pack-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.swe-rate-nav{grid-template-columns:1fr}.swe-rate-nav-actions button{flex:1 1 auto}}
+#sweRateOverlay4278 .swe-rate-card[data-rate-team-card]{border-top:4px solid #188cb8}#sweRateOverlay4278 .swe-rate-player{padding:14px 8px;border-radius:10px}#sweRateOverlay4278 .swe-rate-player:nth-child(even){background:#f1f7ff}#sweRateOverlay4278 [data-save-rating],#sweRateOverlay4278 [data-save-observation]{background:linear-gradient(110deg,#215bd8,#087f9d);color:#fff;border:0;min-height:44px;padding:10px 14px;border-radius:12px}#sweRateOverlay4278 button:disabled{background:#e0f2e9;color:#165c3b;opacity:1}#sweRateOverlay4278 select{min-height:44px}#sweRateOverlay4278 select:focus-visible,#sweRateOverlay4278 button:focus-visible{outline:3px solid #2563eb;outline-offset:2px}.swe-rate-status{display:block;width:fit-content;margin-top:6px;padding:4px 8px;border-radius:20px;background:#fff1cf;color:#774c00;font-size:12px}.swe-rate-status.done{background:#daf4e5;color:#17613a}
 `;
     document.head.appendChild(s);
   }
@@ -86,12 +87,12 @@
   }
   function appreciationOptions(v) {
     const rows = [
-      [1, "Dommage, il était blessé (+0)"],
-      [2, "Il n’a pas bien joué du tout (-0,2)"],
-      [3, "Ce n’était pas son jour (-0,1)"],
-      [4, "Il a tenu son rang (+0,1)"],
-      [5, "Il a créé la surprise (+0,2)"],
-      [6, "Le maestro du jour (+0,3)"],
+      [1, "Dommage, il était blessé"],
+      [2, "Il n’a pas bien joué du tout"],
+      [3, "Ce n’était pas son jour"],
+      [4, "Il a tenu son rang"],
+      [5, "Il a créé la surprise"],
+      [6, "Le maestro du jour"],
     ];
     return (
       '<option value="">Choisir une appréciation…</option>' +
@@ -109,7 +110,15 @@
         .join("")
     );
   }
+  let ratingBusy = false;
   async function renderRateMode() {
+    if (ratingBusy) return;
+    ratingBusy = true;
+    try { await loadRateMode(); }
+    catch (error) { console.warn('Feuille de notation indisponible', error); }
+    finally { ratingBusy = false; }
+  }
+  async function loadRateMode() {
     const q = new URLSearchParams(location.search),
       tid = q.get("rate");
     if (!tid) return;
@@ -118,11 +127,14 @@
     const ses = await c.auth.getSession();
     if (!ses.data?.session) return;
     let overlay = E("sweRateOverlay4278");
+    const sheetKey = tid + ':' + ses.data.session.user.id;
+    if (overlay?.dataset.sheetKey === sheetKey) return;
     if (!overlay) {
       overlay = document.createElement("div");
       overlay.id = "sweRateOverlay4278";
       document.body.appendChild(overlay);
     }
+    overlay.dataset.sheetKey = sheetKey;
     overlay.innerHTML =
       '<div class="swe-rate-shell"><div class="swe-rate-card">Chargement de la feuille de notation…</div></div>';
     const r = await c.rpc("get_post_tournament_rating_sheet", {
@@ -132,7 +144,11 @@
       overlay.innerHTML =
         '<div class="swe-rate-shell"><div class="swe-rate-card"><b>Impossible d’ouvrir cette feuille de notation.</b><div class="swe-rate-error">' +
         esc(r.error.message) +
-        "</div></div></div>";
+        '</div><button type="button" data-retry-rating>Réessayer</button></div></div>';
+      overlay.querySelector('[data-retry-rating]').onclick = () => {
+        delete overlay.dataset.sheetKey;
+        renderRateMode();
+      };
       return;
     }
     const d = r.data || {},
@@ -175,7 +191,7 @@
       '</div></div><button id="sweRateClose4278" type="button">Retour à SWÉ</button></div>' +
       (expired
         ? '<div class="swe-rate-card swe-rate-expired"><b>🔒 Période de notation terminée</b><div class="muted">Les notes et appréciations restent consultables mais sont définitives.</div></div>'
-        : '<div class="swe-rate-card"><b>⚠️ Une notation est définitive après validation</b><div class="muted">Pour un joueur déjà noté, choisis une appréciation du jour : elle fera évoluer sa note de groupe et ne pourra être enregistrée qu’une fois pour ce tournoi.</div></div>') +
+        : '<div class="swe-rate-card"><b>⚠️ Une notation est définitive après validation</b><div class="muted">Tes appréciations font évoluer la note de groupe du joueur. Commence par noter les joueurs « Pas encore notés », puis donne ton appréciation pour ceux « Déjà notés ». Chaque validation est définitive.</div></div>') +
       '<div class="swe-rate-card swe-rate-nav" aria-label="Navigation des joueurs à noter"><label>Aller directement à un joueur<select id="sweRateJump4278"><option value="">Choisir un joueur (A–Z)</option>' +
       allPlayers.map((player) => '<option value="' + esc(player.id) + '">' + esc(player.name) + ' — ' + esc(player.teamName) + '</option>').join("") +
       '</select></label><div><div class="swe-rate-nav-actions"><button type="button" data-rate-filter="all" aria-pressed="true">Tous les joueurs</button>' +
@@ -221,6 +237,7 @@
                     : "all") +
                   '"><strong>' +
                   esc(p.player_name) +
+                  '<small class="swe-rate-status done">✓ Déjà noté</small>' +
                   '<small style="display:block;color:#607067">Note définitive : ' +
                   Number(ex.rating).toFixed(1) +
                   '/5</small></strong><label style="grid-column:span 5">Appréciation du jour<select data-k="appreciation" ' +
@@ -250,6 +267,7 @@
                   : "all") +
                 '"><strong>' +
                 esc(p.player_name) +
+                '<small class="swe-rate-status">⏳ Pas encore noté</small>' +
                 '</strong><label>Cardio<select data-k="cardio" ' +
                 (expired ? "disabled" : "") +
                 ">" +
@@ -352,8 +370,11 @@
               alert(rr.error.message);
               return;
             }
-            b.textContent = "Enregistré ✓";
-            setTimeout(() => (b.textContent = "Enregistrer"), 1300);
+            b.textContent = "Déjà noté ✓";
+            b.disabled = true;
+            row.querySelectorAll('select').forEach(s => { s.disabled = true; });
+            const status = row.querySelector('.swe-rate-status');
+            if (status) { status.textContent = '✓ Déjà noté'; status.classList.add('done'); }
           }),
       );
     if (!expired)
@@ -382,6 +403,7 @@
               return;
             }
             b.textContent = "Appréciation enregistrée ✓";
+            b.disabled = true;
             row.querySelector("select").disabled = true;
           }),
       );
