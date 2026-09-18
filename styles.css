@@ -417,6 +417,25 @@ select{background-color:#fff} textarea{resize:vertical}
 .build-badge{display:inline-flex;align-items:center;width:max-content;margin-top:6px;padding:4px 9px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:11px;font-weight:900;letter-spacing:.03em;border:1px solid #bae6fd}
 
 /* V42.1 — Glacière admin & contrôle consentement */
+
+/* V44.00 — parcours lisible de gestion d'un tournoi et de sa glacière */
+.tournament-admin-block{display:flex;flex-direction:column;gap:12px}
+.tournament-action-section{padding:16px;border:1px solid #dce7e1;border-radius:16px;background:#fbfdfc}
+.tournament-action-heading{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tournament-action-heading h3,.tournament-action-heading p{margin:0}
+.tournament-action-heading p{color:var(--muted,#65736b);font-size:.88rem;margin-top:2px}
+.tournament-step-number{display:grid;place-items:center;flex:0 0 30px;height:30px;border-radius:50%;background:#176b45;color:#fff;font-weight:900}
+.tournament-cooler-assignments{background:linear-gradient(145deg,#f3fbff,#f8fffb);border-color:#acd8ca}
+.tournament-cooler-role-grid{margin-top:12px}
+.tournament-cooler-role-grid label{display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid #d9e7e1;border-radius:12px;background:#fff}
+.tournament-section-help{line-height:1.5}
+.tournament-cooler-rules{margin:9px 0;padding:10px 12px;border-radius:10px;background:#eef6f2;color:#315848;font-size:.86rem;line-height:1.45}
+.tournament-post-actions{margin-top:12px;border:1px solid #dfe5e2;border-radius:13px;background:#fafbfa}
+.tournament-post-actions summary{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;font-weight:800;list-style:none}
+.tournament-post-actions summary::-webkit-details-marker{display:none}
+.tournament-post-actions summary small{color:var(--muted,#65736b);font-weight:500}
+.tournament-post-buttons{padding:0 14px 14px}
+@media(max-width:720px){.tournament-action-section{padding:13px}.tournament-cooler-role-grid{grid-template-columns:1fr!important}.tournament-post-actions summary{flex-direction:column}.tournament-post-buttons{display:grid;gap:8px}.tournament-post-buttons button{width:100%;margin:0!important}}
 .sa-consent-control{border:1px solid #bfdbfe;background:linear-gradient(135deg,#f8fbff,#eef8ff);margin-top:12px}.sa-switch-line{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #bfdbfe;border-radius:14px;background:#fff}.sa-switch-line input{width:auto;min-height:0;accent-color:#2563eb}.sa-switch-line span{display:grid}.sa-switch-line small{color:#64748b}.cooler-hero{background:linear-gradient(135deg,#eff6ff,#ecfeff);border:1px solid #bae6fd}.cooler-kicker{font-size:.72rem;font-weight:900;letter-spacing:.12em;color:#0369a1}.cooler-fund{border:1px solid #dbeafe;border-radius:18px;padding:16px;background:#fff;margin-bottom:12px}.cooler-fund-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.cooler-status{padding:6px 10px;border-radius:999px;font-size:.72rem;font-weight:900}.cooler-status.open{background:#dcfce7;color:#166534}.cooler-status.draft{background:#e2e8f0;color:#475569}.cooler-status.paused{background:#fef3c7;color:#92400e}.cooler-status.closed{background:#fee2e2;color:#991b1b}.cooler-progress{height:9px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:10px}.cooler-progress>span{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#06b6d4)}.cooler-link-preview{font-size:.78rem;color:#2563eb;word-break:break-all}.cooler-fund .grid{margin-top:12px}
 
 /* V42.2 — inscription officielle + file d’activation Super Admin */
