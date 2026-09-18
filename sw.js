@@ -1,4 +1,4 @@
-const SW_BUILD='42.50-cleanup';
+const SW_BUILD='50.08-android-account-sync';
 self.addEventListener('install',event=>{self.skipWaiting();});
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
