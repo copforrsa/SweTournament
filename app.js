@@ -30,7 +30,7 @@ window.addEventListener('error', (e) => {
   if(t){t.textContent='Erreur de chargement de l’application. Recharge la page.';t.style.display='block';}
 });
 
-const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null};
+const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null,playerAccountAccess:false,superPlayerAccountAccess:[]};
 
 let safeSyncTimer=null;
 let safeSyncBusy=false;
@@ -230,6 +230,7 @@ function renderHostWelcome(){
 
 function setView(v){
   const previousView=S.lastView;
+  if(v==='myplayer'&&!S.playerAccountAccess&&S.workspace)v='home';
   if(v==='permissions'&&!isAdmin())v='home';
   if(v==='coorganizers'&&!isAdmin())v='home';
   if(v==='players'&&isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_view_players)v='home';
@@ -241,7 +242,7 @@ function setView(v){
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
   const activeTab=document.querySelector('.tab.active');
   if(activeTab&&window.matchMedia('(max-width:650px)').matches){
-    requestAnimationFrame(()=>activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}));
+    requestAnimationFrame(()=>activeTab.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'nearest',inline:'center'}));
   }
   if(v==='teams'){
     if(previousView!=='teams'&&!S.teamCompetitionId&&S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
@@ -410,6 +411,7 @@ function applyPermissions(){
   document.querySelectorAll('.tab[data-view="cooler"]').forEach(el=>{const visible=admin&&thirdHalf;el.classList.toggle('hidden',!visible);el.style.display=visible?'':'none';});
   if(!admin||!thirdHalf)$('#view-cooler')?.classList.remove('active');
   document.querySelectorAll('.tab[data-view="ranking"]').forEach(el=>el.style.display=S.workspaceFeatures.rankings_enabled?'':'none');
+  document.querySelectorAll('.tab[data-view="myplayer"],[data-go="myplayer"]').forEach(el=>{el.style.display=S.playerAccountAccess?'':'none';});
   const ratingsEnabled=!!S.workspaceFeatures.player_ratings_enabled;
   document.querySelectorAll('.tab[data-view="players"]').forEach(el=>{
     const visible=admin||hasTemporaryAdmin()||(coorg&&S.myPermissions.can_view_players);
@@ -670,6 +672,8 @@ async function loadSuperAdminWorkspaces(){
   S.superCoorgQuotaRequests=requests.error?[]:(Array.isArray(requests.data)?requests.data:[]);
   const players=await sb.rpc('super_admin_get_players_directory_v3');
   S.superPlayers=players.error?[]:(Array.isArray(players.data)?players.data:[]);
+  const playerAccess=await sb.rpc('super_admin_get_player_account_access_v1');
+  S.superPlayerAccountAccess=playerAccess.error?[]:(Array.isArray(playerAccess.data)?playerAccess.data:[]);
   const signupRequests=await sb.rpc('super_admin_get_player_signup_requests');
   S.superSignupRequests=signupRequests.error?[]:(Array.isArray(signupRequests.data)?signupRequests.data:[]);
   const disputes=await sb.rpc('super_admin_get_identity_disputes');
@@ -722,16 +726,17 @@ function renderSuperAdminPlayers(){
   const rows=all.filter(r=>!q||[r.display_name,r.public_player_id,r.email,r.phone_number,r.home_area].some(v=>String(v||'').toLowerCase().includes(q)));
   const pill=$('#saPlayersCountPill');if(pill)pill.textContent=all.length+' profil'+(all.length>1?'s':'');
   const stats=$('#saPlayerStats');if(stats)stats.innerHTML=
-    '<div><span>👤</span><b>'+all.length+'</b><small>Identités SWÉ</small></div>'+ 
-    '<div><span>✅</span><b>'+all.filter(r=>r.consent_accepted).length+'</b><small>Consentements à jour</small></div>'+ 
-    '<div><span>⏳</span><b>'+all.filter(r=>!r.consent_accepted).length+'</b><small>À régulariser</small></div>'+ 
+    '<div><span>👤</span><b>'+all.length+'</b><small>Identités SWÉ</small></div>'+
+    '<div><span>✅</span><b>'+all.filter(r=>r.consent_accepted).length+'</b><small>Consentements à jour</small></div>'+
+    '<div><span>⏳</span><b>'+all.filter(r=>!r.consent_accepted).length+'</b><small>À régulariser</small></div>'+
     '<div><span>🌍</span><b>'+all.filter(r=>r.discoverable).length+'</b><small>Disponibles annuaire</small></div>';
   box.innerHTML='';
   if(!rows.length){box.innerHTML='<div class="muted">Aucun joueur ne correspond à la recherche.</div>';return;}
-  box.innerHTML=rows.map(r=>{const links=Array.isArray(r.staff_links)?r.staff_links:[];return '<div class="sa-player-row">'+
-    '<div class="sa-player-main"><div class="row" style="justify-content:flex-start;gap:7px;flex-wrap:wrap"><b>'+esc(r.display_name||'Joueur SWÉ')+'</b><span class="player-id-mini">'+esc(r.public_player_id||'—')+'</span><span class="guest-badge '+(r.consent_accepted?'consent-ok':'consent-pending')+'">'+(r.consent_accepted?'CONSENTEMENT OK':'À VALIDER')+'</span><span class="guest-badge identity-'+esc(r.identity_status||'active')+'">'+((r.identity_status||'active')==='active'?'IDENTITÉ OK':(r.identity_status==='review'?'VÉRIFICATION':'SUSPENDU'))+'</span></div>'+ 
-    '<div class="muted">📧 '+esc(r.email||'—')+(r.phone_number?' • 📱 '+esc(r.phone_number):'')+(r.home_area?' • 📍 '+esc(r.home_area):'')+'</div></div>'+ 
-    '<div class="sa-player-meta"><span><b>'+Number(r.groups_count||0)+'</b> groupe(s)</span><span><b>'+Number(r.local_profiles_count||0)+'</b> profil(s) lié(s)</span><span>'+(r.is_public?'🌐 Public':'🔒 Privé')+'</span><span>'+(r.discoverable?'🔎 Annuaire':'Annuaire désactivé')+'</span></div>'+ 
+  const accessByPlayer=new Map((S.superPlayerAccountAccess||[]).map(a=>[String(a.global_player_id),a]));
+  box.innerHTML=rows.map(r=>{const links=Array.isArray(r.staff_links)?r.staff_links:[],access=accessByPlayer.get(String(r.global_player_id)),enabled=!!access?.enabled;return '<div class="sa-player-row">'+
+    '<div class="sa-player-main"><div class="row" style="justify-content:flex-start;gap:7px;flex-wrap:wrap"><b>'+esc(r.display_name||'Joueur SWÉ')+'</b><span class="player-id-mini">'+esc(r.public_player_id||'—')+'</span><span class="guest-badge '+(r.consent_accepted?'consent-ok':'consent-pending')+'">'+(r.consent_accepted?'CONSENTEMENT OK':'À VALIDER')+'</span><span class="guest-badge identity-'+esc(r.identity_status||'active')+'">'+((r.identity_status||'active')==='active'?'IDENTITÉ OK':(r.identity_status==='review'?'VÉRIFICATION':'SUSPENDU'))+'</span></div>'+
+    '<div class="muted">📧 '+esc(r.email||'—')+(r.phone_number?' • 📱 '+esc(r.phone_number):'')+(r.home_area?' • 📍 '+esc(r.home_area):'')+'</div></div>'+
+    '<div class="sa-player-meta"><span><b>'+Number(r.groups_count||0)+'</b> groupe(s)</span><span><b>'+Number(r.local_profiles_count||0)+'</b> profil(s) lié(s)</span><span>'+(r.is_public?'🌐 Public':'🔒 Privé')+'</span><span>'+(r.discoverable?'🔎 Annuaire':'Annuaire désactivé')+'</span></div>'+     '<div class="row" style="justify-content:flex-start;gap:9px;margin:8px 0"><button type="button" data-sa-player-account-access="'+esc(access?.user_id||'')+'" data-next="'+(!enabled)+'" '+(!access?.user_id?'disabled':'')+' class="'+(enabled?'primary':'')+'">'+(enabled?'✓ Compte joueur autorisé':'Autoriser le compte joueur')+'</button><span class="guest-badge">'+(enabled?'ACCÈS TEST ACTIF':'ACCÈS FERMÉ')+'</span></div>'+
     (links.length?'<div class="sa-staff-links"><b>🔗 Liaison organisateur / membre</b>'+links.map(l=>'<div class="sa-staff-link"><span><b>'+esc(l.player_name)+'</b> • '+esc(l.workspace_name)+' <small>('+esc(l.role)+')</small></span><button class="danger" data-sa-unlink-staff data-workspace-id="'+esc(l.workspace_id)+'" data-user-id="'+esc(l.user_id)+'" data-player-id="'+esc(l.player_id)+'" data-player-name="'+esc(l.player_name)+'">Délier</button></div>').join('')+'</div>':'')+
     (r.consent_accepted_at?'<div class="small muted">Consentement : '+new Date(r.consent_accepted_at).toLocaleString('fr-FR')+'</div>':'')+
   '</div>'}).join('');
@@ -853,7 +858,7 @@ function renderSuperAdminWorkspaces(){
         '<div class="grid g2" style="margin-top:12px"><label><span class="muted">Offre</span><select data-sa-plan><option value="free" '+((w.subscription_plan||'free')==='free'?'selected':'')+'>FREE — Gestion essentielle</option><option value="standard" '+(w.subscription_plan==='standard'?'selected':'')+'>STANDARD — Top Player inclus</option><option value="pro" '+(w.subscription_plan==='pro'?'selected':'')+'>PRO — Top Player + 3e mi-temps</option></select></label><label class="sa-special-toggle"><input data-sa-special-access type="checkbox" '+(w.special_access_enabled?'checked':'')+'><span><b>🎁 Accès spécial</b><small>Débloque les options premium pour démo / ambassadeur.</small></span></label></div><label class="sa-special-toggle team-review-gift"><input data-sa-team-review-gift type="checkbox" '+(w.team_review_gifted?'checked':'')+'><span><b>🗳️ Offrir validation du tirage</b><small>Active uniquement cette option même sans abonnement payant.</small></span></label>'+
         '<div class="sa-offer-map"><span>FREE <b>Base</b></span><span>STANDARD <b>+ Top Player</b></span><span>PRO <b>+ Top Player + 3e mi-temps</b></span></div>'+
         (w.upgrade_requested_at?'<div class="sa-upgrade-alert"><b>🔔 Demande d’upgrade reçue</b><span>'+new Date(w.upgrade_requested_at).toLocaleString('fr-FR')+'</span></div>':'')+
-      '</div>'+ 
+      '</div>'+
 
       '<div class="player" style="margin-top:14px;background:#fffaf0;border:1px solid #f2d79a">'+
         '<b>🔄 Transférer la gestion à un autre administrateur</b>'+
@@ -1044,6 +1049,8 @@ document.addEventListener('click',async e=>{
     $('#saSpacesSection')?.classList.toggle('hidden',section!=='spaces');$('#saPlayersSection')?.classList.toggle('hidden',section!=='players');
     if(section==='players')renderSuperAdminPlayers();return;
   }
+  const playerAccessBtn=e.target?.closest?.('[data-sa-player-account-access]');
+  if(playerAccessBtn){const uid=playerAccessBtn.dataset.saPlayerAccountAccess,next=playerAccessBtn.dataset.next==='true';if(!uid)return;playerAccessBtn.disabled=true;const {error}=await sb.rpc('super_admin_set_player_account_access_v1',{p_user_id:uid,p_enabled:next});playerAccessBtn.disabled=false;if(error)return toast(error.message);toast(next?'Compte joueur autorisé ✅':'Accès au compte joueur fermé.');await loadSuperAdminWorkspaces();return;}
   const copyLinkBtn=e.target?.closest?.('[data-copy-signup-link]');
   if(copyLinkBtn){const r=(S.superSignupRequests||[]).find(x=>String(x.id)===String(copyLinkBtn.dataset.copySignupLink));if(r){await navigator.clipboard.writeText(playerActivationLink(r.activation_token));toast('Lien d’activation copié ✅');}return;}
   const copyMsgBtn=e.target?.closest?.('[data-copy-signup-message]');
@@ -1137,6 +1144,15 @@ document.addEventListener('click',async e=>{
 });
 async function loadMyPlayerDashboard(){
   if(!S.session){S.playerDashboard=null;return null;}
+  if(!S.playerAccountAccess){
+    S.playerDashboard=null;
+    const create=$('#myPlayerCreateCard'),dash=$('#myPlayerDashboard'),view=$('#view-myplayer');
+    create?.classList.add('hidden');dash?.classList.add('hidden');
+    let gate=$('#playerAccountAccessGate4469');
+    if(view&&!gate){gate=document.createElement('div');gate.id='playerAccountAccessGate4469';gate.className='card';gate.innerHTML='<h2 class="sectiontitle">Compte joueur SWÉ en préparation</h2><p class="muted">Cet espace est actuellement réservé aux comptes de test autorisés.</p>';view.prepend(gate);}
+    return null;
+  }
+  $('#playerAccountAccessGate4469')?.remove();
   const {data,error}=await sb.rpc('get_my_global_player_dashboard_v2');
   if(error){console.warn('global player dashboard',error);S.playerDashboard=null;return null;}
   S.playerDashboard=data||null;
@@ -1261,6 +1277,8 @@ async function boot(){
   if(await initSuperAdmin())return;
   const currentUserId=S.session?.user?.id;
   if(!currentUserId)return toast('Session utilisateur introuvable.');
+  const playerAccess=await sb.rpc('get_my_player_account_access_v1');
+  S.playerAccountAccess=!playerAccess.error&&playerAccess.data===true;
   await loadOnboardingStatus();
   let membershipQuery=sb.from('workspace_members')
     .select('workspace_id,role,workspaces(name,public_token,public_enabled,rating_group_name)')
@@ -1278,7 +1296,7 @@ async function boot(){
     document.querySelectorAll('.tabs .tab').forEach(t=>t.style.display=t.dataset.view==='myplayer'?'':'none');
     setView('myplayer');
     $('#workspaceName').textContent='Mon profil joueur SWÉ';
-    if(S.onboardingStatus?.completed){
+    if(!S.playerAccountAccess||S.onboardingStatus?.completed){
       $('#accountOnboarding')?.classList.add('hidden');
       $('#workspaceSetup')?.classList.add('hidden');
     }else showAccountOnboarding();
@@ -1340,8 +1358,8 @@ document.addEventListener('click',async e=>{
     $('#accountOnboarding')?.classList.add('hidden');$('#workspaceSetup')?.classList.add('hidden');setView('myplayer');toast('Profil joueur activé ⚽');return;
   }
   if(intent==='organizer'){openOrganizerSetup('group');return;}
-  if(e.target?.id==='becomeOrganizer'||e.target?.id==='coorgCreateOwnWorkspace'){openOrganizerSetup('group');$('#workspaceSetup')?.scrollIntoView({behavior:'smooth',block:'start'});return;}
-  if(e.target?.id==='trialChoosePlan'){setView('home');setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:'smooth',block:'start'}),100);return;}
+  if(e.target?.id==='becomeOrganizer'||e.target?.id==='coorgCreateOwnWorkspace'){openOrganizerSetup('group');$('#workspaceSetup')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});return;}
+  if(e.target?.id==='trialChoosePlan'){setView('home');setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'}),100);return;}
 });
 
 async function loadInvites(){
@@ -1724,7 +1742,7 @@ async function refreshStripeConnectStatus(showToast=true){
 
 document.addEventListener('click',(e)=>{
   if(e.target?.id==='homeStripeFinishBtn'){
-    setTimeout(()=>$('#stripeBillingCard')?.scrollIntoView({behavior:'smooth',block:'start'}),120);
+    setTimeout(()=>$('#stripeBillingCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'}),120);
   }
 });
 document.addEventListener('change',(e)=>{
@@ -3251,7 +3269,7 @@ async function showTournamentHistory(t){
     '<h3 style="margin-top:16px">🎯 Passeurs du tournoi</h3>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+
     '<h3 style="margin-top:16px">📋 Résultats</h3>'+(matchRows||'<p class="muted">Aucun match enregistré.</p>');
   $('#closeHistoryPanel').onclick=()=>panel.remove();
-  panel.scrollIntoView({behavior:'smooth',block:'start'});
+  panel.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});
 }
 
 $('#newSeasonBtn').onclick=()=>$('#newSeasonBox').classList.toggle('hidden');
@@ -3261,20 +3279,20 @@ if(newTournamentToggle)newTournamentToggle.onclick=()=>{
   S.tournamentCreateOpen=true;
   S.seasonAdminOpen=false;
   applyPermissions();
-  $('#tournamentAdminCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+  $('#tournamentAdminCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});
 };
 const cancelTournamentCreate=$('#cancelTournamentCreate');
 if(cancelTournamentCreate)cancelTournamentCreate.onclick=()=>{
   S.tournamentCreateOpen=false;
   applyPermissions();
-  $('#tournamentList')?.scrollIntoView({behavior:'smooth',block:'start'});
+  $('#tournamentList')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});
 };
 const seasonSettingsToggle=$('#seasonSettingsToggle');
 if(seasonSettingsToggle)seasonSettingsToggle.onclick=()=>{
   S.seasonAdminOpen=!S.seasonAdminOpen;
   S.tournamentCreateOpen=false;
   applyPermissions();
-  if(S.seasonAdminOpen)$('#seasonAdminCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+  if(S.seasonAdminOpen)$('#seasonAdminCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});
 };
 
 $('#createTournament').onclick=async()=>{
@@ -4688,7 +4706,7 @@ async function generateVisual(kind){
   currentVisualFilename='tournoi-'+kind+'-'+(t.tournament_date||'').replaceAll('-','')+'.png';
   currentVisualBlob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png',1));
   $('#visualPreviewBox').classList.remove('hidden');
-  $('#visualPreviewBox').scrollIntoView({behavior:'smooth',block:'center'});
+  $('#visualPreviewBox').scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'center'});
   toast('Visuel généré ✅');
 }
 
@@ -4845,11 +4863,11 @@ async function bootPaymentDesk(token){
     const price=Number(snapshot.entry_fee_cents||0);
     const totalCollected=paidCount*price;
     const savedName=rememberedCollector();
-    content.innerHTML='<div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:230px"><h2 class="sectiontitle" style="margin-bottom:5px">💶 '+esc(snapshot.tournament_name||('Swé du '+snapshot.tournament_date))+'</h2><div class="muted">📅 '+esc(snapshot.tournament_date||'')+'</div><div class="payment-price-highlight">Prix à payer : <b>'+esc(paymentMoney(price))+'</b> par joueur</div><div class="muted" style="margin-top:5px">Indique ton prénom, puis marque simplement qui a payé sur place.</div></div><button id="paymentDeskRefresh">↻ Actualiser</button></div>'+ 
-      '<div class="player" style="margin-top:14px;background:#f8fafc"><label for="paymentDeskCollector"><b>👤 Ton prénom / nom</b></label><input id="paymentDeskCollector" maxlength="60" placeholder="Ex. Laurent" value="'+esc(savedName)+'" autocomplete="name" style="margin-top:6px"><label class="row" style="gap:8px;margin-top:8px;justify-content:flex-start"><input id="paymentDeskRememberCollector" type="checkbox" style="width:auto" '+(savedName?'checked':'')+'><span>Mémoriser ce nom sur cet appareil pour la prochaine fois</span></label><div class="muted" style="margin-top:5px">Le nom est enregistré avec chaque validation de paiement.</div></div>'+ 
-      '<div class="grid g3" style="margin-top:14px"><div class="player" style="background:#eef8f2"><b style="font-size:1.2rem">'+paidCount+'</b><div class="muted">Payé'+(paidCount>1?'s':'')+'</div></div><div class="player" style="background:#fff3e8"><b style="font-size:1.2rem">'+unpaidCount+'</b><div class="muted">Non payé'+(unpaidCount>1?'s':'')+'</div></div><div class="player"><b style="font-size:1.2rem">'+esc(paymentMoney(totalCollected))+'</b><div class="muted">Total encaissé</div></div></div>'+ 
-      '<div class="payment-walkin-card"><div><b>➕ Joueur absent de la liste</b><div class="muted">S’il se présente et paie, ajoute simplement son nom. Le montant utilisé sera '+esc(paymentMoney(price))+'.</div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input id="paymentDeskWalkinName" maxlength="80" placeholder="Nom / prénom du joueur" style="flex:1;min-width:220px"><button id="paymentDeskAddWalkin" class="primary">Ajouter comme PAYÉ</button></div></div>'+ 
-      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px"><div style="flex:1;min-width:220px"><input id="paymentDeskSearch" placeholder="🔎 Rechercher un joueur" autocomplete="off"></div><button id="paymentDeskPrint">🖨️ Imprimer / Enregistrer PDF</button></div><div id="paymentDeskRows" style="margin-top:10px"></div>'+ 
+    content.innerHTML='<div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:230px"><h2 class="sectiontitle" style="margin-bottom:5px">💶 '+esc(snapshot.tournament_name||('Swé du '+snapshot.tournament_date))+'</h2><div class="muted">📅 '+esc(snapshot.tournament_date||'')+'</div><div class="payment-price-highlight">Prix à payer : <b>'+esc(paymentMoney(price))+'</b> par joueur</div><div class="muted" style="margin-top:5px">Indique ton prénom, puis marque simplement qui a payé sur place.</div></div><button id="paymentDeskRefresh">↻ Actualiser</button></div>'+
+      '<div class="player" style="margin-top:14px;background:#f8fafc"><label for="paymentDeskCollector"><b>👤 Ton prénom / nom</b></label><input id="paymentDeskCollector" maxlength="60" placeholder="Ex. Laurent" value="'+esc(savedName)+'" autocomplete="name" style="margin-top:6px"><label class="row" style="gap:8px;margin-top:8px;justify-content:flex-start"><input id="paymentDeskRememberCollector" type="checkbox" style="width:auto" '+(savedName?'checked':'')+'><span>Mémoriser ce nom sur cet appareil pour la prochaine fois</span></label><div class="muted" style="margin-top:5px">Le nom est enregistré avec chaque validation de paiement.</div></div>'+
+      '<div class="grid g3" style="margin-top:14px"><div class="player" style="background:#eef8f2"><b style="font-size:1.2rem">'+paidCount+'</b><div class="muted">Payé'+(paidCount>1?'s':'')+'</div></div><div class="player" style="background:#fff3e8"><b style="font-size:1.2rem">'+unpaidCount+'</b><div class="muted">Non payé'+(unpaidCount>1?'s':'')+'</div></div><div class="player"><b style="font-size:1.2rem">'+esc(paymentMoney(totalCollected))+'</b><div class="muted">Total encaissé</div></div></div>'+
+      '<div class="payment-walkin-card"><div><b>➕ Joueur absent de la liste</b><div class="muted">S’il se présente et paie, ajoute simplement son nom. Le montant utilisé sera '+esc(paymentMoney(price))+'.</div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input id="paymentDeskWalkinName" maxlength="80" placeholder="Nom / prénom du joueur" style="flex:1;min-width:220px"><button id="paymentDeskAddWalkin" class="primary">Ajouter comme PAYÉ</button></div></div>'+
+      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px"><div style="flex:1;min-width:220px"><input id="paymentDeskSearch" placeholder="🔎 Rechercher un joueur" autocomplete="off"></div><button id="paymentDeskPrint">🖨️ Imprimer / Enregistrer PDF</button></div><div id="paymentDeskRows" style="margin-top:10px"></div>'+
       (walkins.length?'<div style="margin-top:16px"><h3 class="sectiontitle">Ajoutés sur place</h3><div id="paymentDeskWalkins"></div></div>':'')+
       '<div class="readonly-note" style="margin-top:12px">🔐 Lien privé : suivi manuel uniquement. À la clôture du tournoi, un rapport définitif est archivé et disponible pour l’administrateur.</div>';
     const rowsBox=$('#paymentDeskRows');
@@ -5832,17 +5850,17 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
           // ne doit jamais déclencher un popup de confirmation.
           confirmPublicStripePayment(pid,null,false).then(async paid=>{if(paid){await renderPublicPaymentBox({skipStripeReconcile:true});}});
         }
-        const html='<div><b style="font-size:1.02rem">💶 Comment veux-tu payer ?</b><div class="muted" style="margin-top:5px">Choisis ton mode de paiement pour cette inscription.</div></div>'+ 
+        const html='<div><b style="font-size:1.02rem">💶 Comment veux-tu payer ?</b><div class="muted" style="margin-top:5px">Choisis ton mode de paiement pour cette inscription.</div></div>'+
           '<div class="grid g2" style="gap:9px;margin-top:12px">'+
-            '<button id="publicPayEntry" class="primary" style="min-height:64px"><span style="font-size:1.05rem">💳 Payer en ligne</span><br><span style="font-size:.76rem;font-weight:700">Gagner du temps • sécurisé par Stripe</span></button>'+ 
-            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">🏟️ Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicOnsitePriceLabel()+' tarif public</span></button>'+ 
-          '</div>'+ 
+            '<button id="publicPayEntry" class="primary" style="min-height:64px"><span style="font-size:1.05rem">💳 Payer en ligne</span><br><span style="font-size:.76rem;font-weight:700">Gagner du temps • sécurisé par Stripe</span></button>'+
+            '<button id="publicPayOnsite" style="min-height:64px;background:#fff;border:2px solid #178a43;color:#126b34"><span style="font-size:1.05rem">🏟️ Payer sur place</span><br><span style="font-size:.76rem;font-weight:700">'+publicOnsitePriceLabel()+' tarif public</span></button>'+
+          '</div>'+
           '<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e4e8ee"><div style="font-weight:850;font-size:.88rem">Paiement en ligne accepté</div><div class="muted" style="font-size:.70rem;line-height:1.35;margin:3px 0 8px">Selon ton appareil, ton navigateur et les moyens de paiement disponibles sur Stripe.</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">'+
             '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="display:flex;align-items:center;justify-content:center;gap:6px;height:28px"><span style="font-weight:950;font-size:.72rem;background:#1434CB;color:#fff;border-radius:4px;padding:3px 5px;font-style:italic">VISA</span><span aria-label="Mastercard" style="display:inline-flex;align-items:center"><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#EB001B;margin-right:-5px"></i><i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:#F79E1B;opacity:.92"></i></span></div><div class="muted" style="font-size:.67rem">Carte bancaire</div></div>'+
             '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" style="display:block;max-width:58px;max-height:24px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Apple Pay</div></div>'+
             '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" style="display:block;max-width:64px;max-height:24px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Google Pay</div></div>'+
             '<div style="border:1px solid #dfe4ea;border-radius:10px;padding:8px 5px;text-align:center;background:#fff"><div style="height:28px;display:flex;align-items:center;justify-content:center"><img src="https://upload.wikimedia.org/wikipedia/commons/7/73/Revolut_logo.svg" alt="Revolut Pay" style="display:block;max-width:72px;max-height:22px;width:auto;height:auto"></div><div class="muted" style="font-size:.67rem">Revolut Pay</div></div>'+
-          '</div></div>'+ 
+          '</div></div>'+
           (pending?'<div class="muted" style="margin-top:8px">Un paiement en ligne a déjà été commencé mais n’est pas encore confirmé.</div>':'')+
           '<div class="muted" style="margin-top:8px;font-size:.76rem;text-align:center">✨ Paiement en ligne pour gagner du temps, ou paiement sur place au tarif public du complexe.</div>';
         publicPaymentCache={playerId:pid,status:st,html,bg:'#f8fbff',border:'1px solid #cbdcf5'};
@@ -6118,7 +6136,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     $('#chooseTeamMode')?.setAttribute('aria-pressed',String(mode==='team'));
     soloCard.classList.toggle('hidden',mode!=='solo');
     teamCard.classList.toggle('hidden',mode!=='team');
-    if(mode)window.scrollTo({top:0,behavior:'smooth'});
+    if(mode)window.scrollTo({top:0,behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth')});
   }
   if(regTour){
     $('#chooseTeamMode').classList.remove('hidden');
@@ -6224,7 +6242,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
         codeStatus.textContent='🟢 Code validé. Choisis ton nom puis compose ton équipe.';
       }
       formAfterCode.classList.remove('hidden');
-      requestAnimationFrame(()=>formAfterCode.scrollIntoView({behavior:'smooth',block:'start'}));
+      requestAnimationFrame(()=>formAfterCode.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'}));
     };
     codeInput.addEventListener('input',()=>{
       if(validatedTeamCode&&codeInput.value.trim()!==validatedTeamCode){
