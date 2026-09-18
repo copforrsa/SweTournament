@@ -13,7 +13,7 @@ async function boot(){
  await load('/player-experience-v4349.js?v=4424-cooler-health-scope','player-experience-v4349-v4400');
  await load('/hotfix-v4278-rating-cooler-president.js?v=4463-no-self-rating','v4278-rating-cooler-president-v4401');
  await load('/brand-refresh-v4347.js?v=4377','brand-refresh-v4347');
- await load('/version-notice-v4346.js?v=4399','version-notice-v4346');
+ await load('/version-notice-v4346.js?v=5000','version-notice-v4346');
  await load('/admin-access-gate-v4258.js?v=4377','admin-access-gate');
  await load('/hotfix-v4250-invite-auth.js?v=4377','invite-auth');
  await load('/legacy-hotfix-v4244.js?v=4377','legacy4244');await load('/hotfix-v4246.js?v=4377','v4246');await load('/hotfix-v4248.js?v=4377','v4248');await load('/hotfix-v4250.js?v=4377','v4250');await load('/hotfix-v4254-auth-stability.js?v=4377','v4254-auth-stability');
@@ -37,7 +37,7 @@ async function boot(){
  await load('/ranking-premium-visuals-v4405.js?v=4405','ranking-premium-visuals-v4405');
  await load('/substitute-fair-play-rules-v4406.js?v=4406','substitute-fair-play-rules-v4406');
  await load('/player-rating-progress-v4462.js?v=4462','player-rating-progress-v4462');
- await load('/players-directory-nav-v4477.js?v=4478-sticky-tools','players-directory-nav-v4477');
+ await load('/players-directory-nav-v4477.js?v=5000-fixed-player-tools','players-directory-nav-v4477');
  applyBuild();setTimeout(applyBuild,250);setTimeout(applyBuild,1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();window.addEventListener('pageshow',()=>setTimeout(applyBuild,50));document.addEventListener('swe:rendered',()=>setTimeout(applyBuild,0));
