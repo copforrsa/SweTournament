@@ -171,7 +171,7 @@
         (player) => String(player.player_id) === myPlayerId,
       ),
     );
-    const myTeamId = String(myTeam?.team_id || "");
+    const myTeamId = String(d.my_team_id || myTeam?.team_id || "");
     const allPlayers = teams
       .flatMap((team) =>
         (team.players || []).map((player) => ({
@@ -218,6 +218,7 @@
           esc(t.team_name || "Équipe") +
           "</h3>" +
           (t.players || [])
+            .filter((p) => String(p.player_id) !== myPlayerId)
             .map((p) => {
               const ex = p.existing || {},
                 ob = observations.get(String(p.player_id));
