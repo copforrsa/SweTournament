@@ -108,6 +108,7 @@ async function deleteGoalAndSyncScore(m,g,button,panel){
 }
 
 function renderGoalPanel(panel,m){
+  if(!context&&window.SWE_QUICK_MATCH_UI){window.SWE_QUICK_MATCH_UI.render(panel,m);return}
   panel.innerHTML='';
   const title=document.createElement('h4');title.textContent='⚽ Buteurs / passeurs';panel.appendChild(title);
   const editable=canEditScores()&&(String(m.status||'').toLowerCase()!=='finished'||adminUser());
@@ -175,7 +176,7 @@ function buildCard(m,index){
   d.innerHTML='<div class="swe4300-top"><span>⚽ MATCH '+(index+1)+'</span><span>'+safe(m.pitch||'Terrain non indiqué')+(m.round_label?' • '+safe(m.round_label):'')+'</span></div>'+
     '<div class="swe4300-score"><span class="swe4300-team">'+safe(h?.name||'Équipe domicile')+'</span><span class="swe4300-result">'+Number(m.home_score||0)+' - '+Number(m.away_score||0)+'</span><span class="swe4300-team right">'+safe(a?.name||'Équipe extérieure')+'</span></div>'+
     (finished?'<div class="swe4300-note swe4300-finished">✓ MATCH TERMINÉ</div>':'');
-  const editable=canEditScores()&&(!finished||adminUser());
+  const editable=!!context&&canEditScores()&&(!finished||adminUser());
   if(editable){
     const row=document.createElement('div');row.className='swe4300-edit';
     const hi=document.createElement('input'),ai=document.createElement('input'),b=document.createElement('button');
