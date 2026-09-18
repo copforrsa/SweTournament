@@ -1,0 +1,22 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {JSDOM}=require('jsdom');
+const source=fs.readFileSync(path.join(__dirname,'../team-composition-visual-v4456.js'),'utf8');
+const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve()};
+test('admin separately uploads and explicitly selects the public registration visual',async()=>{
+ const dom=new JSDOM('<div id="teamsAdminCard"><div id="teamList"></div></div><section id="registrationTeams"><div id="registrationTeamGrid"></div></section>',{runScripts:'outside-only'}),w=dom.window;
+ w.setTimeout=fn=>{fn();return 1};w.clearTimeout=()=>{};w.isAdmin=()=>true;
+ const tournament={id:'t',workspace_id:'w',composition_display_mode:'site',composition_image_url:'https://example.test/custom.png'};
+ w.S={activeTour:'t',teamCompetitionId:'t',tournaments:[tournament],teams:[],teamPlayers:[],players:[]};
+ const calls=[];w.sb={rpc:async(name,args)=>{calls.push({name,args});if(args.p_mode!=='upload')tournament.composition_display_mode=args.p_mode;if(args.p_image_url)tournament.composition_image_url=args.p_image_url;return {data:{mode:tournament.composition_display_mode,image_url:tournament.composition_image_url}}}};
+ w.eval(source);w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await flush();
+ assert.match(w.document.getElementById('sweCompositionVisualAdmin').textContent,/Actuellement publié : Visuel du site/);
+ assert.equal(w.document.querySelector('[data-image]').disabled,false);
+ w.document.querySelector('[data-image]').click();await flush();
+ assert.equal(calls.at(-1).args.p_mode,'image');assert.equal(calls.at(-1).args.p_image_url,null);
+ assert.match(w.document.getElementById('sweCompositionVisualAdmin').textContent,/Actuellement publié : Mon image JPG\/PNG/);
+ assert.equal(w.document.querySelector('[data-image]').getAttribute('aria-pressed'),'true');
+ w.document.dispatchEvent(new w.Event('swe:rendered'));await flush();
+ assert.equal(w.document.querySelector('#swePublicCompositionVisual img').src,'https://example.test/custom.png');
+ w.document.querySelector('[data-site]').click();await flush();
+ assert.equal(calls.at(-1).args.p_mode,'site');assert.match(w.document.getElementById('sweCompositionVisualAdmin').textContent,/Actuellement publié : Visuel du site/);
+});
