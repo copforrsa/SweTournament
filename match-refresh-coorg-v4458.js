@@ -2,16 +2,21 @@
 (()=>{
   'use strict';
   const $=id=>document.getElementById(id);
-  const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  const key=()=>`swe-coorg-accepted:${window.S?.workspace?.id||''}`;
+  const state=()=>{try{return typeof S!=='undefined'?S:null}catch(_){return null}};
+  const client=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
+  const admin=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
+  const activeTournament=()=>{try{return typeof currentTour==='function'?currentTour():null}catch(_){return null}};
+  const notify=message=>{try{if(typeof toast==='function')toast(message)}catch(_){}};
+  const key=()=>`swe-coorg-accepted:${state()?.workspace?.id||''}`;
   let initializedWorkspace='';
 
   function acceptedInvites(){
-    return (window.S?.invites||[]).filter(i=>i.role==='coorganizer'&&i.accepted_at&&i.id);
+    return (state()?.invites||[]).filter(i=>i.role==='coorganizer'&&i.accepted_at&&i.id);
   }
   function updateCoorgNotification(){
-    if(!window.isAdmin?.()||!window.S?.workspace?.id)return;
-    const workspace=String(window.S.workspace.id);
+    const S=state();
+    if(!admin()||!S?.workspace?.id)return;
+    const workspace=String(S.workspace.id);
     const ids=acceptedInvites().map(i=>String(i.id));
     if(initializedWorkspace!==workspace){
       initializedWorkspace=workspace;
@@ -30,21 +35,21 @@
     if(fresh.length)document.querySelector('.tab[data-view="coorganizers"]')?.setAttribute('title',fresh.length+' nouvelle'+(fresh.length>1?'s':'')+' invitation'+(fresh.length>1?'s':'')+' acceptée'+(fresh.length>1?'s':''));
   }
   function markCoorgNotificationRead(){
-    if(!window.S?.workspace?.id)return;
+    if(!state()?.workspace?.id)return;
     localStorage.setItem(key(),JSON.stringify(acceptedInvites().map(i=>String(i.id))));
     updateCoorgNotification();
   }
   async function refreshMatches(btn){
-    const S=window.S, tournament=window.currentTour?.();
-    if(!S||!tournament||!window.sb)return window.toast?.('Choisis d’abord une compétition.');
+    const S=state(), database=client(), tournament=activeTournament();
+    if(!S||!tournament||!database)return notify('Choisis d’abord une compétition.');
     const label=btn.textContent;
     btn.disabled=true;btn.textContent='Actualisation…';
     try{
       const tId=tournament.id;
       const [matchesRes,teamsRes,playersRes]=await Promise.all([
-        window.sb.from('matches').select('*').eq('tournament_id',tId).order('match_order'),
-        window.sb.from('teams').select('*').eq('tournament_id',tId).order('created_at'),
-        window.sb.from('tournament_players').select('*').eq('tournament_id',tId)
+        database.from('matches').select('*').eq('tournament_id',tId).order('match_order'),
+        database.from('teams').select('*').eq('tournament_id',tId).order('created_at'),
+        database.from('tournament_players').select('*').eq('tournament_id',tId)
       ]);
       if(matchesRes.error)throw matchesRes.error;
       if(teamsRes.error)throw teamsRes.error;
@@ -52,18 +57,18 @@
       S.matches=matchesRes.data||[];S.teams=teamsRes.data||[];S.tPlayers=playersRes.data||[];
       const teamIds=S.teams.map(t=>t.id),matchIds=S.matches.map(m=>m.id);
       const [teamPlayersRes,goalsRes,assignmentsRes]=await Promise.all([
-        teamIds.length?window.sb.from('team_players').select('*').in('team_id',teamIds):Promise.resolve({data:[],error:null}),
-        matchIds.length?window.sb.from('goals').select('*').in('match_id',matchIds).order('created_at'):Promise.resolve({data:[],error:null}),
-        matchIds.length?window.sb.from('match_player_assignments').select('*').in('match_id',matchIds):Promise.resolve({data:[],error:null})
+        teamIds.length?database.from('team_players').select('*').in('team_id',teamIds):Promise.resolve({data:[],error:null}),
+        matchIds.length?database.from('goals').select('*').in('match_id',matchIds).order('created_at'):Promise.resolve({data:[],error:null}),
+        matchIds.length?database.from('match_player_assignments').select('*').in('match_id',matchIds):Promise.resolve({data:[],error:null})
       ]);
       if(teamPlayersRes.error||goalsRes.error||assignmentsRes.error)throw(teamPlayersRes.error||goalsRes.error||assignmentsRes.error);
       S.teamPlayers=teamPlayersRes.data||[];S.goals=goalsRes.data||[];S.matchAssignments=assignmentsRes.data||[];
-      window.renderMatches?.();
-      window.renderTeams?.();
-      window.toast?.('Matchs actualisés ✅');
+      if(typeof renderMatches==='function')renderMatches();
+      if(typeof renderTeams==='function')renderTeams();
+      notify('Matchs actualisés ✅');
     }catch(error){
       console.warn('targeted match refresh',error);
-      window.toast?.('Actualisation impossible. Réessaie dans un instant.');
+      notify('Actualisation impossible. Réessaie dans un instant.');
     }finally{btn.disabled=false;btn.textContent=label;}
   }
   function installMatchRefresh(){
@@ -80,7 +85,7 @@
   document.addEventListener('swe:rendered',()=>{installMatchRefresh();updateCoorgNotification();});
   const wait=()=>{
     installMatchRefresh();updateCoorgNotification();
-    if(!window.S||!window.sb)return setTimeout(wait,250);
+    if(!state()||!client())return setTimeout(wait,250);
   };
   wait();
 })();
