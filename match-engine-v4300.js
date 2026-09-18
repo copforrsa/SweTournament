@@ -7,6 +7,7 @@ const E=id=>document.getElementById(id);
 const safe=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 let hydrating=false;
 const selectedMatchByTournament=new Map();
+const selectedFinishedMatchByTournament=new Map();
 // The test view supplies data and actions; the match cards keep the same renderer.
 const context=window.SWE_MATCH_CONTEXT||null;
 const state=context?context.state:S;
@@ -44,6 +45,7 @@ function installCss(){
   .swe4300-pitch-tab.active{background:linear-gradient(135deg,#1769e0,#10b7c9);border-color:transparent;color:#fff;box-shadow:0 5px 14px rgba(23,105,224,.23)}
   .swe4300-finished-tab{display:block;width:100%;min-height:44px;margin:2px 0 10px;border:1px solid #7c9bb8;border-radius:12px;background:#edf4fa;color:#17324d;font-weight:900;padding:10px 13px;text-align:left}
   .swe4300-finished-tab.active{background:linear-gradient(135deg,#475569,#0f172a);border-color:transparent;color:#fff}
+  .swe4300-finished-picker{display:grid;gap:7px;margin:8px 0 12px}.swe4300-finished-choice{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;width:100%;min-height:48px;padding:9px 11px;border:1px solid #c5d5e4;border-radius:12px;background:#f8fbfe;color:#17324d;text-align:left}.swe4300-finished-choice.active{border:2px solid #1769e0;background:#eaf3ff}.swe4300-finished-choice b{white-space:nowrap}.swe4300-finished-choice span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.swe4300-finished-choice em{font-style:normal;font-weight:950;white-space:nowrap;color:#0f4f9c}
   #matchesList .swe4300-match.finished{opacity:.58;background:#f3f4f6;order:99}
   .swe4300-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px;font-size:12px;font-weight:800;color:#64748b}
   .swe4300-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
@@ -246,8 +248,18 @@ function renderStableMatches(allowHydrate=true){
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),'finished');renderStableMatches(false)};box.appendChild(button);
     }
     if(selectedKey==='finished'){
-      const note=document.createElement('div');note.className='swe4300-note';note.textContent='Historique des matchs. Seul l’administrateur du groupe peut corriger un résultat avant la clôture du tournoi.';box.appendChild(note);
-      finished.forEach(m=>box.appendChild(buildCard(m,rows.indexOf(m))));
+      const note=document.createElement('div');note.className='swe4300-note';note.textContent='Historique des matchs. Choisis un match pour l’ouvrir ; seul l’administrateur du groupe peut le corriger avant la clôture du tournoi.';box.appendChild(note);
+      const previousFinished=selectedFinishedMatchByTournament.get(String(t.id));
+      const selectedFinished=finished.find(m=>String(m.id)===String(previousFinished))||finished[finished.length-1];
+      selectedFinishedMatchByTournament.set(String(t.id),String(selectedFinished.id));
+      const picker=document.createElement('div');picker.className='swe4300-finished-picker';picker.setAttribute('aria-label','Choisir un match terminé');
+      finished.slice().reverse().forEach(m=>{
+        const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-finished-choice'+(String(m.id)===String(selectedFinished.id)?' active':'');button.setAttribute('aria-pressed',String(m.id)===String(selectedFinished.id)?'true':'false');
+        const home=teamById(m.home_team_id),away=teamById(m.away_team_id);button.innerHTML='<b>Match '+number+'</b><span>'+safe(m.pitch||m.round_label||'Terrain')+' · '+safe(home?.name||'Domicile')+' vs '+safe(away?.name||'Extérieur')+'</span><em>'+Number(m.home_score||0)+' - '+Number(m.away_score||0)+'</em>';
+        button.onclick=()=>{selectedFinishedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};picker.appendChild(button);
+      });
+      box.appendChild(picker);
+      box.appendChild(buildCard(selectedFinished,rows.indexOf(selectedFinished)));
     }else{
       const selected=current.find(m=>String(m.id)===selectedKey)||current[0];
       if(selected)box.appendChild(buildCard(selected,rows.indexOf(selected)));
