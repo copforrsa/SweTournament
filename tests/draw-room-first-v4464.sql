@@ -22,6 +22,8 @@ begin
  execute 'set local role anon';
  s:=public.get_public_workspace_snapshot_v2(token);
  if exists(select 1 from jsonb_array_elements(s->'teams') x where x->>'tournament_id'=tid::text) then raise exception 'Private teams exposed or auto-published';end if;
+ s:=public.get_public_workspace_snapshot(token);
+ if exists(select 1 from jsonb_array_elements(s->'teams') x where x->>'tournament_id'=tid::text) then raise exception 'Legacy public endpoint exposed private teams';end if;
  execute 'reset role';
  select wm.user_id into voter from public.workspace_members wm join public.tournament_players tp on tp.player_id=wm.linked_player_id and tp.tournament_id=tid where wm.role='coorganizer' and wm.active and tp.present limit 1;
  if voter is null then raise exception 'No eligible co-manager';end if;
