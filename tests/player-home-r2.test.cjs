@@ -7,7 +7,7 @@ const wait=()=>new Promise(r=>setTimeout(r,320));
 async function setup(role=null,rpc,url='https://app.swetournament.fr/'){
  const dom=new JSDOM(read('index.html'),{url,runScripts:'outside-only'}),w=dom.window,d=w.document;
  w.matchMedia=()=>({matches:false});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};
- w.S={session:{user:{id:'player-1'}},workspace:role?{id:'workspace-1',role}:null,memberships:role?[{workspace_id:'workspace-1',role,workspaces:{name:'Mon groupe'}}]:[],workspaceFeatures:{tournaments_enabled:true,league_enabled:true,rankings_enabled:true},myPermissions:{can_view_players:true,can_enter_scores:true},lastView:'myplayer',playerDashboard:{profile:{nickname:'Nayasarah'},stats:{},requests:[]},tournaments:[]};
+ w.S={playerAccountAccess:true,session:{user:{id:'player-1'}},workspace:role?{id:'workspace-1',role}:null,memberships:role?[{workspace_id:'workspace-1',role,workspaces:{name:'Mon groupe'}}]:[],workspaceFeatures:{tournaments_enabled:true,league_enabled:true,rankings_enabled:true},myPermissions:{can_view_players:true,can_enter_scores:true},lastView:'myplayer',playerDashboard:{profile:{nickname:'Nayasarah'},stats:{},requests:[]},tournaments:[]};
  w.isAdmin=()=>w.S.workspace?.role==='admin';w.isCoorg=()=>w.S.workspace?.role==='coorganizer';w.hasTemporaryAdmin=()=>false;w.hasAdminOps=w.isAdmin;
  w.renderTeams=()=>{};w.renderRanking=()=>{};w.__cardOpens=0;w.SWEPlayerCard={open:()=>w.__cardOpens++};
  let calls=0;w.sb={rpc:async(name)=>{calls++;return rpc?rpc(name):{data:{created:[],participations:[]}}}};
