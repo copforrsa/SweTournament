@@ -5,10 +5,10 @@ const activeMatches=()=>document.getElementById('view-matches')?.classList.conta
 const editingMain=()=>{const a=document.activeElement;return !!(a&&a.closest?.('#main')&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable));};
 function setVersion(){window.SWEApplyBuild?.();}
 function protectedReload(){
-  if(activeMatches()||editingMain())return;
+  if(document.getElementById('sweDrawRoom4453')||activeMatches()||editingMain())return;
   clearTimeout(window.__sweRealtimeGuardTimer39);
   window.__sweRealtimeGuardTimer39=setTimeout(async()=>{
-    if(activeMatches()||editingMain())return;
+    if(document.getElementById('sweDrawRoom4453')||activeMatches()||editingMain())return;
     try{await loadAll();}catch(e){console.warn('realtime guarded reload',e);}
   },450);
 }
