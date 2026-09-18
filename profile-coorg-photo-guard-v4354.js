@@ -22,9 +22,13 @@ function applyCoorgCreateGuard(){
 function applyPhotoVisibility(){
  const btn=E('swe4338PhotoBtn');if(!btn)return;
  const editing=!!E('swe4321Cancel');
- btn.classList.toggle('swe-photo-hidden',!editing);
- btn.setAttribute('aria-hidden',editing?'false':'true');
- if(editing)btn.textContent=(st()?.playerDashboard?.profile?.avatar_url?'Modifier ma photo':'Ajouter ma photo');
+ // The commercial pilot group lets co-managers manage their own SWÉ photo
+ // directly from their workspace; the RPC still only updates their own profile.
+ const pilotCoorg=isCoorg()&&String(st()?.workspace?.id||'')==='3a7b90b2-46a1-4125-9e6b-f580455b5cdb';
+ const visible=editing||pilotCoorg;
+ btn.classList.toggle('swe-photo-hidden',!visible);
+ btn.setAttribute('aria-hidden',visible?'false':'true');
+ if(visible)btn.textContent=(st()?.playerDashboard?.profile?.avatar_url?'Modifier ma photo':'Ajouter ma photo');
 }
 function apply(){css();applyCoorgCreateGuard();applyPhotoVisibility()}
 document.addEventListener('click',e=>{
