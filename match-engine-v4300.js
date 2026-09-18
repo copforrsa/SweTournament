@@ -6,6 +6,7 @@ window.__SWE_MATCH_ENGINE_4302=true;
 const E=id=>document.getElementById(id);
 const safe=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 let hydrating=false;
+const selectedMatchByTournament=new Map();
 // The test view supplies data and actions; the match cards keep the same renderer.
 const context=window.SWE_MATCH_CONTEXT||null;
 const state=context?context.state:S;
@@ -38,6 +39,9 @@ function installCss(){
   if(E('sweMatchEngine4302Css'))return;
   const s=document.createElement('style');s.id='sweMatchEngine4302Css';s.textContent=`
   #matchesList .swe4300-match{background:#fff;border:1px solid #dfe7ef;border-radius:18px;padding:15px;margin:12px 0;box-shadow:0 5px 16px rgba(15,23,42,.06)}
+  .swe4300-pitch-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 1px 8px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+  .swe4300-pitch-tab{flex:0 0 auto;min-height:42px;border:1px solid #bfd2e5;border-radius:12px;background:#f5f9fd;color:#17324d;font-weight:900;padding:9px 13px;white-space:nowrap}
+  .swe4300-pitch-tab.active{background:linear-gradient(135deg,#1769e0,#10b7c9);border-color:transparent;color:#fff;box-shadow:0 5px 14px rgba(23,105,224,.23)}
   #matchesList .swe4300-match.finished{opacity:.58;background:#f3f4f6;order:99}
   .swe4300-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px;font-size:12px;font-weight:800;color:#64748b}
   .swe4300-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
@@ -67,7 +71,13 @@ async function hydrate(tid){
     const mids=(state.matches||[]).map(x=>x.id);
     if(mids.length){const gr=await sb.from('goals').select('*').in('match_id',mids);if(!gr.error)state.goals=gr.data||[]}
   }catch(e){console.error('SWÉ V43.02 hydrate matchs',e)}
-  finally{hydrating=false;renderStableMatches(false)}
+  finally{
+    hydrating=false;
+    renderStableMatches(false);
+    // The launch counter lives outside #matchesList. Rebuild it from the
+    // freshly hydrated collection on desktop and mobile alike.
+    setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);
+  }
 }
 
 async function saveScore(m,homeInput,awayInput,btn){
@@ -205,7 +215,27 @@ function renderStableMatches(allowHydrate=true){
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');
   box.innerHTML='';
   if(!rows.length){box.innerHTML='<div class="card"><p class="muted">Chargement des matchs…</p></div>';if(allowHydrate)hydrate(t.id);return}
-  rows.forEach((m,i)=>box.appendChild(buildCard(m,i)));
+  if(rows.length){
+    const previous=selectedMatchByTournament.get(String(t.id));
+    let selected=rows.find(m=>String(m.id)===String(previous));
+    if(selected&&String(selected.status)==='finished'){
+      const replacement=rows.find(m=>String(m.status)!=='finished'&&String(m.pitch||'')===String(selected.pitch||''));
+      if(replacement)selected=replacement;
+    }
+    selected=selected||rows.find(m=>String(m.status)!=='finished')||rows[0];
+    selectedMatchByTournament.set(String(t.id),String(selected.id));
+    const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
+    rows.forEach((m,i)=>{
+      const button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(String(m.id)===String(selected.id)?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===String(selected.id)?'true':'false');
+      button.textContent=(String(m.status)==='finished'?'✓ ':'⚽ ')+(m.pitch||m.round_label||'Terrain')+' · Match '+(i+1);
+      button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};tabs.appendChild(button);
+    });
+    box.appendChild(tabs);
+    box.appendChild(buildCard(selected,rows.indexOf(selected)));
+  }
+  // Targeted and mobile refreshes do not emit the global swe:rendered event.
+  // Keep the King-of-the-pitch launch control synchronized anyway.
+  setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);
 }
 
 window.SWE_MATCH_COMMON_4302={hydrate,saveScore,deleteGoalAndSyncScore,renderGoalPanel,buildCard,renderStableMatches,teamById,playerById,playersForTeam,canEditScores,adminUser,current,syncCardScore};

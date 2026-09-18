@@ -65,6 +65,7 @@
       S.teamPlayers=teamPlayersRes.data||[];S.goals=goalsRes.data||[];S.matchAssignments=assignmentsRes.data||[];
       if(typeof renderMatches==='function')renderMatches();
       if(typeof renderTeams==='function')renderTeams();
+      window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true);
       notify('Matchs actualisés ✅');
     }catch(error){
       console.warn('targeted match refresh',error);
