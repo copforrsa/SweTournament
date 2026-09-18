@@ -211,27 +211,41 @@ function renderStableMatches(allowHydrate=true){
   }
   if(!context&&window.SWE_ASSIGNED_TEST_MATCHES?.show())return;
   if(!t){box.innerHTML='<div class="card"><p class="muted">Choisis d’abord un tournoi ou un Swé de Ligue.</p></div>';if(status)status.textContent='Aucune compétition sélectionnée';return}
-  const rows=[...(state.matches||[])].sort((a,b)=>{const af=String(a.status||'')==='finished'?1:0,bf=String(b.status||'')==='finished'?1:0;return af-bf||Number(a.match_order||0)-Number(b.match_order||0)});
+  // Match numbering is permanent: Match 1, Match 2, Match 3… regardless
+  // of whether earlier matches have already finished.
+  const rows=[...(state.matches||[])].sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');
   box.innerHTML='';
   if(!rows.length){box.innerHTML='<div class="card"><p class="muted">Chargement des matchs…</p></div>';if(allowHydrate)hydrate(t.id);return}
   if(rows.length){
+    const finished=rows.filter(m=>String(m.status)==='finished');
+    const active=rows.filter(m=>String(m.status)!=='finished');
+    // One current match per terrain; older matches are kept in the fixed
+    // “Matchs terminés” tab rather than generating an endless tab strip.
+    const byPitch=new Map();
+    active.forEach(m=>byPitch.set(String(m.pitch||m.round_label||'Terrain'),m));
+    const current=[...byPitch.values()];
     const previous=selectedMatchByTournament.get(String(t.id));
-    let selected=rows.find(m=>String(m.id)===String(previous));
-    if(selected&&String(selected.status)==='finished'){
-      const replacement=rows.find(m=>String(m.status)!=='finished'&&String(m.pitch||'')===String(selected.pitch||''));
-      if(replacement)selected=replacement;
-    }
-    selected=selected||rows.find(m=>String(m.status)!=='finished')||rows[0];
-    selectedMatchByTournament.set(String(t.id),String(selected.id));
+    let selectedKey=current.some(m=>String(m.id)===String(previous))?String(previous):(current[0]?String(current[0].id):(finished.length?'finished':null));
+    selectedMatchByTournament.set(String(t.id),selectedKey);
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
-    rows.forEach((m,i)=>{
-      const button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(String(m.id)===String(selected.id)?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===String(selected.id)?'true':'false');
-      button.textContent=(String(m.status)==='finished'?'✓ ':'⚽ ')+(m.pitch||m.round_label||'Terrain')+' · Match '+(i+1);
+    current.forEach(m=>{
+      const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(String(m.id)===selectedKey?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===selectedKey?'true':'false');
+      button.textContent='⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};tabs.appendChild(button);
     });
+    if(finished.length){
+      const button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(selectedKey==='finished'?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',selectedKey==='finished'?'true':'false');button.textContent='✓ Matchs terminés ('+finished.length+')';
+      button.onclick=()=>{selectedMatchByTournament.set(String(t.id),'finished');renderStableMatches(false)};tabs.appendChild(button);
+    }
     box.appendChild(tabs);
-    box.appendChild(buildCard(selected,rows.indexOf(selected)));
+    if(selectedKey==='finished'){
+      const note=document.createElement('div');note.className='swe4300-note';note.textContent='Historique des matchs. Seul l’administrateur du groupe peut corriger un résultat avant la clôture du tournoi.';box.appendChild(note);
+      finished.forEach(m=>box.appendChild(buildCard(m,rows.indexOf(m))));
+    }else{
+      const selected=current.find(m=>String(m.id)===selectedKey)||current[0];
+      if(selected)box.appendChild(buildCard(selected,rows.indexOf(selected)));
+    }
   }
   // Targeted and mobile refreshes do not emit the global swe:rendered event.
   // Keep the King-of-the-pitch launch control synchronized anyway.
