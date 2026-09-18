@@ -42,11 +42,16 @@
     if(!nav){nav=document.createElement('nav');nav.id='swe4477PlayerAlphabet';nav.className='swe4477-player-alphabet';nav.setAttribute('aria-label','Accès alphabétique aux joueurs');tools.append(nav)}else if(nav.parentElement!==tools)tools.append(nav);
     nav.replaceChildren();const label=document.createElement('b');label.textContent='Trouver un joueur :';nav.append(label);
     [...letters].sort((a,b)=>a.localeCompare(b,'fr')).forEach(letter=>{const button=document.createElement('button');button.type='button';button.textContent=letter;button.setAttribute('aria-label','Aller aux joueurs commençant par '+letter);button.onclick=()=>{const target=[...box.children].find(card=>card.classList.contains('player')&&card.dataset.playerInitial===letter&&!card.classList.contains('swe4477-search-hidden')&&!card.classList.contains('swe-relation-hidden'));if(!target)return;target.scrollIntoView({behavior:'smooth',block:'center'});target.classList.remove('swe4477-flash');void target.offsetWidth;target.classList.add('swe4477-flash')};nav.append(button)});
+    // All player controls must share the same sticky parent.  The legacy
+    // search bar is created before this module, so bring it into this block
+    // too instead of leaving it above the fixed controls.
+    const legacyNavigation=E('swePlayerNavigationR9');if(legacyNavigation&&legacyNavigation.parentElement!==tools)tools.prepend(legacyNavigation);
     const relations=E('swePlayerRelations4462');if(relations&&relations.parentElement!==tools)tools.append(relations);
     filterAndSort();
   }
   const style=document.createElement('style');style.textContent=`
-    .swe4477-player-tools{position:sticky;top:10px;z-index:35;margin:0 0 12px;padding:12px;background:#f8fbff;border:1px solid #bcd5ef;border-radius:16px;box-shadow:0 8px 24px rgba(15,47,80,.16);isolation:isolate}
+    .swe4477-player-tools{position:sticky!important;top:10px;z-index:35;margin:0 0 12px;padding:12px;background:#f8fbff;border:1px solid #bcd5ef;border-radius:16px;box-shadow:0 8px 24px rgba(15,47,80,.16);isolation:isolate;align-self:start}
+    .swe4477-player-tools .swe-player-nav{margin:0 0 9px}
     .swe4477-player-search{display:grid;grid-template-columns:minmax(180px,1fr) minmax(160px,.38fr);gap:9px}.swe4477-player-search label{display:grid;gap:4px;color:#123b65;font-size:12px;font-weight:900}.swe4477-player-search input,.swe4477-player-search select{min-height:42px;background:#fff}
     .swe4477-player-alphabet{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:10px 0 0;margin:0;background:#f8fbff}.swe4477-player-alphabet b{color:#123b65;margin-right:2px}.swe4477-player-alphabet button{width:36px;min-height:36px;padding:4px;border:1px solid #8ab6de;border-radius:9px;background:#fff;color:#164d82;font-weight:950}.swe4477-player-alphabet button:hover,.swe4477-player-alphabet button:focus-visible{background:#1465c0;color:#fff;outline:none}
     .swe4477-player-tools .swe-player-relations{margin:10px 0 0;background:#f0f7ff}.swe4477-search-hidden{display:none!important}
