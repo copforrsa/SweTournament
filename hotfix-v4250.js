@@ -5,18 +5,7 @@ let cleanupDone=false;
 async function cleanupLegacyRuntime(){
   if(cleanupDone)return;
   cleanupDone=true;
-  try{
-    if('serviceWorker' in navigator){
-      const regs=await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));
-    }
-  }catch(_){}
-  try{
-    if('caches' in window){
-      const keys=await caches.keys();
-      await Promise.all(keys.map(k=>caches.delete(k)));
-    }
-  }catch(_){}
+  // V50.15 conserve la PWA : réseau d'abord en ligne, cache uniquement hors ligne.
 }
 function injectAuthStability(){
   if(document.getElementById('sweAuth4250Style'))return;
