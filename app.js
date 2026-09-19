@@ -250,8 +250,11 @@ function setView(v){
     requestAnimationFrame(()=>activeTab.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'nearest',inline:'center'}));
   }
   if(v==='teams'){
-    if(previousView!=='teams'&&!S.teamCompetitionId&&S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
+    if(S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
     renderTeams();
+    // Relecture immédiate : évite qu'une PWA iPhone affiche un ancien compteur ou d'anciens terrains.
+    const teamTourAtOpen=S.activeTour;
+    if(teamTourAtOpen)loadTournament().then(()=>{if(S.lastView==='teams'&&String(S.activeTour)===String(teamTourAtOpen))renderTeams();}).catch(()=>{});
     if(previousView!=='teams'&&S.teamCompetitionId&&(hasAdminOps()||(isCoorg()&&S.myPermissions.can_generate_teams))){
       const tournamentId=S.teamCompetitionId;
       syncTournamentSubstitutes(tournamentId).then(async()=>{
