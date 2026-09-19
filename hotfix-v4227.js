@@ -24,7 +24,7 @@
   function uid(){return crypto?.randomUUID?crypto.randomUUID():'00000000-0000-4000-8000-'+Math.random().toString(16).slice(2).padEnd(12,'0').slice(0,12)}
   function qget(){try{return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]')||[]}catch(_){return []}}
   function qset(rows){localStorage.setItem(QUEUE_KEY,JSON.stringify(rows||[]));renderOfflineBanner()}
-  function offlineMode(){return !navigator.onLine||networkDown}
+  function offlineMode(){return !navigator.onLine}
   function queue(type,payload){const rows=qget();rows.push({id:uid(),type,payload,user_id:S?.session?.user?.id||null,workspace_id:S?.workspace?.id||null,created_at:new Date().toISOString()});qset(rows);cacheSnapshot()}
 
   function ensureBanner(){let b=document.getElementById('sweOfflineBanner');if(b)return b;const anchor=document.getElementById('organizerAccessBanner')||document.querySelector('#main .top');if(!anchor)return null;b=document.createElement('div');b.id='sweOfflineBanner';b.className='swe-offline-banner hidden';b.setAttribute('role','status');b.setAttribute('aria-live','polite');anchor.insertAdjacentElement('afterend',b);return b}
@@ -57,8 +57,9 @@
     if(b.textContent.trim()==='Annuler'&&b.closest('.match-goal-history')){e.preventDefault();e.stopImmediatePropagation();const buttons=[...card.querySelectorAll('.match-goal-history button')].filter(x=>x.textContent.trim()==='Annuler'),idx=buttons.indexOf(b),goals=(S.goals||[]).filter(g=>String(g.match_id)===String(m.id));const g=goals[idx];if(!g)return;queue('delete_goal',{goal_id:g.id});S.goals=S.goals.filter(x=>String(x.id)!==String(g.id));renderMatches();toast('📴 But annulé sur ce téléphone.');}
   },true);
 
-  const nativeFetch=window.fetch.bind(window);window.fetch=async(...args)=>{try{const r=await nativeFetch(...args);if(r.ok)networkDown=false;return r}catch(e){networkDown=true;renderOfflineBanner();throw e}};
-  window.addEventListener('online',()=>{networkDown=false;renderOfflineBanner();setTimeout(syncQueue,300)});window.addEventListener('offline',()=>{networkDown=true;renderOfflineBanner()});
+  const nativeFetch=window.fetch.bind(window);window.fetch=async(...args)=>{try{const r=await nativeFetch(...args);if(r.ok)networkDown=false;return r}catch(e){renderOfflineBanner();throw e}};
+  window.addEventListener('online',()=>{networkDown=false;renderOfflineBanner();setTimeout(syncQueue,300)});
+  window.addEventListener('pageshow',()=>{networkDown=false;if(navigator.onLine){setTimeout(()=>{Promise.resolve(loadAll()).catch(()=>{});syncQueue()},350)}});window.addEventListener('offline',()=>{networkDown=true;renderOfflineBanner()});
 
   try{const originalRenderPlayers=renderPlayers;renderPlayers=function(...a){const r=originalRenderPlayers.apply(this,a);setTimeout(enhancePlayers,0);return r}}catch(_){ }
   try{const originalLoadAll=loadAll;loadAll=async function(...a){if(offlineMode()&&restoreSnapshot())return;const r=await originalLoadAll.apply(this,a);if(!offlineMode()){await loadActivity();cacheSnapshot()}return r}}catch(_){ }
