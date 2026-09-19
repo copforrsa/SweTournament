@@ -3483,6 +3483,9 @@ async function syncTournamentSubstitutes(tournamentId){
 function chienBoulLabel(score){return '🐶⚽ Note équipe évaluée par Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
 
 function renderTeams(){
+  // L'onglet Équipes suit toujours le tournoi actuellement ouvert. Cela évite
+  // qu'une PWA restée ouverte affiche les données d'une ancienne compétition.
+  if(S.activeTour&&S.tournaments.some(x=>String(x.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
   const t=S.teamCompetitionId?S.tournaments.find(x=>String(x.id)===String(S.teamCompetitionId))||null:null,att=$('#attendanceList'),box=$('#teamList');
   const note=$('#teamNoCreatePermission'),controls=$('#teamManagementControls');
   const compSel=$('#teamCompetitionSelect'),compStatus=$('#teamCompetitionStatus');
