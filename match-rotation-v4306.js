@@ -14,11 +14,12 @@ function roleForMatch(t,m){
   if(['king','middle','stream'].includes(saved))return saved;
   const active=Object.entries(stateOf(t).active||{}).find(([,id])=>String(id)===String(m?.id))?.[0];
   if(active)return active;
+  const roleByPitch=rolesFor(t).find(role=>String(pitchName(t,role)).trim().toLowerCase()===String(m?.pitch||'').trim().toLowerCase());
+  if(roleByPitch)return roleByPitch;
   const label=String(m?.round_label||'')+' '+String(m?.pitch||'');
   if(/roi|king/i.test(label))return 'king';
-  if(/intermédiaire|intermediaire|middle|mercedes/i.test(label))return 'middle';
-  if(/ruisseau|stream|boulogne/i.test(label))return 'stream';
-  const roleByPitch=rolesFor(t).find(role=>String(pitchName(t,role)).trim().toLowerCase()===String(m?.pitch||'').trim().toLowerCase());
+  if(/intermédiaire|intermediaire|middle/i.test(label))return 'middle';
+  if(/ruisseau|stream/i.test(label))return 'stream';
   return roleByPitch||(rolesFor(t).length===1?rolesFor(t)[0]:null);
 }
 function stateOf(t){const s=clone(t?.rotation_state||{});s.version=1;s.queue=Array.isArray(s.queue)?s.queue:[];s.active=s.active||{};s.initialized=!!s.initialized;s.team_count=Number(s.team_count||0);s.waiting=s.waiting||{};['king_winners','king_losers','middle_winners','middle_losers','stream_winners','stream_losers','bottom_entries'].forEach(k=>{if(!Array.isArray(s.waiting[k]))s.waiting[k]=[]});return s}

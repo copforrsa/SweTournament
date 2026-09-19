@@ -2947,6 +2947,7 @@ function renderTournaments(){
       refInput.value=t.reservation_reference||'';
 
       let selectedPitchIds=new Set((t.reserved_pitch_ids||[]).map(String));
+      const roleEditor=t.rotation_mode==='king_of_pitch'?window.SWEPitchRoles.editor(t,()=>[...selectedPitchIds]):null;
 
       const renderEditPitches=()=>{
         const rows=S.sportsPitches.filter(p=>p.active!==false&&String(p.complex_id)===String(complexSel.value));
@@ -2964,6 +2965,7 @@ function renderTournaments(){
               toast('Maximum 3 terrains pour un tournoi.');
             }
             selectedPitchIds=new Set([...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')].map(x=>String(x.value)));
+            roleEditor?.refresh();
           };
         });
       };
@@ -2972,6 +2974,7 @@ function renderTournaments(){
         e.stopPropagation();
         selectedPitchIds=new Set();
         renderEditPitches();
+        roleEditor?.refresh();
       };
 
       renderEditPitches();
@@ -2996,6 +2999,7 @@ function renderTournaments(){
       firstGrid.append(dateInput,complexSel);
       editBox.appendChild(firstGrid);
       editBox.appendChild(pitchWrap);
+      if(roleEditor)editBox.appendChild(roleEditor.node);
 
       const detailsGrid=document.createElement('div');
       detailsGrid.className='grid g3';
@@ -3059,12 +3063,15 @@ function renderTournaments(){
         const selectedPitches=S.sportsPitches.filter(p=>pitchIds.includes(String(p.id))&&String(p.complex_id)===String(complexId));
         if(selectedPitches.length!==pitchIds.length)return toast('Un terrain sélectionné est invalide.');
 
+        let rolePatch={};
+        try{rolePatch=roleEditor?.patch()||{}}catch(error){return toast(error.message)}
         const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' — ');
 
         saveDetails.disabled=true;
         saveDetails.textContent='Enregistrement…';
 
-        const {error}=await sb.from('tournaments').update({
+        const {error}=await window.SWEPitchRoles.update(t,{
+          ...rolePatch,
           tournament_date:tournamentDate,
           complex_id:complexId,
           reserved_pitch_ids:pitchIds,
@@ -3073,7 +3080,7 @@ function renderTournaments(){
           entry_fee_cents:Math.round(price*100),
           reservation_reference:refInput.value.trim()||null,
           season_id:seasonEditSel.value||null
-        }).eq('id',t.id);
+        });
 
         if(error){
           saveDetails.disabled=false;
@@ -3848,6 +3855,7 @@ function buildMatchPlayerManager(match,home,away){
 
 function renderMatches(){
   const current=currentTour();
+  window.SWEPitchRoles?.mountMatches(current);
   const selector=$('#matchCompetitionSelect');
   const selectorStatus=$('#matchCompetitionStatus');
   const accessHelp=$('#matchAccessHelp');
