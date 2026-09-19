@@ -3900,8 +3900,10 @@ function renderMatches(){
   if(req)req.classList.toggle('hidden',!isLeagueMatch);
   const rr=$('#roundRobin');
   if(rr){
-    rr.disabled=!!isLeagueMatch;
-    rr.title=isLeagueMatch?'En Ligue, crée chaque match individuellement afin d’indiquer son terrain.':'';
+    const autoRotation=current?.rotation_mode==='king_of_pitch'&&current.rotation_state?.initialized;
+    rr.classList.toggle('hidden',!!autoRotation);
+    rr.disabled=!!isLeagueMatch||!!autoRotation;
+    rr.title=autoRotation?'Termine les matchs en cours : le circuit crée la suite automatiquement.':isLeagueMatch?'En Ligue, crée chaque match individuellement afin d’indiquer son terrain.':'';
   }
   $('#homeTeam').innerHTML=matchOptions();
   $('#awayTeam').innerHTML=matchOptions();
@@ -4008,11 +4010,12 @@ $('#addMatch').onclick=async()=>{
   if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_enter_scores)return toast('Tu n’es pas autorisé à saisir les scores.');
   const t=currentTour(),home=$('#homeTeam').value,away=$('#awayTeam').value,pitch=$('#pitch').value;
   if(!t||!home||!away||home===away)return toast('Choisis deux équipes différentes');
+  if(t.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized)return toast('Le circuit est actif. Termine les matchs en cours pour créer la suite automatiquement.');
   if(t.format==='league'&&!pitch)return toast('Pour un match de Ligue, indique obligatoirement le terrain.');
   const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:S.matches.length+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null});
   if(error)toast(error.message);else{$('#pitch').value='';$('#roundLabel').value=''}
 };
-$('#roundRobin').onclick=async()=>{const t=currentTour();if(!t||S.teams.length<2)return toast('Crée les équipes d’abord');if(t.format==='league')return toast('En Ligue, crée les matchs un par un afin d’indiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent déjà');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs générés')};
+$('#roundRobin').onclick=async()=>{const t=currentTour();if(t?.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized)return toast('Le circuit est actif. Termine les matchs en cours pour créer la suite automatiquement.');if(!t||S.teams.length<2)return toast('Crée les équipes d’abord');if(t.format==='league')return toast('En Ligue, crée les matchs un par un afin d’indiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent déjà');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs générés')};
 
 
 async function renderLeague(){

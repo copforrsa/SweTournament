@@ -36,7 +36,8 @@ function fill(){
     else if(active.has(String(h.value)))h.value='';
     if(av&&!active.has(String(av))&&String(av)!==String(h.value)&&teams.some(x=>String(x.id)===String(av)))a.value=av;
     else if(String(a.value)===String(h.value)||active.has(String(a.value)))a.value='';
-    const enough=teams.length-active.size>=2;
+    const autoRotation=t?.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized;
+    const enough=!autoRotation&&teams.length-active.size>=2;
     h.disabled=!enough;
     a.disabled=!enough;
     const add=E('addMatch');
