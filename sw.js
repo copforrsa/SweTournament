@@ -1,4 +1,4 @@
-const SW_BUILD='50.19-pitch-roles';
+const SW_BUILD='50.20-test-tournament-data';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 

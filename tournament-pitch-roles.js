@@ -1,11 +1,11 @@
 (()=>{
 'use strict';
-const roles=[['king_pitch_id','👑 Terrain du Roi'],['middle_pitch_id','↕ Terrain intermédiaire'],['stream_pitch_id','🌊 Terrain inférieur']];
+const roles=[['king_pitch_id','👑 Terrain du Roi'],['middle_pitch_id','⚔ Terrain des Conquérants'],['stream_pitch_id','🛡 Terres des Bannis']];
 function validate(t,ids,values){
  const selected=roles.map(([key])=>values[key]).filter(Boolean);
  if(!values.king_pitch_id)throw Error('Choisis le terrain du Roi.');
- if(ids.length>=2&&!values.stream_pitch_id)throw Error('Choisis le terrain inférieur.');
- if(ids.length===3&&!values.middle_pitch_id)throw Error('Choisis le terrain intermédiaire.');
+ if(ids.length>=2&&!values.stream_pitch_id)throw Error('Choisis les Terres des Bannis.');
+ if(ids.length===3&&!values.middle_pitch_id)throw Error('Choisis le terrain des Conquérants.');
  if(selected.length!==ids.length||new Set(selected).size!==selected.length||selected.some(id=>!ids.includes(id)))throw Error('Chaque terrain réservé doit avoir un rôle différent.');
  if(t.rotation_state?.initialized&&roles.some(([key])=>!!t[key]!==!!values[key]))throw Error('Le circuit est lancé : conserve le même nombre de rôles pour préserver les rotations en attente.');
  return Object.fromEntries(roles.map(([key])=>[key,values[key]||null]));
@@ -15,9 +15,10 @@ function editor(t,getIds){
  const legend=document.createElement('legend');legend.textContent='Rôles des terrains — Roi du terrain';node.append(legend);
  const fields={};
  for(const [key,label] of roles){const wrap=document.createElement('label'),text=document.createElement('span'),select=document.createElement('select');text.textContent=label;wrap.append(text,select);node.append(wrap);fields[key]=select;}
+ const missing=document.createElement('p');missing.className='muted';missing.setAttribute('role','status');node.append(missing);
  const note=document.createElement('p');note.className='muted';note.textContent='Les matchs avec un rôle déjà enregistré le conservent. Les nouveaux matchs suivent cette configuration. Équipes et résultats conservés.';node.append(note);
  let initial=true;
- function refresh(){const ids=getIds();for(const [key] of roles){const select=fields[key],keep=initial?t[key]:select.value;select.replaceChildren(new Option('Choisir', ''));for(const id of ids){const pitch=(S.sportsPitches||[]).find(p=>String(p.id)===String(id));select.add(new Option(pitch?.name||'Terrain indisponible',id));}select.value=ids.includes(keep)?keep:'';select.parentElement.hidden=key==='middle_pitch_id'?ids.length<3:key==='stream_pitch_id'?ids.length<2:false;}for(const [key] of roles)if(fields[key].parentElement.hidden)fields[key].value='';initial=false;}
+ function refresh(){const ids=getIds();missing.textContent=ids.length?'':'Aucun terrain réservé : ouvre Modifier le tournoi et sélectionne le complexe et ses terrains.';for(const [key] of roles){const select=fields[key],keep=initial?t[key]:select.value;select.replaceChildren(new Option('Choisir', ''));for(const id of ids){const pitch=(S.sportsPitches||[]).find(p=>String(p.id)===String(id));select.add(new Option(pitch?.name||'Terrain indisponible',id));}select.value=ids.includes(keep)?keep:'';select.disabled=!ids.length;select.parentElement.hidden=ids.length>0&&(key==='middle_pitch_id'?ids.length<3:key==='stream_pitch_id'?ids.length<2:false);}for(const [key] of roles)if(fields[key].parentElement.hidden)fields[key].value='';initial=false;}
  refresh();return {node,refresh,patch:()=>validate(t,getIds(),Object.fromEntries(roles.map(([key])=>[key,fields[key].value])))};
 }
 async function update(t,patch){
