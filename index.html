@@ -1,3 +1,945 @@
-Traceback (most recent call last):
-  File "<stdin>", line 7, in <module>
-NameError: name 'text' is not defined. Did you mean: 'next'?
+<!doctype html>
+<html lang="fr">
+<head>
+  <script src="/build-version.js?v=5000"></script>
+  <script src="/session-journal.js?v=4377"></script>
+  <script src="/theme-toggle.js?v=4401"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#071b12">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://upload.wikimedia.org; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-src 'self' https://js.stripe.com https://hooks.stripe.com; upgrade-insecure-requests">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tournoi Foot">
+  <link rel="apple-touch-icon" href="./icon-192.png?v=4377">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>SWÉ TOURNAMENT 5/5 • V50.0</title>
+<link rel="icon" type="image/png" href="./favicon.png?v=4377">
+<link rel="apple-touch-icon" href="./icon-192.png?v=4377">
+  <link rel="stylesheet" href="./styles.css?v=4423-third-half-roles">
+  <link rel="stylesheet" href="./home-commerce.css?v=4378">
+  <link rel="stylesheet" href="./player-rating-ui.css?v=4385">
+  <link rel="stylesheet" href="./registration-presentation.css?v=4467-king-terres">
+<link rel="stylesheet" href="./offres.css?v=offres-r1">
+<link rel="stylesheet" href="./player-profile-compact.css?v=4399-player-r1">
+<link rel="stylesheet" href="./player-home.css?v=4399-player-r8">
+<link rel="stylesheet" href="./theme-toggle.css?v=4401">
+</head>
+<body>
+<div id="toast" class="toast"></div>
+<div id="consentGate" class="consent-gate hidden" role="dialog" aria-modal="true" aria-labelledby="consentGateTitle">
+  <div class="consent-panel">
+    <div class="consent-icon">🛡️</div>
+    <div class="sa-eyebrow">CONFIDENTIALITÉ & COMPTE SWÉ</div>
+    <h2 id="consentGateTitle">Valide les conditions pour continuer</h2>
+    <p>SWÉ Tournament utilise les données de ton compte pour créer ton ID joueur, relier tes groupes, gérer tes inscriptions et consolider tes statistiques.</p>
+    <label class="signup-consent consent-confirm"><input id="legacyConsentCheck" type="checkbox"><span><b>J’accepte les CGU et la politique de confidentialité SWÉ Tournament</b><small>Cette validation est enregistrée avec la version des conditions acceptées et la date d’acceptation.</small></span></label>
+    <div class="row consent-actions"><button id="acceptLegacyConsent" class="primary">Accepter et continuer</button><button id="consentLogout">Me déconnecter</button></div>
+  </div>
+</div>
+<div class="app">
+  <section id="auth" class="auth">
+    <div class="top"><h1><img src="/assets/logo-swe-tournament.png" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:600">V50.0</span></h1><p class="muted">Gestion partagée des tournois.</p></div>
+    <div id="inviteLandingCard" class="card hidden">
+      <h2 class="sectiontitle">🤝 Invitation co-organisateur</h2>
+      <p id="inviteLandingText" class="muted">Tu as reçu une invitation pour rejoindre l’organisation du tournoi.</p>
+      <div class="player" style="margin-top:10px;background:#f8fbf9">
+        <b>Comment rejoindre l’équipe ?</b>
+        <div class="muted" style="margin-top:6px;line-height:1.65">
+          <div>1. Utilise exactement l’adresse e-mail indiquée dans l’invitation.</div>
+          <div>2. Si tu as déjà un compte, connecte-toi.</div>
+          <div>3. Sinon, crée ton compte avec cette même adresse e-mail.</div>
+          <div>4. Une fois connecté, clique sur <b>Accepter l’invitation</b>.</div>
+        </div>
+      </div>
+    </div>
+    <div id="coolerAccountCard" class="card cooler-account-card hidden">
+      <div class="cooler-account-icon">🧊</div>
+      <div>
+        <div class="sa-eyebrow">MISSION GLACIÈRE</div>
+        <h2 id="coolerAccountTitle" class="sectiontitle">Configure ta 3e mi-temps</h2>
+        <p id="coolerAccountText">Crée gratuitement ton compte joueur ou connecte-toi. Aucun abonnement organisateur n’est nécessaire.</p>
+      </div>
+    </div>
+    <div id="loginCard" class="card auth-login-card">
+      <div class="auth-login-brand"><img src="/assets/logo-swe-tournament.png" alt="SWÉ"><div><span>SWÉ TOURNAMENT</span><h2>Bienvenue 👋</h2><p>Connecte-toi pour retrouver tes Swés, tes équipes et ton profil joueur.</p></div></div>
+      <input id="email" type="email" placeholder="Email" autocomplete="email">
+      <div class="space"></div>
+      <input id="password" type="password" placeholder="Mot de passe" autocomplete="current-password">
+      <div class="space"></div>
+      <label class="signup-consent" id="signupConsentRow"><input id="signupConsent" type="checkbox"><span><b>J’accepte les conditions SWÉ Tournament</b><small>En créant mon compte, j’accepte les CGU, la politique de confidentialité et le traitement des données nécessaires au fonctionnement de mon profil, de mes inscriptions et de mes statistiques SWÉ.</small></span></label>
+      <div class="row">
+        <button id="login" class="primary">Se connecter</button>
+        <button id="signup">Créer mon compte</button>
+      </div>
+      <div class="auth-social-sep"><span>ou</span></div>
+      <div class="auth-social-grid"><button type="button" id="authGoogle" class="auth-social-btn google"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.32 2.98-7.41Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.36l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.6 0-4.8-1.76-5.59-4.12H3.06v2.62A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.41 13.94A6.02 6.02 0 0 1 6.1 12c0-.67.12-1.32.31-1.94V7.44H3.06A10 10 0 0 0 2 12c0 1.61.38 3.14 1.06 4.56l3.35-2.62Z"/><path fill="#EA4335" d="M12 5.94c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.63 9.63 0 0 0 12 2a10 10 0 0 0-8.94 5.44l3.35 2.62C7.2 7.7 9.4 5.94 12 5.94Z"/></svg><span>Continuer avec Google</span></button><button type="button" id="authApple" class="auth-social-btn apple"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.79 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.09ZM12.03 7.25C11.88 5.02 13.69 3.18 15.77 3c.29 2.58-2.34 4.5-3.74 4.25Z"/></svg><span>Continuer avec Apple</span></button></div>
+      <div class="space"></div>
+      <button id="forgotPassword" type="button">Mot de passe oublié ?</button>
+      <p class="muted">La case d’acceptation est obligatoire uniquement pour créer un nouveau compte. Les comptes bêta existants devront valider les conditions lors d’une prochaine connexion.</p>
+    </div>
+
+    <div id="resetPasswordCard" class="card hidden">
+      <h2 class="sectiontitle">Choisir un nouveau mot de passe</h2>
+      <p class="muted">Le lien de récupération a été validé. Saisis maintenant ton nouveau mot de passe.</p>
+      <input id="newPassword" type="password" placeholder="Nouveau mot de passe" autocomplete="new-password">
+      <div class="space"></div>
+      <input id="confirmNewPassword" type="password" placeholder="Confirmer le nouveau mot de passe" autocomplete="new-password">
+      <div class="space"></div>
+      <button id="updatePassword" class="primary">Enregistrer le nouveau mot de passe</button>
+    </div>
+  </section>
+
+  <section id="main" class="hidden">
+    <header class="top">
+      <div class="row" style="justify-content:space-between">
+        <div><h1><img src="/assets/logo-swe-tournament.png" class="brand-mark" alt="SWÉ">SWÉ TOURNAMENT 5/5 <span style="font-size:11px;opacity:.65;font-weight:700">V50.0</span></h1><div class="workspace-head-line"><div id="workspaceName" class="muted"></div><select id="workspaceSwitcher" class="workspace-switcher hidden" aria-label="Changer d’espace"></select></div><div class="build-badge" title="Version installée">MAJ 50.0</div></div>
+        <button id="logout">Déconnexion</button>
+      </div>
+    </header>
+    <div id="organizerAccessBanner" class="hidden organizer-access-banner"></div>
+
+
+    <div id="superAdminPanel" class="hidden super-admin-shell">
+      <div class="sa-hero">
+        <div>
+          <div class="sa-eyebrow">CENTRE DE PILOTAGE</div>
+          <h2>🛡️ Super Administration SWÉ</h2>
+          <p>Gère les espaces clients, les offres commerciales, les modules et les accès depuis une vue unique.</p>
+        </div>
+        <span class="sa-super-badge">SUPER ADMIN</span>
+      </div>
+
+      <div class="sa-stats-grid" id="saSummaryCards">
+        <div class="sa-stat"><span>🏢</span><div><small>Espaces</small><b id="saTotalSpaces">0</b></div></div>
+        <div class="sa-stat positive"><span>✅</span><div><small>Actifs</small><b id="saActiveSpaces">0</b></div></div>
+        <div class="sa-stat warning"><span>⏸️</span><div><small>Suspendus</small><b id="saSuspendedSpaces">0</b></div></div>
+        <div class="sa-stat info"><span>👥</span><div><small>Joueurs actifs</small><b id="saTotalPlayers">0</b></div></div>
+        <div class="sa-stat violet"><span>🏆</span><div><small>Compétitions</small><b id="saTotalCompetitions">0</b></div></div>
+        <div class="sa-stat gold"><span>💎</span><div><small>Offres payantes</small><b id="saPaidSpaces">0</b></div></div>
+        <div class="sa-stat"><span>🧑‍💼</span><div><small>Organisateurs</small><b id="saTotalOrganizers">0</b></div></div>
+        <div class="sa-stat violet"><span>🗂️</span><div><small>Multi-groupes</small><b id="saMultiOrganizers">0</b></div></div>
+      </div>
+
+      <div class="sa-admin-tabs"><button type="button" class="active" data-sa-tab="spaces">🏢 Espaces & offres</button><button type="button" data-sa-tab="players">👤 Joueurs SWÉ</button></div>
+      <div class="card sa-consent-control" id="saConsentControl"><div class="row" style="justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><b>🛡️ Consentement joueurs</b><div class="muted" style="margin-top:4px">Tu peux préparer le dispositif sans l’afficher aux joueurs. Tant qu’il est masqué, aucune fenêtre de régularisation n’est imposée aux comptes bêta.</div></div><label class="sa-switch-line"><input id="saConsentGateEnabled" type="checkbox"><span><b id="saConsentGateLabel">Masqué</b><small>Activation globale</small></span></label></div></div>
+      <div class="card sa-footer-editor"><h2 class="sectiontitle">⚖️ Pied de page & informations légales</h2><div class="grid g2"><input id="saFooterCompany" placeholder="Nom / raison sociale"><input id="saFooterEmail" type="email" placeholder="Email de contact"></div><textarea id="saFooterLegalText" rows="2" placeholder="Mention courte" style="margin-top:8px"></textarea><div class="grid g3" style="margin-top:8px"><input id="saFooterLegalUrl" type="url" placeholder="Mentions légales"><input id="saFooterPrivacyUrl" type="url" placeholder="Confidentialité"><input id="saFooterTermsUrl" type="url" placeholder="CGU / CGV"></div><div class="row" style="margin-top:8px"><label><input id="saFooterEnabled" type="checkbox" checked> Afficher</label><button id="saPreviewFooter">👁️ Aide mise en forme</button><button id="saSaveFooter" class="primary">💾 Enregistrer</button></div><div id="saFooterPreview" class="hidden"></div></div><div id="saSpacesSection">
+      <div class="card sa-create-card">
+        <div class="sa-section-head"><div><span class="sa-section-icon">＋</span><div><h2>Créer un espace client</h2><p>Le compte administrateur doit déjà exister dans SWÉ.</p></div></div><span class="sa-help-pill">Configuration guidée</span></div>
+        <div class="grid g2">
+          <label><span class="muted">Nom de l’espace</span><input id="saWorkspaceName" placeholder="Ex. SWÉ du dimanche"></label>
+          <label><span class="muted">Email administrateur</span><input id="saOwnerEmail" type="email" placeholder="admin@email.fr"></label>
+        </div>
+        <div class="space"></div>
+        <div class="grid g3">
+          <input id="saOwnerFirstName" placeholder="Prénom">
+          <input id="saOwnerLastName" placeholder="Nom">
+          <input id="saOwnerPhone" type="tel" inputmode="tel" placeholder="Téléphone">
+        </div>
+        <div class="space"></div>
+        <div class="sa-commercial-create">
+          <label><span class="muted">Offre commerciale</span><select id="saNewPlan"><option value="free">FREE — Gestion essentielle</option><option value="standard">STANDARD — Top Player inclus</option><option value="pro">PRO — Top Player + 3e mi-temps</option></select></label>
+          <label><span class="muted">Co-gestionnaires inclus / offerts</span><input id="saMaxCoorg" type="number" min="0" max="1000" value="3"></label>
+        </div>
+        <div class="sa-module-create-grid">
+          <label class="sa-module-toggle"><input id="saTournamentEnabled" type="checkbox" checked><span><b>🏆 Tournoi</b><small>Création, matchs, équipes et historique.</small></span></label>
+          <label class="sa-module-toggle"><input id="saLeagueEnabled" type="checkbox"><span><b>🏁 Ligue</b><small>Swés récurrents et classement de ligue.</small></span></label>
+          <label class="sa-module-toggle dependent"><input id="saRankingsEnabled" type="checkbox" checked><span><b>⚽ Classements</b><small>Dépend d’au moins un module compétition.</small></span></label>
+        </div>
+        <div class="sa-plan-preview" id="saNewPlanPreview"><b>FREE</b><span>Top Player et 3e mi-temps non inclus.</span></div>
+        <button id="saCreateWorkspace" class="primary sa-main-action">+ Créer l’espace administrateur</button>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div>
+            <h2 class="sectiontitle">📍 Complexes & terrains</h2>
+            <div class="muted">Catalogue commun à la plateforme. Les administrateurs choisissent ensuite leurs terrains réservés lors de la création d’un tournoi ou d’un Swé.</div>
+          </div>
+          <button id="saRefreshVenues">Actualiser</button>
+        </div>
+        <div class="space"></div>
+        <div class="grid g3">
+          <input id="saNewComplexName" placeholder="Nom du complexe">
+          <input id="saNewComplexCity" placeholder="Ville / commune">
+          <button id="saAddComplex" class="primary">+ Ajouter le complexe</button>
+        </div>
+        <div id="saVenueList" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div>
+            <h2 class="sectiontitle">Espaces clients</h2>
+            <div class="muted">Consulte, modifie, suspends ou supprime un espace.</div>
+          </div>
+          <button id="saRefresh">Actualiser</button>
+        </div>
+        <div class="space"></div>
+        <div class="sa-workspace-filters"><input id="saSearchWorkspace" placeholder="🔎 Rechercher par espace, admin, email ou téléphone"><select id="saWorkspaceFilter" aria-label="Filtrer les espaces"><option value="all">Tous les organisateurs</option><option value="trial">Essais gratuits en cours</option><option value="free">Gratuits / sans abonnement</option><option value="paid">Abonnements / accès spéciaux</option><option value="multi">Administrateurs multi-groupes</option><option value="suspended">Espaces suspendus</option></select></div>
+        <div class="space"></div>
+        <div id="saWorkspaceList"></div>
+      </div>
+      </div>
+
+      <div id="saPlayersSection" class="hidden">
+        <div class="card sa-signup-requests-card">
+          <div class="sa-section-head"><div><span class="sa-section-icon">✉️</span><div><h2>Demandes d’inscription joueurs</h2><p>Les joueurs inscrits par e-mail sur swetournament.fr apparaissent ici. Tu peux leur transmettre leur lien d’activation par e-mail ou WhatsApp.</p></div></div><span class="sa-help-pill" id="saSignupRequestsCount">0 en attente</span></div>
+          <div id="saSignupRequestsList" style="margin-top:12px"></div>
+        </div>
+        <div class="card sa-identity-disputes-card"><div class="sa-section-head"><div><span class="sa-section-icon">⚠️</span><div><h2>Conflits d’identité joueur</h2><p>Lorsqu’un même membre est revendiqué par deux comptes, les deux identités sont mises en vérification jusqu’à décision du Super Admin.</p></div></div><span class="sa-help-pill" id="saIdentityDisputeCount">0 litige</span></div><div id="saIdentityDisputesList" style="margin-top:12px"></div></div>
+        <div class="card sa-players-card">
+          <div class="sa-section-head"><div><span class="sa-section-icon">👤</span><div><h2>Joueurs SWÉ</h2><p>Base centrale des comptes joueurs, administrateurs et co-gestionnaires rattachés à un ID SWÉ par leur adresse e-mail.</p></div></div><span class="sa-help-pill" id="saPlayersCountPill">0 profils</span></div>
+          <div class="sa-player-stats" id="saPlayerStats"></div>
+          <input id="saSearchPlayer" placeholder="🔎 Rechercher par nom, ID SWÉ, email, téléphone ou zone">
+          <div id="saPlayersList" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="accountOnboarding" class="card hidden onboarding-shell">
+      <div class="sa-eyebrow">BIENVENUE SUR SWÉ TOURNAMENT</div>
+      <h2 class="sectiontitle">Que veux-tu faire aujourd’hui ?</h2>
+      <p class="muted">Un seul compte SWÉ peut servir à jouer, suivre tes statistiques et organiser un ou plusieurs groupes.</p>
+      <div class="onboarding-choice-grid">
+        <button type="button" class="onboarding-choice" data-onboarding-intent="player"><span class="onboarding-emoji">⚽</span><b>Je veux jouer et retrouver mes stats</b><small>Retrouve tes Swés, rattache tes anciens matchs à ton ID SWÉ et conserve tes performances dans tous les groupes.</small></button>
+        <button type="button" class="onboarding-choice featured" data-onboarding-intent="organizer"><span class="onboarding-emoji">🏆</span><b>Je veux organiser des Swés</b><small>Crée ton groupe, une saison, un tournoi ou une ligue. Toutes les fonctions organisateur sont offertes pendant 2 mois.</small></button>
+      </div>
+    </div>
+
+    <div id="workspaceSetup" class="card hidden organizer-setup-card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><div class="sa-eyebrow">CRÉER MON ESPACE ORGANISATEUR</div><h2 class="sectiontitle">À toi d’organiser 🏆</h2><p class="muted">Pendant 60 jours, toutes les options organisateur sont disponibles. Ensuite, un abonnement sera nécessaire pour continuer à organiser ; tes données resteront conservées.</p></div><span class="trial-pill">🎁 2 mois offerts</span></div>
+      <div class="grid g2 organizer-type-grid" style="margin-top:12px">
+        <label class="organizer-type-choice"><input type="radio" name="organizerType" value="group" checked><span><b>👥 Mon groupe / mes amis</b><small>Swés réguliers, équipes, stats, classements, paiements et co-gestionnaires.</small></span></label>
+        <label class="organizer-type-choice"><input type="radio" name="organizerType" value="pro"><span><b>🏟️ Club / association / organisateur Pro</b><small>Saisons, tournois, ligues, catégories et suivi d’un volume plus important de joueurs.</small></span></label>
+      </div>
+      <label style="display:block;margin-top:12px"><span class="muted">Nom de ton groupe / organisation</span><input id="newWorkspace" value="" placeholder="Ex. Les Swés du dimanche"></label>
+      <div class="row" style="margin-top:12px"><button id="createWorkspace" class="primary">Créer mon espace et démarrer l’essai</button><button id="cancelWorkspaceSetup" type="button">Annuler</button></div>
+    </div>
+
+    <div id="inviteBox" class="card hidden"><h2 class="sectiontitle">Invitation reçue</h2><div id="inviteList"></div></div>
+
+
+    <div id="view-myplayer" class="view">
+      <div class="card player-hub-hero">
+        <div class="player-hub-title"><div class="player-hub-avatar">⚽</div><div><div class="sa-eyebrow">IDENTITÉ JOUEUR SWÉ</div><h2>Mon profil joueur</h2><p>Un seul identifiant pour retrouver tes performances dans tous les groupes SWÉ auxquels tu participes.</p></div></div>
+        <div id="myPlayerIdentity" class="hidden"></div>
+      </div>
+      <div id="myPlayerCreateCard" class="card hidden">
+        <h2 class="sectiontitle">Créer mon ID joueur SWÉ</h2>
+        <p class="muted">Ton ID SWÉ est personnel et permanent. Tu pourras ensuite relier les profils que différents groupes ont déjà créés pour toi.</p>
+        <div class="grid g2"><input id="myPlayerCreateName" placeholder="Ton nom / pseudo joueur"><button id="myPlayerCreate" class="primary">Créer mon ID SWÉ</button></div>
+      </div>
+      <div id="myPlayerDashboard" class="hidden">
+        <div class="card">
+          <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h2 class="sectiontitle">👤 Mon identité</h2><div class="muted">Choisis ce que les autres organisateurs peuvent voir.</div></div><span id="myPlayerPublicId" class="player-id-badge">SWE---------</span></div>
+          <div class="grid g2" style="margin-top:12px"><label><span class="muted">Nom / pseudo public</span><input id="myPlayerName"></label><label><span class="muted">Zone / commune (facultatif)</span><input id="myPlayerArea" placeholder="Ex. Fort-de-France"></label></div>
+          <div class="player-privacy-grid">
+            <label><input id="myPlayerPublic" type="checkbox"><span><b>Profil public</b><small>Autorise l’affichage de ton profil joueur SWÉ.</small></span></label>
+            <label><input id="myPlayerDiscoverable" type="checkbox"><span><b>Disponible dans l’annuaire</b><small>Les administrateurs peuvent te proposer de compléter un Swé.</small></span></label>
+            <label><input id="myPlayerNotify" type="checkbox"><span><b>M’informer des prochains Swés</b><small>Affiche les Swés ouverts organisés par d’autres groupes.</small></span></label>
+          </div>
+          <button id="myPlayerSave" class="primary" style="margin-top:12px">💾 Enregistrer mon profil</button>
+        </div>
+        <div id="playerOrganizerCta" class="card organizer-conversion-card"><div><span class="organizer-conversion-kicker">🏆 À TON TOUR D’ORGANISER ?</span><h3>Crée ton propre espace SWÉ</h3><p>Crée ton groupe et laisse SWÉ t’aider à organiser des confrontations plus équilibrées et plus intéressantes.</p><small>🎁 Toutes les fonctions organisateur sont disponibles pendant 2 mois.</small></div><button id="becomeOrganizer" class="primary">Organiser mon propre Swé →</button></div>
+        <div class="card"><h2 class="sectiontitle">📊 Mes performances tous groupes confondus</h2><div id="myPlayerStats" class="player-global-stats"></div></div>
+        <div class="card swe-history-link-card"><h2 class="sectiontitle">🔎 Retrouver un Swé auquel j’ai déjà participé</h2><p class="muted">Tes statistiques deviennent personnelles uniquement lorsque ton compte SWÉ est relié au bon joueur. Saisis l’<b>ID du tournoi</b> ou l’<b>ID SWÉ de la ligue</b>, puis sélectionne ton nom dans la liste des participants.</p><div class="row swe-history-search"><input id="mySweHistoryCode" placeholder="Ex. ABC123 ou LIG-A1B2C3D4" style="flex:1;text-transform:uppercase"><button id="mySweHistorySearch" class="primary">Rechercher</button></div><div id="mySweHistoryResult" style="margin-top:12px"></div><div class="identity-warning">⚠️ Une identité joueur ne doit jamais être revendiquée par une autre personne. Si deux comptes revendiquent le même membre, les deux profils sont automatiquement placés en vérification jusqu’au contrôle de l’équipe SWÉ.</div></div>
+        <div class="grid g2 player-hub-grid">
+          <div class="card"><h2 class="sectiontitle">🏟️ Mes groupes liés</h2><div id="myPlayerGroups"></div></div>
+          <div class="card"><h2 class="sectiontitle">📩 Mes invitations</h2><div id="myPlayerInvites"></div></div>
+        </div>
+        <div class="card"><h2 class="sectiontitle">📅 Mes prochains Swés</h2><div class="muted" style="margin-bottom:10px">Retrouve ici tes inscriptions directes, celles en attente de paiement et les participations acceptées par un organisateur.</div><div id="myPlayerMySwes"></div></div>
+        <div class="card"><h2 class="sectiontitle">🙋 Mes demandes de participation</h2><div id="myPlayerRequests"></div></div>
+        <div class="card"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h2 class="sectiontitle">🌍 Swés à découvrir</h2><div class="muted">Les Swés <b>publics</b> acceptent l’inscription directe. Les Swés <b>sur demande</b> nécessitent l’accord de l’organisateur.</div></div><button id="myPlayerRefresh">Actualiser</button></div><div id="myPlayerOpportunities" class="player-opportunity-grid" style="margin-top:12px"></div></div>
+      </div>
+    </div>
+
+    <div id="view-home" class="view active">
+      <div class="card" id="hostWelcomeCard">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div>
+            <h2 class="sectiontitle" id="hostWelcomeTitle">👋 Bienvenue</h2>
+            <div class="muted" id="hostWelcomeEmail"></div>
+          </div>
+          <span class="guest-badge">SWÉ TOURNAMENT 5/5</span>
+        </div>
+        <div id="coorgMyRights" class="hidden" style="margin-top:12px"></div>
+      </div>
+      <div id="coorgOrganizerCta" class="card hidden coorg-organizer-cta"><div><span>👀</span><div><b>Ça serait pas mal dans ton groupe aussi, non ?</b><p>Tu connais déjà SWÉ. Crée ton propre espace organisateur et teste toutes les fonctions pendant 2 mois.</p></div></div><button id="coorgCreateOwnWorkspace" class="primary">Créer mon espace organisateur →</button></div>
+      <div class="card hidden" id="homeStripeWarning" style="border:2px solid #e58a00;background:#fff4dc;box-shadow:0 8px 24px rgba(166,92,0,.12)">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <h2 class="sectiontitle" style="margin-bottom:5px">⚠️ Paiements Stripe à finaliser</h2>
+            <div style="font-weight:800">Ton compte Stripe est relié, mais la configuration n’est pas encore terminée.</div>
+            <div class="muted" style="margin-top:6px">Les joueurs ne pourront pas payer leur participation en ligne tant que Stripe n’a pas autorisé les encaissements et les virements.</div>
+          </div>
+          <button class="primary" data-go="permissions" id="homeStripeFinishBtn">Terminer la configuration Stripe →</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="sectiontitle">📊 Vue d’ensemble</h2>
+        <div id="homeWorkspaceStats" class="grid g2" style="margin-top:12px"></div>
+        <div id="homeCoorgQuotaRequest" style="margin-top:12px"></div>
+      </div>
+      <div id="homeIdentityRequestsCard" class="card hidden">
+        <h2 class="sectiontitle">🔐 Rattachements de profils à valider</h2>
+        <p class="muted">Ces joueurs ont créé leur compte depuis une mission Glacière. Vérifie leur identité avant d’autoriser la configuration du lien de paiement.</p>
+        <div id="homeIdentityRequests" style="margin-top:12px"></div>
+      </div>
+      <div class="card" id="homeEcosystemCard" style="border:2px solid #d9eadf;background:linear-gradient(180deg,#fbfffc 0%,#f7fbf8 100%)">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div><h2 class="sectiontitle" style="margin-bottom:4px">💎 Mon espace SWÉ & options</h2><div class="muted">Ton espace évolue avec ton groupe, sans alourdir l’organisation.</div></div>
+          <span id="homePlanBadge" class="guest-badge">FREE</span>
+        </div>
+        <div id="homeSpecialAccessNotice" class="hidden" style="margin-top:12px"></div>
+        <div id="homeTrialPricingNotice" class="hidden" style="margin-top:12px"></div>
+
+        <details id="homeCoorgOfferCard" class="coorg-offer-card home-shop-disclosure" style="margin-top:12px">
+          <summary><span class="shop-closed">⚽ Acheter un accès co-gestionnaire</span><span class="shop-open">Masquer les détails de l’accès co-gestionnaire</span></summary>
+          <div class="home-shop-content">
+          <div class="coorg-offer-head">
+            <div class="coorg-offer-icon">👥<span>+</span></div>
+            <div class="coorg-offer-copy"><h3>Recrute ton adjoint</h3><p>Partage l’organisation, garde la main sur les droits. <b>1 accès = 1 co-gestionnaire.</b></p></div>
+            <div class="coorg-auto-badge launch">🚀 <b>Tarif de lancement</b><span>simple et accessible</span></div>
+          </div>
+          <div class="coorg-benefits">
+            <div><span>📋</span><b>Un adjoint sur le banc</b><small>Joueurs, scores et organisation</small></div>
+            <div><span>🛡️</span><b>Tu gardes le brassard</b><small>Tu choisis ses permissions</small></div>
+          </div>
+          <div class="coorg-pricing-title"><span>🏷️</span><div><b>Choisis ton rythme de paiement</b><small>Le même accès équipe, au mois ou à l’année. L’annuel t’offre l’équivalent de 2 mois.</small></div></div>
+          <input type="hidden" id="homeCoorgBillingPeriod" value="month">
+          <div class="coorg-billing-options" aria-label="Période de facturation des accès co-gestionnaires">
+            <button type="button" class="coorg-billing-choice active" data-coorg-billing="month" aria-pressed="true"><span class="coorg-billing-label">Mensuel</span><b>1,99 €</b><small>1 accès équipe • facturation mensuelle</small><span class="coorg-billing-note">Sans engagement</span></button>
+            <button type="button" class="coorg-billing-choice" data-coorg-billing="year" aria-pressed="false"><em>2 mois offerts</em><span class="coorg-billing-label">Annuel</span><b>19,90 €</b><small>1 accès équipe • facturation annuelle</small><span class="coorg-billing-note">Soit 1,66 € / mois</span></button>
+          </div>
+          <div class="coorg-order-box">
+            <div class="coorg-qty"><span>Co-gestionnaires à ajouter</span><div class="coorg-stepper"><button type="button" data-coorg-step="-1" aria-label="Retirer un accès">−</button><input id="homeCoorgQty" type="number" min="1" max="100" value="1" inputmode="numeric"><button type="button" data-coorg-step="1" aria-label="Ajouter un accès">+</button></div></div>
+            <div class="coorg-total"><span id="homeCoorgTotalLabel">Total mensuel</span><div id="homeCoorgTotal"><b>1,99 €/mois</b><div class="muted">1 × 1,99 €</div></div></div>
+          </div>
+          <div id="homeCoorgUnitPrice" class="coorg-unit-price">Tarif unitaire : 1 accès équipe à 1,99 € / mois</div>
+          <button id="homeBuyCoorg" class="primary coorg-buy-btn">💳 Ajouter 1 accès équipe — 1,99 €/mois <span>→</span></button>
+          <div class="coorg-trust"><span>🔒 Paiement sécurisé par Stripe</span><span>✅ Activation automatique</span><span>🕊️ Sans engagement</span><span>🚀 Tarif de lancement</span></div>
+          <div class="coorg-cancel-box"><div><b>Sans engagement, résiliable à tout moment</b><div class="muted">La résiliation se fait directement ici, sans demande au support. Les accès mensuels sont arrêtés immédiatement. En annuel, le renouvellement est stoppé immédiatement et les accès restent actifs jusqu’à la fin de la période déjà payée.</div></div><button type="button" id="homeCancelCoorg" class="secondary coorg-cancel-btn">Gérer / résilier mes options équipe</button></div>
+          </div>
+        </details>
+
+        <details id="homeModulesDisclosure" class="home-shop-disclosure home-modules-disclosure">
+          <summary><span class="shop-closed">⚽ Voir nos modules</span><span class="shop-open">Masquer nos modules</span></summary>
+          <div class="home-shop-content">
+            <div class="home-modules-intro"><b>Trois renforts pour ton collectif.</b><span>À toi de composer ton SWÉ.</span></div>
+            <div class="home-modules-grid">
+              <article class="player home-module" id="ecoRatingsModule" data-tone="blue"><span class="home-module-icon" aria-hidden="true">⚖️</span><h3>Notation & équilibrage</h3><p>Des équipes qui se répondent.</p><ul><li>Évalue les qualités de tes joueurs</li><li>Compose des équipes équilibrées</li></ul></article>
+              <article class="player home-module" id="ecoThirdHalfModule" data-tone="amber"><span class="home-module-icon" aria-hidden="true">🧊</span><h3>3e mi-temps</h3><p>Le match finit. Le groupe reste.</p><ul><li>Organise le moment d’après-match</li><li>Suis les participations à la glacière</li></ul></article>
+              <article class="player home-module" id="ecoTournamentModule" data-tone="green"><span class="home-module-icon" aria-hidden="true">🏆</span><h3>Tournoi</h3><p>Du coup d’envoi au dernier score.</p><ul><li>Organise tes équipes et tes matchs</li><li>Retrouve résultats et classements</li></ul></article>
+            </div>
+            <div id="homeUpgradeCard" class="workspace-upgrade-card">
+              <div><b>Complète ta feuille de match.</b><div class="muted" style="margin-top:4px">Un module te manque ? Demande son activation pour ton groupe.</div></div>
+              <button id="homeRequestUpgrade" class="primary">Demander une activation</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="muted" style="margin-top:10px;font-size:12px">Les paiements des joueurs via Stripe restent distincts des options et formules de l’organisateur.</div>
+      </div>
+      <div class="card">
+        <h2 class="sectiontitle">Actions rapides</h2>
+        <div class="grid g2">
+          <button data-go="players">👥 Gérer les joueurs</button>
+          <button data-go="tournaments">📅 Nouveau tournoi</button>
+          <button data-go="matches">⚽ Saisir les matchs</button>
+          <button data-go="ranking">🏆 Classements</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-coorganizers" class="view">
+      <div class="card" id="adminAccessCard">
+        <h2 class="sectiontitle">Accès et co-organisateurs</h2>
+        <div id="adminInviteControls">
+          <p class="muted">Le nombre de co-organisateurs dépend des options de l’espace. Après avoir créé l’invitation, envoie le lien par WhatsApp ou copie-le : aucun e-mail automatique n’est envoyé.</p>
+          <div class="row">
+            <input id="inviteEmail" type="email" placeholder="Email du co-organisateur" style="flex:1">
+            <button id="sendInvite" class="primary">Inviter</button>
+          </div>
+          <p id="coorgInviteFeedback" class="muted hidden" role="status" aria-live="polite" style="margin:9px 0 0"></p>
+        </div>
+        <div id="memberList" style="margin-top:12px"></div>
+        <div id="adminAccessLegend" class="muted" style="margin-top:8px">🟠 En attente = invitation non acceptée • 🟢 Actif = accès autorisé • ⏸️ Suspendu = accès bloqué par l’admin</div>
+        <div class="space"></div>
+        <label class="muted">Lien public — consultation uniquement</label>
+        <div class="row">
+          <input id="publicLink" readonly style="flex:1">
+          <button id="copyPublicLink">Copier</button>
+        </div>
+      </div>
+      <div class="card" id="homeCoorgVotesCard">
+        <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div>
+            <h2 class="sectiontitle" style="margin-bottom:4px">🗳️ Suivi des évaluations</h2>
+            <div class="muted">Nombre de joueurs évalués par chaque co-gestionnaire.</div>
+          </div>
+        </div>
+        <div id="homeCoorgVotes" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div id="view-players" class="view">
+      <div class="card">
+        <h2 class="sectiontitle" id="playersViewTitle">Joueurs</h2><p class="muted" id="playersViewIntro">Consulte et gère les membres du groupe selon tes autorisations.</p>
+        <textarea id="playersInput" rows="3" placeholder="Charly, Mika, Miguel..."></textarea>
+        <div class="space"></div>
+        <div class="grid g2">
+          <select id="playerGroupStatus">
+            <option value="member">Membre du groupe</option>
+            <option value="guest">Guest / invité</option>
+          </select>
+          <select id="guestOfPlayer" class="hidden">
+            <option value="">Guest de… (facultatif)</option>
+          </select>
+        </div>
+        <div class="space"></div>
+        <button id="addPlayers" class="primary">Enregistrer les joueurs</button>
+        <p class="muted">Un Guest reste dans les statistiques mais sera grisé dans les classements. Tu peux aussi préciser de quel membre il est l’invité.</p>
+      </div>
+      <div class="card hidden" id="playerDirectoryCard">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h2 class="sectiontitle">🌍 Annuaire joueurs SWÉ</h2><div class="muted">Trouve des joueurs ayant choisi de rendre leur profil public pour compléter un Swé.</div></div><span class="guest-badge">Profils volontaires uniquement</span></div>
+        <div class="grid g2" style="margin-top:12px"><input id="playerDirectorySearch" placeholder="Nom, ID SWÉ ou commune"><select id="playerDirectoryTournament"><option value="">Choisir le Swé à compléter…</option></select></div>
+        <div class="row" style="margin-top:8px"><button id="playerDirectoryBtn" class="primary">🔎 Rechercher des joueurs</button></div>
+        <div id="playerDirectoryResults" style="margin-top:12px"></div>
+      </div>
+      <div class="card hidden" id="playerParticipationRequestsCard">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h2 class="sectiontitle">🙋 Demandes de participation</h2><div class="muted">Les joueurs solo peuvent solliciter une place sur tes Swés configurés « Sur demande ».</div></div><button id="refreshPlayerRequests">Actualiser</button></div>
+        <div id="playerParticipationRequests" style="margin-top:12px"></div>
+      </div>
+      <div class="card"><div id="playersRatingIntro" class="muted hidden" style="margin-bottom:8px">💡 Administrateur et co-gestionnaires utilisent la même évaluation confidentielle : Cardio, Dribble, Collectif, Frappe et rôle de prédilection. Les moyennes servent uniquement à améliorer l’équilibrage des équipes.</div><div id="playersList"></div></div>
+    </div>
+
+    <div id="view-permissions" class="view">
+      <div class="card" id="stripeBillingCard">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <h2 class="sectiontitle">💳 Encaissement des participations</h2>
+            <p class="muted">Stripe n’est nécessaire que si tu veux recevoir automatiquement les paiements des joueurs via SWÉ. Ton rôle d’administrateur ou ta formule SWÉ ne t’obligent pas à connecter Stripe.</p>
+          </div>
+          <span id="stripeStatusBadge" class="guest-badge">Non configuré</span>
+        </div>
+        <div class="organizer-settings-panel">
+          <div class="grid g2">
+            <label><span class="muted">Statut de l’organisateur</span><select id="organizerLegalStatus"><option value="individual">Particulier</option><option value="auto_entrepreneur">Auto-entrepreneur</option><option value="association">Association</option><option value="company">Société</option></select></label>
+            <label><span class="muted">Téléphone WhatsApp de contact</span><input id="organizerWhatsappPhone" placeholder="Ex. +596696000000"></label>
+          </div>
+          <label style="display:block;margin-top:10px"><span class="muted">Lien du groupe WhatsApp (facultatif)</span><input id="organizerWhatsappGroup" placeholder="https://chat.whatsapp.com/..."></label>
+          <div class="row" style="margin-top:10px;flex-wrap:wrap"><button id="saveOrganizerSettings">💾 Enregistrer ces informations</button><span id="organizerPaymentEligibility" class="guest-badge">Paiement externe à vérifier</span></div>
+          <div class="muted" style="margin-top:7px">Pour les nouvelles inscriptions externes payantes, SWÉ exige actuellement un profil <b>Auto-entrepreneur</b>, le module Paiements actif et un compte Stripe Connect autorisé à encaisser et recevoir des virements.</div>
+        </div>
+        <div class="player" style="margin-top:10px;background:#f8fbff">
+          <label class="row" style="gap:10px;align-items:flex-start;cursor:pointer">
+            <input id="stripePaymentsToggle" type="checkbox" style="margin-top:3px">
+            <span><b>Recevoir les participations en ligne</b><br><span class="muted">Active cette option uniquement si tu souhaites encaisser les participations par carte via SWÉ.</span></span>
+          </label>
+        </div>
+        <div id="stripeBillingDetails" class="hidden">
+          <div id="stripeIncompleteWarning" class="player hidden" style="margin-top:10px;background:#fff0df;border:2px solid #e58a00">
+            <div style="font-size:16px;font-weight:900">⚠️ Action requise : configuration Stripe incomplète</div>
+            <div style="margin-top:5px">Ton compte est bien connecté, mais Stripe n’autorise pas encore les encaissements. <b>Les joueurs ne peuvent donc pas payer en ligne pour le moment.</b></div>
+            <div class="muted" style="margin-top:5px">Clique sur le bouton ci-dessous pour terminer ou vérifier les informations demandées par Stripe.</div>
+          </div>
+          <div class="player" style="margin-top:10px;background:#fff8e8"><b>À savoir</b><div class="muted" style="margin-top:4px">Stripe vérifie directement l’identité et le statut du bénéficiaire avant d’autoriser les encaissements et virements. SWÉ ne collecte pas ces justificatifs.</div></div>
+          <div id="stripeBillingStatus" class="player" style="margin-top:10px;background:#f8fbff"></div>
+          <div class="row" style="margin-top:10px;flex-wrap:wrap">
+            <button id="stripeConnectBtn" class="primary">🔗 Activer les paiements Stripe</button>
+            <button id="stripeRefreshBtn">↻ Actualiser le statut</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="sectiontitle">🔐 Autorisations des co-organisateurs</h2>
+        <p class="muted">Définis précisément ce que chaque co-organisateur peut faire. Les autorisations s’appliquent immédiatement et sont contrôlées côté serveur.</p>
+        <div id="permissionsList"></div>
+      </div>
+    </div>
+
+    <div id="view-tournaments" class="view">
+      <div class="card tournament-home-actions">
+        <div class="tournament-home-copy">
+          <div><span class="tour-create-eyebrow">GESTION DES TOURNOIS</span><h2 class="sectiontitle" style="margin:5px 0 4px">Tes tournois</h2><p class="muted" style="margin:0">Accède d’abord aux Swés en cours. La création et les réglages avancés restent disponibles uniquement quand tu en as besoin.</p></div>
+          <div class="tournament-home-buttons"><button id="newTournamentToggle" class="primary">＋ Créer un nouveau tournoi</button><button id="seasonSettingsToggle">⚙️ Gérer les saisons</button></div>
+        </div>
+      </div>
+      <div class="card hidden" id="seasonAdminCard">
+        <h2 class="sectiontitle">Saison</h2>
+        <div class="row"><select id="seasonSelect" style="flex:1"></select><button id="newSeasonBtn">+ Saison</button></div>
+        <div id="newSeasonBox" class="hidden" style="margin-top:10px">
+          <input id="seasonName" placeholder="Ex. Saison 2026-2027"><div class="space"></div>
+          <button id="createSeason" class="primary">Créer</button>
+        </div>
+      </div>
+      <div class="card hidden" id="tournamentAdminCard">
+        <div class="tour-create-hero">
+          <div class="tour-create-icon">🏆</div>
+          <div class="tour-create-copy"><span class="tour-create-eyebrow">NOUVEL ÉVÉNEMENT</span><h2>Créer un tournoi</h2><p>Configure ton Swé en quelques étapes. SWÉ gère ensuite les inscriptions, la capacité, les équipes et les terrains.</p></div>
+        </div>
+        <div class="tour-create-guide">
+          <div><span>⏱️</span><b>Clôture obligatoire</b><small>La date et l’heure alimentent automatiquement le compte à rebours joueur. Par défaut : la veille à 17h.</small></div>
+          <div><span>👥</span><b>Jusqu’à 35 joueurs</b><small>La capacité reste modifiable. Les remplaçants sont gérés automatiquement selon le nombre d’inscrits.</small></div>
+          <div><span>⚡</span><b>Format automatique</b><small>10 → 2 équipes / 1 terrain · 20 → 4 / 2 · 30 → 6 / 3 · 35 → 7 / 3.</small></div>
+        </div>
+        <div class="grid g2"><label><span class="muted">Date du tournoi *</span><input id="tourDate" type="date" required></label><label><span class="muted">Format *</span><select id="tourFormat"><option value="classic">Classique</option><option value="king_of_pitch">Roi du terrain</option></select></label></div><div class="space"></div><label class="player" style="display:block;background:#eef8f2;border-color:#b7dfc4"><span class="muted">⏱️ Fin des inscriptions *</span><input id="tourRegistrationDeadline" type="datetime-local" required><div class="muted" style="margin-top:5px">Le compte à rebours sera affiché systématiquement sur le lien d’inscription jusqu’à cette date.</div></label>
+        <div class="space"></div><input id="tourName" placeholder="Nom facultatif"><div class="space"></div>
+        <div class="player" style="background:#f8fbf9">
+          <b>📍 Réservation des terrains</b>
+          <div class="muted" style="margin:5px 0 8px">Choisis le complexe puis 1 à 3 terrains réservés pour ce tournoi.</div>
+          <div class="grid g2">
+            <label><span class="muted">Complexe *</span><select id="tourComplex"><option value="">Choisir le complexe</option></select></label>
+            <label><span class="muted">Heure de réservation *</span><input id="tourStartTime" type="time" value="09:00"></label>
+          </div>
+          <div id="tourPitchChoices" style="margin-top:10px"></div>
+          <div class="grid g2" style="margin-top:10px">
+            <label><span class="muted">Prix / participant (€) *</span><input id="tourEntryFee" type="number" min="0" step="0.50" value="0"></label>
+            <label><span class="muted">Nom ou n° de réservation (facultatif)</span><input id="tourReservationRef" placeholder="Ex. Résa Forssa / n° 12345"></label>
+          </div>
+        </div>
+        <div class="space"></div>
+        <div class="grid g2">
+          <label class="player"><span class="muted">Places maximum</span><input id="tourMaxPlayers" type="number" min="10" max="35" value="35"></label>
+          <label class="player row" style="justify-content:flex-start"><input id="tourRegistrationOpen" type="checkbox" style="width:auto" checked><span><b>Ouvrir les inscriptions</b><div class="muted">Les joueurs pourront s’inscrire via le lien public.</div></span></label>
+        </div>
+        <div class="player discovery-settings" style="margin-top:12px">
+          <b>🌍 Visibilité pour les joueurs solo</b>
+          <div class="muted" style="margin:5px 0 10px">Choisis comment ce Swé apparaît dans l’espace joueur et sur le front-office swetournament.fr.</div>
+          <div class="grid g2">
+            <label><span class="muted">Mode de découverte</span><select id="tourDiscoveryMode"><option value="unlisted">Non répertorié • lien uniquement</option><option value="request">Sur demande • visible, validation admin</option><option value="public">Public • inscription directe</option></select></label>
+            <label class="player row" style="justify-content:flex-start;margin:0"><input id="tourAllowExternal" type="checkbox" style="width:auto"><span><b>Accepter des joueurs externes</b><div class="muted">Crée automatiquement une fiche invitée liée à leur ID SWÉ.</div></span></label>
+          </div>
+          <label class="player row" style="justify-content:flex-start;margin-top:10px"><input id="tourExternalPaymentRequired" type="checkbox" style="width:auto"><span><b>Exiger le paiement en ligne pour les joueurs externes</b><div class="muted">Disponible uniquement si ton profil organisateur et Stripe sont éligibles.</div></span></label>
+          <label class="player row" style="justify-content:flex-start;margin-top:10px"><input id="tourOnlinePaymentEnabled" type="checkbox" style="width:auto"><span><b>💳 Proposer la collecte en ligne aux membres</b><div class="muted">Si désactivé, aucune information de paiement en ligne ne sera affichée.</div></span></label><div id="tourExternalPaymentNote" class="muted" style="margin-top:6px"></div>
+        </div>
+        <div class="player" style="margin-top:12px;background:#f3f8ff;border:1px solid #c6d9ee">
+          <b>💳 Lien de paiement administrateur</b>
+          <div class="muted" style="margin:5px 0 10px">Indépendant de la Glacière. Il sert à recevoir directement les participations au tournoi.</div>
+          <div class="grid g2">
+            <label><span class="muted">Solution</span><select id="tourAdminPaymentProvider"><option value="">Choisir…</option><option value="Revolut">Revolut</option><option value="PayPal">PayPal</option><option value="Lydia">Lydia</option><option value="Autre">Autre</option></select></label>
+            <label><span class="muted">Ton lien HTTPS</span><input id="tourAdminPaymentLink" type="url" maxlength="500" placeholder="https://..."></label>
+          </div>
+          <label class="row" style="justify-content:flex-start;margin-top:10px"><input id="tourAdminPaymentLinkEnabled" type="checkbox" style="width:auto"><span><b>Afficher ce lien aux inscrits</b><div class="muted">L’argent arrive directement sur ton compte.</div></span></label>
+        </div>
+        <div id="thirdHalfTournamentCreate" class="player hidden" style="margin-top:12px;background:#fff8ed;border:1px solid #fed7aa">
+          <label class="row" style="justify-content:flex-start"><input id="tourThirdHalfActive" type="checkbox" style="width:auto"><span><b>🧊 Activer la 3e mi-temps / Glacière pour ce tournoi</b></span></label>
+          <div class="muted" style="margin:5px 0 10px">Prépare l’organisation dès maintenant. Le lien Revolut/PayPal sera confié après l’inscription du responsable : c’est nécessaire pour que son lien personnel soit bien sécurisé.</div>
+          <div id="tourThirdHalfSetup" class="hidden" style="margin-top:12px">
+            <div class="grid g2">
+              <label><span class="muted">🧊 Qui apporte la glacière ?</span><select id="tourCoolerPlayer"><option value="">À définir plus tard</option></select></label>
+              <label><span class="muted">❄️ Qui apporte les glaçons ?</span><select id="tourIcePlayer"><option value="">À définir plus tard</option></select></label>
+            </div>
+            <label style="margin-top:10px"><span class="muted">Participation glacière fixe (€)</span><input id="tourCoolerSuggested" type="number" min="0" max="5" step="0.50" value="0"><small>Montant libre désactivé • maximum 5 € par personne.</small></label>
+            <div class="readonly-note" style="margin-top:10px"><b>💳 Lien Revolut / paiement :</b> après création, choisis parmi les joueurs inscrits la personne qui recevra les participations. Elle pourra alors entrer et activer son propre lien.</div>
+          </div>
+        </div>
+        <div class="space"></div><div class="row"><button id="createTournament" class="primary">Créer le tournoi</button><button id="cancelTournamentCreate" type="button">Annuler</button></div>
+      </div>
+      <div class="card"><h2 class="sectiontitle">⚽ Tournois en cours</h2><p class="muted">Retrouve ici les informations essentielles de chaque tournoi. Les réglages administratifs sont séparés sous chaque fiche pour éviter les confusions.</p><div id="tournamentList"></div></div><div class="card"><h2 class="sectiontitle">🏆 Classements de la saison</h2><div id="seasonScorerSummary"></div></div>
+    </div>
+
+    <div id="view-teams" class="view">
+      <div class="card" id="teamsAdminCard">
+        <h2 class="sectiontitle">👥 Équipes</h2>
+        <p class="muted">Choisis d’abord le tournoi ou le Swé de Ligue concerné. Toutes les équipes créées dans cette section seront rattachées uniquement à cette compétition.</p>
+        <div class="player" style="background:#f8fbf9;margin-bottom:12px">
+          <b style="color:#1264b8">🏆 1. Choisir la compétition</b>
+          <div class="muted" style="margin:5px 0 8px">Aucune compétition n’est affichée par défaut. Choisis le tournoi ou le Swé de Ligue que tu veux gérer.</div>
+          <select id="teamCompetitionSelect"><option value="">Choisir une compétition</option></select>
+          <div id="teamCompetitionStatus" class="muted" style="margin-top:7px"></div>
+        </div>
+        <div id="teamNoCreatePermission" class="readonly-note hidden"></div>
+        <div id="teamManagementControls">
+          <div class="grid g2">
+            <div class="row"><input id="teamName" placeholder="Nom équipe" style="flex:1"><select id="teamColor" title="Couleur des maillots"><option value="#111827">Noir</option><option value="#2563eb">Bleu</option><option value="#f8fafc">Blanc</option><option value="#dc2626">Rouge</option><option value="#16a34a">Vert</option><option value="#eab308">Jaune</option><option value="#f97316">Orange</option><option value="#7c3aed">Violet</option><option value="#ec4899">Rose</option><option value="#78350f">Marron</option><option value="#64748b">Gris</option></select><button id="addTeam">Ajouter</button></div>
+            <div class="row"><input id="playersPerTeam" type="number" min="2" max="11" value="5" style="max-width:120px"><button id="smartAutoTeams" class="primary">⚡ Générer équipes équilibrées</button></div>
+          </div>
+          <div id="teamBalanceInfo" class="muted" style="margin-top:8px"></div>
+        </div>
+        <div id="teamReviewPanel" class="team-review-panel hidden"></div>
+        <div class="team-export-row"><button id="exportTeamsPdf" type="button" class="secondary">📄 Extraire la liste des équipes en PDF</button><span class="muted small">Inclut les couleurs de maillot et les remplaçants communs.</span></div>
+        <div id="teamList" style="margin-top:10px"></div>
+      </div>
+      <div class="card" id="attendanceAdminCard"><h2 class="sectiontitle">Présents / inscrits de la compétition sélectionnée</h2><div id="attendanceList"></div></div>
+    </div>
+
+    <div id="view-matches" class="view">
+      <div class="card" id="matchCompetitionSelectorCard">
+        <h2 class="sectiontitle">⚽ Matchs à saisir</h2>
+        <p class="muted" id="matchAccessHelp">Choisis le tournoi ou le Swé de Ligue dont tu veux saisir les scores.</p>
+        <select id="matchCompetitionSelect"><option value="">Choisir une compétition</option></select>
+        <div id="matchCompetitionStatus" class="muted" style="margin-top:8px"></div>
+      </div>
+      <div class="card" id="matchCreateAdminCard">
+        <h2 class="sectiontitle">Créer les matchs</h2>
+        <div id="leaguePitchRequirement" class="readonly-note hidden"><b>📍 Match de Ligue :</b> le terrain est obligatoire pour chaque match (Carrefour, Mercedes, Boulogne…).</div>
+        <button id="roundRobin">Générer tous les matchs</button>
+        <div class="space"></div>
+        <div class="grid g2"><select id="homeTeam"></select><select id="awayTeam"></select></div>
+        <div class="space"></div>
+        <div class="grid g2"><select id="pitch"><option value="">Terrain</option><option value="Carrefour">Carrefour</option><option value="Mercedes">Mercedes</option><option value="Boulogne">Boulogne</option></select><input id="roundLabel" placeholder="Tour / étape"></div>
+        <div class="space"></div><button id="addMatch" class="primary">Ajouter le match</button>
+      </div>
+      <div id="matchesList"></div>
+    </div>
+
+
+    <div id="view-league" class="view">
+      <div class="card">
+        <h2 class="sectiontitle">🏁 Ligues</h2>
+        <p class="muted">Une ligue est une compétition indépendante créée par l’administrateur. Seuls les membres de la communauté s’y inscrivent. Ses buts et passes ont leur propre classement et ne se mélangent jamais avec les statistiques des tournois.</p>
+        <div id="leagueFeatureDisabled" class="readonly-note hidden">Cette option n’est pas activée pour cet espace.</div>
+      </div>
+
+      <div class="card" id="leagueCreateCard">
+        <h2 class="sectiontitle">Créer une Ligue</h2>
+        <div class="grid g2">
+          <input id="leagueName" placeholder="Ex. Ligue SWÉ Septembre">
+          <input id="leagueStart" type="date">
+        </div>
+        <div class="space"></div>
+        <div class="grid g2">
+          <input id="leagueEnd" type="date">
+          <button id="createLeague" class="primary">Créer la Ligue</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="sectiontitle">Mes Ligues</h2>
+        <div id="leagueList"></div>
+      </div>
+
+      <div class="card" id="activeLeagueCard">
+        <h2 class="sectiontitle">Ligue sélectionnée</h2>
+        <div id="activeLeagueInfo"></div>
+        <div class="space"></div>
+        <div id="leagueRegistrationShare"></div>
+      </div>
+
+      <div class="card" id="leaguePrizesCard">
+        <h2 class="sectiontitle">🎁 Lots des meilleurs buteurs</h2>
+        <p class="muted">L’administrateur peut annoncer des lots pour les 3 meilleurs buteurs du classement final de cette Ligue.</p>
+        <label class="player row" style="justify-content:flex-start"><input id="leaguePrizesEnabled" type="checkbox" style="width:auto"><span><b>Prévoir des lots pour le Top 3</b><div class="muted">Si un lot n’est pas encore connu, laisse le champ vide : « Lot à définir ultérieurement » sera affiché.</div></span></label>
+        <div id="leaguePrizeFields" class="hidden">
+          <div class="space"></div>
+          <div class="grid g3">
+            <input id="leaguePrizeFirst" placeholder="🥇 Lot du 1er">
+            <input id="leaguePrizeSecond" placeholder="🥈 Lot du 2e">
+            <input id="leaguePrizeThird" placeholder="🥉 Lot du 3e">
+          </div>
+          <div class="space"></div>
+          <button id="saveLeaguePrizes" class="primary">Enregistrer les lots</button>
+        </div>
+        <div id="leaguePrizeReadonly" class="muted" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card" id="leagueSessionCard">
+        <h2 class="sectiontitle">Créer un Swé de Ligue</h2>
+        <p class="muted">Choisis d’abord la Ligue à laquelle ce Swé appartient. Les buts et passes resteront rattachés uniquement à cette Ligue.</p>
+        <div id="noLeagueForSession" class="readonly-note hidden"></div>
+        <div id="leagueSessionForm">
+          <label class="player"><span class="muted">Ligue concernée</span><select id="leagueSessionLeague"><option value="">Choisir une Ligue</option></select></label>
+          <div class="space"></div>
+          <div class="grid g2">
+            <label><span class="muted">Date du Swé *</span><input id="leagueSessionDate" type="date" required></label>
+            <label><span class="muted">Nom du Swé</span><input id="leagueSessionName" placeholder="Facultatif"></label>
+          </div>
+          <div class="space"></div>
+          <label class="player" style="display:block;background:#eef8f2;border-color:#b7dfc4"><span class="muted">⏱️ Fin des inscriptions *</span><input id="leagueSessionRegistrationDeadline" type="datetime-local" required><div class="muted" style="margin-top:5px">Le compte à rebours sera affiché sur le lien d’inscription de ce Swé de Ligue.</div></label>
+          <div class="space"></div>
+          <div class="player" style="background:#f8fbf9">
+            <b>📍 Réservation du Swé</b>
+            <div class="muted" style="margin:5px 0 8px">Le terrain, l’heure et le prix sont obligatoires. Le nom ou numéro de réservation est facultatif.</div>
+            <div class="grid g2">
+              <label><span class="muted">Complexe *</span><select id="leagueSessionComplex"><option value="">Choisir le complexe</option></select></label>
+              <label><span class="muted">Terrain *</span><select id="leagueSessionPitch"><option value="">Choisir le terrain</option></select></label>
+            </div>
+            <div class="grid g3" style="margin-top:10px">
+              <label><span class="muted">Heure de réservation *</span><input id="leagueSessionStartTime" type="time" value="09:00"></label>
+              <label><span class="muted">Prix / participant (€) *</span><input id="leagueSessionEntryFee" type="number" min="0" step="0.50" value="0"></label>
+              <label><span class="muted">Nom ou n° de réservation</span><input id="leagueSessionReservationRef" placeholder="Facultatif"></label>
+            </div>
+          </div>
+          <div id="thirdHalfLeagueCreate" class="player hidden" style="margin-top:12px;background:#fff8ed;border:1px solid #fed7aa">
+            <b>🧊 3e mi-temps & participation</b>
+            <div class="muted" style="margin:5px 0 10px">Prix du Swé de Ligue et participation glacière. Le paiement en ligne sera activé avec Stripe dans une prochaine étape.</div>
+            <label><span class="muted">Participation glacière fixe (€)</span><input id="leagueSessionCoolerSuggested" type="number" min="0" max="5" step="0.50" value="0"><small>Montant libre désactivé • maximum 5 € par personne.</small></label>
+          </div>
+          <div class="space"></div>
+          <button id="createLeagueSession" class="primary">Créer le Swé de Ligue</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="sectiontitle">Swés de la Ligue</h2>
+        <div id="leagueDays"></div>
+      </div>
+
+      <div class="card hidden" id="leagueAdminRegistrationCard">
+        <h2 class="sectiontitle">👥 Gestion des inscrits & équipes</h2>
+        <p class="muted">Réservé à l’administrateur. Sélectionne d’abord un Swé de cette Ligue.</p>
+
+        <div id="leagueAdminNoSession" class="readonly-note">Sélectionne un Swé de Ligue pour gérer ses inscrits.</div>
+
+        <div id="leagueAdminSessionTools" class="hidden">
+          <div class="player" style="background:#eef8f2;border:1px solid #b7dfc4">
+            <div class="muted">Swé sélectionné</div>
+            <div id="leagueAdminSelectedSession" style="font-size:1.05rem;font-weight:900;margin-top:3px">—</div>
+          </div>
+          <div class="player" style="background:#f8fbf9;margin-top:10px">
+            <b>➕ Ajouter des inscrits manuellement</b>
+            <div class="muted" style="margin:5px 0 8px">Cette liste propose les membres de la Ligue qui ne sont pas encore inscrits à CE Swé. Les ajouter ici les inscrit uniquement à ce Swé. Sur ordinateur : Ctrl/Cmd + clic pour en choisir plusieurs.</div>
+            <div class="row" style="align-items:flex-start">
+              <select id="leagueManualPlayerSelect" multiple size="7" style="flex:1;min-height:180px"></select>
+              <button id="leagueManualAddPlayer" class="primary">Ajouter la sélection</button>
+            </div>
+          </div>
+
+          <div class="space"></div>
+          <div>
+            <div class="row" style="justify-content:space-between;align-items:center">
+              <h3 id="leagueRegisteredTitle" style="margin:0">Liste des inscrits au Swé</h3>
+              <span id="leagueRegisteredCount" class="muted"></span>
+            </div>
+            <div id="leagueRegisteredPlayersList" style="margin-top:8px"></div>
+          </div>
+
+          <div class="space"></div>
+          <div id="leagueTeamsCreationBox" class="player">
+            <b>⚡ Création des équipes</b>
+            <div id="leagueTeamsCreationText" class="muted" style="margin:5px 0 8px"></div>
+            <button id="generateLeagueTeams" class="primary">Créer les équipes avec les inscrits</button>
+            <div id="leagueGenerationInfo" class="muted" style="margin-top:8px"></div>
+          </div>
+
+          <div class="space"></div>
+          <div>
+            <h3 style="margin-bottom:8px">Équipes enregistrées</h3>
+            <div id="leagueSavedTeams"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card hidden" id="leagueScoringCard">
+        <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div>
+            <h2 class="sectiontitle">⚽ Résultat du Swé • buteurs & passeurs</h2>
+            <div id="leagueScoringSessionLabel" class="muted">Sélectionne un Swé de Ligue.</div>
+          </div>
+          <span class="guest-badge">ADMIN / CO-GESTIONNAIRE</span>
+        </div>
+        <div id="leagueScoringBody" style="margin-top:12px"></div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card"><h2 class="sectiontitle">⚽ Buteurs de cette Ligue</h2><div id="leagueScorers"></div></div>
+        <div class="card"><h2 class="sectiontitle">🎯 Passeurs de cette Ligue</h2><div id="leagueAssists"></div></div>
+      </div>
+    </div>
+
+    <div id="view-cooler" class="view">
+      <div class="card cooler-hero">
+        <div><span class="cooler-kicker">MODULE 3E MI-TEMPS</span><h2 class="sectiontitle">🧊 Glacière & cagnotte</h2><p class="muted">Réservé à l’administrateur. Pilote la cagnotte de chaque Swé, son statut et le lien externe utilisé pour collecter les participations.</p></div>
+      </div>
+      <div class="card"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h2 class="sectiontitle">Cagnottes actives</h2><p class="muted">Revolut, Leetchi, PayPal, Sumeria ou tout autre lien HTTPS peuvent être utilisés. SWÉ ne détient pas les fonds : il centralise le suivi et le partage du lien.</p></div><button id="refreshCoolerFunds">Actualiser</button></div><div id="coolerFundsList" style="margin-top:12px"></div></div>
+    </div>
+
+    <div id="view-ranking" class="view">
+      <div class="card hidden" id="seasonPublicShareCard">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <h2 class="sectiontitle">📲 Partager les classements de la saison</h2>
+            <p class="muted">Lien public en lecture seule : podium, Top Players, meilleures moyennes, nouveaux joueurs, buteurs et passeurs.</p>
+          </div>
+          <span class="guest-badge">ADMIN</span>
+        </div>
+        <input id="seasonPublicShareLink" type="text" readonly aria-label="Lien public des classements de la saison">
+        <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+          <button id="copySeasonPublicShareLink" type="button" class="primary">📋 Copier le lien</button>
+          <button id="shareSeasonPublicShareLink" type="button">📲 Partager</button>
+          <button id="openSeasonPublicShareLink" type="button">↗ Ouvrir</button>
+        </div>
+      </div>
+      <div class="card"><div class="row"><button class="rankMode" data-mode="day">Tournoi</button><button class="rankMode primary" data-mode="season">Saison</button></div><p class="muted">Le classement Saison cumule uniquement les statistiques des tournois rattachés à la saison sélectionnée. Un tournoi « Hors saison » conserve ses buts et ses passes décisives dans son propre historique, sans les ajouter au classement de saison.</p></div>
+      <div class="grid g2">
+        <div class="card"><h2 class="sectiontitle">⚽ Buteurs</h2><div id="scorerRank"></div></div>
+        <div class="card"><h2 class="sectiontitle">🎯 Passeurs</h2><div id="assistRank"></div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card">
+          <h2 class="sectiontitle">🏆 Trophées remportés par joueur</h2>
+          <p class="muted">Classement privé réservé à l’administrateur et aux co-gestionnaires. Le nombre de tournois remportés prime toujours sur la note individuelle.</p>
+          <div id="playerTrophyRank"></div>
+          <button id="togglePlayerTrophyRank" type="button" class="hidden" style="margin-top:10px">Développer</button>
+          <button id="sharePlayerTrophyRank" type="button" style="margin-top:10px">📲 Partager ce classement</button>
+        </div>
+        <div class="card" id="adminTopPlayerCard">
+          <h2 class="sectiontitle">⭐ Top Player</h2>
+          <p class="muted">Classement basé sur la moyenne des notes de match. Il reste distinct du classement des trophées remportés.</p>
+          <div id="adminTopPlayerRank"></div>
+          <button id="toggleAdminTopPlayerRank" type="button" class="hidden" style="margin-top:10px">Développer</button>
+        </div>
+      </div>
+      <div class="card"><h2 class="sectiontitle">🏆 Classement équipes</h2><div id="teamRank"></div></div>
+      <div class="card"><h2 class="sectiontitle">Partager</h2><textarea id="shareText" rows="10" readonly></textarea><div class="space"></div><button id="shareWhatsapp" class="primary">Partager le résumé</button></div>
+      <div class="card">
+        <h2 class="sectiontitle">🎨 Visuels automatiques</h2>
+        <p class="muted">Génère directement une image prête à partager sur WhatsApp, sans service externe payant.</p>
+        <div class="grid g3 visual-actions">
+          <button id="visualTeams">👥 Équipes</button>
+          <button id="visualResults">📋 Résultats</button>
+          <button id="visualScorers">⚽ Buteurs</button>
+        </div>
+        <div id="visualPreviewBox" class="hidden" style="margin-top:14px">
+          <canvas id="visualCanvas" width="1080" height="1350" style="width:100%;max-width:520px;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.14);background:#0d2b1f"></canvas>
+          <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+            <button id="downloadVisual" class="primary">⬇️ Enregistrer l’image</button>
+            <button id="shareVisual">📲 Partager</button>
+            <button id="closeVisual">Fermer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-view="home">Accueil</button>
+      <button class="tab" data-view="myplayer">Mon profil joueur</button>
+      <button class="tab" data-view="players" id="playersTabLabel">Joueurs</button>
+      <button class="tab admin-coorg-tab hidden" data-view="coorganizers">Co-gestionnaires <span id="coorgAcceptedBadge" class="hidden" aria-label="Nouvelles invitations acceptées"></span></button>
+      <button class="tab admin-permissions-tab hidden" data-view="permissions">Autorisations</button>
+      <button class="tab" data-view="tournaments">Tournois</button>
+      <button class="tab" data-view="teams">Équipes</button>
+      <button class="tab" data-view="matches">Matchs</button>
+      <button class="tab" data-view="league">Ligue</button>
+      <button class="tab hidden" data-view="cooler" id="coolerTab">Glacière</button>
+      <button class="tab" data-view="ranking">Classement</button>
+    </nav>
+  </section>
+
+  <section id="publicView" class="hidden">
+    <header class="top">
+      <h1 class="public-title"><img src="/assets/logo-swe-tournament.png" class="brand-mark" alt="SWÉ"><span id="publicWorkspaceName">SWÉ TOURNAMENT 5/5</span></h1>
+      <div class="public-sub">Consultation publique • lecture seule</div>
+    </header>
+
+    <div class="card" id="publicEntryChoiceCard">
+      <div style="text-align:center;margin-bottom:14px">
+        <h2 class="sectiontitle" style="font-size:1.35rem">⚽ Comment tu viens dimanche ?</h2>
+        <div class="muted" style="line-height:1.6">Tu peux venir seul, avec tes potes ou ton équipe. Ce tournoi est réservé aux membres du groupe du <b>Swé Arena Dimanche 9h</b>. Si tu n’es pas membre, tu dois obligatoirement être invité par un membre du groupe. Un membre peut inviter quelqu’un même s’il ne participe pas lui-même au tournoi. Pour créer une équipe, utilise le code fourni par l’administrateur du groupe.</div>
+      </div>
+      <div id="publicQuickStats" class="grid g3" style="gap:10px;margin:0 0 14px"></div>
+      <div class="grid g2" style="gap:12px">
+        <button id="chooseSoloMode" type="button" style="padding:0;border:0;background:linear-gradient(145deg,#0f5132,#198754);color:white;border-radius:18px;overflow:hidden;text-align:left;box-shadow:0 10px 24px rgba(15,81,50,.18)">
+          <div style="padding:22px">
+            <div style="font-size:2.5rem;margin-bottom:8px">🙋🏽‍♂️⚽</div>
+            <div style="font-size:1.2rem;font-weight:800">Je m’inscris / mes invités</div>
+            <div style="font-size:.9rem;opacity:.9;margin-top:5px">Inscription individuelle et ajout d’invités.</div>
+            <div style="margin-top:13px;font-weight:700">Choisir →</div>
+          </div>
+        </button>
+        <button id="chooseTeamMode" type="button" style="padding:0;border:0;background:linear-gradient(145deg,#173b67,#2463a9);color:white;border-radius:18px;overflow:hidden;text-align:left;box-shadow:0 10px 24px rgba(23,59,103,.18)">
+          <div style="padding:22px">
+            <div style="font-size:2.5rem;margin-bottom:8px">👥🔥</div>
+            <div style="font-size:1.2rem;font-weight:800">Je viens en équipe</div>
+            <div style="font-size:.9rem;opacity:.9;margin-top:5px">« On arrive ensemble, on joue ensemble. »</div>
+            <div style="margin-top:13px;font-weight:700">Créer mon équipe →</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="publicRegistrationCard">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div>
+          <h2 class="sectiontitle">🙋🏽‍♂️ Mon inscription & mes invités</h2>
+          <div class="muted">Même si tu es inscrit dans une équipe, tu peux revenir ici pour ajouter tes invités.</div>
+        </div>
+        <button id="backFromSoloMode" type="button">← Changer</button>
+      </div>
+      <div id="publicRegistration" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card hidden" id="publicTeamBuilderCard">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div>
+          <h2 class="sectiontitle">👥 Je viens en équipe</h2>
+          <div class="muted">« On arrive ensemble, on joue ensemble. »</div>
+        </div>
+        <button id="backFromTeamMode" type="button">← Changer</button>
+      </div>
+      <div id="publicTeamBuilder" style="margin-top:12px"></div>
+    </div>
+
+    <div class="grid g3" style="align-items:start">
+      <div class="card">
+        <h2 class="sectiontitle">🏆 Meilleurs buteurs de la saison</h2>
+        <div id="publicSeasonScorers"></div>
+        <button id="togglePublicSeasonScorers" type="button" class="hidden" style="margin-top:10px">Développer</button>
+      </div>
+      <div class="card">
+        <h2 class="sectiontitle">🎯 Meilleurs passeurs de la saison</h2>
+        <div id="publicSeasonAssists"></div>
+        <button id="togglePublicSeasonAssists" type="button" class="hidden" style="margin-top:10px">Développer</button>
+      </div>
+      <section id="publicTournamentTopFive" class="card swe-top-five hidden" aria-label="Top 5 joueurs du tournoi"></section>
+    </div>
+
+    <div class="card">
+      <h2 class="sectiontitle">⭐ Top Player de la saison</h2>
+      <p class="muted">La moyenne est calculée à partir des notes obtenues sur l’ensemble des matchs réellement disputés.</p>
+      <div id="publicTopPlayerSeasonWrap" class="hidden">
+        <div id="publicSeasonTopPlayers"></div>
+      </div>
+      <div id="publicSeasonWins" class="hidden"></div>
+      <button id="togglePublicSeasonWins" type="button" class="hidden">Développer</button>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
+        <div>
+          <h2 class="sectiontitle" style="margin-bottom:4px">📋 Dernier tournoi</h2>
+          <div class="muted">Retrouve les résultats, les buteurs, les passeurs et les performances individuelles du dernier tournoi terminé.</div>
+        </div>
+        <button id="toggleLastTournamentPublic" type="button">Afficher</button>
+      </div>
+      <div id="publicLastTournamentDetails" class="hidden" style="margin-top:14px">
+        <div class="card">
+          <h3>🏆 Classement des équipes du dernier tournoi</h3>
+          <div id="publicTeamRanking"></div>
+        </div>
+        <div class="card">
+          <h3>👥 Équipes & couleurs des maillots</h3>
+          <div id="publicTeams"></div>
+        </div>
+        <h3>📋 Résultats & notes</h3>
+        <div id="publicResults"></div>
+        <div class="grid g2" style="margin-top:18px;align-items:start">
+          <div class="player"><h3 style="margin:0 0 8px">⚽ Buteurs du tournoi</h3><div id="publicTournamentScorers"></div><button id="togglePublicTournamentScorers" type="button" class="hidden" style="margin-top:10px">Développer</button></div>
+          <div class="player"><h3 style="margin:0 0 8px">🎯 Passeurs du tournoi</h3><div id="publicTournamentAssists"></div><button id="togglePublicTournamentAssists" type="button" class="hidden" style="margin-top:10px">Développer</button></div>
+        </div>
+        <div id="publicTournamentTopPlayerWrap" class="player hidden" style="margin-top:12px;background:#fff8e8;border:1px solid #f2d18a"><h3 style="margin:0 0 8px">⭐ Top Player du tournoi</h3><div id="publicTournamentTopPlayers"></div><button id="togglePublicTournamentTopPlayers" type="button" class="hidden" style="margin-top:10px">Développer</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="sectiontitle">🗂 Historique</h2>
+      <div id="publicHistory"></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
+<script src="./registration-presentation.js?v=4469-arena-teams" defer></script>
+<script src="./offres.js?v=offres-r1" defer></script>
+<link rel="stylesheet" href="./third-half-contributions-v4427.css?v=4430-compact-donors"><script src="./app.js?v=5008-android-sync" defer></script>
+<script src="./mobile-coorg-rights-v4362.js?v=4379" data-swe-loader="mobile-coorg-rights-v4362" defer></script>
+<script src="./hotfix-v4227.js?v=4377" defer></script>
+<script src="./hotfix-v4228.js?v=4400" defer></script>
+
+<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=4377" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4426-coorg-stable" defer></script><script src="./hotfix-v4235.js?v=4399-player-r1" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4465" defer></script><script src="./hotfix-v4244.js?v=5000-player-tools" defer></script><script src="./match-refresh-coorg-v4458.js?v=4472" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script><script src="./team-invitation-visibility-v4435.js?v=4449" defer></script>
+  <script src="./team-captain-consent-v4438.js?v=4438" defer></script>
+  <script src="./team-proposal-action-v4441.js?v=4441" defer></script>
+  <script src="./third-half-action-order-v4445.js?v=4447" defer></script><script src="./third-half-donor-summary-v4451.js?v=4451" defer></script><script src="./team-draw-room-access-v4452.js?v=4464" defer></script><script src="./team-draw-room-v4455.js?v=4466" defer></script><script src="./team-composition-visual-v4456.js?v=4470" defer></script><script src="./test-tournament-links-v5009.js?v=5009" defer></script></body></html>
