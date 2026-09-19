@@ -66,10 +66,15 @@ const $=s=>document.querySelector(s);
 const toast=t=>{const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2600)};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function setStableHtml(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html;}
+const SWE_SIGNATURE_BALLONS=['ballon-feu.webp','ballon-glace.webp','ballon-electricite.webp'];
+function defaultPlayerBalloonAvatar(pl){
+  const seed=String(pl?.id||pl?.public_player_id||pl?.user_id||pl?.name||'swe');
+  let sum=0;for(let i=0;i<seed.length;i++)sum=(sum+seed.charCodeAt(i))%SWE_SIGNATURE_BALLONS.length;
+  return './assets/avatars-v4405/'+SWE_SIGNATURE_BALLONS[sum];
+}
 function playerAvatarHtml(pl,size='sm'){
-  const src=String(pl?.avatar_url||'').trim();
-  if(!src)return '<span class="swe-player-avatar swe-player-avatar-'+size+' swe-player-avatar-fallback" aria-hidden="true">⚽</span>';
-  return '<img class="swe-player-avatar swe-player-avatar-'+size+'" src="'+esc(src)+'" alt="Photo de '+esc(pl?.name||'joueur')+'" loading="lazy" decoding="async">';
+  const src=String(pl?.avatar_url||defaultPlayerBalloonAvatar(pl)).trim();
+  return '<img class="swe-player-avatar swe-player-avatar-'+size+'" src="'+esc(src)+'" alt="Avatar de '+esc(pl?.name||'joueur')+'" loading="lazy" decoding="async">';
 }
 function renderPlatformFooter(){
   const footer=$('#platformFooter');
