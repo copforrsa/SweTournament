@@ -1,4 +1,4 @@
-const SW_BUILD='50.22-king-reign';
+const SW_BUILD='50.23-draw-room-all-voters';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
