@@ -3,7 +3,10 @@
 const BUILD=window.SWE_BUILD_VERSION;
 window.__SWE_PAYMENT_AUTHORITY_ACTIVE=true;
 function applyBuild(){window.SWEApplyBuild?.();}
-async function purgeLegacyClient(){try{const k='swe-legacy-cache-cleaned-v4377';if(localStorage.getItem(k)==='1')return;if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)))}if(window.caches){const keys=await caches.keys();await Promise.all(keys.map(x=>caches.delete(x).catch(()=>false)))}localStorage.setItem(k,'1')}catch(_){}}
+async function purgeLegacyClient(){
+  // Migration V50.15 : conserve la PWA et son cache réseau-d'abord.
+  try{localStorage.setItem('swe-pwa-runtime-v5015','1')}catch(_){}
+}
 function loadCss(href,key){if(document.querySelector('link[data-swe-style="'+key+'"]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.dataset.sweStyle=key;document.head.appendChild(l)}
 function load(src,key){return new Promise(resolve=>{if(document.querySelector('script[data-swe-loader="'+key+'"]'))return resolve();const s=document.createElement('script');let done=false;const finish=()=>{if(done)return;done=true;resolve()};s.src=src;s.async=false;s.dataset.sweLoader=key;s.onload=finish;s.onerror=()=>{console.warn('SWÉ: module non chargé',key);finish()};document.body.appendChild(s);setTimeout(finish,6000)})}
 function mobileClient(){return matchMedia('(max-width: 760px)').matches||navigator.maxTouchPoints>1}
