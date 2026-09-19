@@ -4596,18 +4596,15 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_members'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_invites'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=5008-android-sync',{updateViaCache:'none'})
+  navigator.serviceWorker.register('./sw.js?v=5015-ios-pwa',{updateViaCache:'none'})
     .then(reg=>{
       reg.update().catch(()=>{});
       const reloadAfterWorkerUpdate=()=>{
-        if(sessionStorage.getItem('SW_BUILD_RELOAD_5008'))return;
-        sessionStorage.setItem('SW_BUILD_RELOAD_5008','1');
+        if(sessionStorage.getItem('SW_BUILD_RELOAD_5015'))return;
+        sessionStorage.setItem('SW_BUILD_RELOAD_5015','1');
         location.reload();
       };
       navigator.serviceWorker.addEventListener('controllerchange',reloadAfterWorkerUpdate,{once:true});
-      navigator.serviceWorker.addEventListener('message',event=>{
-        if(event.data?.type==='SWE_SW_REMOVED')reloadAfterWorkerUpdate();
-      });
       return reg;
     })
     .then(reg=>reg.update())
