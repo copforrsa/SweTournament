@@ -2,11 +2,12 @@
 'use strict';
 if(window.__SWE_BRAND_4347)return;window.__SWE_BRAND_4347=true;
 const BRAND='/swe-brand-v4347.svg?v=4347';
+const APPLE_ICON='/icon-192.png?v=5015';
 function favicon(){
  document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]').forEach(x=>x.remove());
  const icon=document.createElement('link');icon.rel='icon';icon.type='image/svg+xml';icon.href=BRAND;document.head.appendChild(icon);
  const shortcut=document.createElement('link');shortcut.rel='shortcut icon';shortcut.href=BRAND;document.head.appendChild(shortcut);
- const apple=document.createElement('link');apple.rel='apple-touch-icon';apple.href=BRAND;document.head.appendChild(apple);
+ const apple=document.createElement('link');apple.rel='apple-touch-icon';apple.sizes='192x192';apple.href=APPLE_ICON;document.head.appendChild(apple);
 }
 function logos(){
  document.querySelectorAll('img').forEach(img=>{
