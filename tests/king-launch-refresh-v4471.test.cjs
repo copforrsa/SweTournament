@@ -19,7 +19,7 @@ assert.ok(engine.split(remount).length >= 3,
   'both hydration and ordinary stable rendering must rebuild the launch counter');
 assert.match(refresh, /renderMatches\(\);[\s\S]*SWE_MOUNT_MATCH_EXTRAS_4306\?\.\(true\)/,
   'the desktop targeted refresh must rebuild the launch counter');
-assert.ok(loader.includes('/match-engine-v4300.js?v=4476'),
+assert.ok(loader.includes('/match-engine-v4300.js?v=5022-king-reign'),
   'the corrected match engine must use a fresh browser cache key');
 assert.ok(index.includes('match-refresh-coorg-v4458.js?v=4472'),
   'the corrected desktop refresh must use a fresh browser cache key');

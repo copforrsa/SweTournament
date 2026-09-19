@@ -28,12 +28,59 @@ function scoreFieldForGoal(m,g){
   if(String(g.team_id)===String(m.away_team_id))return 'away_score';
   return null;
 }
+// Rebuild the current reign from finished King matches; no extra stored counter.
+function kingReign(t,target,matches,pitches){
+  if(t?.rotation_mode!=='king_of_pitch'||!target)return null;
+  const kingPitch=(pitches||[]).find(p=>String(p.id)===String(t.king_pitch_id));
+  const isKing=m=>{
+    if(['king','middle','stream'].includes(m.rotation_role))return m.rotation_role==='king';
+    if(t.rotation_state?.active?.king&&String(t.rotation_state.active.king)===String(m.id))return true;
+    return !!kingPitch&&String(m.pitch||'').trim().toLowerCase()===String(kingPitch.name||'').trim().toLowerCase();
+  };
+  if(!isKing(target))return null;
+  const rows=(matches||[]).filter(m=>String(m.tournament_id)===String(t.id)&&String(m.id)!==String(target.id)).concat(target)
+    .filter(isKing).sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0)||String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id).localeCompare(String(b.id)));
+  let holder=null,count=0;
+  for(const m of rows){
+    const home=String(m.home_team_id||''),away=String(m.away_team_id||'');
+    const finished=String(m.status||'').toLowerCase()==='finished';
+    if(String(m.id)===String(target.id)&&!finished){
+      const saved=String(t.rotation_state?.king_holder_team_id||'');
+      const savedIsCurrent=String(t.rotation_state?.active?.king||'')===String(m.id)&&[home,away].includes(saved);
+      const currentHolder=savedIsCurrent?saved:[home,away].includes(holder)?holder:home;
+      return {teamId:currentHolder,count:currentHolder===holder?count:0};
+    }
+    if(!finished)continue;
+    const incumbent=[home,away].includes(holder)?holder:home;
+    const hs=Number(m.home_score||0),as=Number(m.away_score||0);
+    const winner=hs>as?home:as>hs?away:incumbent;
+    count=winner===holder?count+1:1;holder=winner;
+    if(String(m.id)===String(target.id))return {teamId:holder,count};
+  }
+  return null;
+}
+function decorateKingTeam(card,m){
+  if(!card)return;
+  card.querySelectorAll('.swe-king-reign').forEach(node=>node.remove());
+  const t=(state.tournaments||[]).find(t=>String(t.id)===String(m.tournament_id))||current();
+  const reign=kingReign(t,m,state.matches,state.sportsPitches);if(!reign)return;
+  const names=card.querySelectorAll('.swe4300-team');
+  const name=String(m.home_team_id)===reign.teamId?names[0]:String(m.away_team_id)===reign.teamId?names[1]:null;
+  if(!name)return;
+  const badge=document.createElement('span');badge.className='swe-king-reign';
+  badge.title='Matchs terminés consécutifs sur le terrain du Roi. Le match en cours ne compte pas encore.';
+  const crown=document.createElement('span');crown.className='swe-king-crown';crown.textContent='👑 Roi';
+  const count=document.createElement('span');count.className='swe-king-count';count.textContent=reign.count+' match'+(reign.count===1?'':'s')+' enchaîné'+(reign.count===1?'':'s');
+  badge.append(crown,count);name.appendChild(badge);
+}
+
 function syncCardScore(m){
   const card=document.querySelector('.swe4300-match[data-match-id="'+CSS.escape(String(m.id))+'"]');
   const score=card?.querySelector('.swe4300-result');
   if(score)score.textContent=Number(m.home_score||0)+' - '+Number(m.away_score||0);
   const inputs=card?.querySelectorAll('.swe4300-edit input');
   if(inputs?.length>=2){inputs[0].value=Number(m.home_score||0);inputs[1].value=Number(m.away_score||0)}
+  decorateKingTeam(card,m);
 }
 
 function installCss(){
@@ -50,6 +97,7 @@ function installCss(){
   .swe4300-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px;font-size:12px;font-weight:800;color:#64748b}
   .swe4300-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
   .swe4300-team{font-size:17px;font-weight:900}.swe4300-team.right{text-align:right}.swe4300-result{font-size:25px;font-weight:950;white-space:nowrap}
+  .swe-king-reign{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 7px;margin:5px 0 0 6px;vertical-align:middle;font-size:11px;line-height:1.4;font-weight:850;color:#714a00;background:#fff5ce;border:1px solid #e9c453;border-radius:10px;padding:4px 7px;max-width:100%;box-sizing:border-box}.swe-king-crown{white-space:nowrap}.swe-king-count{font-variant-numeric:tabular-nums}
   .swe4300-edit{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:12px}.swe4300-edit input{min-width:0;text-align:center;font-weight:900}
   .swe4301-goals{margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px}.swe4301-goals h4{margin:0 0 9px;font-size:14px}
   .swe4301-goal-form{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px}.swe4301-goal-form select{min-width:0}
@@ -198,6 +246,7 @@ function buildCard(m,index){
     b.type='button';b.className='primary';b.textContent='💾 Enregistrer le score';b.onclick=()=>saveScore(m,hi,ai,b);
     row.append(hi,ai,b);d.appendChild(row);
   }
+  decorateKingTeam(d,m);
   const goals=document.createElement('div');goals.className='swe4301-goals';renderGoalPanel(goals,m);d.appendChild(goals);
   return d;
 }
@@ -270,7 +319,7 @@ function renderStableMatches(allowHydrate=true){
   setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);
 }
 
-window.SWE_MATCH_COMMON_4302={hydrate,saveScore,deleteGoalAndSyncScore,renderGoalPanel,buildCard,renderStableMatches,teamById,playerById,playersForTeam,canEditScores,adminUser,current,syncCardScore};
+window.SWE_MATCH_COMMON_4302={kingReign,decorateKingTeam,hydrate,saveScore,deleteGoalAndSyncScore,renderGoalPanel,buildCard,renderStableMatches,teamById,playerById,playersForTeam,canEditScores,adminUser,current,syncCardScore};
 if(!context)try{window.__SWE_NATIVE_RENDER_MATCHES=typeof renderMatches==='function'?renderMatches:null;renderMatches=renderStableMatches}catch(e){console.error('SWÉ V43.02 remplacement renderMatches',e)}
 window.SWE_RENDER_MATCHES_4302=renderStableMatches;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>renderStableMatches(true),100),{once:true});else setTimeout(()=>renderStableMatches(true),100);
