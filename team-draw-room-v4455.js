@@ -8,7 +8,7 @@
   const api=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
   const asArray=v=>Array.isArray(v)?v:[];
   const readableDate=v=>{const d=new Date(v||'');return Number.isNaN(d.getTime())?'—':d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})};
-  let latest=null, selected=null, opening=false,acting=false,refreshing=false,generation=0,readyState=null,readyBusy=false,readyTimer=null;
+  let latest=null, selected=null, opening=false,acting=false,refreshing=false,generation=0,readyState=null,readyBusy=false,readyTimer=null,directLinkOpened=false;
 
   function css(){
     if(E('sweDrawRoomCss4453'))return;
@@ -87,6 +87,11 @@
     if(t.draw_room_first_enabled&&t.status!=='finished'){button.disabled=false;button.title='Le tirage se déroule dans le salon privé.';button.textContent='🎲 Ouvrir le salon de tirage';return;}
     if(locked){button.disabled=true;button.title='Le vote sur le tirage est en cours.';button.textContent='🗳️ Vote sur le tirage en cours';}
   }
-  ['DOMContentLoaded','swe:rendered','swe:page-view'].forEach(name=>document.addEventListener(name,()=>setTimeout(lockGenerator,0)));
-  setTimeout(lockGenerator,700);
+  function openFromDirectLink(){
+    const tid=new URLSearchParams(location.search).get('draw_room');
+    if(!tid||directLinkOpened||!appState()?.session)return;
+    directLinkOpened=true;open(tid);
+  }
+  ['DOMContentLoaded','swe:rendered','swe:page-view'].forEach(name=>document.addEventListener(name,()=>setTimeout(()=>{lockGenerator();openFromDirectLink();},0)));
+  setTimeout(()=>{lockGenerator();openFromDirectLink();},700);
 })();
