@@ -3381,9 +3381,11 @@ $('#createTournament').onclick=async()=>{
       admin_payment_link:$('#tourAdminPaymentLink')?.value.trim()||null,
       admin_payment_link_enabled:!!$('#tourAdminPaymentLinkEnabled')?.checked,
       allow_external_players:!!$('#tourAllowExternal')?.checked,
-      external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked
+      external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked,
+      // Le choix est fait à la création : l'admin compose seul ou ouvre un avis collégial.
+      team_review_requested:!!S.workspaceFeatures.team_review_enabled&&$('#tourTeamCompositionMode input:checked')?.value==='collaborative',
+      team_review_duration_minutes:120
     };
-    if(S.workspaceFeatures.team_review_enabled){row.team_review_requested=true;row.team_review_duration_minutes=120;}
     if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active « Accepter des joueurs externes » pour rendre ce Swé visible aux joueurs solo.');
     if(row.admin_payment_link_enabled&&(!row.admin_payment_provider||!row.admin_payment_link))throw new Error('Choisis la solution de paiement et ajoute ton lien HTTPS avant de l’afficher.');
     if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant d’exiger un paiement en ligne.');
@@ -3424,7 +3426,7 @@ function teamReviewStatusLabel(status){
 }
 function renderTeamReviewPanel(t){
   const box=$('#teamReviewPanel');if(!box)return;
-  if(!t||t.format==='league'||!S.workspaceFeatures.team_review_enabled){box.classList.add('hidden');box.innerHTML='';return;}
+  if(!t||t.format==='league'||!S.workspaceFeatures.team_review_enabled||!t.team_review_requested){box.classList.add('hidden');box.innerHTML='';return;}
   const r=S.teamReviewState||{status:t.team_review_status||'not_started',max_redraws:Number(t.max_team_redraws||1),redraws_used:Number(t.team_redraws_used||0),eligible_count:0,validate_votes:0,redraw_votes:0};
   const deadline=r.deadline?new Date(r.deadline):null;
   const deadlineText=deadline&&!Number.isNaN(deadline.getTime())?deadline.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
@@ -3765,14 +3767,14 @@ async function runSmartTeamGeneration(isRedraw=false){
   try{
     const targetId=t.id;
     S.activeTour=targetId;S.teamCompetitionId=targetId;
-    if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&isAdmin()){
+    if(t.format!=='league'&&t.team_review_requested&&S.workspaceFeatures.team_review_enabled&&isAdmin()){
       const configured=await sb.rpc('admin_configure_tournament_team_review',{p_tournament_id:targetId,p_max_redraws:Number(t.max_team_redraws??1),p_requested:true,p_duration_minutes:120});
       if(configured.error)throw configured.error;
     }
     const call=t.format==='league'?sb.rpc('generate_balanced_teams',{p_tournament_id:t.id,p_players_per_team:perTeam}):sb.rpc('generate_swe_tournament_teams',{p_tournament_id:t.id});
     const {data,error}=await call;if(error)throw error;
     let reviewError=null;
-    if(t.format!=='league'&&S.workspaceFeatures.team_review_enabled){
+    if(t.format!=='league'&&t.team_review_requested&&S.workspaceFeatures.team_review_enabled){
       const review=await sb.rpc('start_tournament_team_review',{p_tournament_id:t.id,p_is_redraw:!!isRedraw});
       reviewError=review.error||null;
     }
@@ -3781,9 +3783,9 @@ async function runSmartTeamGeneration(isRedraw=false){
     if(t.format==='league')$('#teamBalanceInfo').textContent=n+' équipes générées automatiquement selon les niveaux privés définis par l’administrateur.';
     else{
       const subs=Number(data?.substitute_count||0),pitches=Number(data?.pitch_count||1),scores=(data?.team_scores||[]).map(x=>x.team_name+' '+Number(x.score||0).toFixed(1)+'/5 • '+x.mention).join(' · ');
-      $('#teamBalanceInfo').innerHTML='<b>'+n+' équipes • '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' • '+subs+' remplaçant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>🔒 Les équipes complètes et les joueurs ayant accepté leur place ont été conservés. Les autres joueurs ont été répartis dans les places libres pour équilibrer les niveaux.'+(scores?'<br><b>⚖️ Note moyenne équipes :</b> '+esc(scores):'')+'<br>Règle automatique : '+(data?.odd_team_rule?'2 buts d’écart = l’équipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(S.workspaceFeatures.team_review_enabled?(reviewError?'<br><b>⚠️ Avis des co-gestionnaires :</b> les équipes sont créées, mais le lancement des votes a échoué. Relance la page puis réessaie.':'<br><b>🗳️ Validation :</b> les équipes restent masquées du lien public pendant la fenêtre d’avis des co-gestionnaires présents.'):'');
+      $('#teamBalanceInfo').innerHTML='<b>'+n+' équipes • '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' • '+subs+' remplaçant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>🔒 Les équipes complètes et les joueurs ayant accepté leur place ont été conservés. Les autres joueurs ont été répartis dans les places libres pour équilibrer les niveaux.'+(scores?'<br><b>⚖️ Note moyenne équipes :</b> '+esc(scores):'')+'<br>Règle automatique : '+(data?.odd_team_rule?'2 buts d’écart = l’équipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(t.team_review_requested&&S.workspaceFeatures.team_review_enabled?(reviewError?'<br><b>⚠️ Avis des co-gestionnaires :</b> les équipes sont créées, mais le lancement des votes a échoué. Relance la page puis réessaie.':'<br><b>🗳️ Validation :</b> les équipes restent masquées du lien public pendant la fenêtre d’avis des co-gestionnaires présents.'):'<br><b>👑 Composition administrateur :</b> les équipes sont publiées directement, sans vote.');
     }
-    toast(reviewError?'Équipes générées, mais les votes n’ont pas démarré : '+reviewError.message:(isRedraw?'Nouveau tirage créé. Nouvelle fenêtre d’avis ouverte ✅':n+' équipes générées ✅'));
+    toast(reviewError?'Équipes générées, mais les votes n’ont pas démarré : '+reviewError.message:(isRedraw?'Nouveau tirage créé. Nouvelle fenêtre d’avis ouverte ✅':(t.team_review_requested?'Équipes générées • avis des co-gestionnaires ouvert ✅':n+' équipes générées et publiées ✅')));
   }catch(e){toast(e.message||'Impossible de générer les équipes')}
   finally{if(btn){btn.disabled=false;btn.textContent=isRedraw?'🔄 Refaire le tirage':'⚡ Générer équipes équilibrées';}}
 }
