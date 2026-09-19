@@ -505,6 +505,14 @@
           <label class="player"><span class="muted">Places maximum</span><input id="tourMaxPlayers" type="number" min="10" max="35" value="35"></label>
           <label class="player row" style="justify-content:flex-start"><input id="tourRegistrationOpen" type="checkbox" style="width:auto" checked><span><b>Ouvrir les inscriptions</b><div class="muted">Les joueurs pourront s’inscrire via le lien public.</div></span></label>
         </div>
+        <div class="player" style="margin-top:12px;background:#f7fbff;border:1px solid #bcd8fb">
+          <b>👥 Préparation des équipes</b>
+          <div class="muted" style="margin:5px 0 10px">Ce choix détermine ce qui se passe après la génération des équipes.</div>
+          <div id="tourTeamCompositionMode" role="radiogroup">
+            <label class="row" style="justify-content:flex-start;margin-bottom:8px"><input type="radio" name="tourTeamCompositionMode" value="admin" checked style="width:auto"><span><b>Je compose moi-même</b><div class="muted">L’administrateur génère et ajuste les équipes ; elles sont publiées directement.</div></span></label>
+            <label class="row" style="justify-content:flex-start"><input type="radio" name="tourTeamCompositionMode" value="collaborative" style="width:auto"><span><b>Composition collégiale</b><div class="muted">Après le tirage, les co-gestionnaires inscrits au tournoi peuvent valider ou demander un nouveau tirage.</div></span></label>
+          </div>
+        </div>
         <div class="player discovery-settings" style="margin-top:12px">
           <b>🌍 Visibilité pour les joueurs solo</b>
           <div class="muted" style="margin:5px 0 10px">Choisis comment ce Swé apparaît dans l’espace joueur et sur le front-office swetournament.fr.</div>
@@ -934,7 +942,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
 <script src="./registration-presentation.js?v=5014-rating-challenge" defer></script>
 <script src="./offres.js?v=offres-r1" defer></script>
-<link rel="stylesheet" href="./third-half-contributions-v4427.css?v=4430-compact-donors"><script src="./app.js?v=5016-team-sync" defer></script>
+<link rel="stylesheet" href="./third-half-contributions-v4427.css?v=4430-compact-donors"><script src="./app.js?v=5017-composition-mode" defer></script>
 <script src="./mobile-coorg-rights-v4362.js?v=4379" data-swe-loader="mobile-coorg-rights-v4362" defer></script>
 <script src="./hotfix-v4227.js?v=4377" defer></script>
 <script src="./hotfix-v4228.js?v=4400" defer></script>
