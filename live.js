@@ -97,20 +97,23 @@ function render(data){
  const matches=(data.matches||[]).filter(m=>String(m.tournament_id)===String(tournamentId)).sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
  const matchIds=new Set(matches.map(m=>String(m.id)));
  const goals=(data.goals||[]).filter(g=>matchIds.has(String(g.match_id)));
- const ratingLink=$('#liveCoorgRatingLink'),leaders=$('#liveCarrefourLeaders');
+ const ratingLink=$('#liveCoorgRatingLink');
  if(ratingLink)ratingLink.href='./?rate='+encodeURIComponent(tour.id);
- if(leaders){
-  const matchById=new Map(matches.map(m=>[String(m.id),m]));
-  const carrefour=new Map();
-  (data.match_player_assignments||[]).forEach(a=>{const m=matchById.get(String(a.match_id));if(!m||String(m.pitch||'').trim().toLowerCase()!=='carrefour')return;const p=players.get(String(a.player_id));if(!p)return;const k=String(a.player_id),row=carrefour.get(k)||{name:p.name,count:0};row.count++;carrefour.set(k,row)});
-  const top=[...carrefour.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'fr')).slice(0,3);
-  leaders.innerHTML=top.length?'<span class="live-kings">'+top.map((x,i)=>'<span class="live-king">'+(i===0?'👑 ':'')+esc(x.name)+' · '+x.count+' match'+(x.count>1?'s':'')+'</span>').join('')+'</span>':'Aucune présence enregistrée à Carrefour.';
- }
  const goalsByMatch=new Map();goals.forEach(g=>{const k=String(g.match_id);if(!goalsByMatch.has(k))goalsByMatch.set(k,[]);goalsByMatch.get(k).push(g)});
  const played=matches.filter(m=>m.finished_at||m.started_at||m.status==='finished'||m.status==='started'||m.status==='live'||m.status==='in_progress'||Number(m.home_score)||Number(m.away_score));
  const rows=teams.map(t=>({id:String(t.id),name:t.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(rows.map(r=>[r.id,r]));
  played.forEach(m=>{const h=map.get(String(m.home_team_id)),a=map.get(String(m.away_team_id));if(!h||!a)return;const hs=Number(m.home_score||0),as=Number(m.away_score||0);h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;if(hs>as){h.v++;a.d++;h.pts+=3}else if(as>hs){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});
  rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
+ const titles=$('#liveTournamentTitles');
+ if(titles){
+  const kingStats=new Map();
+  matches.filter(m=>String(m.pitch||'').trim().toLowerCase()==='carrefour'&&(m.finished_at||m.status==='finished')).forEach(m=>{
+   const add=(teamId,scored,conceded)=>{const team=teamMap.get(String(teamId));if(!team)return;const id=String(teamId),r=kingStats.get(id)||{name:team.name,played:0,wins:0,gf:0,ga:0};r.played++;r.wins+=scored>conceded?1:0;r.gf+=Number(scored||0);r.ga+=Number(conceded||0);kingStats.set(id,r)};
+   add(m.home_team_id,m.home_score,m.away_score);add(m.away_team_id,m.away_score,m.home_score);
+  });
+  const winner=rows[0],king=[...kingStats.values()].sort((a,b)=>b.wins-a.wins||(b.gf-b.ga)-(a.gf-a.ga)||b.gf-a.gf||a.name.localeCompare(b.name,'fr'))[0];
+  titles.innerHTML=(winner?'<div class="live-title"><small>🏆 VAINQUEUR DU TOURNOI</small><b>'+esc(winner.name)+'</b><span>'+winner.pts+' pts · diff. '+((winner.bp-winner.bc)>=0?'+':'')+(winner.bp-winner.bc)+'</span></div>':'')+(king?'<div class="live-title king"><small>👑 ROI DU TERRAIN · CARREFOUR</small><b>'+esc(king.name)+'</b><span>'+king.wins+' victoire'+(king.wins>1?'s':'')+' · '+king.played+' match'+(king.played>1?'s':'')+'</span></div>':'');
+ }
  $('#liveRanking').innerHTML=rows.length?'<table class="live-table"><thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>Diff</th><th>Pts</th></tr></thead><tbody>'+rows.map((r,i)=>'<tr><td>'+(i===0?'👑':i+1)+'</td><td><b>'+esc(r.name)+'</b></td><td>'+r.mj+'</td><td>'+r.v+'</td><td>'+r.n+'</td><td>'+r.d+'</td><td>'+((r.bp-r.bc)>=0?'+':'')+(r.bp-r.bc)+'</td><td><b>'+r.pts+'</b></td></tr>').join('')+'</tbody></table>':'<p class="muted">Classement indisponible.</p>';
  const individual=new Map();goals.forEach(g=>{const scorerId=String(g.scorer_player_id||'');if(scorerId&&players.has(scorerId)){if(!individual.has(scorerId))individual.set(scorerId,{name:players.get(scorerId).name,g:0,a:0});individual.get(scorerId).g++}const assisterId=String(g.assister_player_id||'');if(assisterId&&players.has(assisterId)){if(!individual.has(assisterId))individual.set(assisterId,{name:players.get(assisterId).name,g:0,a:0});individual.get(assisterId).a++}});
  const playerStats=[...individual.values()];const scorers=competitionRanks(playerStats.filter(x=>x.g>0).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name,'fr')),'g');const assists=competitionRanks(playerStats.filter(x=>x.a>0).sort((a,b)=>b.a-a.a||a.name.localeCompare(b.name,'fr')),'a');$('#liveScorers').innerHTML=statRows(scorers,'g','but');$('#liveAssists').innerHTML=statRows(assists,'a','passe');
