@@ -97,6 +97,15 @@ function render(data){
  const matches=(data.matches||[]).filter(m=>String(m.tournament_id)===String(tournamentId)).sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
  const matchIds=new Set(matches.map(m=>String(m.id)));
  const goals=(data.goals||[]).filter(g=>matchIds.has(String(g.match_id)));
+ const ratingLink=$('#liveCoorgRatingLink'),leaders=$('#liveCarrefourLeaders');
+ if(ratingLink)ratingLink.href='./?rate='+encodeURIComponent(tour.id);
+ if(leaders){
+  const matchById=new Map(matches.map(m=>[String(m.id),m]));
+  const carrefour=new Map();
+  (data.match_player_assignments||[]).forEach(a=>{const m=matchById.get(String(a.match_id));if(!m||String(m.pitch||'').trim().toLowerCase()!=='carrefour')return;const p=players.get(String(a.player_id));if(!p)return;const k=String(a.player_id),row=carrefour.get(k)||{name:p.name,count:0};row.count++;carrefour.set(k,row)});
+  const top=[...carrefour.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'fr')).slice(0,3);
+  leaders.innerHTML=top.length?'<span class="live-kings">'+top.map((x,i)=>'<span class="live-king">'+(i===0?'👑 ':'')+esc(x.name)+' · '+x.count+' match'+(x.count>1?'s':'')+'</span>').join('')+'</span>':'Aucune présence enregistrée à Carrefour.';
+ }
  const goalsByMatch=new Map();goals.forEach(g=>{const k=String(g.match_id);if(!goalsByMatch.has(k))goalsByMatch.set(k,[]);goalsByMatch.get(k).push(g)});
  const played=matches.filter(m=>m.finished_at||m.started_at||m.status==='finished'||m.status==='started'||m.status==='live'||m.status==='in_progress'||Number(m.home_score)||Number(m.away_score));
  const rows=teams.map(t=>({id:String(t.id),name:t.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(rows.map(r=>[r.id,r]));
