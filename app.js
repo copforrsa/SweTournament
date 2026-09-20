@@ -356,7 +356,7 @@ function canEditCurrentMatches(){const t=currentTour();return !!t && t.status!==
 // Creating, editing or deleting a match changes the official tournament record.
 // Co-organizers (including temporary admins) can enter results, but only the
 // workspace administrator can alter match structure or delete a match.
-function canManageMatchStructure(){const t=currentTour();return !!t && t.status!=='finished' && isAdmin()}
+function canManageMatchStructure(){const t=currentTour();return !!t && isAdmin()}
 function makeDisabledActionButton(label,title){
   const b=document.createElement('button');b.textContent=label;b.disabled=true;b.setAttribute('aria-disabled','true');
   b.className='danger disabled-action';b.style.opacity='.38';b.style.filter='grayscale(1)';b.style.cursor='not-allowed';
@@ -2828,8 +2828,9 @@ function renderTournaments(){
   const box=$('#tournamentList');box.innerHTML='';
 
   const tournamentOnly=S.tournaments.filter(t=>t.format!=='league');
-  const current=tournamentOnly.filter(t=>t.status!=='finished');
-  const finished=tournamentOnly.filter(t=>t.status==='finished');
+  const selectedTournament=tournamentOnly.find(t=>t.id===S.activeTour);
+  const current=selectedTournament?[selectedTournament]:tournamentOnly.filter(t=>t.status!=='finished');
+  const finished=selectedTournament?[]:tournamentOnly.filter(t=>t.status==='finished');
 
   if(!current.length){
     const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucun tournoi en cours.';box.appendChild(empty);
@@ -3921,6 +3922,25 @@ function renderMatches(){
   $('#homeTeam').innerHTML=matchOptions();
   $('#awayTeam').innerHTML=matchOptions();
   const box=$('#matchesList');box.innerHTML='';
+  if(isAdmin()&&current){
+    const resetWrap=document.createElement('div');resetWrap.className='player';resetWrap.style.marginBottom='12px';resetWrap.style.background='#fff4f4';resetWrap.style.border='1px solid #f2aaaa';
+    const resetText=document.createElement('div');resetText.innerHTML='<b>⚠️ Réinitialiser les matchs</b><div class="muted" style="margin-top:4px">Supprime tous les matchs de ce tournoi, y compris ceux en cours ou terminés. Les équipes et les inscriptions restent intactes.</div>';
+    const reset=document.createElement('button');reset.type='button';reset.className='danger';reset.textContent='Réinitialiser tous les matchs à 0';
+    reset.onclick=async()=>{
+      const count=S.matches.length;
+      if(!count)return toast('Aucun match à supprimer pour ce tournoi.');
+      if(!confirm('Réinitialiser '+count+' match'+(count>1?'s':'')+' ? Cette action supprime aussi les scores, buts et feuilles de match.'))return;
+      const typed=prompt('Pour confirmer, saisis exactement REINITIALISER');
+      if(typed!=='REINITIALISER')return toast('Réinitialisation annulée.');
+      reset.disabled=true;
+      const {data,error}=await sb.rpc('admin_reset_tournament_matches_v1',{p_tournament_id:current.id});
+      reset.disabled=false;
+      if(error)return toast(error.message);
+      await loadTournament();renderAll();
+      toast((data?.deleted_matches||count)+' match'+((data?.deleted_matches||count)>1?'s supprimés':' supprimé')+' — tournoi remis à zéro ✅');
+    };
+    resetWrap.append(resetText,reset);box.appendChild(resetWrap);
+  }
   S.matches.forEach((m,i)=>{
     const home=tm(m.home_team_id),away=tm(m.away_team_id);if(!home||!away)return;
     const d=document.createElement('div');d.className='card match';
@@ -3973,7 +3993,9 @@ function renderMatches(){
         const goalCount=S.goals.filter(g=>g.match_id===m.id).length;
         const msg=goalCount?'Supprimer ce match ? Les '+goalCount+' but(s) liés seront aussi supprimés.':'Supprimer ce match ?';
         if(!confirm(msg))return;
-        const {error}=await sb.from('matches').delete().eq('id',m.id);
+        del.disabled=true;
+        const {error}=await sb.rpc('admin_delete_tournament_match_v1',{p_match_id:m.id});
+        del.disabled=false;
         if(error)return toast(error.message);
         await loadTournament();renderAll();toast('Match supprimé ✅');
       };
