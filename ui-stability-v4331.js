@@ -38,6 +38,10 @@ function cleanupPlayerAuth(){
 function activeTeamIds(tid){const st=getState(),set=new Set();(st?.matches||[]).filter(m=>String(m.tournament_id)===String(tid||'')&&String(m.status||'').toLowerCase()!=='finished').forEach(m=>{if(m.home_team_id)set.add(String(m.home_team_id));if(m.away_team_id)set.add(String(m.away_team_id))});return set}
 function autoRunning(t){
  if(!t||t.rotation_mode!=='king_of_pitch')return false;
+ const tournamentMatches=(getState()?.matches||[]).filter(m=>String(m.tournament_id)===String(t.id));
+ const rotationReallyStarted=tournamentMatches.some(m=>m.rotation_generated===true||String(m.rotation_generated).toLowerCase()==='true');
+ // Sans match généré par la rotation, l'admin prépare encore les matchs de départ.
+ if(!rotationReallyStarted)return false;
  // Utilise l'état normalisé du moteur pour autoriser la création des matchs de départ.
  try{
    const rotation=window.SWE_ROTATION_4306;
@@ -73,4 +77,5 @@ document.addEventListener('swe:rendered',()=>setTimeout(apply,40));
 document.addEventListener('swe:match-finished',()=>setTimeout(refreshManualMatchUi,40));
 document.addEventListener('swe:rotation-updated',()=>setTimeout(refreshManualMatchUi,40));
 window.addEventListener('pageshow',()=>setTimeout(apply,80));
+[400,1200].forEach(delay=>setTimeout(refreshManualMatchUi,delay));
 })();
