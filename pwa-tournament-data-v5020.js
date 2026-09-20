@@ -1,7 +1,8 @@
 (()=>{
 'use strict';
 const standalone=()=>navigator.standalone===true||window.matchMedia?.('(display-mode: standalone)').matches;
-if(!standalone())return;
+const appleMobile=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+if(!standalone()&&!appleMobile)return;
 const E=id=>document.getElementById(id);
 const relevantQueue=()=>{const rows=JSON.parse(localStorage.getItem('swe_offline_queue_v1')||'[]');if(!Array.isArray(rows))throw Error('File hors ligne illisible : données locales conservées.');return rows.filter(x=>x.user_id===S.session?.user?.id&&x.workspace_id===S.workspace?.id);};
 let sequence=0;
@@ -34,6 +35,7 @@ async function refresh(){
  Object.assign(S,{tPlayers:players,teams,teamPlayers,matches,goals,matchAssignments:assignments,teamBalanceScores:scores||[],teamReviewState:review});
  S.pwaTournamentLoadedId=id;
  renderMatchPitchSelect();window.SWECacheOfflineSnapshot?.();
+ document.dispatchEvent(new CustomEvent('swe:rotation-updated',{detail:{tournamentId:id,state:t.rotation_state||{}}}));
  return true;
 }
 const original=loadTournament;
