@@ -3,7 +3,6 @@
   'use strict';
   if(window.__SWE_TEAM_COMPOSITION_VISUAL_4456)return;
   window.__SWE_TEAM_COMPOSITION_VISUAL_4456=true;
-  if(window.__SWE_TEAM_COMPOSITION_VISUAL_4456)return;window.__SWE_TEAM_COMPOSITION_VISUAL_4456=true;
   const E=id=>document.getElementById(id),cli=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}},state=()=>{try{return typeof S!=='undefined'?S:null}catch(_){return null}},admin=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let timer=0;
