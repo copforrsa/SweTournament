@@ -9,7 +9,7 @@ const helper=source.slice(source.indexOf('function hasGeneratedTournamentTeams')
 const generation=source.slice(source.indexOf('async function runSmartTeamGeneration'),source.indexOf("$('#smartAutoTeams').onclick"));
 
 function harness(teams){
-  const tournament={id:'tournoi-mika',format:'king_of_pitch',generated_team_count:4,max_team_redraws:1,team_review_duration_minutes:120};
+  const tournament={id:'tournoi-mika',format:'king_of_pitch',generated_team_count:4,max_team_redraws:1,team_review_duration_minutes:120,team_review_requested:true};
   const elements={
     '#playersPerTeam':{value:'5'},
     '#smartAutoTeams':{disabled:false,textContent:''},
