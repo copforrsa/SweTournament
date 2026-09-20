@@ -3159,6 +3159,7 @@ function renderTournaments(){
     };
     const postTournament=document.createElement('details');postTournament.className='tournament-post-actions';
     postTournament.innerHTML='<summary><span>Actions après le tournoi</span><small>Terminer, consulter ou supprimer</small></summary>';
+    if(hasAdminOps())postTournament.open=true;
     const postTournamentButtons=document.createElement('div');postTournamentButtons.className='tournament-post-buttons';
     if(hasAdminOps()){
       postTournamentButtons.appendChild(finish);
@@ -4615,12 +4616,12 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_members'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_invites'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=5015-ios-pwa',{updateViaCache:'none'})
+  navigator.serviceWorker.register('./sw.js?v=5030-initial-match-admin-delete',{updateViaCache:'none'})
     .then(reg=>{
       reg.update().catch(()=>{});
       const reloadAfterWorkerUpdate=()=>{
-        if(sessionStorage.getItem('SW_BUILD_RELOAD_5015'))return;
-        sessionStorage.setItem('SW_BUILD_RELOAD_5015','1');
+        if(sessionStorage.getItem('SW_BUILD_RELOAD_5030'))return;
+        sessionStorage.setItem('SW_BUILD_RELOAD_5030','1');
         location.reload();
       };
       navigator.serviceWorker.addEventListener('controllerchange',reloadAfterWorkerUpdate,{once:true});
