@@ -40,9 +40,14 @@ function autoRunning(t){
  if(!t||t.rotation_mode!=='king_of_pitch')return false;
  const tournamentMatches=(getState()?.matches||[]).filter(m=>String(m.tournament_id)===String(t.id));
  const rotationReallyStarted=tournamentMatches.some(m=>m.rotation_generated===true||String(m.rotation_generated).toLowerCase()==='true');
- // Sans match généré par la rotation, l'admin prépare encore les matchs de départ.
- if(!rotationReallyStarted)return false;
- // Utilise l'état normalisé du moteur pour autoriser la création des matchs de départ.
+  // Tant qu'aucun match n'a été repris par le moteur, l'admin doit pouvoir
+  // créer les matchs de départ (0/N, puis 1/N), même si un ancien état
+  // initialized est encore présent dans la copie locale du tournoi.
+  if(!rotationReallyStarted)return false;
+ // Use the rotation engine's normalized state so the manual form stays
+ // available while the organiser prepares the initial matches (0/N).
+ // Reading t.rotation_state directly can temporarily expose a stale value
+  // while the tournament and rotation modules finish synchronising.
  try{
    const rotation=window.SWE_ROTATION_4306;
    if(rotation?.getState)return rotation.getState(t).initialized===true;
@@ -78,4 +83,4 @@ document.addEventListener('swe:match-finished',()=>setTimeout(refreshManualMatch
 document.addEventListener('swe:rotation-updated',()=>setTimeout(refreshManualMatchUi,40));
 window.addEventListener('pageshow',()=>setTimeout(apply,80));
 [400,1200].forEach(delay=>setTimeout(refreshManualMatchUi,delay));
-})();
+ })();
