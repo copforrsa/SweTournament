@@ -1,4 +1,4 @@
-Warning: truncated output (original token count: 143356)
+Warning: truncated output (original token count: 143352)
 Total output lines: 6864
 
 const { createClient } = window.supabase;
@@ -831,7 +831,7 @@ function renderSuperAdminWorkspaces(){
       const btn=g.querySelector('[data-owner-save]'),val=Math.max(1,Number(g.querySelector('[data-owner-limit]').value)||1),note=g.querySelector('[data-owner-note]').value.trim();
       btn.disabled=true;const {error}=await sb.rpc('super_admin_set_organizer_free_workspace_limit',{p_user_id:w.owner_user_id,p_limit:val,p_note:note||null});btn.disabled=false;
       if(error)return toast(error.message);toast('Limite organisateur mise à jour ✅');await loadSuperAdminWorkspaces();
-…113356 tokens truncated…tName').value='';$('#publicPreviousGuest').value='';$('#publicGuestPhone').value='';$('#publicGuestMember').checked=false;
+…113352 tokens truncated…tName').value='';$('#publicPreviousGuest').value='';$('#publicGuestPhone').value='';$('#publicGuestMember').checked=false;
       const used=publicGuestUsage(host).used+1;
       const remaining=Math.max(0,PUBLIC_GUEST_LIMIT-used);
       const hostIsRegistered=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===host&&r.present);
