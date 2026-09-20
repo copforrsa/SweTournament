@@ -251,6 +251,30 @@ function buildCard(m,index){
   return d;
 }
 
+function canManageDeletion(){
+  return !context && !state.publicMode && !!state.session &&
+    (adminUser() || (typeof hasTemporaryAdmin==='function' && hasTemporaryAdmin()));
+}
+function deletionButton(t,m=null){
+  const button=document.createElement('button');button.type='button';button.className='danger';
+  button.dataset.sweMatchDelete=m?'single':'all';
+  button.textContent=m?'Supprimer ce match':'Réinitialiser tous les matchs à 0';
+  button.onclick=async()=>{
+    if(!canManageDeletion() || String(current()?.id)!==String(t.id))return notify('Sélectionne à nouveau le tournoi.');
+    const label=t.name||t.tournament_date||t.id;
+    if(!confirm((m?'Supprimer ce match':'Supprimer TOUS les matchs')+' du tournoi « '+label+' » ? Les scores et buts associés seront supprimés. Les équipes et inscriptions seront conservées.'))return;
+    if(!m && prompt('Pour confirmer la suppression de tous les matchs de « '+label+' », saisis REINITIALISER')!=='REINITIALISER')return;
+    button.disabled=true;
+    try{
+      const result=await sb.rpc(m?'admin_delete_tournament_match_v1':'admin_reset_tournament_matches_v1',m?{p_match_id:m.id}:{p_tournament_id:t.id});
+      if(result.error)throw result.error;
+      await loadTournament();renderStableMatches(false);
+      notify(m?'Match supprimé.':'Matchs supprimés ; équipes et inscriptions conservées.');
+    }catch(error){notify(error.message||'Suppression impossible.');}
+    finally{button.disabled=false;}
+  };
+  return button;
+}
 function renderStableMatches(allowHydrate=true){
   installCss();
   const t=current(),box=E('matchesList'),selector=E('matchCompetitionSelect'),status=E('matchCompetitionStatus');
@@ -269,6 +293,11 @@ function renderStableMatches(allowHydrate=true){
   const rows=[...(state.matches||[])].sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');
   box.innerHTML='';
+  if(canManageDeletion()){
+    const controls=document.createElement('div');controls.className='card';controls.dataset.sweMatchAdmin='';
+    const label=document.createElement('p');label.textContent='Administration des matchs — '+(t.name||t.tournament_date||'Tournoi');
+    controls.append(label,deletionButton(t));box.appendChild(controls);
+  }
   if(!rows.length){box.innerHTML='<div class="card"><p class="muted">Chargement des matchs…</p></div>';if(allowHydrate)hydrate(t.id);return}
   if(rows.length){
     const finished=rows.filter(m=>String(m.status)==='finished');
@@ -309,9 +338,11 @@ function renderStableMatches(allowHydrate=true){
       });
       box.appendChild(picker);
       box.appendChild(buildCard(selectedFinished,rows.indexOf(selectedFinished)));
+      if(canManageDeletion())box.appendChild(deletionButton(t,selectedFinished));
     }else{
       const selected=current.find(m=>String(m.id)===selectedKey)||current[0];
       if(selected)box.appendChild(buildCard(selected,rows.indexOf(selected)));
+      if(selected && canManageDeletion())box.appendChild(deletionButton(t,selected));
     }
   }
   // Targeted and mobile refreshes do not emit the global swe:rendered event.
