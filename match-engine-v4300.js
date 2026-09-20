@@ -268,7 +268,14 @@ function deletionButton(t,m=null){
     try{
       const result=await sb.rpc(m?'admin_delete_tournament_match_v1':'admin_reset_tournament_matches_v1',m?{p_match_id:m.id}:{p_tournament_id:t.id});
       if(result.error)throw result.error;
+      if(!m){
+        // loadTournament reloads child rows, not the tournament rotation state.
+        t.rotation_state={};
+        const saved=(state.tournaments||[]).find(row=>String(row.id)===String(t.id));
+        if(saved)saved.rotation_state={};
+      }
       await loadTournament();renderStableMatches(false);
+      if(!m)document.dispatchEvent(new CustomEvent('swe:rotation-updated',{detail:{tournamentId:t.id,state:{}}}));
       notify(m?'Match supprimé.':'Matchs supprimés ; équipes et inscriptions conservées.');
     }catch(error){notify(error.message||'Suppression impossible.');}
     finally{button.disabled=false;}
