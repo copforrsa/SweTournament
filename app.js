@@ -356,7 +356,7 @@ function canEditCurrentMatches(){const t=currentTour();return !!t && t.status!==
 // Creating, editing or deleting a match changes the official tournament record.
 // Co-organizers (including temporary admins) can enter results, but only the
 // workspace administrator can alter match structure or delete a match.
-function canManageMatchStructure(){const t=currentTour();return !!t && !!S.workspace}
+function canManageMatchStructure(){const t=currentTour();return !!t && hasAdminOps()}
 function makeDisabledActionButton(label,title){
   const b=document.createElement('button');b.textContent=label;b.disabled=true;b.setAttribute('aria-disabled','true');
   b.className='danger disabled-action';b.style.opacity='.38';b.style.filter='grayscale(1)';b.style.cursor='not-allowed';
@@ -3922,7 +3922,7 @@ function renderMatches(){
   $('#homeTeam').innerHTML=matchOptions();
   $('#awayTeam').innerHTML=matchOptions();
   const box=$('#matchesList');box.innerHTML='';
-  if(S.workspace&&current){
+  if(hasAdminOps()&&current){
     const resetWrap=document.createElement('div');resetWrap.className='player';resetWrap.style.marginBottom='12px';resetWrap.style.background='#fff4f4';resetWrap.style.border='1px solid #f2aaaa';
     const resetText=document.createElement('div');resetText.innerHTML='<b>⚠️ Réinitialiser les matchs</b><div class="muted" style="margin-top:4px">Supprime tous les matchs de ce tournoi, y compris ceux en cours ou terminés. Les équipes et les inscriptions restent intactes.</div>';
     const reset=document.createElement('button');reset.type='button';reset.className='danger';reset.textContent='Réinitialiser tous les matchs à 0';
