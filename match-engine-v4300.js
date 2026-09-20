@@ -285,6 +285,7 @@ function deletionButton(t,m=null){
 function renderStableMatches(allowHydrate=true){
   installCss();
   const t=current(),box=E('matchesList'),selector=E('matchCompetitionSelect'),status=E('matchCompetitionStatus');
+  if(!context)window.SWEPitchRoles?.mountMatches(t);
   if(!box)return;
   const eligible=(state.tournaments||[]).filter(x=>x.status!=='finished').sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
   if(selector){
