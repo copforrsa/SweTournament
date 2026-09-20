@@ -1,4 +1,4 @@
-const SW_BUILD='50.23-draw-room-all-voters';
+const SW_BUILD='50.30-initial-match-admin-delete';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
