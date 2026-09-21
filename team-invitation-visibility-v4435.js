@@ -74,7 +74,7 @@
     $('#swePendingTeamProposals')?.remove(); if(!groups.length)return;
     const panel=document.createElement('section'); panel.id='swePendingTeamProposals'; panel.className='card';
     panel.style.cssText='border:1px solid #f6c76a;background:#fffaf0;margin:14px 0';
-    panel.innerHTML='<h2 class="sectiontitle">👥 Équipes en préparation</h2><p class="muted" style="margin-top:0">Une équipe est confirmée lorsque ses '+groups[0].teamSize+' joueurs le sont. Au tirage final, un joueur aléatoire sera attribué à chaque place libérée après un refus.</p>'+groups.map(group=>{
+    panel.innerHTML='<h2 class="sectiontitle">👥 Compositions des équipes</h2><p class="muted" style="margin-top:0">Toutes les équipes du tournoi et leurs joueurs figurent ici.</p>'+groups.map(group=>{
       const complete=group.confirmed.length>=group.teamSize;
       const rejected=group.invitations.filter(item=>item.status==='rejected'||item.status==='declined');
       const pending=group.invitations.filter(item=>item.status==='pending');
@@ -98,11 +98,11 @@
     (snapshot.team_players||[]).forEach(row=>{const list=rosterByTeam.get(String(row.team_id))||[];list.push(String(row.player_id));rosterByTeam.set(String(row.team_id),list);});
     const invitationsByTeam=new Map();
     (snapshot.team_player_invitations||[]).filter(row=>String(row.tournament_id)===String(tournamentId)).forEach(row=>{const list=invitationsByTeam.get(String(row.team_id))||[];list.push(row);invitationsByTeam.set(String(row.team_id),list);});
-    groups=(snapshot.teams||[]).filter(team=>String(team.tournament_id)===String(tournamentId)&&team.is_preformed&&team.created_by_player_id).map(team=>{
+    groups=(snapshot.teams||[]).filter(team=>String(team.tournament_id)===String(tournamentId)).map(team=>{
       const direct=rosterByTeam.get(String(team.id))||[];
       const invitations=invitationsByTeam.get(String(team.id))||[];
       const confirmedIds=new Set(direct);
-      invitations.filter(item=>item.status==='accepted').forEach(item=>confirmedIds.add(String(item.player_id)));
+      if(!direct.length)invitations.filter(item=>item.status==='accepted').forEach(item=>confirmedIds.add(String(item.player_id)));
       const creatorName=players.get(String(team.created_by_player_id))?.name||'';
       return {id:String(team.id),name:team.name||'Équipe',creatorName,teamSize,confirmed:[...confirmedIds].map(id=>players.get(id)?.name||'Joueur'),invitations:invitations.filter(item=>item.status!=='accepted').map(item=>({id:String(item.id||item.player_id),name:players.get(String(item.player_id))?.name||'Joueur',status:item.status||'pending'}))};
     });
