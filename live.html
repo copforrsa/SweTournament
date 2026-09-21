@@ -43,6 +43,20 @@
     .swe-results-page .live-statbox{background:#f7fafc;padding:18px}
     @media(max-width:700px){.swe-results-page .live-shell{padding:10px}.swe-results-page .live-hero{padding:26px 20px}.swe-results-page .live-shell>.card{padding:18px}.swe-results-page .live-title{padding:20px}.swe-results-page .live-table td,.swe-results-page .live-table th{padding:10px 5px}.swe-results-page .live-coorg-link{display:block;text-align:center}}
 
+
+    .swe-results-page .live-title{position:relative;isolation:isolate;overflow:hidden;min-height:240px;background:radial-gradient(ellipse at 8% 10%,#75432275,transparent 60%),linear-gradient(135deg,#101e34,#071523);border:1px solid #bfa15a80;box-shadow:inset 0 1px #ffe4a733,0 14px 30px #10213920;color:#fff}
+    .swe-results-page .live-title.king{background:radial-gradient(ellipse at 8% 10%,#087e9c66,transparent 60%),linear-gradient(135deg,#101e34,#071523);border-color:#58d9ef80}
+    .swe-results-page .live-title::after{content:"";position:absolute;inset:0;z-index:-1;opacity:.14;background:linear-gradient(120deg,#07152388,#071523),url('/assets/avatars-v4405/ballon-feu.webp') center right/cover;pointer-events:none}
+    .swe-results-page .live-title.king::after{background-image:linear-gradient(120deg,#07152388,#071523),url('/assets/avatars-v4405/ballon-electricite.webp')}
+    .swe-results-page .live-title small{color:#ffe3a0;opacity:1;letter-spacing:1.4px}
+    .swe-results-page .live-title.king small{color:#9befff}
+    .swe-results-page .swe-award-name{display:flex;align-items:center;gap:18px;min-width:0}
+    .swe-results-page .swe-award-name>b{color:#fff;font-size:clamp(23px,3vw,32px);line-height:1.15;overflow-wrap:anywhere}
+    .swe-results-page .swe-award-emblem{flex:0 0 96px;height:96px;display:grid;place-items:center;border-radius:50%;border:1px solid #ffdf83b0;color:#ffdf83;background:radial-gradient(circle at 32% 22%,#fff3c759,#ad721922 45%,#061225 72%);box-shadow:0 0 25px #ffc34b33,inset 0 0 18px #ffc34b33}
+    .swe-results-page .swe-award-emblem svg{width:70px;height:70px;filter:drop-shadow(0 0 7px #ffbe6477)}
+    .swe-results-page .king .swe-award-emblem{border-color:#78e9ff;background:radial-gradient(circle at 32% 22%,#b1faff59,#13899c22 45%,#061225 72%);box-shadow:0 0 25px #3de0ff33,inset 0 0 18px #3de0ff33}
+    .swe-results-page .live-title>span{color:#deebf4}
+    @media(max-width:480px){.swe-results-page .swe-award-emblem{flex-basis:76px;height:76px}.swe-results-page .swe-award-emblem svg{width:56px;height:56px}.swe-results-page .swe-award-name{gap:12px}.swe-results-page .live-title{min-height:210px}}
   </style>
 </head>
 <body>
@@ -67,6 +81,6 @@
     <section class="card"><h2 class="sectiontitle">👥 Équipes</h2><div id="liveTeams" class="live-grid"></div><div id="liveSubs"></div></section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="./live.js?v=5043-tournament-results" defer></script>
+  <script src="./live.js?v=5044-award-orbs" defer></script>
 <script src="/public-history-views-v4363.js?v=4377" defer></script></body>
 </html>
