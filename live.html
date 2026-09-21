@@ -57,6 +57,14 @@
     .swe-results-page .king .swe-award-emblem{border-color:#78e9ff;background:radial-gradient(circle at 32% 22%,#b1faff59,#13899c22 45%,#061225 72%);box-shadow:0 0 25px #3de0ff33,inset 0 0 18px #3de0ff33}
     .swe-results-page .live-title>span{color:#deebf4}
     @media(max-width:480px){.swe-results-page .swe-award-emblem{flex-basis:76px;height:76px}.swe-results-page .swe-award-emblem svg{width:56px;height:56px}.swe-results-page .swe-award-name{gap:12px}.swe-results-page .live-title{min-height:210px}}
+
+    /* Shared top rows keep both awards and team names aligned. */
+    .swe-results-page .live-titles{align-items:stretch}
+    .swe-results-page .live-title{justify-content:flex-start}
+    .swe-results-page .live-title>small{display:flex;align-items:center;min-height:2.6em;line-height:1.3}
+    .swe-results-page .swe-award-name{min-height:96px}
+    .swe-results-page .swe-award-name>b{margin:0}
+    @media(max-width:480px){.swe-results-page .swe-award-name{min-height:76px}}
   </style>
 </head>
 <body>
