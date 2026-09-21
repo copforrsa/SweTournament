@@ -42,6 +42,7 @@ function decoratePlayers44(){
   legend.innerHTML='👥 <b>Lecture de la liste :</b> une fiche grisée correspond à un <b>invité</b> qui ne fait pas partie du groupe. Lorsqu’un invité devient membre, sa fiche redevient normale.';
   (S.players||[]).forEach(pl=>{
     const card=findPlayerCard(pl);if(!card)return;
+    card.dataset.swePlayerId44=String(pl.id);
     const guest=pl.is_group_member===false;
     card.style.opacity=guest?'.58':'1';card.style.background=guest?'#f1f3f2':'';
     let badge=card.querySelector('[data-group-state44]');card.querySelector('[data-group-state40]')?.remove();
@@ -67,8 +68,12 @@ function controlsForCard(card){
 }
 async function savePlayerInfo44(btn){
   const card=cardForButton(btn);if(!card)return;
-  const currentName=playerCardName(card);const pl=(S.players||[]).find(p=>String(p.name||'').trim()===currentName);if(!pl)return toast('Joueur introuvable.');
   const {name,phone,status,host}=controlsForCard(card);if(!name||!status)return toast('Formulaire joueur incomplet.');
+  const currentName=playerCardName(card);
+  const knownNames=[currentName,name.defaultValue,name.value].map(value=>String(value||'').trim()).filter(Boolean);
+  let pl=(S.players||[]).find(player=>String(player.id)===String(card.dataset.swePlayerId44||''))||null;
+  if(!pl){const matches=(S.players||[]).filter(player=>knownNames.includes(String(player.name||'').trim()));if(matches.length===1)pl=matches[0];}
+  if(!pl)return toast('Fiche joueur introuvable. Actualise la page puis réessaie.');
   const newName=name.value.trim(),isMember=status.value==='member',wasGuest=pl.is_group_member===false;
   if(newName.length<2)return toast('Nom invalide.');
   btn.disabled=true;const old=btn.textContent;btn.textContent='Enregistrement…';
