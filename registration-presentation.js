@@ -167,8 +167,8 @@ function mount(ctx){
   const label=finished?'Tournoi terminé':begun?'Matchs en direct':t.team_review_status==='pending'?'Équipes en validation':t.team_review_status==='approved'?'Équipes validées':isFull?'Effectif complet':isClosed?'Inscriptions closes':'Inscriptions ouvertes';
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
   setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
-  const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',format=king?'Roi du terrain':'Tournoi classique',formatEl=E('registrationFormat');
-  formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
+  const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',conquest=t.format==='conquest'||t.rotation_mode==='conquest',format=king?'Roi du terrain':(conquest?'Conquête du terrain':'Championnat classique'),formatEl=E('registrationFormat');
+  formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':conquest?' · Championnat puis phase à élimination':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
   const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
   const venueRaw=t.venue||'';
   const venueLabel=king?'Arena':(venueRaw.split(/\\s*[—-]\\s*/)[0]||venueRaw||'');
