@@ -17,7 +17,7 @@
   <title>SWÉ TOURNAMENT 5/5 • V50.0</title>
 <link rel="icon" type="image/png" href="./favicon.png?v=4377">
 <link rel="apple-touch-icon" href="./icon-192.png?v=5015">
-  <link rel="stylesheet" href="./styles.css?v=4423-third-half-roles">
+  <link rel="stylesheet" href="./styles.css?v=5054-tournament-visual">
   <link rel="stylesheet" href="./home-commerce.css?v=4378">
   <link rel="stylesheet" href="./player-rating-ui.css?v=4385">
   <link rel="stylesheet" href="./registration-presentation.css?v=5014-rating-challenge">
@@ -463,7 +463,7 @@
     </div>
 
     <div id="view-tournaments" class="view">
-      <div class="card tournament-home-actions">
+      <div class="card tournament-home-actions tournament-visual-home">
         <div class="tournament-home-copy">
           <div><span class="tour-create-eyebrow">GESTION DES TOURNOIS</span><h2 class="sectiontitle" style="margin:5px 0 4px">Tes tournois</h2><p class="muted" style="margin:0">Accède d’abord aux Swés en cours. La création et les réglages avancés restent disponibles uniquement quand tu en as besoin.</p></div>
           <div class="tournament-home-buttons"><button id="newTournamentToggle" class="primary">＋ Créer un nouveau tournoi</button><button id="seasonSettingsToggle">⚙️ Gérer les saisons</button></div>
@@ -548,7 +548,7 @@
         </div>
         <div class="space"></div><div class="row"><button id="createTournament" class="primary">Créer le tournoi</button><button id="cancelTournamentCreate" type="button">Annuler</button></div>
       </div>
-      <div class="card"><h2 class="sectiontitle">⚽ Tournois en cours</h2><p class="muted">Retrouve ici les informations essentielles de chaque tournoi. Les réglages administratifs sont séparés sous chaque fiche pour éviter les confusions.</p><div id="tournamentList"></div></div><div class="card"><h2 class="sectiontitle">🏆 Classements de la saison</h2><div id="seasonScorerSummary"></div></div>
+      <div class="card tournament-list-shell"><div class="tournament-list-intro"><span>TOURNOIS EN COURS</span><h2 class="sectiontitle">Choisis un SWÉ à gérer</h2><p>Retrouve les informations essentielles de chaque tournoi, puis ouvre celui sur lequel tu souhaites travailler.</p></div><div id="tournamentList"></div></div>
     </div>
 
     <div id="view-teams" class="view">
@@ -946,13 +946,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
 <script src="./registration-presentation.js?v=5014-rating-challenge" defer></script>
 <script src="./offres.js?v=offres-r1" defer></script>
-<link rel="stylesheet" href="./third-half-contributions-v4427.css?v=4430-compact-donors"><script src="./tournament-pitch-roles.js?v=5020" defer></script><script src="./app.js?v=5039-public-coorg-rating" defer></script>
+<link rel="stylesheet" href="./third-half-contributions-v4427.css?v=4430-compact-donors"><script src="./tournament-pitch-roles.js?v=5020" defer></script><script src="./app.js?v=5054-tournament-visual" defer></script>
 <script src="./mobile-coorg-rights-v4362.js?v=4379" data-swe-loader="mobile-coorg-rights-v4362" defer></script>
 <script src="./hotfix-v4227.js?v=5021-auto-circuit" defer></script>
 <script src="./pwa-tournament-data-v5020.js?v=5040-apple-roles" defer></script>
 <script src="./hotfix-v4228.js?v=4400" defer></script>
 
-<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=5010-tournament-selector" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4426-coorg-stable" defer></script><script src="./hotfix-v4235.js?v=4399-player-r1" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4465" defer></script><script src="./hotfix-v4244.js?v=5053-tournament-render" defer></script><script src="./match-refresh-coorg-v4458.js?v=4472" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script><script src="./team-invitation-visibility-v4435.js?v=5041-all-rosters" defer></script>
+<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=5010-tournament-selector" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4426-coorg-stable" defer></script><script src="./hotfix-v4235.js?v=4399-player-r1" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4465" defer></script><script src="./hotfix-v4244.js?v=5054-tournament-visual" defer></script><script src="./match-refresh-coorg-v4458.js?v=4472" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script><script src="./team-invitation-visibility-v4435.js?v=5041-all-rosters" defer></script>
   <script src="./team-captain-consent-v4438.js?v=4438" defer></script>
   <script src="./team-proposal-action-v4441.js?v=4441" defer></script>
   <script src="./third-half-action-order-v4445.js?v=4447" defer></script><script src="./third-half-donor-summary-v4451.js?v=4451" defer></script><script src="./team-draw-room-access-v4452.js?v=4464" defer></script><script src="./team-draw-room-v4455.js?v=5025-direct-link" defer></script><script src="./team-composition-visual-v4456.js?v=5036-keep-registration" defer></script></body></html>
