@@ -193,7 +193,7 @@ function mount(ctx){
    const conquestPaths={
     3:['Le 3e affronte le 2e.','Le vainqueur affronte le 1er en finale.'],
     4:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 3e affronte le 4e.','Le vainqueur rejoint le finaliste pour la finale.'],
-    5:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 4e affronte le 5e.','Le vainqueur affronte le 3e.','Le vainqueur rejoint le finaliste pour la finale.'],
+    5:['Le 1er affronte le 2e : le vainqueur se qualifie pour la finale et attend deux matchs.','Le 4e affronte le 5e : premier match d’attente.','Le vainqueur affronte le 3e : deuxième match d’attente.','Le vainqueur rejoint le finaliste pour la finale.'],
     6:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 3e affronte le 4e et le 5e affronte le 6e.','Les deux vainqueurs se rencontrent.','Le vainqueur rejoint le finaliste pour la finale.'],
     7:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 4e affronte le 5e et le 6e affronte le 7e.','Les deux vainqueurs se rencontrent.','Le vainqueur affronte le 3e.','Le vainqueur rejoint le finaliste pour la finale.']
    };
