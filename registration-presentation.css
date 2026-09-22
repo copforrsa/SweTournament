@@ -113,3 +113,11 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 
 /* Lien visuel entre l'avis Academy et la réponse sur le terrain. */
 #publicView.swe-premium .sp-rating-grid{position:relative}.sp-rating-challenge{margin-top:12px;padding-top:10px;border-top:1px dashed currentColor;font-family:Georgia,serif;font-style:italic;font-size:.82rem;line-height:1.35;font-weight:800;letter-spacing:.01em}.sp-academy .sp-rating-challenge{color:#4b4fa3}.sp-match-rating .sp-rating-challenge{color:#16814c;text-align:right}.sp-rating-challenge:before{content:'⚽';font-family:system-ui;font-style:normal;margin-right:6px;font-size:.82em}.sp-match-rating .sp-rating-challenge:before{display:none}@media(min-width:621px){#publicView.swe-premium .sp-rating-grid:after{content:'↝';position:absolute;left:50%;bottom:16px;z-index:2;transform:translateX(-50%);width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#d49816;border:1px solid #e6c468;box-shadow:0 2px 8px #153b5a24;font-size:17px;font-style:normal}}
+
+/* Conquête du terrain : identité bordeaux réservée au parcours public. */
+#publicView.swe-premium.sp-conquest .sp-hero{background:radial-gradient(ellipse at 94% 90%,#8d263a 0,transparent 52%),linear-gradient(120deg,#421329,#781f35)}
+#publicView.swe-premium.sp-conquest .sp-hero>p{color:#f4dce2}
+#publicView.swe-premium.sp-conquest .sp-hero .sp-eyebrow{color:#ffd18a}
+#registrationFormat.sp-conquest-format{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:8px 13px;border:1px solid #e6a0ac;border-radius:999px;background:linear-gradient(135deg,#ffe4e8,#c84259);color:#421329!important;font-size:12px;letter-spacing:.7px;box-shadow:0 8px 22px rgba(66,19,41,.26)}
+#registrationFormat.sp-conquest-format:before{content:'⚔️';font-size:15px;margin-right:7px}
+#publicView.swe-premium.sp-conquest .sp-rules{border-left-color:#a62f48;background:#fff5f6}
