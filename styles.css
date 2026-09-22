@@ -557,3 +557,34 @@ select{background-color:#fff} textarea{resize:vertical}
 
 /* V44.12 — création de compte depuis la mission Glacière */
 .cooler-account-card{max-width:560px;margin:24px auto -20px;display:flex;gap:14px;align-items:center;border:2px solid #f2c94c;background:linear-gradient(135deg,#fff9dc,#fffef6)}.cooler-account-icon{width:52px;height:52px;display:grid;place-items:center;border-radius:16px;background:#0d2b57;font-size:1.7rem}.cooler-account-card p{margin:5px 0 0;color:#536278;line-height:1.5}.identity-link-request{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.third-half-account-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.third-half-owner-locked a.secondary{background:#fff;border:1px solid #9cb4cc}.third-half-owner-locked>small{display:block;color:#6b7280}.third-half-link-pending{display:grid;gap:3px;padding:10px;margin:9px 0;border-radius:10px;background:#fff3cd;color:#755400}.third-half-link-pending.error{background:#fff0f0;color:#991b1b}.third-half-link-pending span{font-size:.82rem;line-height:1.45}
+
+
+/* V50.54 — onglet Tournois : présentation directe, sans dépendance au rendu différé */
+#view-tournaments{display:grid;gap:18px}
+#view-tournaments .tournament-visual-home{padding:0;overflow:hidden;border:0;background:linear-gradient(118deg,#102b62 0%,#1767d1 58%,#14b7d3 100%);box-shadow:0 16px 34px rgba(13,62,130,.20)}
+#view-tournaments .tournament-visual-home .tournament-home-copy{padding:26px 28px;display:flex;gap:24px;align-items:center;justify-content:space-between;color:#fff}
+#view-tournaments .tournament-visual-home .tour-create-eyebrow{color:#ffd45e;letter-spacing:.14em;font-size:.72rem;font-weight:900}
+#view-tournaments .tournament-visual-home .sectiontitle{font-size:clamp(1.7rem,3vw,2.4rem);color:#fff!important}
+#view-tournaments .tournament-visual-home .muted{color:#e2f2ff!important;max-width:680px}
+#view-tournaments .tournament-visual-home .tournament-home-buttons{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+#view-tournaments .tournament-visual-home .tournament-home-buttons button{border-color:rgba(255,255,255,.35);box-shadow:none}
+#view-tournaments .tournament-list-shell{padding:0;overflow:hidden;border:1px solid #d8e5f8;background:#fff}
+#view-tournaments .tournament-list-intro{padding:21px 24px 18px;background:linear-gradient(100deg,#f5f9ff,#e8f5ff);border-bottom:1px solid #d9e8fb}
+#view-tournaments .tournament-list-intro>span{display:block;color:#1474db;font-size:.72rem;font-weight:900;letter-spacing:.13em}
+#view-tournaments .tournament-list-intro .sectiontitle{margin:5px 0 4px;color:#092b56}
+#view-tournaments .tournament-list-intro p{margin:0;color:#55708e}
+#view-tournaments .tournament-list-shell #tournamentList{padding:18px 20px 22px;display:grid;gap:14px}
+#view-tournaments .tournament-current-card{border:1px solid #d2e2f6!important;border-radius:18px!important;background:linear-gradient(135deg,#fff 0%,#f5faff 100%)!important;box-shadow:0 8px 18px rgba(28,77,136,.08)}
+#view-tournaments .tournament-current-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#view-tournaments .tournament-current-head .tournament-current-title{font-size:1.15rem;color:#092b56}
+#view-tournaments .tournament-current-head button{border-radius:10px;padding:9px 12px;font-weight:800}
+#view-tournaments .tournament-current-head button:not(.green){background:#eef6ff;border:1px solid #c9e0fc;color:#0d5fae}
+#view-tournaments .tournament-current-head button:disabled{opacity:.55}
+#view-tournaments .tournament-info-grid{margin-top:14px}
+@media(max-width:720px){
+ #view-tournaments .tournament-visual-home .tournament-home-copy{padding:21px 18px;align-items:flex-start;flex-direction:column}
+ #view-tournaments .tournament-visual-home .tournament-home-buttons{justify-content:flex-start}
+ #view-tournaments .tournament-list-intro{padding:18px}
+ #view-tournaments .tournament-list-shell #tournamentList{padding:14px}
+ #view-tournaments .tournament-current-head button{width:100%}
+}
