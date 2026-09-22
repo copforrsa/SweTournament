@@ -90,7 +90,7 @@ function render(data){
   document.querySelector('.live-hero h1').textContent=tournamentFinished?'🏆 Résultats du tournoi':'⚽ SWÉ LIVE';
   document.title=(tournamentFinished?'Résultats du tournoi':'SWÉ LIVE')+' • '+(tour.name||'SWÉ Tournament');
  }
- $('#liveTitle').textContent=(data.is_test?'🧪 TEST — ':'')+(tour.name||'Tournoi SWÉ')+(tour.tournament_date?' • '+tour.tournament_date:'');
+ $('#liveTitle').textContent=(data.is_test?'🧪 TEST — ':'')+(tour.name||'Tournoi SWÉ')+(tour.tournament_date?' • '+tour.tournament_date:'')+(tour.format==='conquest'?' • ⚔️ Conquête du terrain':'');
  const teams=(data.teams||[]).filter(t=>String(t.tournament_id)===String(tournamentId));
  const teamIds=new Set(teams.map(t=>String(t.id)));
  const teamPlayers=(data.is_test?data.match_player_assignments||[]:data.team_players||[]).filter(tp=>teamIds.has(String(tp.team_id)));
