@@ -560,7 +560,8 @@ select{background-color:#fff} textarea{resize:vertical}
 
 
 /* V50.54 — onglet Tournois : présentation directe, sans dépendance au rendu différé */
-#view-tournaments{display:grid;gap:18px}
+#view-tournaments.view:not(.active){display:none}
+#view-tournaments.view.active{display:grid;gap:18px}
 #view-tournaments .tournament-visual-home{padding:0;overflow:hidden;border:0;background:linear-gradient(118deg,#102b62 0%,#1767d1 58%,#14b7d3 100%);box-shadow:0 16px 34px rgba(13,62,130,.20)}
 #view-tournaments .tournament-visual-home .tournament-home-copy{padding:26px 28px;display:flex;gap:24px;align-items:center;justify-content:space-between;color:#fff}
 #view-tournaments .tournament-visual-home .tour-create-eyebrow{color:#ffd45e;letter-spacing:.14em;font-size:.72rem;font-weight:900}
@@ -576,7 +577,7 @@ select{background-color:#fff} textarea{resize:vertical}
 #view-tournaments .tournament-list-shell #tournamentList{padding:18px 20px 22px;display:grid;gap:14px}
 #view-tournaments .tournament-current-card{border:1px solid #d2e2f6!important;border-radius:18px!important;background:linear-gradient(135deg,#fff 0%,#f5faff 100%)!important;box-shadow:0 8px 18px rgba(28,77,136,.08)}
 #view-tournaments .tournament-current-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-#view-tournaments .tournament-current-head .tournament-current-title{font-size:1.15rem;color:#092b56}
+#view-tournaments .tournament-current-head .tournament-current-name{font-size:1.15rem;color:#092b56}
 #view-tournaments .tournament-current-head button{border-radius:10px;padding:9px 12px;font-weight:800}
 #view-tournaments .tournament-current-head button:not(.green){background:#eef6ff;border:1px solid #c9e0fc;color:#0d5fae}
 #view-tournaments .tournament-current-head button:disabled{opacity:.55}
@@ -587,4 +588,29 @@ select{background-color:#fff} textarea{resize:vertical}
  #view-tournaments .tournament-list-intro{padding:18px}
  #view-tournaments .tournament-list-shell #tournamentList{padding:14px}
  #view-tournaments .tournament-current-head button{width:100%}
+}
+
+/* V50.56 — native tournament cards; never override inactive view visibility */
+#view-tournaments .tournament-current-card{padding:0!important;overflow:hidden;background:#fff!important}
+#view-tournaments .tournament-current-head{padding:24px;background:linear-gradient(120deg,#10264c,#164e91 65%,#087f96);color:#fff;align-items:stretch}
+#view-tournaments .tournament-current-head>div:first-child{flex:1 0 100%;min-width:0}
+#view-tournaments .tournament-current-head .tournament-current-name{font-size:clamp(1.4rem,2.5vw,2rem);line-height:1.2;color:#fff;font-weight:900}
+#view-tournaments .tournament-current-head .tournament-badges{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+#view-tournaments .tournament-current-head .tournament-badge{color:#fff;background:#ffffff18;border-color:#ffffff40}
+#view-tournaments .tournament-current-head .tournament-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#view-tournaments .tournament-current-head .tournament-info-item{padding:12px;border:1px solid #ffffff25;border-radius:12px;background:#071d3933}
+#view-tournaments .tournament-current-head .tournament-info-label{color:#c1d9f1}
+#view-tournaments .tournament-current-head .tournament-info-value{color:#fff}
+#view-tournaments .tournament-current-head button:not(.green){background:#fff;color:#154f88;border-color:#d2e6f8}
+#view-tournaments .tournament-current-card>.tournament-admin-block{margin:20px!important;padding:18px;border-radius:14px;border:1px solid #dce7f2;background:#fff;box-shadow:none}
+#view-tournaments .tournament-action-section{padding:18px;margin-top:18px;border:1px solid #dce7f2;border-radius:14px;background:#f7faff}
+#view-tournaments .tournament-action-heading{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+#view-tournaments .tournament-action-heading h3{margin:0;color:#153a63}
+#view-tournaments .tournament-action-heading p{margin:4px 0 0;color:#61778c}
+#view-tournaments .tournament-step-number{display:inline-grid;place-items:center;flex-shrink:0;width:32px;height:32px;border-radius:10px;background:#e0efff;color:#1165b8;font-weight:900}
+@media(max-width:720px){
+ #view-tournaments .tournament-current-head{padding:18px}
+ #view-tournaments .tournament-current-head .tournament-info-grid{grid-template-columns:1fr}
+ #view-tournaments .tournament-current-card>.tournament-admin-block{margin:12px!important;padding:12px}
+ #view-tournaments .tournament-action-section{padding:12px}
 }
