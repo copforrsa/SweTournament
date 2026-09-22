@@ -27,17 +27,21 @@ function syncDetails(){
  const close=E('sweCompactCollapse');if(close){close.hidden=!expanded;close.setAttribute('aria-controls',card.id)}
  document.querySelectorAll('[data-swe-manage-tour]').forEach(button=>{
   const opened=expanded&&String(s.activeTour)===button.dataset.sweManageTour;
-  button.textContent=opened?'Masquer':'Gérer';
+  button.textContent=opened?'Retour à la vue d’ensemble':'Gérer ce tournoi';
   button.setAttribute('aria-expanded',String(opened));
   button.setAttribute('aria-controls',card.id);
  });
 }
-function renderGrid(rows){const s=st(),canGenerate=typeof hasAdminOps==='function'&&(hasAdminOps()||(typeof isCoorg==='function'&&isCoorg()&&s?.myPermissions?.can_generate_teams)),grid=E('sweTournamentCompactGrid');if(!s||!grid)return;grid.innerHTML=rows.length?rows.map(t=>{const c=counts[t.id]??(String(s.activeTour)===String(t.id)?(s.tPlayers||[]).filter(r=>r.present&&r.registration_status!=='waitlist').length:'—');const max=Number(t.max_players||10),open=openNow(t),venue=t.complex_id&&s.sportsComplexes?.find(v=>String(v.id)===String(t.complex_id));return '<div class="swe-tournament-chip '+(String(s.activeTour)===String(t.id)?'active':'')+'"><div class="title">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</div><div class="meta">📅 '+esc(t.tournament_date||'')+(t.start_time?' • '+esc(String(t.start_time).slice(0,5)):'')+'<br>📍 '+esc(venue?.name||t.venue||'Lieu à confirmer')+'</div><div class="line"><span class="reg '+(open?'open':'closed')+'">'+(open?'● Inscriptions ouvertes':'● Inscriptions fermées')+'</span><span class="players">👥 '+esc(c)+' / '+esc(max)+'</span></div><button type="button" data-swe-manage-tour="'+esc(t.id)+'">Gérer</button><button type="button" data-swe-generate-tour="'+esc(t.id)+'" '+(canGenerate?'':'disabled title="Autorisation de génération requise"')+'>⚖️ Générer les équipes équilibrées</button></div>'}).join(''):'<div class="muted">Aucun tournoi en cours.</div>'}
+function renderGrid(rows){const s=st(),canGenerate=typeof hasAdminOps==='function'&&(hasAdminOps()||(typeof isCoorg==='function'&&isCoorg()&&s?.myPermissions?.can_generate_teams)),grid=E('sweTournamentCompactGrid');if(!s||!grid)return;grid.innerHTML=rows.length?rows.map(t=>{const c=counts[t.id]??(String(s.activeTour)===String(t.id)?(s.tPlayers||[]).filter(r=>r.present&&r.registration_status!=='waitlist').length:'—');const max=Number(t.max_players||10),open=openNow(t),venue=t.complex_id&&s.sportsComplexes?.find(v=>String(v.id)===String(t.complex_id));return '<div class="swe-tournament-chip '+(String(s.activeTour)===String(t.id)?'active':'')+'"><div class="title">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</div><div class="meta">📅 '+esc(t.tournament_date||'')+(t.start_time?' • '+esc(String(t.start_time).slice(0,5)):'')+'<br>📍 '+esc(venue?.name||t.venue||'Lieu à confirmer')+'</div><div class="line"><span class="reg '+(open?'open':'closed')+'">'+(open?'● Inscriptions ouvertes':'● Inscriptions fermées')+'</span><span class="players">👥 '+esc(c)+' / '+esc(max)+'</span></div><button type="button" data-swe-manage-tour="'+esc(t.id)+'">Gérer</button><button type="button" data-swe-links-tour="'+esc(t.id)+'">🔗 Partager les liens</button><button type="button" data-swe-generate-tour="'+esc(t.id)+'" '+(canGenerate?'':'disabled title="Autorisation de génération requise"')+'>⚖️ Générer les équipes équilibrées</button></div>'}).join(''):'<div class="muted">Aucun tournoi en cours.</div>'}
+async function showLinks(id){
+ const select=E('sweTournamentLinkTournament');if(select){select.value=id;select.dispatchEvent(new Event('change',{bubbles:true}));}
+ setPane('links');
+}
 async function manage(id){
  const s=st();if(!s||!id)return;
  if(detailsExpanded()&&String(s.activeTour)===String(id)){collapse();return}
  const request=++detailsRequest;
- document.documentElement.dataset.sweTournamentExpanded='1';s.activeTour=id;syncDetails();
+ document.documentElement.dataset.sweTournamentExpanded='1';s.activeTour=id;setPane('manage');syncDetails();
  try{if(typeof loadTournament==='function')await loadTournament();if(request!==detailsRequest)return;if(typeof renderAll==='function')renderAll()}
  catch(e){console.warn('SWÉ compact open',e)}
  if(request!==detailsRequest)return;syncDetails();
@@ -48,19 +52,47 @@ async function manage(id){
  },120);
 }
 function collapse(){
- ++detailsRequest;document.documentElement.dataset.sweTournamentExpanded='0';syncDetails();
+ ++detailsRequest;document.documentElement.dataset.sweTournamentExpanded='0';setPane('overview');syncDetails();
  const button=[...document.querySelectorAll('[data-swe-manage-tour]')].find(b=>b.dataset.sweManageTour===String(st()?.activeTour));
  button?.focus({preventScroll:true});
  E('sweTournamentCompactPanel')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
+
+/* Native dashboard navigation: keep original nodes and their handlers. */
+function setPane(pane){
+ const root=E('view-tournaments');if(!root)return;
+ root.dataset.tournamentPane=pane;
+ if(pane==='manage')document.documentElement.dataset.sweTournamentExpanded='1';
+ root.querySelectorAll('[data-tour-pane]').forEach(b=>{
+  b.classList.toggle('active',b.dataset.tourPane===pane);
+  b.setAttribute('aria-pressed',String(b.dataset.tourPane===pane));
+ });
+ syncDetails();
+}
+function dashboard(){
+ const root=E('view-tournaments');if(!root)return;
+ if(!root.dataset.tournamentPane)root.dataset.tournamentPane='overview';
+ let nav=E('sweTournamentNavigation5057');
+ if(!nav){
+  nav=document.createElement('nav');nav.id='sweTournamentNavigation5057';
+  nav.setAttribute('aria-label','Rubriques des tournois');
+  for(const [key,label] of [['overview','Vue d’ensemble'],['links','Liens à partager'],['manage','Gestion du tournoi'],['reports','Rapports']]){
+   const b=document.createElement('button');b.type='button';b.dataset.tourPane=key;b.textContent=label;
+   b.addEventListener('click',()=>setPane(key));nav.appendChild(b);
+  }
+  root.appendChild(nav);
+ }
+ setPane(root.dataset.tournamentPane);
+}
+
 async function apply(){
  css();const s=st(),list=E('tournamentList');if(!s||!list)return;
  E('sweSimpleCurrentPanel')?.remove();const card=originalCard();let panel=E('sweTournamentCompactPanel');
  if(!panel&&card){panel=document.createElement('div');panel.id='sweTournamentCompactPanel';panel.className='card';card.insertAdjacentElement('beforebegin',panel)}
  if(!panel)return;
  const rows=(s.tournaments||[]).filter(t=>t.format!=='league'&&t.status!=='finished').slice(0,12);
- panel.innerHTML='<div class="head"><div><h2 class="sectiontitle" style="margin:0">🏆 Tournois en cours</h2><div class="muted">Les informations essentielles, sans surcharger la page.</div></div><button type="button" id="sweCompactCollapse" data-swe-collapse="panel" hidden>Masquer les détails</button></div><div id="sweTournamentCompactGrid"></div>';
- renderGrid(rows);syncDetails();await loadCounts(rows);renderGrid(rows);syncDetails();
+ panel.innerHTML='<div class="head"><div><h2 class="sectiontitle" style="margin:0">🏆 Tournois en cours</h2><div class="muted">Sélectionne un tournoi pour accéder aux inscriptions, aux équipes et aux services.</div></div><button type="button" id="sweCompactCollapse" data-swe-collapse="panel" hidden>Masquer les détails</button></div><div id="sweTournamentCompactGrid"></div>';
+ renderGrid(rows);dashboard();syncDetails();await loadCounts(rows);renderGrid(rows);syncDetails();
 }
 let generating=false;
 async function generateFromTournament(button){
@@ -72,6 +104,6 @@ async function generateFromTournament(button){
  finally{generating=false;button.disabled=false;soon()}
 }
 function soon(){clearTimeout(timer);timer=setTimeout(apply,120)}
-document.addEventListener('click',e=>{const close=e.target?.closest?.('[data-swe-collapse]');if(close){collapse();return}const g=e.target?.closest?.('[data-swe-generate-tour]');if(g){generateFromTournament(g);return}const b=e.target?.closest?.('[data-swe-manage-tour]');if(b){manage(b.dataset.sweManageTour);return}},true);
+document.addEventListener('click',e=>{const link=e.target?.closest?.('[data-swe-links-tour]');if(link){showLinks(link.dataset.sweLinksTour);return}const close=e.target?.closest?.('[data-swe-collapse]');if(close){collapse();return}const g=e.target?.closest?.('[data-swe-generate-tour]');if(g){generateFromTournament(g);return}const b=e.target?.closest?.('[data-swe-manage-tour]');if(b){manage(b.dataset.sweManageTour);return}},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',soon,{once:true});else soon();document.addEventListener('swe:rendered',soon);window.addEventListener('pageshow',soon);setTimeout(soon,550);
 })();
