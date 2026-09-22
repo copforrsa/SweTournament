@@ -614,3 +614,58 @@ select{background-color:#fff} textarea{resize:vertical}
  #view-tournaments .tournament-current-card>.tournament-admin-block{margin:12px!important;padding:12px}
  #view-tournaments .tournament-action-section{padding:12px}
 }
+
+/* V50.57: layout of the actual compact dashboard and asynchronously mounted tools.
+   Every selector is scoped to Tournois. Visibility still belongs to .view.active. */
+#view-tournaments[data-tournament-pane] > *{order:20;min-width:0}
+#view-tournaments[data-tournament-pane] > .tournament-home-actions{order:-10}
+#view-tournaments[data-tournament-pane] > #sweTournamentNavigation5057{order:-9}
+#view-tournaments[data-tournament-pane] > #seasonAdminCard,
+#view-tournaments[data-tournament-pane] > #tournamentAdminCard{order:-8}
+#view-tournaments[data-tournament-pane] > #sweTournamentCompactPanel{order:0}
+#view-tournaments[data-tournament-pane] > #sweTournamentLinksCard{order:1}
+#view-tournaments[data-tournament-pane] > #sweLateAddPlayer{order:2}
+#view-tournaments[data-tournament-pane] > .tournament-list-shell{order:3}
+#view-tournaments[data-tournament-pane] > #sweRatingReports4276{order:4}
+#view-tournaments[data-tournament-pane] > #sweRatingReportsCard{order:5}
+#view-tournaments[data-tournament-pane] #sweLiveShareCard,
+#view-tournaments[data-tournament-pane] #sweTournamentSwitcher5048{display:none!important}
+
+#view-tournaments #sweTournamentNavigation5057{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:6px;background:#e7eff8;border:1px solid #d8e5f3;border-radius:16px}
+#view-tournaments #sweTournamentNavigation5057 button{margin:0;padding:14px 8px;background:transparent;border:0;border-radius:11px;color:#466381;font-weight:800;box-shadow:none}
+#view-tournaments #sweTournamentNavigation5057 button.active{background:#fff;color:#105bb0;box-shadow:0 3px 10px #173f6f18}
+#view-tournaments #sweTournamentCompactPanel{margin:0;padding:24px;background:#fff;border:1px solid #dbe6f3;border-radius:18px}
+#view-tournaments #sweTournamentCompactGrid{grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:16px}
+#view-tournaments .swe-tournament-chip{padding:24px;border:1px solid #d9e5f2;border-radius:16px;background:linear-gradient(145deg,#fff,#f2f8ff);box-shadow:none}
+#view-tournaments .swe-tournament-chip.active{border-color:#4191e9;background:linear-gradient(145deg,#f7fbff,#e9f4ff)}
+#view-tournaments .swe-tournament-chip .title{font-size:22px;color:#123763;line-height:1.3;margin-bottom:12px}
+#view-tournaments .swe-tournament-chip .meta{font-size:14px;line-height:1.8}
+#view-tournaments .swe-tournament-chip .line{padding:14px 0;border-bottom:1px solid #dae7f4;margin-bottom:10px}
+#view-tournaments .swe-tournament-chip [data-swe-manage-tour]{background:linear-gradient(110deg,#1768d1,#08a8cb);color:#fff;border:0;min-height:46px}
+#view-tournaments .swe-tournament-chip [data-swe-generate-tour]{background:#f4f7fa;color:#466381;box-shadow:none}
+#view-tournaments #sweTournamentLinksCard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:22px;background:#fff!important;border:1px solid #dbe6f3!important;border-radius:18px;margin:0!important}
+#view-tournaments #sweTournamentLinksCard>div:first-child,
+#view-tournaments #sweTournamentLinksCard>.row{grid-column:1/-1}
+#view-tournaments #sweTournamentLinksCard>.player{margin:0!important;padding:16px;border-radius:14px;background:#f6faff;border:1px solid #dce8f4}
+#view-tournaments #sweTournamentLinksCard>.player>div{display:flex!important;flex-direction:column;align-items:stretch!important;height:100%;gap:14px!important}
+#view-tournaments #sweTournamentLinksCard input{min-width:0}
+#view-tournaments #sweTournamentLinksCard .swe4359-wa{padding:9px 12px!important;min-height:38px!important;box-shadow:none!important}
+#view-tournaments #sweRatingReportsCard,
+#view-tournaments #sweRatingReports4276{margin:0;border:1px solid #dbe6f3;border-radius:18px;padding:22px}
+#view-tournaments #sweRatingReportsCard .sectiontitle{font-size:1rem}
+#view-tournaments #sweCompactCollapse{display:none}
+@media(max-width:760px){
+ #view-tournaments #sweTournamentNavigation5057{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #view-tournaments #sweTournamentLinksCard{grid-template-columns:1fr;padding:16px}
+ #view-tournaments #sweTournamentCompactPanel{padding:16px}
+ #view-tournaments .swe-tournament-chip{padding:18px}
+}
+
+#view-tournaments[data-tournament-pane]:not([data-tournament-pane="overview"]) > #sweTournamentCompactPanel,
+#view-tournaments[data-tournament-pane]:not([data-tournament-pane="links"]) > #sweTournamentLinksCard,
+#view-tournaments[data-tournament-pane]:not([data-tournament-pane="manage"]) > #sweLateAddPlayer,
+#view-tournaments[data-tournament-pane]:not([data-tournament-pane="manage"]) > .tournament-list-shell,
+#view-tournaments[data-tournament-pane]:not([data-tournament-pane="reports"]) > #sweRatingReports4276,
+#view-tournaments[data-tournament-pane]:not([data-tournament-pane="reports"]) > #sweRatingReportsCard{display:none!important}
+
+#view-tournaments .tournament-current-head .tournament-info-item{background:#102f55!important;border-color:#ffffff30!important}
