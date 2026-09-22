@@ -67,8 +67,12 @@ function build(){
  share.querySelector('[data-share-whatsapp]').addEventListener('click',()=>{if(!reg)return typeof toast==='function'&&toast('Lien d’inscription indisponible.');const msg='⚽ '+(t.name||'Nouveau SWÉ')+' • '+(t.tournament_date||'')+'\n👉 '+reg;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');});
  actions.querySelectorAll('[data-tour-action]').forEach(b=>b.addEventListener('click',()=>{const a=b.dataset.tourAction;if(a==='teams'||a==='matches')navigate(a);else focusAdmin(card);}));
 }
-function schedule(){setTimeout(build,80);}
+function schedule(){setTimeout(build,80);setTimeout(build,450);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
+window.addEventListener('pageshow',schedule);
 document.addEventListener('swe:rendered',schedule);
 document.addEventListener('click',e=>{if(e.target.closest?.('[data-view="tournaments"],#newTournamentToggle'))schedule();},true);
+const listWatch=new MutationObserver(()=>schedule());
+const observeList=()=>{const list=E('tournamentList');if(list)listWatch.observe(list,{childList:true,subtree:false});};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',observeList,{once:true});else observeList();
 })();
