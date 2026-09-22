@@ -168,7 +168,7 @@ function mount(ctx){
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
   setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
   const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',conquest=t.format==='conquest'||t.rotation_mode==='conquest',format=king?'Roi du terrain':(conquest?'Conquête du terrain':'Championnat classique'),formatEl=E('registrationFormat');
-  formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':conquest?' · Championnat puis phase à élimination':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
+  formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':conquest?' · Championnat puis phase à élimination':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);formatEl.classList.toggle('sp-conquest-format',conquest);root.classList.toggle('sp-conquest',conquest);
   const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
   const venueRaw=t.venue||'';
   const venueLabel=king?'Arena':(venueRaw.split(/\\s*[—-]\\s*/)[0]||venueRaw||'');
@@ -193,7 +193,7 @@ function mount(ctx){
    const conquestPaths={
     3:['Le 3e affronte le 2e.','Le vainqueur affronte le 1er en finale.'],
     4:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 3e affronte le 4e.','Le vainqueur rejoint le finaliste pour la finale.'],
-    5:['Le 1er affronte le 2e : le vainqueur se qualifie pour la finale et attend deux matchs.','Le 4e affronte le 5e : premier match d’attente.','Le vainqueur affronte le 3e : deuxième match d’attente.','Le vainqueur rejoint le finaliste pour la finale.'],
+    5:['Le 4e affronte le 5e : le perdant est éliminé.','Le 1er affronte le vainqueur du barrage 4e/5e en demi-finale.','Le 2e affronte le 3e en demi-finale : ce match peut être placé au tour 1, en parallèle du barrage, ou au tour 2.','Les deux vainqueurs des demi-finales se rencontrent en finale.'],
     6:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 3e affronte le 4e et le 5e affronte le 6e.','Les deux vainqueurs se rencontrent.','Le vainqueur rejoint le finaliste pour la finale.'],
     7:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 4e affronte le 5e et le 6e affronte le 7e.','Les deux vainqueurs se rencontrent.','Le vainqueur affronte le 3e.','Le vainqueur rejoint le finaliste pour la finale.']
    };
