@@ -330,7 +330,7 @@ function hasTemporaryAdmin(){
   return new Date(S.myPermissions.temporary_admin_until).getTime()>Date.now();
 }
 function hasAdminOps(){return isAdmin()||hasTemporaryAdmin()}
-function formatLabel(t){return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='league'?'Ligue':'Classique')}
+function formatLabel(t){return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='conquest'?'Conquête du terrain':(t?.format==='league'?'Ligue':'Championnat classique'))}
 function registrationLink(t){
   if(!t||!S.workspace?.public_token)return '';
   if(t.short_code)return APP_URL+'?s='+encodeURIComponent(String(t.short_code).toUpperCase());
