@@ -7,9 +7,13 @@
   'use strict';
   if(window.SWETeamDrawSalonV2||document.querySelector('script[data-swe-team-draw-v2]'))return;
   const script=document.createElement('script');
-  script.src='./team-draw-room-salon-v5037.js?v=5042';
+  script.src='./team-draw-room-salon-v5037.js?v=5041';
   script.async=false;
   script.defer=true;
   script.dataset.sweTeamDrawV2='true';
   document.head.appendChild(script);
+  const conquest=document.createElement('script');
+  conquest.src='./conquest-rotation-v1.js?v=1';
+  conquest.defer=true;
+  document.head.appendChild(conquest);
 })();
