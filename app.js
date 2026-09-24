@@ -3391,7 +3391,9 @@ $('#createTournament').onclick=async()=>{
       external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked,
       // Le choix est fait à la création : l'admin compose seul ou ouvre un avis collégial.
       team_review_requested:!!S.workspaceFeatures.team_review_enabled&&$('#tourTeamCompositionMode input:checked')?.value==='collaborative',
-      team_review_duration_minutes:120
+      draw_room_first_enabled:!!S.workspaceFeatures.team_review_enabled&&$('#tourTeamCompositionMode input:checked')?.value==='collaborative',
+      max_team_redraws:4,
+      team_review_duration_minutes:60
     };
     if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active « Accepter des joueurs externes » pour rendre ce Swé visible aux joueurs solo.');
     if(row.admin_payment_link_enabled&&(!row.admin_payment_provider||!row.admin_payment_link))throw new Error('Choisis la solution de paiement et ajoute ton lien HTTPS avant de l’afficher.');
