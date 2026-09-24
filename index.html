@@ -17,10 +17,10 @@
   <title>SWÉ TOURNAMENT 5/5 • V50.0</title>
 <link rel="icon" type="image/png" href="./favicon.png?v=4377">
 <link rel="apple-touch-icon" href="./icon-192.png?v=5015">
-  <link rel="stylesheet" href="./styles.css?v=5057-dashboard">
+  <link rel="stylesheet" href="./styles.css?v=4423-third-half-roles">
   <link rel="stylesheet" href="./home-commerce.css?v=4378">
   <link rel="stylesheet" href="./player-rating-ui.css?v=4385">
-  <link rel="stylesheet" href="./registration-presentation.css?v=5062-conquest-bordeaux">
+  <link rel="stylesheet" href="./registration-presentation.css?v=5014-rating-challenge">
 <link rel="stylesheet" href="./offres.css?v=offres-r1">
 <link rel="stylesheet" href="./player-profile-compact.css?v=4399-player-r1">
 <link rel="stylesheet" href="./player-home.css?v=4399-player-r8">
@@ -197,7 +197,6 @@
         </div>
       </div>
     </div>
-
 
     <div id="accountOnboarding" class="card hidden onboarding-shell">
       <div class="sa-eyebrow">BIENVENUE SUR SWÉ TOURNAMENT</div>
@@ -399,7 +398,6 @@
             <option value="">Guest de… (facultatif)</option>
           </select>
         </div>
-
         <div class="space"></div>
         <button id="addPlayers" class="primary">Enregistrer les joueurs</button>
         <p class="muted">Un Guest reste dans les statistiques mais sera grisé dans les classements. Tu peux aussi préciser de quel membre il est l’invité.</p>
@@ -463,7 +461,7 @@
     </div>
 
     <div id="view-tournaments" class="view">
-      <div class="card tournament-home-actions tournament-visual-home">
+      <div class="card tournament-home-actions">
         <div class="tournament-home-copy">
           <div><span class="tour-create-eyebrow">GESTION DES TOURNOIS</span><h2 class="sectiontitle" style="margin:5px 0 4px">Tes tournois</h2><p class="muted" style="margin:0">Accède d’abord aux Swés en cours. La création et les réglages avancés restent disponibles uniquement quand tu en as besoin.</p></div>
           <div class="tournament-home-buttons"><button id="newTournamentToggle" class="primary">＋ Créer un nouveau tournoi</button><button id="seasonSettingsToggle">⚙️ Gérer les saisons</button></div>
@@ -487,7 +485,7 @@
           <div><span>👥</span><b>Jusqu’à 35 joueurs</b><small>La capacité reste modifiable. Les remplaçants sont gérés automatiquement selon le nombre d’inscrits.</small></div>
           <div><span>⚡</span><b>Format automatique</b><small>10 → 2 équipes / 1 terrain · 20 → 4 / 2 · 30 → 6 / 3 · 35 → 7 / 3.</small></div>
         </div>
-        <div class="grid g2"><label><span class="muted">Date du tournoi *</span><input id="tourDate" type="date" required></label><label><span class="muted">Format *</span><select id="tourFormat"><option value="classic">Championnat classique</option><option value="conquest">Conquête du terrain</option><option value="king_of_pitch">Roi du terrain</option></select></label></div><div class="space"></div><label class="player" style="display:block;background:#eef8f2;border-color:#b7dfc4"><span class="muted">⏱️ Fin des inscriptions *</span><input id="tourRegistrationDeadline" type="datetime-local" required><div class="muted" style="margin-top:5px">Le compte à rebours sera affiché systématiquement sur le lien d’inscription jusqu’à cette date.</div></label>
+        <div class="grid g2"><label><span class="muted">Date du tournoi *</span><input id="tourDate" type="date" required></label><label><span class="muted">Format *</span><select id="tourFormat"><option value="classic">Classique</option><option value="king_of_pitch">Roi du terrain</option></select></label></div><div class="space"></div><label class="player" style="display:block;background:#eef8f2;border-color:#b7dfc4"><span class="muted">⏱️ Fin des inscriptions *</span><input id="tourRegistrationDeadline" type="datetime-local" required><div class="muted" style="margin-top:5px">Le compte à rebours sera affiché systématiquement sur le lien d’inscription jusqu’à cette date.</div></label>
         <div class="space"></div><input id="tourName" placeholder="Nom facultatif"><div class="space"></div>
         <div class="player" style="background:#f8fbf9">
           <b>📍 Réservation des terrains</b>
@@ -536,19 +534,19 @@
         </div>
         <div id="thirdHalfTournamentCreate" class="player hidden" style="margin-top:12px;background:#fff8ed;border:1px solid #fed7aa">
           <label class="row" style="justify-content:flex-start"><input id="tourThirdHalfActive" type="checkbox" style="width:auto"><span><b>🧊 Activer la 3e mi-temps / Glacière pour ce tournoi</b></span></label>
-          <div class="muted" style="margin:5px 0 10px">Prépare l’organisation dès maintenant. Le lien Revolut/PayPal sera confié après l’inscription du responsable : c’est nécessaire pour que son lien personnel soit bien sécurisé.</div>
+          <div class="muted" style="margin:5px 0 10px">Prépare l’organisation dès maintenant. En tant qu’administrateur, tu peux aussi enregistrer ton lien personnel dès la création.</div>
           <div id="tourThirdHalfSetup" class="hidden" style="margin-top:12px">
             <div class="grid g2">
               <label><span class="muted">🧊 Qui apporte la glacière ?</span><select id="tourCoolerPlayer"><option value="">À définir plus tard</option></select></label>
               <label><span class="muted">❄️ Qui apporte les glaçons ?</span><select id="tourIcePlayer"><option value="">À définir plus tard</option></select></label>
             </div>
             <label style="margin-top:10px"><span class="muted">Participation glacière fixe (€)</span><input id="tourCoolerSuggested" type="number" min="0" max="5" step="0.50" value="0"><small>Montant libre désactivé • maximum 5 € par personne.</small></label>
-            <div class="readonly-note" style="margin-top:10px"><b>💳 Lien Revolut / paiement :</b> après création, choisis parmi les joueurs inscrits la personne qui recevra les participations. Elle pourra alors entrer et activer son propre lien.</div>
+            <div class="player" style="margin-top:10px"><b>💳 Ton lien Glacière (facultatif)</b><p class="muted" style="margin:4px 0 8px">Si tu le renseignes, tu seras ajouté comme participant responsable et le lien sera visible dès l’ouverture des inscriptions.</p><div class="grid g3"><label><span class="muted">Solution</span><select id="tourCoolerLinkProvider"><option value="">Choisir…</option><option value="Revolut">Revolut</option><option value="PayPal">PayPal</option><option value="Sumeria">Sumeria</option><option value="Lydia">Lydia</option><option value="Autre">Autre</option></select></label><label><span class="muted">Montant demandé</span><select id="tourCoolerLinkAmount"><option value="50">0,50 €</option><option value="100">1,00 €</option><option value="150">1,50 €</option><option value="200">2,00 €</option><option value="250">2,50 €</option><option value="300" selected>3,00 €</option><option value="350">3,50 €</option><option value="400">4,00 €</option><option value="450">4,50 €</option><option value="500">5,00 €</option></select></label><label><span class="muted">Lien HTTPS</span><input id="tourCoolerLink" type="url" maxlength="500" placeholder="https://..."></label></div></div>
           </div>
         </div>
         <div class="space"></div><div class="row"><button id="createTournament" class="primary">Créer le tournoi</button><button id="cancelTournamentCreate" type="button">Annuler</button></div>
       </div>
-      <div class="card tournament-list-shell"><div class="tournament-list-intro"><span>TOURNOIS EN COURS</span><h2 class="sectiontitle">Choisis un SWÉ à gérer</h2><p>Retrouve les informations essentielles de chaque tournoi, puis ouvre celui sur lequel tu souhaites travailler.</p></div><div id="tournamentList"></div></div>
+      <div class="card"><h2 class="sectiontitle">⚽ Tournois en cours</h2><p class="muted">Retrouve ici les informations essentielles de chaque tournoi. Les réglages administratifs sont séparés sous chaque fiche pour éviter les confusions.</p><div id="tournamentList"></div></div><div class="card"><h2 class="sectiontitle">🏆 Classements de la saison</h2><div id="seasonScorerSummary"></div></div>
     </div>
 
     <div id="view-teams" class="view">
@@ -600,7 +598,6 @@
     <div id="view-league" class="view">
       <div class="card">
         <h2 class="sectiontitle">🏁 Ligues</h2>
-
         <p class="muted">Une ligue est une compétition indépendante créée par l’administrateur. Seuls les membres de la communauté s’y inscrivent. Ses buts et passes ont leur propre classement et ne se mélangent jamais avec les statistiques des tournois.</p>
         <div id="leagueFeatureDisabled" class="readonly-note hidden">Cette option n’est pas activée pour cet espace.</div>
       </div>
@@ -801,7 +798,6 @@
         <p class="muted">Génère directement une image prête à partager sur WhatsApp, sans service externe payant.</p>
         <div class="grid g3 visual-actions">
           <button id="visualTeams">👥 Équipes</button>
-
           <button id="visualResults">📋 Résultats</button>
           <button id="visualScorers">⚽ Buteurs</button>
         </div>
@@ -944,15 +940,14 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-<script src="./registration-presentation.js?v=5062-conquest-five-flow" defer></script>
+<script src="./registration-presentation.js?v=5014-rating-challenge" defer></script>
 <script src="./offres.js?v=offres-r1" defer></script>
-<link rel="stylesheet" href="./third-half-contributions-v4427.css?v=4430-compact-donors"><script src="./tournament-pitch-roles.js?v=5020" defer></script><script src="./app.js?v=5054-tournament-visual" defer></script>
+<link rel="stylesheet" href="./third-half-contributions-v4427.css?v=4430-compact-donors"><script src="./app.js?v=5018-pwa-fresh-data" defer></script>
 <script src="./mobile-coorg-rights-v4362.js?v=4379" data-swe-loader="mobile-coorg-rights-v4362" defer></script>
-<script src="./hotfix-v4227.js?v=5021-auto-circuit" defer></script>
-<script src="./pwa-tournament-data-v5020.js?v=5040-apple-roles" defer></script>
-<script src="./hotfix-v4228.js?v=5057-report-invitations" defer></script>
+<script src="./hotfix-v4227.js?v=5018-pwa-fresh-data" defer></script>
+<script src="./hotfix-v4228.js?v=4400" defer></script>
 
-<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=5010-tournament-selector" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4426-coorg-stable" defer></script><script src="./hotfix-v4235.js?v=4399-player-r1" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4465" defer></script><script src="./hotfix-v4244.js?v=5062-conquest-five-flow" defer></script><script src="./match-refresh-coorg-v4458.js?v=4472" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script><script src="./team-invitation-visibility-v4435.js?v=5041-all-rosters" defer></script>
+<footer id="platformFooter" class="platform-footer hidden"><div class="platform-footer-inner"><div><b id="platformFooterCompany">SWÉ Tournament</b><div id="platformFooterText"></div></div><div id="platformFooterLinks"></div></div></footer><script src="./hotfix-v4229.js?v=4377" defer></script><script src="./hotfix-v4230.js?v=5010-tournament-selector" defer></script><script src="./hotfix-v4231.js?v=4377" defer></script><script src="./hotfix-v4232.js?v=4377" defer></script><script src="./ui-stability-v4234.js?v=4426-coorg-stable" defer></script><script src="./hotfix-v4235.js?v=4399-player-r1" defer></script><script src="./hotfix-v4236.js?v=4377" defer></script><script src="./hotfix-v4237.js?v=4377" defer></script><script src="./hotfix-v4240.js?v=4377" defer></script><script src="./hotfix-v4239.js?v=4465" defer></script><script src="./hotfix-v4244.js?v=5000-player-tools" defer></script><script src="./match-refresh-coorg-v4458.js?v=4472" defer></script><script src="/public-history-views-v4363.js?v=4377" defer></script><script src="./team-invitation-visibility-v4435.js?v=4449" defer></script>
   <script src="./team-captain-consent-v4438.js?v=4438" defer></script>
   <script src="./team-proposal-action-v4441.js?v=4441" defer></script>
-  <script src="./third-half-action-order-v4445.js?v=4447" defer></script><script src="./third-half-donor-summary-v4451.js?v=4451" defer></script><script src="./team-draw-room-access-v4452.js?v=4464" defer></script><script src="./team-draw-room-v4455.js?v=5025-direct-link" defer></script><script src="./team-composition-visual-v4456.js?v=5036-keep-registration" defer></script></body></html>
+  <script src="./third-half-action-order-v4445.js?v=4447" defer></script><script src="./third-half-donor-summary-v4451.js?v=4451" defer></script><script src="./team-draw-room-access-v4452.js?v=4464" defer></script><script src="./team-draw-room-v4455.js?v=4466" defer></script><script src="./team-composition-visual-v4456.js?v=4470" defer></script></body></html>
