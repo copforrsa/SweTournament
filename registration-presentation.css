@@ -108,16 +108,22 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 #publicView.swe-premium .sp-royal-head,#publicView.swe-premium .sp-royal-head .sp-royal-format,#publicView.swe-premium .sp-royal-head h2,#publicView.swe-premium .sp-royal-head p{text-align:center}
 #publicView.swe-premium .sp-royal-head h2,#publicView.swe-premium .sp-royal-head p{width:100%;margin-left:auto;margin-right:auto}
 #registrationConfirmOverlay{display:none!important}
+
+/* Conquête du terrain : identité bordeaux, y compris les bannières équipes. */
+#publicView.swe-premium.sp-conquest .sp-next{background:#fff2f2;border-color:#e6b4b4}
+#publicView.swe-premium.sp-conquest .sp-next p{color:#6f3034}
+#publicView.swe-premium.sp-conquest .sp-team-callout{background:radial-gradient(circle at 50% 0,#fff2dc,#fff4f4 62%,#f8e7e7);border-color:#b86a6d;box-shadow:0 14px 34px #641d241c}
+#publicView.swe-premium.sp-conquest .sp-team-callout .sp-eyebrow{color:#8c2531}
+#publicView.swe-premium.sp-conquest .sp-team-callout h2{color:#651c28}
+#publicView.swe-premium.sp-conquest .sp-team-jump{background:#7b1e2b;box-shadow:0 8px 20px #7b1e2b35}
+#publicView.swe-premium.sp-conquest .sp-team-jump:hover{background:#5f1420}
+#publicView.swe-premium.sp-conquest .sp-teams{border-color:#95414a;background:linear-gradient(145deg,#4a111b,#7b1e2b);box-shadow:0 22px 50px #4a111b2b}
+#publicView.swe-premium.sp-conquest .sp-royal-head{background:radial-gradient(circle at 50% -40%,#e2ae7a66,transparent 58%)}
+#publicView.swe-premium.sp-conquest .sp-royal-format{color:#ffd08a}
+#publicView.swe-premium.sp-conquest .sp-royal-head p{color:#f1c6c8}
+#publicView.swe-premium.sp-conquest .sp-team li:before{background:#7b1e2b}
 .sp-registered-actions{padding:2px}.sp-registered-actions>p{margin:0 0 12px;color:#27465a}.sp-registered-actions>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.sp-registered-actions button{min-height:46px;border:1px solid #cbdce3;border-radius:10px;background:#fff;color:#173d53;font-weight:800;cursor:pointer}.sp-registered-actions button.danger{color:#a12a35;border-color:#f0b9bf}.sp-registered-actions [data-leave-reason]{display:grid;gap:9px;margin-top:12px;padding-top:12px;border-top:1px solid #dce8e4}.sp-registered-actions label{display:grid;gap:5px;font-size:13px;font-weight:700}.sp-registered-actions select{min-height:40px;border:1px solid #cbdce3;border-radius:8px;padding:0 9px}.sp-registered-actions [data-confirm-leave]{background:#a12a35;color:#fff;border:0}@media(max-width:520px){.sp-registered-actions>div{grid-template-columns:1fr}}
 .sp-registration-complete{display:grid;gap:7px;padding:18px;border:1px solid #b8dfc8;border-radius:14px;background:#effaf4;color:#176447}.sp-registration-complete span{font-size:13px}.sp-registration-complete button{justify-self:start;border:0;background:transparent;color:#3f6654;font-weight:700;text-decoration:underline;cursor:pointer;padding:2px 0}
 
 /* Lien visuel entre l'avis Academy et la réponse sur le terrain. */
 #publicView.swe-premium .sp-rating-grid{position:relative}.sp-rating-challenge{margin-top:12px;padding-top:10px;border-top:1px dashed currentColor;font-family:Georgia,serif;font-style:italic;font-size:.82rem;line-height:1.35;font-weight:800;letter-spacing:.01em}.sp-academy .sp-rating-challenge{color:#4b4fa3}.sp-match-rating .sp-rating-challenge{color:#16814c;text-align:right}.sp-rating-challenge:before{content:'⚽';font-family:system-ui;font-style:normal;margin-right:6px;font-size:.82em}.sp-match-rating .sp-rating-challenge:before{display:none}@media(min-width:621px){#publicView.swe-premium .sp-rating-grid:after{content:'↝';position:absolute;left:50%;bottom:16px;z-index:2;transform:translateX(-50%);width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#d49816;border:1px solid #e6c468;box-shadow:0 2px 8px #153b5a24;font-size:17px;font-style:normal}}
-
-/* Conquête du terrain : identité bordeaux réservée au parcours public. */
-#publicView.swe-premium.sp-conquest .sp-hero{background:radial-gradient(ellipse at 94% 90%,#8d263a 0,transparent 52%),linear-gradient(120deg,#421329,#781f35)}
-#publicView.swe-premium.sp-conquest .sp-hero>p{color:#f4dce2}
-#publicView.swe-premium.sp-conquest .sp-hero .sp-eyebrow{color:#ffd18a}
-#registrationFormat.sp-conquest-format{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:8px 13px;border:1px solid #e6a0ac;border-radius:999px;background:linear-gradient(135deg,#ffe4e8,#c84259);color:#421329!important;font-size:12px;letter-spacing:.7px;box-shadow:0 8px 22px rgba(66,19,41,.26)}
-#registrationFormat.sp-conquest-format:before{content:'⚔️';font-size:15px;margin-right:7px}
-#publicView.swe-premium.sp-conquest .sp-rules{border-left-color:#a62f48;background:#fff5f6}
