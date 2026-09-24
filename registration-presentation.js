@@ -134,6 +134,7 @@ function mount(ctx){
   const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
   const co=d.isCoorganizer===true||(d.coorganizers||[]).includes(pid);const items=[];
   const organizerUrl=(()=>{try{const u=new URL(ctx.appUrl,location.href);if(t.workspace_id)u.searchParams.set('workspace',t.workspace_id);u.searchParams.set('start','home');return u.toString()}catch(_){return ctx.appUrl}})();
+  const drawRoomUrl=(()=>{try{const u=new URL(organizerUrl,location.href);u.searchParams.set('draw_room',t.id);return u.toString()}catch(_){return organizerUrl}})();
   if(!co){mission.hidden=false;setHtml(mission,'<details class="sp-coorg-instructions"><summary>Accès co-gestionnaire</summary><div class="sp-coorg-instructions-body"><p>Connecte-toi pour retrouver les consignes d’organisation qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace →</a></div></details>');return;}
   if(co){
    if(String(d.personalInstruction||'').trim())items.push('Consigne personnalisée : '+String(d.personalInstruction).trim());
@@ -144,7 +145,7 @@ function mount(ctx){
   if(!items.length)items.push('Aucune consigne spécifique pour le moment. Consulte ton espace organisateur pour retrouver tes actions disponibles.');
   mission.hidden=false;
   const storageKey='swe-coorg-instructions-'+t.id;let open=true;try{open=localStorage.getItem(storageKey)!=='closed'}catch(_){}
-  setHtml(mission,'<details class="sp-coorg-instructions" '+(open?'open':'')+'><summary>📣 Tes consignes de co-gestionnaire</summary><div class="sp-coorg-instructions-body"><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace organisateur →</a></div></details>');
+  setHtml(mission,'<details class="sp-coorg-instructions" '+(open?'open':'')+'><summary>📣 Tes consignes de co-gestionnaire</summary><div class="sp-coorg-instructions-body"><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul>'+(t.draw_room_first_enabled&&t.team_review_status==='pending'?'<a class="sp-button" style="margin-right:8px" href="'+esc(drawRoomUrl)+'">🗳️ Ouvrir le salon de validation →</a>':'')+'<a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace organisateur →</a></div></details>');
   const details=mission.querySelector('.sp-coorg-instructions');if(details&&!details.dataset.wired){details.dataset.wired='1';details.addEventListener('toggle',()=>{try{localStorage.setItem(storageKey,details.open?'open':'closed')}catch(_){}});}
  }
  let kingRules=null,ruleKey='',ruleAt=0,ruleSequence=0;
@@ -156,6 +157,21 @@ function mount(ctx){
   ctx.loadRules().then(value=>{if(sequence!==ruleSequence)return;kingRules=value;update();}).catch(()=>{});
  }
  const paragraphs=text=>String(text||'').split('\n').filter(Boolean).map(line=>'<p>'+esc(line)+'</p>').join('');
+ const isConquest=t=>{
+  const value=[t?.format,t?.name,t?.reservation_reference,t?.registration_briefing?.general].filter(Boolean).join(' ');
+  return /conqu[êe]te(?:\s+du\s+terrain)?/i.test(value);
+ };
+ function conquestRules(t,confirmed){
+  const size=Math.max(1,Number(t.team_size)||5),playing=confirmed.filter(r=>!r.is_substitute).length,teams=Math.floor(playing/size);
+  const intro='<p><b>'+playing+' inscrit'+(playing>1?'s':'')+' pris en compte · '+teams+' équipe'+(teams>1?'s':'')+' complète'+(teams>1?'s':'')+' possible'+(teams>1?'s':'')+'</b></p><h3>Phase 1 · Championnat</h3><p>Toutes les équipes se rencontrent pour établir le classement : <b>3 points</b> pour une victoire, <b>1 point</b> pour un nul, <b>0 point</b> pour une défaite.</p><h3>Phase 2 · Conquête</h3>';
+  const scenarios={
+   4:'<p><b>Tableau adapté : 4 équipes.</b></p><ol><li><b>Demi-finales :</b> 1er contre 3e, puis 2e contre 4e.</li><li><b>Finale :</b> les deux vainqueurs des demi-finales se rencontrent.</li></ol>',
+   5:'<p><b>Tableau adapté : 5 équipes.</b></p><ol><li><b>Barrage :</b> 4e contre 5e.</li><li><b>Demi-finales :</b> 1er contre le vainqueur du barrage, puis 2e contre 3e.</li><li><b>Finale :</b> les deux vainqueurs des demi-finales se rencontrent.</li></ol>',
+   6:'<p><b>Tableau adapté : 6 équipes.</b></p><ol><li><b>Barrages :</b> 3e contre 6e et 4e contre 5e.</li><li><b>Demi-finales :</b> 1er contre le vainqueur de 4e/5e, puis 2e contre le vainqueur de 3e/6e.</li><li><b>Finale :</b> les deux vainqueurs des demi-finales se rencontrent.</li></ol>'
+  };
+  const active=scenarios[teams],notice=active?'':teams<4?'<p>Le tableau Conquête sera affiché dès que l’effectif permettra de former au moins <b>4 équipes complètes</b>.</p>':'<p>La configuration actuelle permet '+teams+' équipes complètes. Le tableau Conquête est prévu pour 4, 5 ou 6 équipes ; l’organisation annoncera l’adaptation avant le début des matchs.</p>';
+  return intro+(active||notice)+'<p><b>Élimination :</b> en phase Conquête, une défaite met fin au parcours. À <b>3 buts d’écart</b>, l’équipe perdante est éliminée de la Conquête.</p><p>Les équipes éliminées peuvent encourager les finalistes ou continuer à jouer sur les autres terrains.</p>';
+ }
  function update(){
   const d=ctx.data(),t=d.tournament;if(!t)return;
   const tm=d.matches.filter(m=>m.tournament_id===t.id),begun=tm.some(started),finished=t.status==='finished';
@@ -167,8 +183,8 @@ function mount(ctx){
   const label=finished?'Tournoi terminé':begun?'Matchs en direct':t.team_review_status==='pending'?'Équipes en validation':t.team_review_status==='approved'?'Équipes validées':isFull?'Effectif complet':isClosed?'Inscriptions closes':'Inscriptions ouvertes';
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
   setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
-  const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',conquest=t.format==='conquest'||t.rotation_mode==='conquest',format=king?'Roi du terrain':(conquest?'Conquête du terrain':'Championnat classique'),formatEl=E('registrationFormat');
-  formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':conquest?' · Championnat puis phase à élimination':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);formatEl.classList.toggle('sp-conquest-format',conquest);root.classList.toggle('sp-conquest',conquest);
+  const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',conquest=!king&&isConquest(t),format=king?'Roi du terrain':conquest?'Conquête du terrain':'Tournoi classique',formatEl=E('registrationFormat');
+  formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
   const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
   const venueRaw=t.venue||'';
   const venueLabel=king?'Arena':(venueRaw.split(/\\s*[—-]\\s*/)[0]||venueRaw||'');
@@ -187,20 +203,10 @@ function mount(ctx){
   if(king){
    refreshRules(d);
    setHtml(rules.querySelector('div'),kingRules?'<p><b>'+Number(kingRules.player_count)+' inscrits confirmés · '+Number(kingRules.team_count)+' équipes complètes'+(kingRules.substitutes?' · '+Number(kingRules.substitutes)+' remplaçant(s)':'')+'</b></p>'+(kingRules.body?'<h3>'+esc(kingRules.title)+'</h3>'+paragraphs(kingRules.body):'<p>Le règlement spécifique sera affiché lorsque l’effectif permettra de constituer entre 3 et 7 équipes de 5. L’organisateur précisera l’organisation si le format est différent.</p>')+'<p>Les compositions seront disponibles lorsque les équipes auront été composées par l’organisation.</p><h3>'+esc(kingRules.common_title)+'</h3>'+paragraphs(kingRules.common_body):'<p>Chargement des règles adaptées aux inscriptions…</p>');
+  }else if(conquest){
+   setHtml(rules.querySelector('div'),conquestRules(t,confirmed));
   }else{
-   const isConquest=t.format==='conquest';
-   const plannedTeams=Math.max(3,Math.min(7,Number(t.generated_team_count||0)||Math.floor(Number(t.max_players||0)/Math.max(2,Number(t.team_size||5)))||3));
-   const conquestPaths={
-    3:['Le 3e affronte le 2e.','Le vainqueur affronte le 1er en finale.'],
-    4:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 3e affronte le 4e.','Le vainqueur rejoint le finaliste pour la finale.'],
-    5:['Le 4e affronte le 5e : le perdant est éliminé.','Le 1er affronte le vainqueur du barrage 4e/5e en demi-finale.','Le 2e affronte le 3e en demi-finale : ce match peut être placé au tour 1, en parallèle du barrage, ou au tour 2.','Les deux vainqueurs des demi-finales se rencontrent en finale.'],
-    6:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 3e affronte le 4e et le 5e affronte le 6e.','Les deux vainqueurs se rencontrent.','Le vainqueur rejoint le finaliste pour la finale.'],
-    7:['Le 1er affronte le 2e : le vainqueur attend en finale.','Le 4e affronte le 5e et le 6e affronte le 7e.','Les deux vainqueurs se rencontrent.','Le vainqueur affronte le 3e.','Le vainqueur rejoint le finaliste pour la finale.']
-   };
-   const plannedSubstitutes=Math.max(0,Number(t.max_players||0)-(plannedTeams*Math.max(2,Number(t.team_size||5))));
-   const path=conquestPaths[plannedTeams];
-   const conquestHtml='<p><b>Phase 1 · Championnat</b><br>Chaque équipe rencontre les autres. Le classement se calcule ainsi : 3 points pour une victoire, 1 pour un nul, 0 pour une défaite.</p><h3>⚔️ Phase 2 · Conquête · '+plannedTeams+' équipes prévues'+(plannedSubstitutes?' · '+plannedSubstitutes+' remplaçant'+(plannedSubstitutes>1?'s':'')+' prévu'+(plannedSubstitutes>1?'s':''):'')+'</h3><ol>'+path.map(function(step){return '<li>'+step+'</li>';}).join('')+'</ol><p><b>👑 Avantage du classement :</b> dans le premier duel 1er contre 2e, le vainqueur est qualifié pour la finale et bénéficie d’un match de repos.</p><p><b>⛔ Élimination :</b> à 3 buts d’écart, l’équipe perdante sort de la Conquête. En cas de nul sur un match à élimination, la décision se fait aux tirs au but.</p>';
-   setHtml(rules.querySelector('div'),isConquest?conquestHtml:'<p>Les équipes se rencontrent selon le calendrier du tournoi. Le classement est calculé aux points : 3 pour une victoire, 1 pour un nul, 0 pour une défaite.</p>'+(t.match_duration_minutes?'<p>Durée prévue : <b>'+Number(t.match_duration_minutes)+' min</b> par match.</p>':'')+(t.odd_team_rotation_rule?'<p>Avec une équipe en attente : rotation à 2 buts d’écart, ou au terme de la durée du match.</p>':'')+'<p>Les compositions seront disponibles lorsque les équipes auront été composées par l’organisation.</p><p>Respectez les horaires, les décisions de l’organisation et les autres joueurs.</p>');
+  setHtml(rules.querySelector('div'),'<p>'+ (king?'Le vainqueur reste sur le terrain du Roi ; les équipes tournent selon l’ordre organisé.':'Les équipes se rencontrent selon le calendrier du tournoi. Le classement est calculé aux points : 3 pour une victoire, 1 pour un nul, 0 pour une défaite.')+'</p>'+(t.match_duration_minutes?'<p>Durée prévue : <b>'+Number(t.match_duration_minutes)+' min</b> par match.</p>':'')+(t.odd_team_rotation_rule?'<p>Avec une équipe en attente : rotation à 2 buts d’écart, ou au terme de la durée du match.</p>':'')+'<p>Les compositions seront disponibles lorsque les équipes auront été composées par l’organisation.</p><p>Respectez les horaires, les décisions de l’organisation et les autres joueurs.</p>');
   }
   const live=ctx.appUrl+'live.html?'+new URLSearchParams({public:ctx.token,tournament:t.id}).toString();
   const now=tm.find(m=>['live','playing'].includes(m.status))||tm.filter(started).slice(-1)[0];
