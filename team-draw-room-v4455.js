@@ -7,7 +7,7 @@
   'use strict';
   if(window.SWETeamDrawSalonV2||document.querySelector('script[data-swe-team-draw-v2]'))return;
   const script=document.createElement('script');
-  script.src='./team-draw-room-salon-v5037.js?v=5038';
+  script.src='./team-draw-room-salon-v5037.js?v=5040';
   script.async=false;
   script.defer=true;
   script.dataset.sweTeamDrawV2='true';
