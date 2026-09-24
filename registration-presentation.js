@@ -35,6 +35,9 @@ function mount(ctx){
  ['publicSeasonScorers','publicSeasonAssists','publicTournamentTopFive'].forEach(id=>{const card=E(id)?.closest('.card');if(card){card.classList.add('sp-card');E('registrationSeasonRankings').append(card)}});
  body.append(E('registrationSeasonRankings'));
  const competitionTeams=E('registrationTeams');if(competitionTeams)body.insertBefore(competitionTeams,E('registrationSeasonRankings'));
+ // La présentation premium possède son propre grand tableau des équipes.
+ // On retire l’ancien petit encart pour ne jamais afficher les compositions deux fois.
+ E('publicTeams')?.closest('.card')?.remove();
  E('publicSeasonTopPlayers')?.closest('.card')?.classList.add('hidden');
  root.querySelectorAll(':scope > .grid').forEach(el=>{if(!el.querySelector('.card:not(.hidden)'))el.classList.add('hidden')});
  const donor=E('publicThirdHalfDonorCard');if(donor)body.querySelector('.sp-main').append(donor);
@@ -184,6 +187,7 @@ function mount(ctx){
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
   setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
   const king=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch',conquest=!king&&isConquest(t),format=king?'Roi du terrain':conquest?'Conquête du terrain':'Tournoi classique',formatEl=E('registrationFormat');
+  root.classList.toggle('sp-conquest',conquest);
   formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
   const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
   const venueRaw=t.venue||'';
