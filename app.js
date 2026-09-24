@@ -330,7 +330,7 @@ function hasTemporaryAdmin(){
   return new Date(S.myPermissions.temporary_admin_until).getTime()>Date.now();
 }
 function hasAdminOps(){return isAdmin()||hasTemporaryAdmin()}
-function formatLabel(t){return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='conquest'?'Conquête du terrain':(t?.format==='league'?'Ligue':'Championnat classique'))}
+function formatLabel(t){return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='league'?'Ligue':'Classique')}
 function registrationLink(t){
   if(!t||!S.workspace?.public_token)return '';
   if(t.short_code)return APP_URL+'?s='+encodeURIComponent(String(t.short_code).toUpperCase());
@@ -353,10 +353,7 @@ function seasonPublicRankingLink(){
   return APP_URL+'season.html?'+q.toString();
 }
 function canEditCurrentMatches(){const t=currentTour();return !!t && t.status!=='finished' && (hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores))}
-// Creating, editing or deleting a match changes the official tournament record.
-// Co-organizers (including temporary admins) can enter results, but only the
-// workspace administrator can alter match structure or delete a match.
-function canManageMatchStructure(){const t=currentTour();return !!t && hasAdminOps()}
+function canManageMatchStructure(){const t=currentTour();return !!t && t.status!=='finished' && hasAdminOps()}
 function makeDisabledActionButton(label,title){
   const b=document.createElement('button');b.textContent=label;b.disabled=true;b.setAttribute('aria-disabled','true');
   b.className='danger disabled-action';b.style.opacity='.38';b.style.filter='grayscale(1)';b.style.cursor='not-allowed';
@@ -398,7 +395,6 @@ function applyPermissions(){
     el.title=matchTabAllowed?'Saisir les matchs':'Aucune autorisation de saisie des scores';
   });
   document.querySelectorAll('[data-go="matches"]').forEach(el=>el.style.display=matchTabAllowed?'':'none');
-
   document.querySelectorAll('.admin-permissions-tab').forEach(el=>{
     el.classList.remove('hidden');
     el.classList.toggle('disabled-tab',!admin);
@@ -799,7 +795,6 @@ function renderSuperAdminWorkspaces(){
   accessRows.forEach(a=>{const k=String(a.user_id||'');if(!accessByUser.has(k))accessByUser.set(k,[]);accessByUser.get(k).push(a);});
   if($('#saTotalSpaces'))$('#saTotalSpaces').textContent=all.length;
   if($('#saActiveSpaces'))$('#saActiveSpaces').textContent=all.filter(w=>w.public_enabled).length;
-
   if($('#saSuspendedSpaces'))$('#saSuspendedSpaces').textContent=all.filter(w=>!w.public_enabled).length;
   if($('#saTotalPlayers'))$('#saTotalPlayers').textContent=all.reduce((n,w)=>n+Number(w.active_players||0),0);
   if($('#saTotalCompetitions'))$('#saTotalCompetitions').textContent=all.reduce((n,w)=>n+Number(w.tournament_count||0)+Number(w.league_count||0),0);
@@ -1200,7 +1195,6 @@ function renderMyPlayerHub(){
   if(!create||!dash)return;const d=S.playerDashboard;
   create.classList.toggle('hidden',!!d?.profile);dash.classList.toggle('hidden',!d?.profile);
   if(!d?.profile){if(identity){identity.classList.add('hidden');identity.innerHTML='';}return;}
-
   const p=d.profile,st=d.stats||{};
   if(identity){identity.classList.remove('hidden');identity.innerHTML='<span class="player-id-badge">'+esc(p.public_player_id)+'</span><span class="muted">ID joueur permanent</span>';}
   if($('#myPlayerPublicId'))$('#myPlayerPublicId').textContent=p.public_player_id;
@@ -1602,7 +1596,6 @@ async function renderSeasonScorerSummary(){
   let ass=[...stats.values()].filter(x=>x.a).sort((a,b)=>b.a-a.a||b.g-a.g||a.name.localeCompare(b.name));
   scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
 
-
   const scorHtml=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucun but enregistré.</p>';
   const assHtml=ass.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('')||'<p class="muted">Aucune passe enregistrée.</p>';
 
@@ -2002,7 +1995,6 @@ function refreshCoorgPurchasePrice(){
   const label=$('#homeCoorgTotalLabel');if(label)label.textContent=period==='year'?'Total annuel':'Total mensuel';
   const t=$('#homeCoorgTotal');if(t)t.innerHTML='<b>'+euroCents(total)+suffix+'</b><div class="muted">'+q+' accès × '+euroCents(unit)+' • '+frequencyLabel+'</div>';
   const b=$('#homeBuyCoorg');if(b&&!S.coorgCheckoutPending)b.innerHTML='💳 Ajouter '+q+' accès équipe — '+euroCents(total)+suffix+' <span>→</span>';
-
 }
 async function confirmCoorgCheckoutFromUrl(){
   const p=new URLSearchParams(location.search);
@@ -2403,7 +2395,6 @@ function renderPlayers(){
         if(error)return toast(error.message);
         await loadAll();
         toast(next?'Joueur réactivé ✅':'Joueur suspendu.');
-
       };
       const del=document.createElement('button');
       del.textContent='🗑 Supprimer';
@@ -2804,7 +2795,6 @@ function appendTournamentSeasonControl(container,t){
   const save=document.createElement('button');
   save.type='button';
   save.className='primary';
-
   save.textContent='💾 Enregistrer la saison';
   save.onclick=async()=>{
     const newSeasonId=sel.value||null;
@@ -2828,9 +2818,8 @@ function renderTournaments(){
   const box=$('#tournamentList');box.innerHTML='';
 
   const tournamentOnly=S.tournaments.filter(t=>t.format!=='league');
-  const selectedTournament=tournamentOnly.find(t=>t.id===S.activeTour);
-  const current=selectedTournament?[selectedTournament]:tournamentOnly.filter(t=>t.status!=='finished');
-  const finished=selectedTournament?[]:tournamentOnly.filter(t=>t.status==='finished');
+  const current=tournamentOnly.filter(t=>t.status!=='finished');
+  const finished=tournamentOnly.filter(t=>t.status==='finished');
 
   if(!current.length){
     const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucun tournoi en cours.';box.appendChild(empty);
@@ -2857,11 +2846,7 @@ function renderTournaments(){
     const open=document.createElement('button');open.textContent=t.id===S.activeTour?'Actif':'Ouvrir';if(t.id===S.activeTour)open.className='green';
     open.onclick=async()=>{S.activeTour=t.id;await loadTournament();renderAll();toast('Tournoi sélectionné')};
     top.appendChild(open);
-    const registrationUrl=registrationLink(t);
-    const registrationShare=document.createElement('button');registrationShare.textContent='🔗 Copier le lien d’inscription';registrationShare.disabled=!registrationUrl;registrationShare.onclick=async()=>{try{await navigator.clipboard.writeText(registrationUrl);toast('Lien d’inscription copié ✅');}catch(_){window.prompt('Copie ce lien d’inscription :',registrationUrl);}};top.appendChild(registrationShare);
-    const liveUrl=t.short_code?APP_URL+'live.html?s='+encodeURIComponent(String(t.short_code).toUpperCase()):(S.workspace?.public_token?APP_URL+'live.html?public='+encodeURIComponent(S.workspace.public_token)+'&tournament='+encodeURIComponent(t.id):'');
-    const liveShare=document.createElement('button');liveShare.textContent='⚡ Copier le lien SWÉ Live';liveShare.disabled=!liveUrl;liveShare.onclick=async()=>{try{await navigator.clipboard.writeText(liveUrl);toast('Lien SWÉ Live copié ✅');}catch(_){window.prompt('Copie ce lien SWÉ Live :',liveUrl);}};top.appendChild(liveShare);
-    const waShare=document.createElement('button');waShare.textContent='🟢 Partager WhatsApp';waShare.onclick=()=>{const front=registrationUrl||'https://swetournament.fr/?swe='+encodeURIComponent(t.id);const mode=t.discovery_mode==='public'?'inscriptions directes':t.discovery_mode==='request'?'participation sur demande':'accès par lien';const msg='⚽ '+(t.name||'Nouveau Swé')+' • '+t.tournament_date+(t.start_time?' à '+String(t.start_time).slice(0,5):'')+'\n📍 '+(t.venue||'Lieu à confirmer')+'\n'+mode+'\n👉 '+front;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');};top.appendChild(waShare);
+    const waShare=document.createElement('button');waShare.textContent='🟢 Partager WhatsApp';waShare.onclick=()=>{const front='https://swetournament.fr/?swe='+encodeURIComponent(t.id);const mode=t.discovery_mode==='public'?'inscriptions directes':t.discovery_mode==='request'?'participation sur demande':'accès par lien';const msg='⚽ '+(t.name||'Nouveau Swé')+' • '+t.tournament_date+(t.start_time?' à '+String(t.start_time).slice(0,5):'')+'\n📍 '+(t.venue||'Lieu à confirmer')+'\n'+mode+'\n👉 '+front;window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');};top.appendChild(waShare);
     if(S.organizerSettings?.whatsapp_group_url){const wg=document.createElement('button');wg.textContent='💬 Groupe WhatsApp';wg.onclick=()=>window.open(S.organizerSettings.whatsapp_group_url,'_blank','noopener');top.appendChild(wg);}
     d.appendChild(top);
 
@@ -2910,10 +2895,11 @@ function renderTournaments(){
       const paymentCandidates=candidates.filter(p=>registeredIds.has(String(p.id))||String(p.id)===String(assignment.payment_player_id||''));
       const paymentOptions='<option value="">Choisir un inscrit</option>'+paymentCandidates.map(p=>'<option value="'+esc(p.id)+'" '+(String(p.id)===String(assignment.payment_player_id||'')?'selected':'')+'>'+esc(p.name)+' • Inscrit</option>').join('');
       const coolerAssignments=document.createElement('section');coolerAssignments.className='tournament-action-section tournament-cooler-assignments'+(thirdCb.checked?'':' hidden');coolerAssignments.dataset.tournamentSection='cooler';
-      coolerAssignments.innerHTML='<div class="tournament-action-heading"><span class="tournament-step-number">3</span><div><h3>🧊 Glacière &amp; 3e mi-temps</h3><p>Organiser la glacière</p></div></div><div class="muted tournament-section-help">Trois rôles distincts. Les responsables du matériel peuvent être membres ou non-membres ; le responsable du lien doit être inscrit au tournoi.</div><div class="grid g3 tournament-cooler-role-grid"><label><b>1. Qui apporte la glacière ?</b><select data-admin-cooler-player>'+assignmentOptions(assignment.cooler_player_id,'Choisir une personne')+'</select></label><label><b>2. Qui apporte les glaçons ?</b><select data-admin-ice-player>'+assignmentOptions(assignment.ice_player_id,'Choisir une personne')+'</select></label><label><b>3. Qui met son lien de paiement ?</b><select data-admin-payment-player>'+paymentOptions+'</select></label></div><div data-admin-cooler-payment-note class="readonly-note"></div><div class="player" style="margin-top:12px"><b>⭐ Ton apport personnel</b><p class="muted" style="margin:4px 0 8px">Il sera affiché dans le Top donateurs du lien d’inscription.</p><div class="grid g3"><label><span class="muted">Nature</span><select data-admin-contribution-mode><option value="supplies">Apport matériel</option><option value="money">Participation financière</option></select></label><label data-admin-contribution-money><span class="muted">Montant</span><select data-admin-contribution-amount><option value="50">0,50 €</option><option value="100">1,00 €</option><option value="150">1,50 €</option><option value="200">2,00 €</option><option value="250">2,50 €</option><option value="300">3,00 €</option><option value="350">3,50 €</option><option value="400">4,00 €</option><option value="450">4,50 €</option><option value="500">5,00 €</option></select></label><label data-admin-contribution-supplies><span class="muted">Ce que tu apportes</span><select data-admin-contribution-item><option value="cooler">Une glacière</option><option value="ice">Des glaçons</option><option value="beers_3">3 bières</option><option value="beers_5">5 bières</option><option value="beers_6">6 bières</option><option value="ti_punch">Du ti-punch</option><option value="fruits">Des fruits</option><option value="cups">Des gobelets</option><option value="soft_drinks">Boissons sans alcool</option><option value="snacks">Snacks / apéritif</option><option value="other">Autre apport</option></select></label></div><button type="button" style="margin-top:8px" data-save-admin-contribution>Enregistrer mon apport</button><p class="muted" style="margin:8px 0 0;font-style:italic">« Ce n’est pas le montant qui fait la 3e mi-temps, c’est chaque apport qui permet de partager un bon moment dans de bonnes conditions. »</p></div><div class="tournament-cooler-rules">🔒 Lien HTTPS personnel, partagé uniquement après activation par son responsable · maximum 5 € par personne · aucun fonds géré par SWÉ.</div><button type="button" class="primary" data-save-third-half-assignments>Enregistrer les 3 affectations</button>';
+      coolerAssignments.innerHTML='<div class="tournament-action-heading"><span class="tournament-step-number">3</span><div><h3>🧊 Glacière &amp; 3e mi-temps</h3><p>Organiser la glacière</p></div></div><div class="muted tournament-section-help">Trois rôles distincts. Les responsables du matériel peuvent être membres ou non-membres ; le responsable du lien doit être inscrit au tournoi.</div><div class="grid g3 tournament-cooler-role-grid"><label><b>1. Qui apporte la glacière ?</b><select data-admin-cooler-player>'+assignmentOptions(assignment.cooler_player_id,'Choisir une personne')+'</select></label><label><b>2. Qui apporte les glaçons ?</b><select data-admin-ice-player>'+assignmentOptions(assignment.ice_player_id,'Choisir une personne')+'</select></label><label><b>3. Qui met son lien de paiement ?</b><select data-admin-payment-player>'+paymentOptions+'</select></label></div><div data-admin-cooler-payment-note class="readonly-note"></div><div class="player tournament-cooler-link-editor" style="margin-top:12px"><b>💳 Lien Glacière du responsable</b><p class="muted" style="margin:4px 0 8px">Tu peux l’enregistrer ici pour le responsable sélectionné. Il sera partagé aux inscrits dès l’enregistrement.</p><div class="grid g3"><label><span class="muted">Solution</span><select data-admin-cooler-link-provider><option value="">Choisir…</option>'+['Revolut','PayPal','Sumeria','Lydia','Autre'].map(x=>'<option value="'+x+'" '+(assignment.payment_provider===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label><span class="muted">Montant demandé</span><select data-admin-cooler-link-amount>'+[50,100,150,200,250,300,350,400,450,500].map(c=>'<option value="'+c+'" '+(Number(assignment.suggested_amount_cents||300)===c?'selected':'')+'>'+euroCents(c)+'</option>').join('')+'</select></label><label><span class="muted">Lien HTTPS</span><input data-admin-cooler-link type="url" maxlength="500" placeholder="https://..." value="'+esc(assignment.payment_link||'')+'"></label></div><button type="button" class="primary" style="margin-top:8px" data-save-admin-cooler-link>Enregistrer et partager le lien</button></div><div class="player" style="margin-top:12px"><b>⭐ Ton apport personnel</b><p class="muted" style="margin:4px 0 8px">Il sera affiché dans le Top donateurs du lien d’inscription.</p><div class="grid g3"><label><span class="muted">Nature</span><select data-admin-contribution-mode><option value="supplies">Apport matériel</option><option value="money">Participation financière</option></select></label><label data-admin-contribution-money><span class="muted">Montant</span><select data-admin-contribution-amount><option value="50">0,50 €</option><option value="100">1,00 €</option><option value="150">1,50 €</option><option value="200">2,00 €</option><option value="250">2,50 €</option><option value="300">3,00 €</option><option value="350">3,50 €</option><option value="400">4,00 €</option><option value="450">4,50 €</option><option value="500">5,00 €</option></select></label><label data-admin-contribution-supplies><span class="muted">Ce que tu apportes</span><select data-admin-contribution-item><option value="cooler">Une glacière</option><option value="ice">Des glaçons</option><option value="beers_3">3 bières</option><option value="beers_5">5 bières</option><option value="beers_6">6 bières</option><option value="ti_punch">Du ti-punch</option><option value="fruits">Des fruits</option><option value="cups">Des gobelets</option><option value="soft_drinks">Boissons sans alcool</option><option value="snacks">Snacks / apéritif</option><option value="other">Autre apport</option></select></label></div><button type="button" style="margin-top:8px" data-save-admin-contribution>Enregistrer mon apport</button><p class="muted" style="margin:8px 0 0;font-style:italic">« Ce n’est pas le montant qui fait la 3e mi-temps, c’est chaque apport qui permet de partager un bon moment dans de bonnes conditions. »</p></div><div class="tournament-cooler-rules">🔒 Lien HTTPS personnel, partagé uniquement après activation par son responsable · maximum 5 € par personne · aucun fonds géré par SWÉ.</div><button type="button" class="primary" data-save-third-half-assignments>Enregistrer les 3 affectations</button>';
       const coolerSelect=coolerAssignments.querySelector('[data-admin-cooler-player]'),iceSelect=coolerAssignments.querySelector('[data-admin-ice-player]'),paymentSelect=coolerAssignments.querySelector('[data-admin-payment-player]'),paymentNote=coolerAssignments.querySelector('[data-admin-cooler-payment-note]');
       const updatePaymentNote=()=>{const id=paymentSelect.value;if(!id){paymentNote.textContent='Le lien reste désactivé tant qu’aucun inscrit responsable n’est choisi.';return;}const name=candidates.find(p=>String(p.id)===String(id))?.name||'Cette personne';paymentNote.innerHTML='✅ <b>'+esc(name)+'</b> est inscrit : il pourra renseigner puis activer son propre lien HTTPS depuis son parcours joueur.';};
       paymentSelect.onchange=updatePaymentNote;updatePaymentNote();
+      coolerAssignments.querySelector('[data-save-admin-cooler-link]').onclick=async e=>{const b=e.currentTarget,responsible=paymentSelect.value,provider=coolerAssignments.querySelector('[data-admin-cooler-link-provider]').value,link=coolerAssignments.querySelector('[data-admin-cooler-link]').value.trim(),amount=Number(coolerAssignments.querySelector('[data-admin-cooler-link-amount]').value||0);if(!responsible)return toast('Choisis d’abord le responsable du lien.');if(!provider)return toast('Choisis la solution de paiement.');if(!/^https:\/\/\S+$/i.test(link))return toast('Ajoute un lien complet commençant par https://.');b.disabled=true;b.textContent='Enregistrement…';const {data,error}=await sb.rpc('admin_save_third_half_payment_link_v1',{p_tournament_id:t.id,p_responsible_player_id:responsible,p_provider:provider,p_payment_link:link,p_suggested_amount_cents:amount});b.disabled=false;b.textContent='Enregistrer et partager le lien';if(error)return toast(error.message);if(data?.saved!==true)return toast('Le lien n’a pas pu être vérifié. Réessaie.');await loadAll();toast('Lien Glacière enregistré et partagé ✅');};
       const adminContributionMode=coolerAssignments.querySelector('[data-admin-contribution-mode]'),adminContributionAmount=coolerAssignments.querySelector('[data-admin-contribution-amount]'),adminContributionItem=coolerAssignments.querySelector('[data-admin-contribution-item]'),adminContributionMoney=coolerAssignments.querySelector('[data-admin-contribution-money]'),adminContributionSupplies=coolerAssignments.querySelector('[data-admin-contribution-supplies]');
       adminContributionMode.value=assignment.admin_contribution_mode||'supplies';adminContributionAmount.value=String(assignment.admin_contribution_amount_cents||50);adminContributionItem.value=assignment.admin_contribution_item||'beers_3';
       const updateAdminContributionFields=()=>{const money=adminContributionMode.value==='money';adminContributionMoney.classList.toggle('hidden',!money);adminContributionSupplies.classList.toggle('hidden',money);};adminContributionMode.onchange=updateAdminContributionFields;updateAdminContributionFields();
@@ -2962,7 +2948,6 @@ function renderTournaments(){
       refInput.value=t.reservation_reference||'';
 
       let selectedPitchIds=new Set((t.reserved_pitch_ids||[]).map(String));
-      const roleEditor=t.rotation_mode==='king_of_pitch'?window.SWEPitchRoles.editor(t,()=>[...selectedPitchIds]):null;
 
       const renderEditPitches=()=>{
         const rows=S.sportsPitches.filter(p=>p.active!==false&&String(p.complex_id)===String(complexSel.value));
@@ -2980,7 +2965,6 @@ function renderTournaments(){
               toast('Maximum 3 terrains pour un tournoi.');
             }
             selectedPitchIds=new Set([...pitchWrap.querySelectorAll('.editTourPitchCheck:checked')].map(x=>String(x.value)));
-            roleEditor?.refresh();
           };
         });
       };
@@ -2989,7 +2973,6 @@ function renderTournaments(){
         e.stopPropagation();
         selectedPitchIds=new Set();
         renderEditPitches();
-        roleEditor?.refresh();
       };
 
       renderEditPitches();
@@ -3014,7 +2997,6 @@ function renderTournaments(){
       firstGrid.append(dateInput,complexSel);
       editBox.appendChild(firstGrid);
       editBox.appendChild(pitchWrap);
-      if(roleEditor)editBox.appendChild(roleEditor.node);
 
       const detailsGrid=document.createElement('div');
       detailsGrid.className='grid g3';
@@ -3078,15 +3060,12 @@ function renderTournaments(){
         const selectedPitches=S.sportsPitches.filter(p=>pitchIds.includes(String(p.id))&&String(p.complex_id)===String(complexId));
         if(selectedPitches.length!==pitchIds.length)return toast('Un terrain sélectionné est invalide.');
 
-        let rolePatch={};
-        try{rolePatch=roleEditor?.patch()||{}}catch(error){return toast(error.message)}
         const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' — ');
 
         saveDetails.disabled=true;
         saveDetails.textContent='Enregistrement…';
 
-        const {error}=await window.SWEPitchRoles.update(t,{
-          ...rolePatch,
+        const {error}=await sb.from('tournaments').update({
           tournament_date:tournamentDate,
           complex_id:complexId,
           reserved_pitch_ids:pitchIds,
@@ -3095,7 +3074,7 @@ function renderTournaments(){
           entry_fee_cents:Math.round(price*100),
           reservation_reference:refInput.value.trim()||null,
           season_id:seasonEditSel.value||null
-        });
+        }).eq('id',t.id);
 
         if(error){
           saveDetails.disabled=false;
@@ -3174,7 +3153,6 @@ function renderTournaments(){
     };
     const postTournament=document.createElement('details');postTournament.className='tournament-post-actions';
     postTournament.innerHTML='<summary><span>Actions après le tournoi</span><small>Terminer, consulter ou supprimer</small></summary>';
-    if(hasAdminOps())postTournament.open=true;
     const postTournamentButtons=document.createElement('div');postTournamentButtons.className='tournament-post-buttons';
     if(hasAdminOps()){
       postTournamentButtons.appendChild(finish);
@@ -3210,7 +3188,6 @@ function renderTournaments(){
             return;
           }
           regList.innerHTML=registrationSummaryHtml(t.id);
-
           regList.classList.remove('hidden');
           regBtn.textContent='Masquer la liste des inscrits';
         }else{
@@ -3375,6 +3352,9 @@ $('#createTournament').onclick=async()=>{
   const complexId=$('#tourComplex')?.value||'';
   const startTime=$('#tourStartTime')?.value||'';
   const feeRaw=$('#tourEntryFee')?.value;
+  const coolerLink=$('#tourCoolerLink')?.value.trim()||'';
+  const coolerProvider=$('#tourCoolerLinkProvider')?.value||'';
+  const coolerAmount=Number($('#tourCoolerLinkAmount')?.value||0);
   const pitchIds=[...document.querySelectorAll('.tourPitchCheck:checked')].map(x=>x.value);
   if(!complexId)return toast('Choisis le complexe sportif.');
   if(!pitchIds.length)return toast('Choisis au moins 1 terrain réservé.');
@@ -3416,6 +3396,7 @@ $('#createTournament').onclick=async()=>{
     if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active « Accepter des joueurs externes » pour rendre ce Swé visible aux joueurs solo.');
     if(row.admin_payment_link_enabled&&(!row.admin_payment_provider||!row.admin_payment_link))throw new Error('Choisis la solution de paiement et ajoute ton lien HTTPS avant de l’afficher.');
     if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant d’exiger un paiement en ligne.');
+    if(coolerLink&&(!row.third_half_active||!coolerProvider||!/^https:\/\/\S+$/i.test(coolerLink)))throw new Error('Pour le lien Glacière, active le module puis choisis une solution et un lien HTTPS valide.');
     if(S.workspaceFeatures.third_half_enabled)row.cooler_suggested_cents=Math.min(500,Math.round(Math.max(0,Number($('#tourCoolerSuggested')?.value)||0)*100));
     const {data,error}=await sb.from('tournaments').insert(row).select().single();
     if(error)throw error;
@@ -3427,6 +3408,10 @@ $('#createTournament').onclick=async()=>{
         p_ice_player_id:$('#tourIcePlayer')?.value||null
       });
       if(assignmentError)console.warn('SWÉ: affectations glacière non enregistrées',assignmentError);
+      if(coolerLink){
+        const {data:linkData,error:linkError}=await sb.rpc('admin_save_third_half_payment_link_v1',{p_tournament_id:data.id,p_responsible_player_id:S.myLinkedPlayerId||null,p_provider:coolerProvider,p_payment_link:coolerLink,p_suggested_amount_cents:coolerAmount});
+        if(linkError||linkData?.saved!==true)throw (linkError||new Error('Le lien Glacière n’a pas pu être enregistré.'));
+      }
     }
     S.activeTour=data.id;
     S.tournaments=[data,...S.tournaments.filter(t=>t.id!==data.id)].sort((a,b)=>String(b.tournament_date).localeCompare(String(a.tournament_date)));
@@ -3611,7 +3596,6 @@ function renderTeams(){
           }
           try{await syncTournamentSubstitutes(t.id)}catch(error){c.checked=!joining;return toast(error.message)}
           await loadTournament();renderAll();
-
           const fresh=S.tPlayers.find(tp=>String(tp.player_id)===String(x.id));
           toast(joining?(fresh?.registration_status==='waitlist'||fresh?.is_substitute?'Joueur ajouté comme remplaçant 🟠':'Joueur ajouté aux confirmés ✅'):'Joueur retiré du tournoi.');
         };
@@ -3873,7 +3857,6 @@ function buildMatchPlayerManager(match,home,away){
 
 function renderMatches(){
   const current=currentTour();
-  window.SWEPitchRoles?.mountMatches(current);
   const selector=$('#matchCompetitionSelect');
   const selectorStatus=$('#matchCompetitionStatus');
   const accessHelp=$('#matchAccessHelp');
@@ -3918,33 +3901,12 @@ function renderMatches(){
   if(req)req.classList.toggle('hidden',!isLeagueMatch);
   const rr=$('#roundRobin');
   if(rr){
-    const autoRotation=current?.rotation_mode==='king_of_pitch'&&current.rotation_state?.initialized;
-    rr.classList.toggle('hidden',!!autoRotation);
-    rr.disabled=!!isLeagueMatch||!!autoRotation;
-    rr.title=autoRotation?'Termine les matchs en cours : le circuit crée la suite automatiquement.':isLeagueMatch?'En Ligue, crée chaque match individuellement afin d’indiquer son terrain.':'';
+    rr.disabled=!!isLeagueMatch;
+    rr.title=isLeagueMatch?'En Ligue, crée chaque match individuellement afin d’indiquer son terrain.':'';
   }
   $('#homeTeam').innerHTML=matchOptions();
   $('#awayTeam').innerHTML=matchOptions();
   const box=$('#matchesList');box.innerHTML='';
-  if(hasAdminOps()&&current){
-    const resetWrap=document.createElement('div');resetWrap.className='player';resetWrap.style.marginBottom='12px';resetWrap.style.background='#fff4f4';resetWrap.style.border='1px solid #f2aaaa';
-    const resetText=document.createElement('div');resetText.innerHTML='<b>⚠️ Réinitialiser les matchs</b><div class="muted" style="margin-top:4px">Supprime tous les matchs de ce tournoi, y compris ceux en cours ou terminés. Les équipes et les inscriptions restent intactes.</div>';
-    const reset=document.createElement('button');reset.type='button';reset.className='danger';reset.textContent='Réinitialiser tous les matchs à 0';
-    reset.onclick=async()=>{
-      const count=S.matches.length;
-      if(!count)return toast('Aucun match à supprimer pour ce tournoi.');
-      if(!confirm('Réinitialiser '+count+' match'+(count>1?'s':'')+' ? Cette action supprime aussi les scores, buts et feuilles de match.'))return;
-      const typed=prompt('Pour confirmer, saisis exactement REINITIALISER');
-      if(typed!=='REINITIALISER')return toast('Réinitialisation annulée.');
-      reset.disabled=true;
-      const {data,error}=await sb.rpc('admin_reset_tournament_matches_v1',{p_tournament_id:current.id});
-      reset.disabled=false;
-      if(error)return toast(error.message);
-      await loadTournament();renderAll();
-      toast((data?.deleted_matches||count)+' match'+((data?.deleted_matches||count)>1?'s supprimés':' supprimé')+' — tournoi remis à zéro ✅');
-    };
-    resetWrap.append(resetText,reset);box.appendChild(resetWrap);
-  }
   S.matches.forEach((m,i)=>{
     const home=tm(m.home_team_id),away=tm(m.away_team_id);if(!home||!away)return;
     const d=document.createElement('div');d.className='card match';
@@ -3997,9 +3959,7 @@ function renderMatches(){
         const goalCount=S.goals.filter(g=>g.match_id===m.id).length;
         const msg=goalCount?'Supprimer ce match ? Les '+goalCount+' but(s) liés seront aussi supprimés.':'Supprimer ce match ?';
         if(!confirm(msg))return;
-        del.disabled=true;
-        const {error}=await sb.rpc('admin_delete_tournament_match_v1',{p_match_id:m.id});
-        del.disabled=false;
+        const {error}=await sb.from('matches').delete().eq('id',m.id);
         if(error)return toast(error.message);
         await loadTournament();renderAll();toast('Match supprimé ✅');
       };
@@ -4033,7 +3993,6 @@ function renderMatches(){
       const r=document.createElement('div');r.className='row small';
       r.innerHTML='<span style="flex:1">⚽ '+esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' ← '+esc(p(g.assister_player_id)?.name||''):'')+'</span>';
       const x=document.createElement('button');x.textContent='Annuler';
-
       x.onclick=async()=>{const {error}=await sb.from('goals').delete().eq('id',g.id);if(error)return toast(error.message);await loadTournament();renderAll();toast('But annulé')};
       if(canEditCurrentMatches())r.appendChild(x);hist.appendChild(r);
     });
@@ -4050,12 +4009,11 @@ $('#addMatch').onclick=async()=>{
   if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_enter_scores)return toast('Tu n’es pas autorisé à saisir les scores.');
   const t=currentTour(),home=$('#homeTeam').value,away=$('#awayTeam').value,pitch=$('#pitch').value;
   if(!t||!home||!away||home===away)return toast('Choisis deux équipes différentes');
-  if(t.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized)return toast('Le circuit est actif. Termine les matchs en cours pour créer la suite automatiquement.');
   if(t.format==='league'&&!pitch)return toast('Pour un match de Ligue, indique obligatoirement le terrain.');
   const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:S.matches.length+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null});
   if(error)toast(error.message);else{$('#pitch').value='';$('#roundLabel').value=''}
 };
-$('#roundRobin').onclick=async()=>{const t=currentTour();if(t?.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized)return toast('Le circuit est actif. Termine les matchs en cours pour créer la suite automatiquement.');if(!t||S.teams.length<2)return toast('Crée les équipes d’abord');if(t.format==='league')return toast('En Ligue, crée les matchs un par un afin d’indiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent déjà');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs générés')};
+$('#roundRobin').onclick=async()=>{const t=currentTour();if(!t||S.teams.length<2)return toast('Crée les équipes d’abord');if(t.format==='league')return toast('En Ligue, crée les matchs un par un afin d’indiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent déjà');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs générés')};
 
 
 async function renderLeague(){
@@ -4434,7 +4392,6 @@ $('#createLeagueSession').onclick=async()=>{
   });
   if(error)return toast(error.message);
   S.activeLeague=league.id;S.activeTour=data;
-
   $('#leagueSessionName').value='';$('#leagueSessionReservationRef').value='';$('#leagueSessionRegistrationDeadline').value=defaultRegistrationDeadlineLocal($('#leagueSessionDate').value);
   await loadAll();setView('league');toast('Swé créé dans « '+league.name+' » ✅');
 };
@@ -4656,12 +4613,12 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_members'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_invites'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=5031-role-by-pitch',{updateViaCache:'none'})
+  navigator.serviceWorker.register('./sw.js?v=5015-ios-pwa',{updateViaCache:'none'})
     .then(reg=>{
       reg.update().catch(()=>{});
       const reloadAfterWorkerUpdate=()=>{
-        if(sessionStorage.getItem('SW_BUILD_RELOAD_5031'))return;
-        sessionStorage.setItem('SW_BUILD_RELOAD_5031','1');
+        if(sessionStorage.getItem('SW_BUILD_RELOAD_5015'))return;
+        sessionStorage.setItem('SW_BUILD_RELOAD_5015','1');
         location.reload();
       };
       navigator.serviceWorker.addEventListener('controllerchange',reloadAfterWorkerUpdate,{once:true});
@@ -4835,7 +4792,6 @@ async function shareCurrentVisual(){
   if(navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
     try{
       await navigator.share({files:[file],title:'SWÉ TOURNAMENT 5/5'});
-
       return;
     }catch(e){if(e.name==='AbortError')return;}
   }
@@ -5236,7 +5192,6 @@ async function loadPublicPage(token,bootState){
     };
     $('#publicNewLeagueJoin').onclick=async()=>{
       const name=$('#publicNewLeaguePlayerName').value.trim();
-
       if(!name)return $('#publicNewLeagueStatus').textContent='Entre ton nom.';
       const b=$('#publicNewLeagueJoin');b.disabled=true;
       const {error}=await sb.rpc('public_register_new_league_player',{p_token:token,p_league_id:league.id,p_name:name});
@@ -5330,7 +5285,7 @@ async function loadPublicPage(token,bootState){
     }).join('')+'</div>';
     $('#publicView').innerHTML=
       '<header class="top"><div class="row" style="justify-content:space-between"><div><h1>⚽ '+esc(ht.name||'SWÉ TOURNAMENT 5/5')+'</h1><div class="public-sub">'+ht.tournament_date+' • Historique</div></div><button id="backPublic">← Retour</button></div></header>'+
-      '<div class="card" style="border:2px solid #d7b75f;background:#fff9df"><h2 class="sectiontitle">⭐ Co-gestionnaires présents</h2><p class="muted">Vous étiez présent au Swé ? Connectez-vous avec votre compte co-gestionnaire pour donner vos évaluations. Seules les personnes autorisées peuvent accéder à la notation.</p><a class="primary" href="'+esc(APP_URL+'?rate='+encodeURIComponent(ht.id))+'" style="display:inline-block;text-decoration:none">🔐 Se connecter pour noter les joueurs</a></div>'+'<div class="card"><h2 class="sectiontitle">👥 Équipes</h2>'+ (teamsRows||'<p class="muted">Aucune équipe.</p>') +'</div>'+
+      '<div class="card"><h2 class="sectiontitle">👥 Équipes</h2>'+ (teamsRows||'<p class="muted">Aucune équipe.</p>') +'</div>'+
       '<div class="card"><h2 class="sectiontitle">🏆 Classement final</h2>'+ (teamRows||'<p class="muted">Aucun classement.</p>') +'</div>'+
       '<div class="grid g2"><div class="card"><h2 class="sectiontitle">⚽ Buteurs</h2><div id="historyScorersBox">'+(historyRankRows(scor,'g')||'<p class="muted">Aucun buteur.</p>')+'</div>'+(scor.length>10?'<button id="historyToggleScorers" style="margin-top:10px">Développer</button>':'')+'</div>'+
       '<div class="card"><h2 class="sectiontitle">🎯 Passeurs</h2><div id="historyAssistsBox">'+(historyRankRows(ass,'a')||'<p class="muted">Aucun passeur.</p>')+'</div>'+(ass.length>10?'<button id="historyToggleAssists" style="margin-top:10px">Développer</button>':'')+'</div></div>'+
@@ -5358,11 +5313,6 @@ async function loadPublicPage(token,bootState){
   }else if(!consultationOnly&&(wantsLeagueSession||wantsTournament)){
     regTour=openTours.find(modeMatches)||null;
   }
-  function publishPublicCompositionContext(){
-    window.__swePublicCompositionContext={tournament:regTour,tournaments,teams,teamPlayers,players};
-    document.dispatchEvent(new Event('swe:public-composition-ready'));
-  }
-  publishPublicCompositionContext();
   const regBox=$('#publicRegistration');
   let registrationPresentation=null;
   let registrationCoorganizers=[],registrationRatingWindows=[],registrationIsCoorganizer=false,registrationPersonalInstruction='';
@@ -5637,7 +5587,6 @@ async function loadPublicPage(token,bootState){
       const pid=$('#publicPlayerSelect')?.value||'';
       const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
       const amount=Math.max(0,Math.min(500,Number(state.suggested_amount_cents||0)));
-
       const owner=String(pid)===String(state.responsible_player_id||'');
       const ownerName=state.responsible_player_name||'À désigner';
       const ownerInitial=ownerName.trim().charAt(0).toUpperCase()||'?';
@@ -6038,7 +5987,6 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
         const b=$('#acceptTeamInvitation');b.disabled=true;
         const {error}=await sb.rpc('public_respond_team_invitation',{p_token:token,p_tournament_id:regTour.id,p_player_id:pid,p_accept:true});
         b.disabled=false;if(error)return toast(error.message);
-
         toast('Équipe acceptée ✅');await refreshPublicRegistration();
       };
       $('#declineTeamInvitation').onclick=async()=>{
@@ -6142,7 +6090,6 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
         teamPlayers=data.team_players||teamPlayers;
         teamInvitations=data.team_player_invitations||teamInvitations;
         matchAssignments=data.match_player_assignments||matchAssignments;
-        publishPublicCompositionContext();
         renderPublicRegistrationList();
         refreshPublicPlayerSelect();
         updateSelectedRegistrationStatus();
@@ -6439,7 +6386,6 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
       if(status)status.innerHTML='<b>'+info.total+'/5 places occupées ou réservées</b> • '+info.remaining+' place'+(info.remaining>1?'s':'')+' restante'+(info.remaining>1?'s':'');
       const addBtn=$('#publicAddTeamGuest');
       if(addBtn){
-
         addBtn.disabled=info.remaining<=0;
         addBtn.textContent=info.remaining<=0?'Équipe complète (5 joueurs)':'+ Ajouter un autre invité';
       }
@@ -6840,7 +6786,6 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
           return '<div class="small" style="margin-top:5px">⚽ '+esc(scorer?.name||'?')+(assister?' <span class="muted">← '+esc(assister.name)+'</span>':'')+'</div>';
         }).join('');
         return rows||'<div class="small muted" style="margin-top:5px">Aucun buteur</div>';
-
       };
       const rated=publicPlayerRatingsEnabled?matchAssignments.filter(a=>a.match_id===m.id&&a.team_id).map(a=>{
         const pl=pmap.get(a.player_id),rr=ratingForMatchPlayer(m,a.player_id,a.team_id,goals);
