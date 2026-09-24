@@ -299,7 +299,7 @@
   }
 
   document.addEventListener('click',event=>{
-    const target=event.target.closest?.('[data-swe-v2-open],[data-swe-v2-close],[data-swe-v2-start],[data-swe-v2-proposal],[data-swe-v2-generate],[data-swe-v2-feedback],[data-swe-v2-select],[data-swe-v2-publish],[data-swe-v2-refresh],#smartAutoTeams');
+    const target=event.target.closest?.('[data-swe-v2-open],[data-swe-v2-close],[data-swe-v2-start],[data-swe-v2-proposal],[data-swe-v2-generate],[data-swe-v2-feedback],[data-swe-v2-select],[data-swe-v2-publish],[data-swe-v2-refresh],[data-swe-open-draw-room],[data-coorg-action="team"],#smartAutoTeams');
     if(!target)return;
     if(target.matches('#smartAutoTeams')){
       const s=appState(),t=(s?.tournaments||[]).find(item=>String(item.id)===String(s?.teamCompetitionId||s?.activeTour));
@@ -307,7 +307,7 @@
     }
     event.preventDefault();
     event.stopImmediatePropagation();
-    if(target.matches('#smartAutoTeams')){const s=appState(),t=(s?.tournaments||[]).find(item=>String(item.id)===String(s?.teamCompetitionId||s?.activeTour));openRoom(t?.id);return;}
+    if(target.matches('[data-swe-open-draw-room],[data-coorg-action="team"],#smartAutoTeams')){const s=appState(),t=(s?.tournaments||[]).find(item=>String(item.id)===String(target.dataset.sweOpenDrawRoom||s?.teamCompetitionId||s?.activeTour));openRoom(target.dataset.sweOpenDrawRoom||t?.id);return;}
     handleAction(target);
   },true);
 
