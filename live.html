@@ -65,6 +65,25 @@
     .swe-results-page .swe-award-name{min-height:96px}
     .swe-results-page .swe-award-name>b{margin:0}
     @media(max-width:480px){.swe-results-page .swe-award-name{min-height:76px}}
+    /* Premium Conquête showcase */
+    .swe-results-page .live-titles.swe-conquest-showcase{grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr);gap:20px}
+    .swe-results-page .live-title.swe-conquest-champion,.swe-results-page .live-title.swe-conquest-bracket-card{min-height:430px;border:1px solid #eac365;background:radial-gradient(circle at 12% 10%,#ffcd5a4d,transparent 29%),radial-gradient(circle at 92% 105%,#00d9ff2a,transparent 42%),linear-gradient(145deg,#071326,#102945 54%,#061021);box-shadow:0 18px 42px #10213930,inset 0 1px #ffe8a840}
+    .swe-results-page .live-title.swe-conquest-champion{padding:28px;display:flex;flex-direction:column}
+    .swe-conquest-champion>small,.swe-conquest-bracket-head small{color:#ffe49a!important;letter-spacing:1.8px!important;font-size:.72rem!important;font-weight:950}
+    .swe-conquest-hero{display:flex;align-items:center;gap:22px;margin:26px 0 20px}
+    .swe-conquest-trophy{position:relative;flex:0 0 142px;width:142px;height:142px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 34% 25%,#fff5b87d,transparent 20%),radial-gradient(circle at 50% 45%,#ffc84a4d,transparent 52%),url('/assets/avatars-v4405/ballon-feu.webp') center/cover,#071326;border:1px solid #ffdb7599;box-shadow:0 0 0 9px #ffcc4320,0 0 46px #ffc84a55,inset 0 0 24px #071326;overflow:hidden}
+    .swe-conquest-trophy:after{content:'';position:absolute;inset:12px;border-radius:50%;border:1px solid #a8f6ff66;transform:rotate(-25deg) scaleX(1.23)}
+    .swe-conquest-trophy b{position:relative;z-index:2;font-size:61px;filter:drop-shadow(0 0 10px #ffc741)}
+    .swe-conquest-trophy i{position:absolute;z-index:3;color:#b7f8ff;font-size:17px;font-style:normal;text-shadow:0 0 12px #62e8ff}.swe-conquest-trophy i:first-child{left:22px;top:29px}.swe-conquest-trophy i:last-child{right:23px;bottom:28px}
+    .swe-conquest-hero>div{min-width:0}.swe-conquest-kicker{display:block;color:#8eefff;font-weight:900;font-size:.7rem;letter-spacing:1.4px;margin-bottom:7px}.swe-conquest-hero b{display:block;color:#fff;font-size:clamp(30px,4vw,48px);line-height:1.04;overflow-wrap:anywhere}.swe-conquest-hero p{margin:9px 0 0;color:#d3e7f5;line-height:1.5;font-size:.92rem}
+    .swe-conquest-final-score{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-top:auto;padding:14px 0;border-top:1px solid #ffffff2b;border-bottom:1px solid #ffffff2b}.swe-conquest-final-score span{color:#a8edff;font-weight:900;font-size:.72rem;letter-spacing:1.2px}.swe-conquest-final-score strong{color:#ffe187;font-size:1.6rem;text-align:center;letter-spacing:2px}.swe-conquest-final-score em{font-style:normal;color:#e6f3fb;font-size:.78rem;text-align:right}
+    .swe-conqueror-list{margin-top:17px}.swe-conqueror-list>span{display:block;color:#ffe49a;font-size:.72rem;letter-spacing:1.4px;font-weight:950;margin-bottom:9px}.swe-conqueror-list>div{display:flex;flex-wrap:wrap;gap:7px}.swe-conqueror-list>div>span{padding:7px 10px;border-radius:999px;border:1px solid #8beeff55;background:#0b345066;color:#ecfbff;font-size:.78rem;font-weight:750}
+    .swe-conquest-pending{filter:saturate(.86)}.swe-conquest-pending .swe-conquest-trophy{opacity:.78}.swe-conquest-pending .swe-conquest-final-score strong{color:#9defff}
+    .swe-results-page .live-title.swe-conquest-bracket-card{padding:26px;display:block;overflow:auto}.swe-conquest-bracket-head{display:grid;gap:6px;margin-bottom:17px}.swe-conquest-bracket-head b{font-size:1.45rem;color:#fff}.swe-conquest-bracket-head span{color:#b9d5e7;font-size:.83rem}
+    .swe-results-page .swe-conquest-table{margin:0;width:100%;border-collapse:separate;border-spacing:0 8px;background:transparent!important}.swe-results-page .swe-conquest-table th{background:transparent!important;color:#88eaff!important;border:0!important;text-align:left;font-size:.68rem;letter-spacing:1px;text-transform:uppercase;padding:0 9px 5px}.swe-results-page .swe-conquest-table th:last-child{text-align:right}.swe-results-page .swe-conquest-table td{background:#071d3199!important;color:#f4fbff!important;border-top:1px solid #ffffff23!important;border-bottom:1px solid #ffffff23!important;padding:13px 9px}.swe-results-page .swe-conquest-table td:first-child{border-left:1px solid #ffffff23!important;border-radius:12px 0 0 12px}.swe-results-page .swe-conquest-table td:last-child{border-right:1px solid #ffffff23!important;border-radius:0 12px 12px 0;text-align:right}.swe-results-page .swe-conquest-table tbody tr:first-child{background:transparent!important}.swe-conquest-stage{display:inline-block;color:#ffe49a;font-size:.72rem;font-weight:900}.swe-conquest-table td:nth-child(2){font-size:.9rem}.swe-conquest-table td:nth-child(2) i{color:#78eaff;font-style:normal;font-size:.75rem;margin:0 4px}.swe-conquest-table td:nth-child(2) small{color:#a8ebff;font-weight:800}.swe-conquest-table td:last-child strong{font-size:1.05rem}.swe-conquest-table td:last-child em{font-style:normal;color:#7ceeff;padding:0 4px}
+    @media(max-width:820px){.swe-results-page .live-titles.swe-conquest-showcase{grid-template-columns:1fr}.swe-results-page .live-title.swe-conquest-champion,.swe-results-page .live-title.swe-conquest-bracket-card{min-height:0}.swe-conquest-hero{margin:18px 0}.swe-conquest-trophy{flex-basis:112px;width:112px;height:112px}.swe-conquest-trophy b{font-size:48px}}
+    @media(max-width:480px){.swe-results-page .live-title.swe-conquest-champion,.swe-results-page .live-title.swe-conquest-bracket-card{padding:20px}.swe-conquest-hero{gap:14px;align-items:flex-start}.swe-conquest-trophy{flex-basis:88px;width:88px;height:88px}.swe-conquest-trophy b{font-size:39px}.swe-conquest-hero b{font-size:28px}.swe-conquest-final-score{grid-template-columns:1fr auto}.swe-conquest-final-score em{grid-column:1/-1;text-align:left}.swe-conquest-table td{padding:11px 6px!important}.swe-conquest-table th{padding:0 6px 5px!important}.swe-conquest-table td:nth-child(2){font-size:.8rem}}
+
   </style>
 </head>
 <body>
@@ -89,6 +108,6 @@
     <section class="card"><h2 class="sectiontitle">👥 Équipes</h2><div id="liveTeams" class="live-grid"></div><div id="liveSubs"></div></section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="./live.js?v=5047-conquest-final" defer></script>
+  <script src="./live.js?v=5048-conquest-premium" defer></script>
 <script src="/public-history-views-v4363.js?v=4377" defer></script></body>
 </html>
