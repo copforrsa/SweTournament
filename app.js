@@ -2827,9 +2827,13 @@ function renderTournaments(){
   const box=$('#tournamentList');box.innerHTML='';
 
   const tournamentOnly=S.tournaments.filter(t=>t.format!=='league');
+  const isArchivedTournament=t=>t.status==='finished';
   const selectedTournament=tournamentOnly.find(t=>t.id===S.activeTour);
-  const current=selectedTournament?[selectedTournament]:tournamentOnly.filter(t=>t.status!=='finished');
-  const finished=selectedTournament?[]:tournamentOnly.filter(t=>t.status==='finished');
+  // Garder les archives accessibles même lorsqu’un tournoi actif est sélectionné.
+  const current=selectedTournament&&!isArchivedTournament(selectedTournament)
+    ?[selectedTournament]
+    :tournamentOnly.filter(t=>!isArchivedTournament(t));
+  const finished=tournamentOnly.filter(isArchivedTournament);
 
   if(!current.length){
     const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucun tournoi en cours.';box.appendChild(empty);
@@ -3221,7 +3225,7 @@ function renderTournaments(){
   });
 
   if(finished.length){
-    const h=document.createElement('h2');h.className='sectiontitle';h.style.margin='20px 0 10px';h.textContent='Historique';box.appendChild(h);
+    const h=document.createElement('h2');h.className='sectiontitle';h.style.margin='20px 0 10px';h.textContent='Tournois archivés ('+finished.length+')';box.appendChild(h);
   }
   finished.forEach(t=>{
     const d=document.createElement('div');d.className='player';
