@@ -13,7 +13,7 @@
   script.dataset.sweTeamDrawV2='true';
   document.head.appendChild(script);
   const conquest=document.createElement('script');
-  conquest.src='./conquest-rotation-v1.js?v=1';
+  conquest.src='./conquest-rotation-v1.js?v=2';
   conquest.defer=true;
   document.head.appendChild(conquest);
 })();
