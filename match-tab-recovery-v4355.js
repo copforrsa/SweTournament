@@ -114,12 +114,8 @@ async function hydrate(force=false){
 function selectorChanged(){lastTourId=null;lastLoadedAt=0;setTimeout(()=>hydrate(true),40)}
 document.addEventListener('click',e=>{if(e.target.closest?.('.tabs button[data-view="matches"],#view-home [data-go="matches"]'))setTimeout(()=>hydrate(true),80)},true);
 document.addEventListener('change',e=>{if(e.target?.id==='matchCompetitionSelect')selectorChanged()},true);
-// Les rendus et événements de buts repeignent uniquement l'état local : aucune boucle de requêtes réseau.
-document.addEventListener('swe:rendered',()=>{if(inMatches()){void loadAssignedTests();setTimeout(render,20)}});
-document.addEventListener('swe:match-remote-final',()=>{if(inMatches())setTimeout(render,20)});
+// Écran de saisie stable : aucun rendu automatique pendant un match.
+// Les actions de l'utilisateur (but, score, remplacement, fin de match) se
+// redessinent elles-mêmes via le moteur de saisie.
 document.addEventListener('swe:match-local-change',()=>{if(inMatches())setTimeout(render,20)});
-window.addEventListener('pageshow',()=>setTimeout(()=>{if(inMatches())hydrate(false)},100));
-// Garde-fou d'affichage uniquement : pas de refresh périodique quand aucun but / aucun match ne change.
-const guard=()=>{if(!inMatches())return;void loadAssignedTests();if(selectedTestId)return;const box=E('matchesList');if(box&&canScore()){box.classList.remove('hidden');box.style.setProperty('display','block','important');if(lastLoadedAt&&!(S.matches||[]).length)emptyState()}};
-setInterval(guard,5000);
 })();
