@@ -2961,7 +2961,10 @@ function renderTournaments(){
       refInput.value=t.reservation_reference||'';
 
       let selectedPitchIds=new Set((t.reserved_pitch_ids||[]).map(String));
-      const roleEditor=t.rotation_mode==='king_of_pitch'?window.SWEPitchRoles.editor(t,()=>[...selectedPitchIds]):null;
+      // Une PWA peut temporairement avoir app.js en cache sans son module : ne jamais bloquer l’éditeur.
+      const roleEditor=t.rotation_mode==='king_of_pitch'&&window.SWEPitchRoles?.editor
+        ?window.SWEPitchRoles.editor(t,()=>[...selectedPitchIds])
+        :null;
 
       const renderEditPitches=()=>{
         const rows=S.sportsPitches.filter(p=>p.active!==false&&String(p.complex_id)===String(complexSel.value));
@@ -3084,7 +3087,7 @@ function renderTournaments(){
         saveDetails.disabled=true;
         saveDetails.textContent='Enregistrement…';
 
-        const {error}=await window.SWEPitchRoles.update(t,{
+        const tournamentPatch={
           ...rolePatch,
           tournament_date:tournamentDate,
           complex_id:complexId,
@@ -3094,7 +3097,11 @@ function renderTournaments(){
           entry_fee_cents:Math.round(price*100),
           reservation_reference:refInput.value.trim()||null,
           season_id:seasonEditSel.value||null
-        });
+        };
+        const result=window.SWEPitchRoles?.update
+          ?await window.SWEPitchRoles.update(t,tournamentPatch)
+          :await sb.from('tournaments').update(tournamentPatch).eq('id',t.id);
+        const {error}=result;
 
         if(error){
           saveDetails.disabled=false;
