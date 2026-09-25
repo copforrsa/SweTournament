@@ -40,7 +40,7 @@ async function boot(){
  await load('/ranking-premium-visuals-v4405.js?v=4405','ranking-premium-visuals-v4405');
  await load('/substitute-fair-play-rules-v4406.js?v=4406','substitute-fair-play-rules-v4406');
  await load('/player-rating-progress-v4462.js?v=4462','player-rating-progress-v4462');
- await load('/players-directory-nav-v4477.js?v=5000-fixed-player-tools','players-directory-nav-v4477');
+ await load('/players-directory-nav-v4477.js?v=5015-mobile-player-card','players-directory-nav-v4477');
  applyBuild();setTimeout(applyBuild,250);setTimeout(applyBuild,1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();window.addEventListener('pageshow',()=>setTimeout(applyBuild,50));document.addEventListener('swe:rendered',()=>setTimeout(applyBuild,0));
