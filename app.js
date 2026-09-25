@@ -2459,7 +2459,7 @@ function renderPlayers(){
       }
       d.appendChild(identityBox);
 
-      const edit=document.createElement('div');edit.className='row';edit.style.marginTop='8px';edit.style.flexWrap='wrap';
+      const edit=document.createElement('div');edit.className='row swe-player-editor';edit.style.marginTop='8px';edit.style.flexWrap='wrap';
       const nameInput=document.createElement('input');nameInput.style.flex='1';nameInput.value=x.name||'';nameInput.placeholder='Nom du joueur';
       const status=document.createElement('select');status.style.flex='1';
       status.innerHTML='<option value="member">Membre</option><option value="guest">Guest</option>';
@@ -2490,7 +2490,7 @@ function renderPlayers(){
       edit.append(nameInput,status,host,phone,save);d.appendChild(edit);
 
       if(x.is_group_member!==false){
-        const codeRow=document.createElement('div');codeRow.className='row';codeRow.style.marginTop='8px';codeRow.style.flexWrap='wrap';
+        const codeRow=document.createElement('div');codeRow.className='row swe-player-team-code';codeRow.style.marginTop='8px';codeRow.style.flexWrap='wrap';
         const existing=S.teamCodes.find(c=>c.player_id===x.id);
         const codeInfo=document.createElement('span');codeInfo.style.flex='1';
         codeInfo.innerHTML='<b>Code création d’équipe :</b> '+(existing?'<code style="font-size:1rem">'+esc(existing.code)+'</code> '+(existing.enabled?'🟢 Autorisé':'⚪ Désactivé'):'Aucun code');
@@ -2515,7 +2515,7 @@ function renderPlayers(){
       }
     }
     if(isCoorg()&&S.myPermissions.can_edit_player_personal_info){
-      const edit=document.createElement('div');edit.className='row';edit.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#f7f9ff;border:1px solid #dfe5f4;border-radius:14px';
+      const edit=document.createElement('div');edit.className='row swe-player-editor';edit.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#f7f9ff;border:1px solid #dfe5f4;border-radius:14px';
       const nameInput=document.createElement('input');nameInput.style.flex='1';nameInput.value=x.name||'';nameInput.placeholder='Nom du joueur';
       const status=document.createElement('select');status.style.flex='1';status.innerHTML='<option value="member">Membre</option><option value="guest">Guest</option>';status.value=x.is_group_member===false?'guest':'member';
       const host=document.createElement('select');host.style.flex='1';host.innerHTML='<option value="">Guest de…</option>'+S.players.filter(y=>y.id!==x.id&&y.active&&y.is_group_member!==false).map(y=>'<option value="'+y.id+'">'+esc(y.name)+'</option>').join('');host.value=x.guest_of_player_id||'';host.classList.toggle('hidden',status.value!=='guest');status.onchange=()=>host.classList.toggle('hidden',status.value!=='guest');
@@ -2531,7 +2531,7 @@ function renderPlayers(){
       deleteRow.appendChild(del);d.appendChild(deleteRow);
     }
     if(isCoorg()&&S.myPermissions.can_generate_team_codes&&x.is_group_member!==false){
-      const codeRow=document.createElement('div');codeRow.className='row';codeRow.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#fffaf0;border:1px solid #f3dfae;border-radius:14px';
+      const codeRow=document.createElement('div');codeRow.className='row swe-player-team-code';codeRow.style.cssText='margin-top:8px;flex-wrap:wrap;padding:10px;background:#fffaf0;border:1px solid #f3dfae;border-radius:14px';
       const existingCode=S.teamCodes.find(c=>c.player_id===x.id);
       const codeInfo=document.createElement('span');codeInfo.style.flex='1';codeInfo.innerHTML='<b>Code équipe :</b> '+(existingCode?'<code>'+esc(existingCode.code)+'</code> '+(existingCode.enabled?'🟢':'⚪'):'Aucun code');
       const gen=document.createElement('button');gen.textContent=existingCode?'Régénérer':'Générer';gen.className='player-action-code';
