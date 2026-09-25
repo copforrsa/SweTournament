@@ -310,11 +310,18 @@ function renderStableMatches(allowHydrate=true){
   if(rows.length){
     const finished=rows.filter(m=>String(m.status)==='finished');
     const active=rows.filter(m=>String(m.status)!=='finished');
-    // One current match per terrain; older matches are kept in the fixed
-    // “Matchs terminés” tab rather than generating an endless tab strip.
-    const byPitch=new Map();
-    active.forEach(m=>byPitch.set(String(m.pitch||m.round_label||'Terrain'),m));
-    const current=[...byPitch.values()];
+    // En Conquête, le championnat est préparé d'un coup : les matchs sans
+    // terrain doivent tous rester accessibles, un onglet par match. Dans les
+    // autres formats, on conserve un seul match courant par terrain.
+    const conquest=/conqu[êe]te/i.test([t.name,t.format,t.reservation_reference].filter(Boolean).join(' '));
+    let current;
+    if(conquest){
+      current=active;
+    }else{
+      const byPitch=new Map();
+      active.forEach(m=>byPitch.set(String(m.pitch||m.round_label||'Terrain'),m));
+      current=[...byPitch.values()];
+    }
     const previous=selectedMatchByTournament.get(String(t.id));
     // Keep the completed-match view selected after its own click. Previously
     // it was immediately replaced by the first active pitch (Carrefour).
@@ -323,7 +330,7 @@ function renderStableMatches(allowHydrate=true){
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
     current.forEach(m=>{
       const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(String(m.id)===selectedKey?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===selectedKey?'true':'false');
-      button.textContent='⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
+      button.textContent=conquest?'⚔️ '+(m.round_label||'Championnat')+' · Match '+number:'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};tabs.appendChild(button);
     });
     box.appendChild(tabs);
