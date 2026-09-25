@@ -138,14 +138,15 @@ function mount(ctx){
   const co=d.isCoorganizer===true||(d.coorganizers||[]).includes(pid);const items=[];
   const organizerUrl=(()=>{try{const u=new URL(ctx.appUrl,location.href);if(t.workspace_id)u.searchParams.set('workspace',t.workspace_id);u.searchParams.set('start','home');return u.toString()}catch(_){return ctx.appUrl}})();
   const drawRoomUrl=(()=>{try{const u=new URL(organizerUrl,location.href);u.searchParams.set('draw_room',t.id);return u.toString()}catch(_){return organizerUrl}})();
-  if(!co){mission.hidden=false;setHtml(mission,'<details class="sp-coorg-instructions"><summary>Accès co-gestionnaire</summary><div class="sp-coorg-instructions-body"><p>Connecte-toi pour retrouver les consignes d’organisation qui te sont destinées.</p><a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace →</a></div></details>');return;}
+  // Les consignes n'apparaissent que pour le co-gestionnaire concerné.
+  if(!co){mission.hidden=true;mission.replaceChildren();return;}
   if(co){
    if(String(d.personalInstruction||'').trim())items.push('Consigne personnalisée : '+String(d.personalInstruction).trim());
    if(b.observe===true&&t.status!=='finished')items.push('Surveillez les nouveaux joueurs pour leur donner une note.');
    if(b.evening===true)items.push(t.team_review_status==='approved'?'La composition des équipes est validée.':t.team_review_status==='pending'?'Ton avis est demandé sur la composition proposée. Connecte-toi à ton espace pour participer à la validation.':'Ton avis sera demandé dans la soirée pour valider la composition des équipes.');
    if(b.rating===true){const w=d.ratingWindows?.find(w=>w.tournament_id===t.id),expired=w&&(w.status==='closed'||Date.parse(w.closes_at)<=Date.now());items.push(expired?'La période de notation de 48 h est terminée.':t.status==='finished'&&w?'Pense à te connecter pour noter les joueurs. La notation est ouverte jusqu’au '+dateTime(w.closes_at)+'.':'Pense à te connecter pour noter les joueurs à la fin du tournoi. Le lien sera valable 48 h après sa clôture officielle.');}
   }
-  if(!items.length)items.push('Aucune consigne spécifique pour le moment. Consulte ton espace organisateur pour retrouver tes actions disponibles.');
+  if(!items.length){mission.hidden=true;mission.replaceChildren();return;}
   mission.hidden=false;
   const storageKey='swe-coorg-instructions-'+t.id;let open=true;try{open=localStorage.getItem(storageKey)!=='closed'}catch(_){}
   setHtml(mission,'<details class="sp-coorg-instructions" '+(open?'open':'')+'><summary>📣 Tes consignes de co-gestionnaire</summary><div class="sp-coorg-instructions-body"><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul>'+(t.draw_room_first_enabled&&t.team_review_status==='pending'?'<a class="sp-button" style="margin-right:8px" href="'+esc(drawRoomUrl)+'">🗳️ Ouvrir le salon de validation →</a>':'')+'<a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace organisateur →</a></div></details>');
