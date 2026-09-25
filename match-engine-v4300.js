@@ -330,7 +330,8 @@ function renderStableMatches(allowHydrate=true){
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
     current.forEach(m=>{
       const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(String(m.id)===selectedKey?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===selectedKey?'true':'false');
-      button.textContent=conquest?'⚔️ '+(m.round_label||'Championnat')+' · Match '+number:'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
+      const home=teamById(m.home_team_id),away=teamById(m.away_team_id);
+      button.textContent=conquest?'⚔️ '+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2'):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};tabs.appendChild(button);
     });
     box.appendChild(tabs);
