@@ -2621,14 +2621,12 @@ $('#addPlayers').onclick=async()=>{
   btn.disabled=true;btn.textContent='Enregistrement…';
   try{
     const workspace=await ensureWorkspace();
-    const rows=names.map(name=>({
-      workspace_id:workspace.id,
-      name,
-      active:true,
-      is_group_member:isMember,
-      guest_of_player_id:guestOf
-    }));
-    const {error}=await sb.from('players').upsert(rows,{onConflict:'workspace_id,name',ignoreDuplicates:true});
+    const {data:createdPlayers,error}=await sb.rpc('manager_add_workspace_players',{
+      p_workspace_id:workspace.id,
+      p_names:names,
+      p_is_group_member:isMember,
+      p_guest_of_player_id:guestOf
+    });
     if(error)throw error;
     $('#playersInput').value='';
     $('#playerGroupStatus').value='member';
@@ -2642,7 +2640,8 @@ $('#addPlayers').onclick=async()=>{
       if(playersError)throw playersError;S.players=freshPlayers||[];
     }
     renderPlayers();
-    toast(names.length+' joueur'+(names.length>1?'s':'')+' enregistré'+(names.length>1?'s':'')+' ✅');
+    const createdCount=Number(createdPlayers?.created_count??names.length);
+    toast(createdCount+' joueur'+(createdCount>1?'s':'')+' enregistré'+(createdCount>1?'s':'')+' ✅');
   }catch(error){toast(friendlyAuthError(error))}
   finally{btn.disabled=false;btn.textContent='Enregistrer les joueurs'}
 };
