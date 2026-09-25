@@ -22,6 +22,24 @@ const editable=m=>{
   if(String(m.status)==='finished')return groupAdmin()||(typeof canEditCurrentMatches==='function'&&canEditCurrentMatches());
   return typeof canEditCurrentMatches==='function'&&canEditCurrentMatches();
 };
+const conquestRole=m=>['championship','conquest'].includes(String(m?.rotation_role||''));
+function finishControl(m,can,busy){
+  if(!can||!conquestRole(m))return null;
+  const tied=Number(m.home_score||0)===Number(m.away_score||0);
+  const finalPhase=String(m.rotation_role)==='conquest';
+  const box=node('section',undefined,'swe4460-finish');
+  box.append(node('b','🏁 Fin du match'));
+  if(finalPhase&&tied){
+    box.append(node('p','Match nul : qui a gagné la séance de tirs au but (3 tireurs) ? Les tirs au but ne comptent pas dans les buteurs.'));
+    const choices=node('div',undefined,'swe4460-fields');
+    for(const tid of [m.home_team_id,m.away_team_id])choices.append(button('🥅 '+teamName(tid),()=>action(m,'conquest_finish',{tie_break_winner_team_id:tid}),busy));
+    box.append(choices);
+  }else{
+    box.append(node('p',String(m.rotation_role)==='championship'?'Le match nul est autorisé en phase championnat.':'Le vainqueur du match est envoyé au tour suivant.'));
+    box.append(button('🏁 Terminer le match',()=>{if(confirm('Terminer ce match ?'))action(m,'conquest_finish',{})},busy));
+  }
+  return box;
+}
 function roster(m,tid,history=false){
   const assignments=(S.matchAssignments||[]).filter(a=>eq(a.match_id,m.id));
   let ids=(assignments.length?assignments:S.teamPlayers||[]).filter(a=>eq(a.team_id,tid)).map(a=>a.player_id);
@@ -42,7 +60,10 @@ async function action(m,type,payload,success){
   if(!editable(m))return toast('Tournoi terminé ou droit de saisie manquant.');
   pending.add(String(m.id));redraw();
   try{
-    const {data,error}=await sb.rpc('quick_match_action_v1',{p_match_id:m.id,p_action:type,p_payload:payload});
+    const request=type==='conquest_finish'
+      ?sb.rpc('conquest_finish_match_v1',{p_match_id:m.id,p_tie_break_winner_team_id:payload?.tie_break_winner_team_id||null})
+      :sb.rpc('quick_match_action_v1',{p_match_id:m.id,p_action:type,p_payload:payload});
+    const {data,error}=await request;
     if(error)throw error;
     if(!data?.match)throw new Error('Enregistrement non confirmé. Actualise le match.');
     // Do not inject a previous tournament response after navigation.
@@ -124,6 +145,7 @@ function render(panel,m){
     }
     row.append(button('Enregistrer le score',()=>{const home=Number(d.dirty?d.home:m.home_score),away=Number(d.dirty?d.away:m.away_score);if(!Number.isInteger(home)||!Number.isInteger(away)||home<0||away<0)return toast('Saisis deux scores entiers positifs ou nuls.');action(m,'score',{home,away},()=>drafts.delete(key(m,'score')))},busy));
     det.append(row);panel.append(det);
+    const finish=finishControl(m,can,busy);if(finish)panel.append(finish);
   }else panel.append(node('p',tour(m)?.status==='finished'?'Tournoi terminé · résultats verrouillés':String(m.status)==='finished'?'Match terminé · correction réservée à l’administrateur':'Consultation seule'));
 }
 const css=node('style');css.textContent='.swe4460{font-size:16px}.swe4460-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}.swe4460-player-row{display:flex;gap:6px;margin:8px 0}.swe4460-scorer{flex:1;text-align:left;min-width:0;font-weight:900}.swe4460 button,.swe4460 select,.swe4460 input{min-height:44px;font-size:14px}.swe4460-fields{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.swe4460-fields label{display:grid;gap:4px;flex:1;min-width:140px}.swe4460-goal{padding:12px;border:2px solid #b5cce0;border-radius:12px;margin:10px 0}.swe4460-goal p{margin:6px 0}.swe4460-goal-red{background:#fff0f0;border-color:#dc2626}.swe4460-goal-blue{background:#eff6ff;border-color:#2563eb}.swe4460-goal-yellow{background:#fffbeb;border-color:#d97706}.swe4460-goal-green{background:#f0fdf4;border-color:#16a34a}.swe4460-goal-black{background:#e5e7eb;border-color:#111827}.swe4460-goal-white{background:#fff;border-color:#94a3b8}.swe4460-goal-neutral{background:#f0f9ff;border-color:#0284c7}.swe4460-sub,.swe4460-subform{background:#fff0d7!important;color:#683900!important;border:1px solid #bf7200!important;border-radius:8px;padding:8px}.swe4460 details{margin-top:12px}.swe4460 summary{cursor:pointer;padding:10px}.swe4460 input{width:100%;min-width:0}@media(max-width:600px){.swe4460-teams{grid-template-columns:1fr}.swe4460-fields>*{flex:1 1 100%}}#matchesList .swe4300-match.finished{opacity:1}';document.head.append(css);
