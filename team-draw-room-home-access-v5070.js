@@ -66,9 +66,16 @@
     const {data,error}=await api.rpc('team_draw_room_state_v2',{p_tournament_id:t.id});
     return error?null:data;
   }
+  async function serverOpenRoom(){
+    const api=client(); if(!api)return null;
+    const {data,error}=await api.rpc('team_draw_room_my_open_rooms_v2');
+    return error||!Array.isArray(data)?null:(data[0]||null);
+  }
   async function refreshDashboard(){
-    if(!(isCoorg()||isAdmin()))return;
-    const actions=getActionContainer(),t=activeTournament();
+    // Le tableau n’existe que pour les co-gestionnaires. Ne pas dépendre ici
+    // d’un helper global qui peut être chargé après le tableau PWA.
+    const actions=getActionContainer();
+    const t=(await serverOpenRoom())||activeTournament();
     if(!actions||!t)return;
     style();
     const data=await rpcState(t);
