@@ -39,6 +39,12 @@ function installStyle(){
     #tournamentAdminCard.swe-conquest-create-theme .player h3{color:#172131!important}
     #tournamentAdminCard.swe-conquest-create-theme .player .muted,
     #tournamentAdminCard.swe-conquest-create-theme .player small{color:#5b6677!important}
+    #tournamentAdminCard.swe-conquest-create-theme .tour-create-guide>div{
+      background:#fff!important;border:1px solid #f7c8d1!important;color:#172131!important;
+    }
+    #tournamentAdminCard.swe-conquest-create-theme .tour-create-guide>div b{color:#5e1021!important}
+    #tournamentAdminCard.swe-conquest-create-theme .tour-create-guide>div small{color:#596579!important}
+    #tournamentAdminCard.swe-conquest-create-theme .tour-create-guide>div span{filter:none!important}
     #tournamentAdminCard.swe-conquest-create-theme #tourFormat{
       border:2px solid #ffd5dc!important;
       background:#fff5f7!important;
@@ -57,6 +63,20 @@ function installStyle(){
       border-radius:999px;width:max-content;background:rgba(255,255,255,.16);
       border:1px solid rgba(255,255,255,.32);font-size:11px;font-weight:950;letter-spacing:.12em;color:#ffe7ec;
     }
+    #tournamentAdminCard.swe-king-create-theme{
+      background:linear-gradient(145deg,#08275a 0%,#0b4e98 51%,#1679c4 100%)!important;
+      border:2px solid #75c7ff!important;box-shadow:0 20px 48px rgba(8,62,132,.28)!important;color:#fff!important;
+    }
+    #tournamentAdminCard.swe-king-create-theme .tour-create-hero,
+    #tournamentAdminCard.swe-king-create-theme .sweflow-hero{background:linear-gradient(120deg,rgba(2,25,68,.68),rgba(8,100,181,.38))!important;border-color:rgba(208,238,255,.34)!important;box-shadow:none!important}
+    #tournamentAdminCard.swe-king-create-theme h2,#tournamentAdminCard.swe-king-create-theme h3,#tournamentAdminCard.swe-king-create-theme b,#tournamentAdminCard.swe-king-create-theme .tour-create-copy h2{color:#fff!important}
+    #tournamentAdminCard.swe-king-create-theme .muted,#tournamentAdminCard.swe-king-create-theme small,#tournamentAdminCard.swe-king-create-theme .tour-create-copy p{color:#d8efff!important}
+    #tournamentAdminCard.swe-king-create-theme .player,#tournamentAdminCard.swe-king-create-theme .sweflow-section .player,#tournamentAdminCard.swe-king-create-theme .tour-create-guide>div{background:#fff!important;border-color:#b5e0ff!important;color:#172131!important}
+    #tournamentAdminCard.swe-king-create-theme .player b,#tournamentAdminCard.swe-king-create-theme .player h2,#tournamentAdminCard.swe-king-create-theme .player h3,#tournamentAdminCard.swe-king-create-theme .tour-create-guide>div b{color:#073b7a!important}
+    #tournamentAdminCard.swe-king-create-theme .player .muted,#tournamentAdminCard.swe-king-create-theme .player small,#tournamentAdminCard.swe-king-create-theme .tour-create-guide>div small{color:#526780!important}
+    #tournamentAdminCard.swe-king-create-theme #tourFormat{border:2px solid #bce6ff!important;background:#edf8ff!important;color:#064884!important;font-weight:900!important}
+    #tournamentAdminCard.swe-king-create-theme #createTournament,#tournamentAdminCard.swe-king-create-theme .sweflow-next{background:linear-gradient(135deg,#a9e4ff,#3b9fe3)!important;color:#063362!important;border-color:#d9f4ff!important;box-shadow:0 9px 22px rgba(2,28,74,.25)!important}
+    #tournamentAdminCard.swe-king-create-theme:before{content:'ߑѠROYAUME DU TERRAIN';display:block;margin:0 0 12px;padding:8px 12px;border-radius:999px;width:max-content;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);font-size:11px;font-weight:950;letter-spacing:.12em;color:#e8f7ff}
     @media(max-width:620px){#tournamentAdminCard.swe-conquest-create-theme{padding:16px!important}}
   `;
   document.head.appendChild(style);
@@ -68,6 +88,7 @@ function apply(){
   const card=E('tournamentAdminCard');
   if(!select||!card)return;
   card.classList.toggle('swe-conquest-create-theme',select.value==='conquest');
+  card.classList.toggle('swe-king-create-theme',select.value==='king_of_pitch');
 }
 
 function bind(){
