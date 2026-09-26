@@ -15,7 +15,12 @@
     const s=state();
     const list=s?.tournaments||[];
     const id=s?.teamCompetitionId||s?.activeTour;
-    return list.find(t=>String(t.id)===String(id)) || list.find(t=>t.draw_room_first_enabled) || null;
+    // Un salon ouvert a toujours priorité sur le dernier tournoi mémorisé par la PWA.
+    // Cela évite qu’un ancien tournoi de test masque le vote Conquête en cours.
+    return list.find(t=>t.draw_room_first_enabled&&['pending','redraw_requested'].includes(t.team_review_status))
+      || list.find(t=>String(t.id)===String(id))
+      || list.find(t=>t.draw_room_first_enabled)
+      || null;
   }
   function roomCountdown(deadline){
     const remaining=new Date(deadline||0).getTime()-Date.now();
