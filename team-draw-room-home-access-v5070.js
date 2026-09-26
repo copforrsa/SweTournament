@@ -65,7 +65,7 @@
       ? 'Les inscriptions sont closes ou le quota est atteint. Choisis les co-gestionnaires votants, puis ouvre la fenêtre d’une heure.'
       : 'Prépare dès maintenant les co-gestionnaires qui voteront. Le salon pourra démarrer dès la clôture des inscriptions ou le quota atteint.';
     const countText=limit?count+' / '+limit+' inscrits':'Préparation du tirage';
-    return '<section class="card swe-draw-home-card" data-swe-draw-home-card="'+esc(t.id)+'"><div class="swe-draw-kicker">COMPOSITION COLLABORATIVE</div><h2 class="sectiontitle" style="margin:4px 0">🗳️ Salon des équipes</h2><p class="muted" style="margin:0">'+esc(t.name||'Tournoi')+' · <b>'+esc(countText)+'</b><br>'+esc(text)+'</p><div class="swe-draw-actions"><button type="button" class="primary" data-swe-draw-home-open="'+esc(t.id)+'">'+(ready?'Ouvrir le salon →':'Préparer le salon →')+'</button></div></section>';
+    return '<section class="card swe-draw-home-card" data-swe-draw-home-card="'+esc(t.id)+'" data-swe-draw-home-ready="'+(ready?'1':'0')+'"><div class="swe-draw-kicker">COMPOSITION COLLABORATIVE</div><h2 class="sectiontitle" style="margin:4px 0">🗳️ Salon des équipes</h2><p class="muted" style="margin:0">'+esc(t.name||'Tournoi')+' · <b>'+esc(countText)+'</b><br>'+esc(text)+'</p><div class="swe-draw-actions"><button type="button" class="primary" data-swe-draw-home-open="'+esc(t.id)+'">'+(ready?'Ouvrir le salon →':'Préparer le salon →')+'</button></div></section>';
   }
 
   async function mountHome(){
@@ -79,6 +79,8 @@
     checked.forEach(({t,data})=>{
       if(!data||data.has_generated_teams)return;
       const previous=home.querySelector('[data-swe-draw-home-card="'+String(t.id)+'"]');
+      const ready=Boolean(data.can_start)?'1':'0';
+      if(previous?.dataset.sweDrawHomeReady===ready)return;
       if(previous)previous.remove();
       home.insertAdjacentHTML('afterbegin',card(t,data));
     });
