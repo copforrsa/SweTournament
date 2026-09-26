@@ -53,7 +53,8 @@
       ? 'Ton accès est ouvert. Entre dans le salon pour voter parmi les compositions proposées.'
       : 'Le salon apparaîtra ici dès que l’administrateur ouvrira la fenêtre de vote.';
     const time=open?'<span class="swe-draw-countdown" data-swe-room-countdown="'+esc(data.deadline)+'">'+roomCountdown(data.deadline)+'</span> restantes':'';
-    return '<article class="swe-coorg-action swe-draw-inline '+(open?'active':'waiting')+'" data-swe-draw-inline="'+esc(t.id)+'"><div class="swe-coorg-action-icon">🗳️</div><div class="swe-coorg-action-body"><b>Salon des équipes</b><div class="swe-coorg-action-copy">'+esc(copy)+'</div><div class="swe-draw-status">'+(open?'● '+time:'○ Accès verrouillé')+'</div><button type="button" '+(open?'data-swe-v2-open="'+esc(t.id)+'"':'disabled')+'>'+ (open?'Accéder au salon →':'Vote indisponible')+'</button></div></article>';
+    const signature=String(t.id)+'|'+(open?'open':'waiting')+'|'+String(data?.deadline||'');
+    return '<article class="swe-coorg-action swe-draw-inline '+(open?'active':'waiting')+'" data-swe-draw-inline="'+esc(t.id)+'" data-swe-draw-state="'+esc(signature)+'"><div class="swe-coorg-action-icon">🗳️</div><div class="swe-coorg-action-body"><b>Salon des équipes</b><div class="swe-coorg-action-copy">'+esc(copy)+'</div><div class="swe-draw-status">'+(open?'● '+time:'○ Accès verrouillé')+'</div><button type="button" '+(open?'data-swe-v2-open="'+esc(t.id)+'"':'disabled')+'>'+ (open?'Accéder au salon →':'Vote indisponible')+'</button></div></article>';
   }
   async function rpcState(t){
     const api=client(); if(!api||!t)return null;
@@ -68,7 +69,10 @@
     const data=await rpcState(t);
     const node=actions.querySelector('[data-swe-draw-inline]');
     const html=card(t,data);
-    if(node)node.outerHTML=html; else actions.insertAdjacentHTML('afterbegin',html);
+    const signature=String(t.id)+'|'+(data?.can_vote&&!data?.expired?'open':'waiting')+'|'+String(data?.deadline||'');
+    if(node?.dataset.sweDrawState!==signature){
+      if(node)node.outerHTML=html; else actions.insertAdjacentHTML('afterbegin',html);
+    }
     updateCountdowns();
   }
   function updateCountdowns(){document.querySelectorAll('[data-swe-room-countdown]').forEach(node=>node.textContent=roomCountdown(node.dataset.sweRoomCountdown));}
