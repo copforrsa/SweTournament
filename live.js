@@ -107,8 +107,16 @@ function render(data){
  if(ratingLink)ratingLink.href='./?rate='+encodeURIComponent(tour.id);
  const goalsByMatch=new Map();goals.forEach(g=>{const k=String(g.match_id);if(!goalsByMatch.has(k))goalsByMatch.set(k,[]);goalsByMatch.get(k).push(g)});
  const conquestMode=String(tour.rotation_mode||'')==='conquest'||String(tour.format||'')==='conquest';
- const championshipMatches=conquestMode?matches.filter(m=>String(m.rotation_role||'')==='championship'):matches;
- const conquestMatches=conquestMode?matches.filter(m=>String(m.rotation_role||'')==='conquest'):[];
+ // Les anciens tournois Conquête n'utilisent pas tous le même champ pour distinguer
+ // la qualification des barrages. On identifie donc les rencontres à élimination
+ // par leur rôle, leur étape ou leur libellé, afin que le classement reste celui
+ // du championnat qualificatif et ne soit jamais remis à zéro.
+ const conquestMatch=m=>{
+  const marker=[m.rotation_role,m.competition_type,m.format_stage,m.round_label].filter(Boolean).join(' ').toLowerCase();
+  return /conqu[eê]te|play[ -]?in|barrage|demi[ -]?finale|finale/.test(marker);
+ };
+ const championshipMatches=conquestMode?matches.filter(m=>!conquestMatch(m)):matches;
+ const conquestMatches=conquestMode?matches.filter(conquestMatch):[];
  const isFinished=m=>!!(m&&(m.finished_at||String(m.status)==='finished'));
  const matchState=m=>isFinished(m)?'Terminé':m&&(m.started_at||['started','live','in_progress'].includes(String(m.status)))?'En cours':'À jouer';
  const matchWinnerId=m=>{if(!isFinished(m))return null;const home=Number(m.home_score||0),away=Number(m.away_score||0);return home>away?m.home_team_id:away>home?m.away_team_id:(m.tie_break_winner_team_id||null)};
