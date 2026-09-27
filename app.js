@@ -3956,21 +3956,18 @@ function renderMatches(){
   S.matches.forEach((m,i)=>{
     const home=tm(m.home_team_id),away=tm(m.away_team_id);if(!home||!away)return;
     const d=document.createElement('div');d.className='card match';
-    d.innerHTML='<div class="muted">Match '+(i+1)+(m.pitch?' • '+esc(m.pitch):'')+(m.round_label?' • '+esc(m.round_label):'')+'</div><div class="row" style="justify-content:space-between"><b>'+esc(home.name)+'</b><span class="score">'+m.home_score+' - '+m.away_score+'</span><b>'+esc(away.name)+'</b></div>';
-
-    if(canEditCurrentMatches()){
+    const matchFinished=m.status==='finished';
+    d.innerHTML='<div class="muted">Match '+(i+1)+(m.pitch?' • '+esc(m.pitch):'')+(m.round_label?' • '+esc(m.round_label):'')+'</div><div class="row" style="justify-content:space-between"><b>'+esc(home.name)+'</b><span class="score">'+m.home_score+' - '+m.away_score+'</span><b>'+esc(away.name)+'</b></div>'+(matchFinished?'<div class="guest-badge" style="margin-top:8px;background:#e8f7ec;color:#176a36">✅ MATCH TERMINÉ</div>':'');
+    if(canEditCurrentMatches()&&!matchFinished){
       const scoreEdit=document.createElement('div');scoreEdit.className='grid g3';scoreEdit.style.marginTop='10px';
-      const hs=document.createElement('input'),ascore=document.createElement('input'),saveScore=document.createElement('button');
+      const hs=document.createElement('input'),ascore=document.createElement('input'),saveScore=document.createElement('button'),finishMatch=document.createElement('button');
       hs.type='number';hs.min='0';hs.value=Number(m.home_score||0);hs.placeholder=home.name;
       ascore.type='number';ascore.min='0';ascore.value=Number(m.away_score||0);ascore.placeholder=away.name;
-      saveScore.textContent='💾 Score';saveScore.className='primary';
-      saveScore.onclick=async()=>{
-        saveScore.disabled=true;
-        const {error}=await sb.from('matches').update({home_score:Math.max(0,Number(hs.value)||0),away_score:Math.max(0,Number(ascore.value)||0),status:'finished',finished_at:new Date().toISOString()}).eq('id',m.id);
-        if(error){saveScore.disabled=false;return toast(error.message)}
-        await loadTournament();renderMatches();toast('Score enregistré et notes recalculées ✅');
-      };
-      scoreEdit.append(hs,ascore,saveScore);d.appendChild(scoreEdit);
+      saveScore.textContent='💾 Enregistrer le score';
+      saveScore.onclick=async()=>{saveScore.disabled=true;const {error}=await sb.from('matches').update({home_score:Math.max(0,Number(hs.value)||0),away_score:Math.max(0,Number(ascore.value)||0)}).eq('id',m.id);if(error){saveScore.disabled=false;return toast(error.message)}await loadTournament();renderMatches();toast('Score enregistré. Termine le match quand il est fini.');};
+      finishMatch.textContent='✅ Terminer le match';finishMatch.className='primary';
+      finishMatch.onclick=async()=>{const homeScore=Math.max(0,Number(hs.value)||0),awayScore=Math.max(0,Number(ascore.value)||0);finishMatch.disabled=true;const scoreUpdate=await sb.from('matches').update({home_score:homeScore,away_score:awayScore}).eq('id',m.id);if(scoreUpdate.error){finishMatch.disabled=false;return toast(scoreUpdate.error.message);}let error=null;if(current?.format==='conquest'&&m.competition_type==='conquest_playoff'){let winner=null;if(homeScore===awayScore){winner=confirm('Match nul : '+home.name+' a gagné aux tirs au but ?\nOK = '+home.name+' • Annuler = '+away.name)?m.home_team_id:m.away_team_id;}const out=await sb.rpc('conquest_finish_match_v2',{p_match_id:m.id,p_tie_break_winner_team_id:winner});error=out.error;}else{const out=await sb.from('matches').update({status:'finished',finished_at:new Date().toISOString()}).eq('id',m.id);error=out.error;}if(error){finishMatch.disabled=false;return toast(error.message);}await loadTournament();renderMatches();toast('Match terminé ✅');};
+      scoreEdit.append(hs,ascore,saveScore,finishMatch);d.appendChild(scoreEdit);
     }
     d.appendChild(buildMatchPlayerManager(m,home,away));
 
