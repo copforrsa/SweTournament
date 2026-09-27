@@ -3170,9 +3170,12 @@ function renderTournaments(){
 
     const finish=document.createElement('button');finish.textContent='Terminer le tournoi';finish.style.marginTop='8px';
     finish.onclick=async()=>{
-      if(!confirm('Déclarer ce tournoi terminé ? Il restera disponible dans l’historique.'))return;
+      const conquestFallback=(t.format==='conquest'||t.rotation_mode==='conquest')&&!(S.matches||[]).some(m=>String(m.tournament_id)===String(t.id)&&m.competition_type==='conquest_playoff'&&m.status==='finished');
+      if(conquestFallback){
+        if(!confirm('La phase Conquête n’a pas été jouée.\n\nLe tournoi sera clôturé avec le premier du championnat qualificatif comme vainqueur.\n\nContinuer ?'))return;
+      }else if(!confirm('Déclarer ce tournoi terminé ? Il restera disponible dans l’historique.'))return;
       finish.disabled=true;
-      const {error}=await sb.rpc('finish_tournament_with_payment_report',{p_tournament_id:t.id});
+      const {error}=await sb.rpc(conquestFallback?'finish_conquest_by_qualification_v2':'finish_tournament_with_payment_report',{p_tournament_id:t.id});
       if(error){finish.disabled=false;return toast(error.message)}
       if(S.activeTour===t.id)S.activeTour=null;
       await loadAll();
