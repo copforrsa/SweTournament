@@ -4969,15 +4969,16 @@ async function bootPaymentDesk(token){
     snapshot=data;renderDesk();
   }
   function currentReport(){
-    const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='waitlist');
+    const all=(snapshot?.players||[]).filter(r=>r.present&&r.registration_status!=='late_withdrawal');
     return {tournament_name:snapshot?.tournament_name,tournament_date:snapshot?.tournament_date,entry_fee_cents:snapshot?.entry_fee_cents||0,
-      players:all.map(r=>({player_name:r.player_name,paid:!!r.manual_paid_at,paid_at:r.manual_paid_at,collector_name:r.manual_paid_collector_name,amount_cents:snapshot?.entry_fee_cents||0})),
+      players:all.map(r=>({player_name:r.player_name+(r.is_substitute?' (Remplaçant)':''),paid:!!r.manual_paid_at,paid_at:r.manual_paid_at,collector_name:r.manual_paid_collector_name,amount_cents:snapshot?.entry_fee_cents||0})),
       walkins:(snapshot?.walkins||[]).map(r=>({player_name:r.player_name,paid:true,paid_at:r.paid_at,collector_name:r.collector_name,amount_cents:r.amount_cents,walkin:true}))};
   }
   function renderDesk(){
     const content=$('#paymentDeskContent');if(!content||!snapshot)return;
     const all=(snapshot.players||[]).filter(r=>r.present||r.registration_status==='late_withdrawal');
     const confirmed=all.filter(r=>r.registration_status!=='waitlist'&&r.registration_status!=='late_withdrawal'&&!r.is_substitute);
+    const substitutes=all.filter(r=>r.registration_status!=='late_withdrawal'&&!!r.is_substitute);
     const walkins=snapshot.walkins||[];
     const paidCount=confirmed.filter(r=>!!r.manual_paid_at).length+walkins.length;
     const unpaidCount=Math.max(0,confirmed.filter(r=>!r.manual_paid_at).length);
@@ -4989,14 +4990,16 @@ async function bootPaymentDesk(token){
       '<div class="grid g3" style="margin-top:14px"><div class="player" style="background:#eef8f2"><b style="font-size:1.2rem">'+paidCount+'</b><div class="muted">Payé'+(paidCount>1?'s':'')+'</div></div><div class="player" style="background:#fff3e8"><b style="font-size:1.2rem">'+unpaidCount+'</b><div class="muted">Non payé'+(unpaidCount>1?'s':'')+'</div></div><div class="player"><b style="font-size:1.2rem">'+esc(paymentMoney(totalCollected))+'</b><div class="muted">Total encaissé</div></div></div>'+
       '<div class="payment-walkin-card"><div><b>➕ Joueur absent de la liste</b><div class="muted">S’il se présente et paie, ajoute simplement son nom. Le montant utilisé sera '+esc(paymentMoney(price))+'.</div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><input id="paymentDeskWalkinName" maxlength="80" placeholder="Nom / prénom du joueur" style="flex:1;min-width:220px"><button id="paymentDeskAddWalkin" class="primary">Ajouter comme PAYÉ</button></div></div>'+
       '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px"><div style="flex:1;min-width:220px"><input id="paymentDeskSearch" placeholder="🔎 Rechercher un joueur" autocomplete="off"></div><button id="paymentDeskPrint">🖨️ Imprimer / Enregistrer PDF</button></div><div id="paymentDeskRows" style="margin-top:10px"></div>'+
+      (substitutes.length?'<div class="payment-walkin-card" style="margin-top:16px;background:#fff8ed"><b>🟠 Remplaçants inscrits</b><div class="muted" style="margin-top:3px">'+substitutes.length+' remplaçant'+(substitutes.length>1?'s':'')+' figurent aussi sur la feuille de paiement.</div><div id="paymentDeskSubstitutes" style="margin-top:10px"></div></div>':'')+
       (walkins.length?'<div style="margin-top:16px"><h3 class="sectiontitle">Ajoutés sur place</h3><div id="paymentDeskWalkins"></div></div>':'')+
       '<div class="readonly-note" style="margin-top:12px">🔐 Lien privé : suivi manuel uniquement. À la clôture du tournoi, un rapport définitif est archivé et disponible pour l’administrateur.</div>';
     const rowsBox=$('#paymentDeskRows');
     const draw=()=>{
       const q=($('#paymentDeskSearch')?.value||'').trim().toLowerCase();
-      const rows=all.filter(r=>!q||String(r.player_name||'').toLowerCase().includes(q));
+      const rows=all.filter(r=>(!r.is_substitute)&&(!q||String(r.player_name||'').toLowerCase().includes(q)));
+      const visibleSubstitutes=substitutes.filter(r=>!q||String(r.player_name||'').toLowerCase().includes(q));
       rowsBox.innerHTML='';
-      if(!rows.length){rowsBox.innerHTML='<p class="muted">Aucun joueur correspondant.</p>';return;}
+      if(!rows.length&&!visibleSubstitutes.length){rowsBox.innerHTML='<p class="muted">Aucun joueur correspondant.</p>';}
       rows.forEach(r=>{
         const wait=r.registration_status==='waitlist';
         const withdrawn=r.registration_status==='late_withdrawal';
@@ -5008,6 +5011,8 @@ async function bootPaymentDesk(token){
         if(!wait&&!withdrawn){const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'↩ Marquer non payé':'✅ Marquer payé';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);}
         rowsBox.appendChild(d);
       });
+      const subsBox=$('#paymentDeskSubstitutes');
+      if(subsBox){subsBox.innerHTML='';visibleSubstitutes.forEach(r=>{const paid=!!r.manual_paid_at;const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.style.gap='8px';d.style.flexWrap='wrap';const audit=paid&&r.manual_paid_collector_name?'<div class="muted" style="margin-top:3px">Saisi par '+esc(r.manual_paid_collector_name)+' • '+esc(fmtDateTime(r.manual_paid_at))+'</div>':'';d.innerHTML='<span style="flex:1;min-width:170px"><b>'+esc(r.player_name||'Joueur')+'</b><div class="muted" style="margin-top:3px">🟠 Remplaçant • '+esc(paymentMoney(price))+'</div>'+audit+'</span><span class="guest-badge" style="background:'+(paid?'#e8f7ec':'#ffe9e7')+';color:'+(paid?'#176a36':'#b3261e')+'">'+(paid?'PAYÉ':'NON PAYÉ')+'</span>';const b=document.createElement('button');b.className=paid?'danger':'primary';b.textContent=paid?'↩ Marquer non payé':'✅ Marquer payé';b.onclick=async()=>{const collector=ensureCollector();if(!collector)return;b.disabled=true;const {error}=await sb.rpc('payment_desk_set_paid_v2',{p_token:token,p_player_id:r.player_id,p_paid:!paid,p_collector_name:collector});if(error){b.disabled=false;return toast(error.message);}await loadDesk();};d.appendChild(b);subsBox.appendChild(d);});}
     };
     const walkBox=$('#paymentDeskWalkins');
     if(walkBox){walkBox.innerHTML='';walkins.forEach(r=>{const d=document.createElement('div');d.className='player row';d.style.marginBottom='8px';d.innerHTML='<span style="flex:1"><b>'+esc(r.player_name)+'</b><div class="muted">PAYÉ • '+esc(paymentMoney(r.amount_cents||price))+' • Saisi par '+esc(r.collector_name||'—')+' • '+esc(fmtDateTime(r.paid_at))+'</div></span><span class="guest-badge" style="background:#e8f7ec;color:#176a36">PAYÉ</span>';const del=document.createElement('button');del.className='danger';del.textContent='Retirer';del.onclick=async()=>{if(!confirm('Retirer '+r.player_name+' de la feuille de paiement ?'))return;const {error}=await sb.rpc('payment_desk_delete_walkin',{p_token:token,p_walkin_id:r.id});if(error)return toast(error.message);await loadDesk();};d.appendChild(del);walkBox.appendChild(d);});}
