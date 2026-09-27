@@ -80,7 +80,12 @@ function teamFg(bg){return ['#111827','#2563eb','#dc2626','#16a34a','#64748b'].i
 function teamNote(t){const n=Number(t?.coorg_team_score||0)>0?Number(t.coorg_team_score):Number(t?.team_score||0);return n>0?n:null}
 function funComment(n){if(!n)return '';return n===1?'🕵️ Guest à évaluer : joueur à surveiller 😏':'👀 '+n+' guests à jauger : équipe mystère, méfiance 😏'}
 function competitionRanks(rows,key){let previous=null,rank=0;return rows.map((row,index)=>{if(row[key]!==previous){rank=index+1;previous=row[key]}return {...row,rank}})}
-function statRows(rows,key,label){return rows.length?rows.map(x=>'<div class="rank"><b>'+(x.rank===1?'👑':x.rank)+'</b><span>'+esc(x.name)+'</span><b class="right">'+x[key]+' '+label+(x[key]>1?'s':'')+'</b></div>').join(''):'<p class="muted">Aucun '+label+' enregistré.</p>'}
+function statRows(rows,key,label){
+ if(!rows.length)return '<p class="muted">Aucun '+label+' enregistré.</p>';
+ const item=x=>'<div class="rank"><b>'+(x.rank===1?'👑':x.rank)+'</b><span>'+esc(x.name)+'</span><b class="right">'+x[key]+' '+label+(x[key]>1?'s':'')+'</b></div>';
+ const top=rows.slice(0,5),more=rows.slice(5);
+ return '<div class="live-stat-top">'+top.map(item).join('')+'</div>'+(more.length?'<details class="live-stat-more"><summary>Développer le classement • '+more.length+' autre'+(more.length>1?'s':'')+'</summary><div class="live-stat-rest">'+more.map(item).join('')+'</div></details>':'');
+}
 async function resolve(){const s=params.get('s');if(!s||token&&tournamentId)return;const r=await sb.rpc('resolve_public_tournament_short_link',{p_code:s});if(r.error)throw r.error;if(!r.data?.public_token||!r.data?.tournament_id)throw new Error('Lien Live invalide.');token=r.data.public_token;tournamentId=r.data.tournament_id}
 function render(data){
  const tour=(data.tournaments||[]).find(t=>String(t.id)===String(tournamentId));if(!tour)throw new Error('Ce tournoi est introuvable.');
@@ -156,15 +161,19 @@ function render(data){
  $('#liveRanking').innerHTML=rows.length?'<table class="live-table"><thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>Diff</th><th>Pts</th></tr></thead><tbody>'+rows.map((r,i)=>'<tr><td>'+(i===0?'👑':i+1)+'</td><td><b>'+esc(r.name)+'</b></td><td>'+r.mj+'</td><td>'+r.v+'</td><td>'+r.n+'</td><td>'+r.d+'</td><td>'+((r.bp-r.bc)>=0?'+':'')+(r.bp-r.bc)+'</td><td><b>'+r.pts+'</b></td></tr>').join('')+'</tbody></table>':'<p class="muted">Classement indisponible.</p>';
  const individual=new Map();goals.forEach(g=>{const scorerId=String(g.scorer_player_id||'');if(scorerId&&players.has(scorerId)){if(!individual.has(scorerId))individual.set(scorerId,{name:players.get(scorerId).name,g:0,a:0});individual.get(scorerId).g++}const assisterId=String(g.assister_player_id||'');if(assisterId&&players.has(assisterId)){if(!individual.has(assisterId))individual.set(assisterId,{name:players.get(assisterId).name,g:0,a:0});individual.get(assisterId).a++}});
  const playerStats=[...individual.values()];const scorers=competitionRanks(playerStats.filter(x=>x.g>0).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name,'fr')),'g');const assists=competitionRanks(playerStats.filter(x=>x.a>0).sort((a,b)=>b.a-a.a||a.name.localeCompare(b.name,'fr')),'a');$('#liveScorers').innerHTML=statRows(scorers,'g','but');$('#liveAssists').innerHTML=statRows(assists,'a','passe');
- $('#liveMatches').innerHTML=matches.length?matches.map(m=>{
-   const h=teamMap.get(String(m.home_team_id)),a=teamMap.get(String(m.away_team_id));
-   const finished=!!(m.finished_at||m.status==='finished');
-   const hs=Number(m.home_score||0),as=Number(m.away_score||0);
-   const st=finished?'Terminé':m.started_at||['started','live','in_progress'].includes(String(m.status))?'En cours':'À jouer';
-   const homeLost=finished&&hs<as,awayLost=finished&&as<hs;
-   const events=(goalsByMatch.get(String(m.id))||[]).map(g=>{const scorer=players.get(String(g.scorer_player_id||''));const assister=players.get(String(g.assister_player_id||''));const gt=teamMap.get(String(g.team_id||''));return '<div class="live-match-event">⚽ <b>'+esc(scorer?.name||'Buteur')+'</b>'+(assister?' <span>← passe de <b>'+esc(assister.name)+'</b></span>':' <span>• sans passe</span>')+(gt?' <span>• '+esc(gt.name)+'</span>':'')+'</div>'}).join('');
-   return '<article class="live-match"><div><div class="muted">Match '+Number(m.match_order||0)+(m.pitch?' • '+esc(m.pitch):'')+' • '+st+'</div><div class="live-match-teams"><span class="live-team-name '+(homeLost?'is-loser':'')+'">'+esc(h?.name||'?')+'</span><span class="live-score">'+hs+' - '+as+'</span><span class="live-team-name '+(awayLost?'is-loser':'')+'">'+esc(a?.name||'?')+'</span></div>'+(events?'<div class="live-match-events">'+events+'</div>':'')+'</div></article>'
- }).join(''):'<p class="muted">Les matchs ne sont pas encore créés.</p>';
+ $('#liveMatches').innerHTML=matches.length?(()=>{
+   const cards=matches.map(m=>{
+     const h=teamMap.get(String(m.home_team_id)),a=teamMap.get(String(m.away_team_id)),finished=!!(m.finished_at||m.status==='finished');
+     const hs=Number(m.home_score||0),as=Number(m.away_score||0);
+     const st=finished?'Terminé':m.started_at||['started','live','in_progress'].includes(String(m.status))?'En cours':'À jouer';
+     const homeWon=finished&&hs>as,awayWon=finished&&as>hs,homeLost=finished&&hs<as,awayLost=finished&&as<hs;
+     const teamLabel=(team,won,lost)=>'<span class="live-team-name '+(won?'is-conqueror ':'')+(lost?'is-loser':'')+'">'+(won?'<small>⚔️ CONQUÉRANTS</small>':'')+esc(team?.name||'?')+(lost?'<em>Défaite</em>':'')+'</span>';
+     const events=(goalsByMatch.get(String(m.id))||[]).map(g=>{const scorer=players.get(String(g.scorer_player_id||''));const assister=players.get(String(g.assister_player_id||''));const gt=teamMap.get(String(g.team_id||''));return '<div class="live-match-event">⚽ <b>'+esc(scorer?.name||'Buteur')+'</b>'+(assister?' <span>← passe de <b>'+esc(assister.name)+'</b></span>':' <span>• sans passe</span>')+(gt?' <span>• '+esc(gt.name)+'</span>':'')+'</div>'}).join('');
+     return '<article class="live-match"><div><div class="muted">Match '+Number(m.match_order||0)+(m.pitch?' • '+esc(m.pitch):'')+' • '+st+'</div><div class="live-match-teams">'+teamLabel(h,homeWon,homeLost)+'<span class="live-score">'+hs+' - '+as+'</span>'+teamLabel(a,awayWon,awayLost)+'</div>'+(events?'<div class="live-match-events">'+events+'</div>':'')+'</div></article>';
+   }).join('');
+   const done=matches.filter(m=>m.finished_at||m.status==='finished').length;
+   return '<details class="live-matches-disclosure"><summary><span>📋 Résultats et feuilles de match</span><b>'+done+' / '+matches.length+' terminés</b><small>Développer</small></summary><div class="live-match-list">'+cards+'</div></details>';
+ })():'<p class="muted">Les matchs ne sont pas encore créés.</p>';
  const now=new Date();$('#liveUpdated').textContent='Actualisé '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setStatus(navigator.onLine?(tournamentFinished?'Tournoi terminé • résultats actualisés':'Live connecté • mise à jour toutes les 15 s'):'Hors connexion • dernier état affiché',navigator.onLine);
 }
 function showTestLogin(){
