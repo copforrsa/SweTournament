@@ -97,9 +97,9 @@
     const ready=Boolean(setup?.can_start);
     const teamsExist=Boolean(setup?.has_generated_teams);
     const voterRows=voters.map(voter=>'<label class="swe-v2-voter-choice"><input data-swe-v2-voter type="checkbox" value="'+esc(voter.user_id)+'" '+(voter.selected?'checked':'')+'><span><b>'+esc(voter.name||'Co-gestionnaire')+'</b></span><small>'+((voter.registered?'Inscrit · proposé par défaut':'Ajouté par l’administrateur'))+'</small></label>').join('')||'<p class="muted">Aucun co-gestionnaire à sélectionner. Tu peux utiliser le mode solo.</p>';
-    const condition=ready?'<div class="swe-v2-note success"><b>Conditions réunies :</b> '+esc(setup.confirmed_players)+' / '+esc(setup.max_players)+' inscrits. L’ouverture fermera les inscriptions et démarrera le délai d’une heure.</div>':'<div class="swe-v2-note"><b>Salon en attente :</b> '+esc(setup.confirmed_players)+' / '+esc(setup.max_players)+' inscrits. Il pourra s’ouvrir lorsque le quota sera atteint ou après fermeture des inscriptions.</div>';
+    const condition=ready?'<div class="swe-v2-note success"><b>Conditions réunies :</b> '+esc(setup.confirmed_players)+' / '+esc(setup.max_players)+' inscrits. L’ouverture fermera les inscriptions et démarrera le délai d’une heure.</div>':'<div class="swe-v2-note"><b>Salon en attente :</b> '+esc(setup.confirmed_players)+' / '+esc(setup.max_players)+' inscrits. Ferme les inscriptions ici pour continuer, ou attends que le quota soit atteint.</div>';
     const existing=teamsExist?'<div class="swe-v2-note error">Une composition existe encore. Annule la création des équipes avant de recommencer le salon.</div>':'';
-    root.innerHTML='<section class="swe-v2-shell"><div class="swe-v2-head"><div><div class="swe-v2-kicker">SALON DE VALIDATION DES ÉQUIPES</div><h2>🗳️ Préparer '+esc(setup?.tournament_name||'le tournoi')+'</h2><p class="muted">Choisis les co-gestionnaires qui voteront. Les participants sont précochés ; tu peux aussi ajouter tout co-gestionnaire actif. Décoche tout pour le mode solo.</p></div><button class="swe-v2-close" type="button" data-swe-v2-close aria-label="Fermer">×</button></div>' +(message?'<div class="swe-v2-note '+(isError?'error':'success')+'">'+esc(message)+'</div>':'')+condition+existing+'<div class="swe-v2-setup-list">'+voterRows+'</div><div class="swe-v2-note"><b>Règles appliquées :</b> 1 h de vote, jusqu’à 5 propositions. Avant la cinquième, les votants peuvent demander un nouveau tirage ; à la cinquième, ils choisissent une proposition.</div><div class="swe-v2-actions"><button type="button" class="primary" data-swe-v2-start '+((!ready||teamsExist)?'disabled':'')+'>Ouvrir le salon de validation →</button></div></section>';
+    root.innerHTML='<section class="swe-v2-shell"><div class="swe-v2-head"><div><div class="swe-v2-kicker">SALON DE VALIDATION DES ÉQUIPES</div><h2>🗳️ Préparer '+esc(setup?.tournament_name||'le tournoi')+'</h2><p class="muted">Choisis les co-gestionnaires qui voteront. Les participants sont précochés ; tu peux aussi ajouter tout co-gestionnaire actif. Décoche tout pour le mode solo.</p></div><button class="swe-v2-close" type="button" data-swe-v2-close aria-label="Fermer">×</button></div>' +(message?'<div class="swe-v2-note '+(isError?'error':'success')+'">'+esc(message)+'</div>':'')+condition+existing+'<div class="swe-v2-setup-list">'+voterRows+'</div><div class="swe-v2-note"><b>Règles appliquées :</b> 1 h de vote, jusqu’à 5 propositions. Avant la cinquième, les votants peuvent demander un nouveau tirage ; à la cinquième, ils choisissent une proposition.</div><div class="swe-v2-actions">'+(!ready&&setup?.registration_open?'<button type="button" data-swe-v2-close-registration>Fermer les inscriptions pour continuer</button>':'')+'<button type="button" class="primary" data-swe-v2-start '+((!ready||teamsExist)?'disabled':'')+'>Ouvrir le salon de validation →</button></div></section>';
   }
 
   function renderRoom(data,message='',isError=false){
@@ -174,6 +174,16 @@
     if(busy)return;
     busy=true;
     try{
+      if(target.matches('[data-swe-v2-close-registration]')){
+        const id=setupTournamentId;
+        const api=client();
+        if(!api)throw new Error('Connexion indisponible. Recharge la page puis réessaie.');
+        const {error}=await api.from('tournaments').update({registration_open:false}).eq('id',id);
+        if(error)throw error;
+        if(tournament(id))tournament(id).registration_open=false;
+        renderSetup(await rpc('team_draw_room_setup_v2',{p_tournament_id:id}),'Inscriptions fermées. Choisis les votants puis ouvre le salon.');
+        return;
+      }
       if(target.matches('[data-swe-v2-start]')){
         const ids=[...document.querySelectorAll('#sweDrawRoomV2 [data-swe-v2-voter]:checked')].map(input=>input.value);
         const data=await rpc('team_draw_room_start_v2',{p_tournament_id:setupTournamentId,p_voter_user_ids:ids});
@@ -296,7 +306,7 @@
   }
 
   document.addEventListener('click',event=>{
-    const target=event.target.closest?.('[data-swe-v2-open],[data-swe-v2-close],[data-swe-v2-start],[data-swe-v2-proposal],[data-swe-v2-generate],[data-swe-v2-feedback],[data-swe-v2-select],[data-swe-v2-publish],[data-swe-v2-refresh],[data-swe-open-draw-room],[data-coorg-action="team"],#smartAutoTeams');
+    const target=event.target.closest?.('[data-swe-v2-open],[data-swe-v2-close],[data-swe-v2-close-registration],[data-swe-v2-start],[data-swe-v2-proposal],[data-swe-v2-generate],[data-swe-v2-feedback],[data-swe-v2-select],[data-swe-v2-publish],[data-swe-v2-refresh],[data-swe-open-draw-room],[data-coorg-action="team"],#smartAutoTeams');
     if(!target)return;
     if(target.matches('#smartAutoTeams')){
       const s=appState(),t=(s?.tournaments||[]).find(item=>String(item.id)===String(s?.teamCompetitionId||s?.activeTour));
