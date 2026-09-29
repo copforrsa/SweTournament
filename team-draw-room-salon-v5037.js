@@ -50,6 +50,12 @@
       #sweDrawRoomV2 .swe-v2-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}#sweDrawRoomV2 button{min-height:40px;cursor:pointer}#sweDrawRoomV2 button.primary{background:#1762bf;color:#fff;border-color:#1762bf}#sweDrawRoomV2 button.swe-v2-redraw{background:#16834f;color:#fff;border-color:#16834f}#sweDrawRoomV2 button:disabled{opacity:.55;cursor:not-allowed}
       #sweDrawRoomV2 .swe-v2-setup-list{display:grid;gap:8px;margin:14px 0}#sweDrawRoomV2 .swe-v2-voter-choice{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #d7e3ef;border-radius:11px}#sweDrawRoomV2 .swe-v2-voter-choice input{width:18px;height:18px}#sweDrawRoomV2 .swe-v2-voter-choice small{color:#64748b;margin-left:auto}
       #sweDrawRoomV2 .swe-v2-progress{display:flex;gap:6px;margin:12px 0 0}#sweDrawRoomV2 .swe-v2-progress i{height:7px;flex:1;border-radius:999px;background:#dce9f7}#sweDrawRoomV2 .swe-v2-progress i.on{background:#1d72dc}#sweDrawRoomV2 .swe-v2-countdown{font-weight:800;color:#1259af}
+      #sweDrawRoomV2 .swe-v2-live{position:sticky;top:-22px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0;padding:10px 14px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;box-shadow:0 4px 12px rgba(12,49,95,.08)}
+      #sweDrawRoomV2 .swe-v2-live b{color:#173b67}#sweDrawRoomV2 .swe-v2-live small{display:block;color:#52677f;margin-top:2px}#sweDrawRoomV2 .swe-v2-live button{min-height:34px;white-space:nowrap}
+      #sweDrawRoomV2 .swe-v2-choose,#sweDrawRoomV2 .swe-v2-choose.primary{background:#facc15;color:#422c05;border:1px solid #d69e00;font-weight:900;box-shadow:0 3px 0 #b77904}#sweDrawRoomV2 .swe-v2-choose:hover{background:#fde047}
+      #sweDrawRoomV2 .swe-v2-proposal.new-draw{animation:swe-v2-arrival .8s ease-out;border-color:#eab308;box-shadow:0 0 0 4px rgba(250,204,21,.22)}
+      #sweDrawRoomV2 .swe-v2-live.new-draw{animation:swe-v2-arrival .8s ease-out;background:#fef9c3;border-color:#eab308}
+      @keyframes swe-v2-arrival{from{opacity:.5;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
       @media(max-width:760px){#sweDrawRoomV2{padding:8px}#sweDrawRoomV2 .swe-v2-shell{padding:15px;border-radius:14px;max-height:94vh}#sweDrawRoomV2 .swe-v2-grid{grid-template-columns:1fr}#sweDrawRoomV2 h2{font-size:20px}}
     `;
     document.head.append(style);
@@ -103,8 +109,11 @@
   }
 
   function renderRoom(data,message='',isError=false){
+    const previousCount=latest?.tournament_id===data.tournament_id?Number(latest.proposal_count||0):null;
+    const newDraw=previousCount!==null&&Number(data.proposal_count||0)>previousCount;
     latest=data;
     const root=modal();
+    const previousScroll=root.querySelector('.swe-v2-shell')?.scrollTop||0;
     const proposals=list(data.proposals);
     const defaultSelection=data.my_final_choice||data.final_vote_leader_id||data.current_proposal_id||proposals[proposals.length-1]?.id||null;
     if(!proposals.some(proposal=>String(proposal.id)===String(selectedProposalId)))selectedProposalId=defaultSelection;
@@ -118,8 +127,8 @@
       const current=String(proposal.id)===String(data.current_proposal_id);
       const leader=Number(proposal.final_votes||0)>0&&String(proposal.id)===String(data.final_vote_leader_id);
       const feedback='🏁 '+esc(proposal.final_votes||0)+' choix';
-      const voteButton=data.can_vote&&!data.expired?'<div class="swe-v2-actions"><button type="button" class="'+(String(data.my_final_choice)===String(proposal.id)?'primary':'')+'" data-swe-v2-select="'+esc(proposal.id)+'">'+(String(data.my_final_choice)===String(proposal.id)?'✓ Mon choix':'Choisir cette proposition')+'</button></div>':'';
-      return '<article class="swe-v2-proposal '+(selected?'selected ':'')+(leader?'leader':'')+'" data-swe-v2-proposal="'+esc(proposal.id)+'"><div class="swe-v2-proposal-head"><b>Proposition '+esc(proposal.sequence)+(current?' · dernière générée':'')+'</b><span class="'+(leader?'swe-v2-leader':'muted')+'">'+(leader?'✓ En tête du vote · ':'')+feedback+'</span></div><div class="swe-v2-teams">'+teamHtml(proposal.snapshot)+'</div>'+voteButton+'</article>';
+      const voteButton=data.can_vote&&!data.expired?'<div class="swe-v2-actions"><button type="button" class="swe-v2-choose" data-swe-v2-select="'+esc(proposal.id)+'">'+(String(data.my_final_choice)===String(proposal.id)?'✓ Mon choix':'Choisir cette proposition')+'</button></div>':'';
+      return '<article class="swe-v2-proposal '+(selected?'selected ':'')+(leader?'leader ':'')+(newDraw&&current?'new-draw':'')+'" data-swe-v2-proposal="'+esc(proposal.id)+'"><div class="swe-v2-proposal-head"><b>Proposition '+esc(proposal.sequence)+(current?' · dernière générée':'')+'</b><span class="'+(leader?'swe-v2-leader':'muted')+'">'+(leader?'✓ En tête du vote · ':'')+feedback+'</span></div><div class="swe-v2-teams">'+teamHtml(proposal.snapshot)+'</div>'+voteButton+'</article>';
     }).join('')||'<div class="swe-v2-note">Le salon est ouvert. L’administrateur peut lancer la première proposition.</div>';
     const feedbackActions=data.can_vote&&!data.expired?'<div class="swe-v2-note"><b>Ton vote est consultatif :</b> choisis la composition que tu préfères. Tu peux modifier ton choix pendant une heure. La proposition en tête apparaît en vert ; le pro conserve la décision finale.</div>':'';
     let adminActions='';
@@ -131,7 +140,8 @@
     const voters=list(data.voters).map(voter=>'<div class="swe-v2-voter"><span>'+esc(voter.name)+'</span><b>'+(voter.final_choice?'Proposition '+esc(byId(voter.final_choice)):'En attente')+'</b></div>').join('')||'<p class="muted">Mode solo : aucun votant sélectionné.</p>';
     const sideTitle=data.can_admin?'Votants sélectionnés':'Ton accès au salon';
     const phaseText=data.can_admin?'<div class="swe-v2-note"><b>Décision du pro :</b> génère librement jusqu’à cinq propositions, sélectionne celle que tu veux, puis publie-la. Le vert indique seulement la recommandation des co-gestionnaires.</div>':'';
-    root.innerHTML='<section class="swe-v2-shell"><div class="swe-v2-head"><div><div class="swe-v2-kicker">SALON DE VALIDATION DES ÉQUIPES</div><h2>🗳️ '+esc(data.tournament_name||'Composition des équipes')+'</h2>'+progress+'</div><button class="swe-v2-close" type="button" data-swe-v2-close aria-label="Fermer">×</button></div>'+(message?'<div class="swe-v2-note '+(isError?'error':'success')+'">'+esc(message)+'</div>':'')+deadlineLine+phaseText+'<div class="swe-v2-grid"><div>'+cards+feedbackActions+'<div class="swe-v2-actions">'+adminActions+'<button type="button" data-swe-v2-refresh>↻ Actualiser</button></div></div><aside class="swe-v2-side"><b>'+esc(sideTitle)+'</b><p class="muted">Les votes sont une recommandation. Le pro choisit et publie librement.</p>'+voters+'</aside></div></section>';
+    root.innerHTML='<section class="swe-v2-shell"><div class="swe-v2-head"><div><div class="swe-v2-kicker">SALON DE VALIDATION DES ÉQUIPES</div><h2>🗳️ '+esc(data.tournament_name||'Composition des équipes')+'</h2>'+progress+'</div><button class="swe-v2-close" type="button" data-swe-v2-close aria-label="Fermer">×</button></div><div class="swe-v2-live '+(newDraw?'new-draw':'')+'" role="status" aria-live="polite"><div><b>🎲 '+esc(data.proposal_count)+' tirage'+(Number(data.proposal_count)>1?'s':'')+' réalisé'+(Number(data.proposal_count)>1?'s':'')+' sur 5'+(newDraw?' · nouvelle proposition disponible !':'')+'</b><small>Actualisation automatique toutes les 15 secondes. Tu peux aussi actualiser maintenant.</small></div><button type="button" data-swe-v2-refresh>↻ Actualiser</button></div>'+(message?'<div class="swe-v2-note '+(isError?'error':'success')+'">'+esc(message)+'</div>':'')+deadlineLine+phaseText+'<div class="swe-v2-grid"><div>'+cards+feedbackActions+'<div class="swe-v2-actions">'+adminActions+'</div></div><aside class="swe-v2-side"><b>'+esc(sideTitle)+'</b><p class="muted">Les votes sont une recommandation. Le pro choisit et publie librement.</p>'+voters+'</aside></div></section>';
+    root.querySelector('.swe-v2-shell').scrollTop=previousScroll;
     scheduleRefresh();
   }
 
@@ -190,6 +200,7 @@
         selectedProposalId=null;renderRoom(data,'Salon ouvert : la fenêtre de vote est active pendant une heure.');scheduleMount();return;
       }
       if(target.matches('[data-swe-v2-generate]')){
+        target.disabled=true;target.textContent='🎲 Tirage en cours…';
         const data=await rpc('team_draw_room_generate_v2',{p_tournament_id:latest.tournament_id});
         selectedProposalId=data.current_proposal_id;renderRoom(data,'Nouvelle proposition créée.');scheduleMount();return;
       }
