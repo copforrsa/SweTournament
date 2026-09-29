@@ -75,6 +75,7 @@
     // Le tableau n’existe que pour les co-gestionnaires. Ne pas dépendre ici
     // d’un helper global qui peut être chargé après le tableau PWA.
     const actions=getActionContainer();
+    if(!actions)return; // Le volet permanent du tableau remplace cette carte.
     const t=(await serverOpenRoom())||activeTournament();
     if(!actions||!t)return;
     style();

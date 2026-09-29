@@ -270,7 +270,8 @@
   }
 
   async function mountCoorgCards(){
-    if(!isCoorgUser()||coorgMountBusy)return;
+    // Le tableau co-gestionnaire possède désormais son volet permanent.
+    if(E('sweCoorgDashboard4399')||!isCoorgUser()||coorgMountBusy)return;
     const root=E('sweCoorgDashboard4399');if(!root)return;
     coorgMountBusy=true;
     try{
