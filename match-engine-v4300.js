@@ -299,6 +299,9 @@ function renderStableMatches(allowHydrate=true){
   // Match numbering is permanent: Match 1, Match 2, Match 3… regardless
   // of whether earlier matches have already finished.
   const rows=[...(state.matches||[])].sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
+  // Repeated refreshes with identical data must preserve the score form DOM.
+  const signature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.()]);
+  if(box.__sweMatchSignature===signature&&box.querySelector('.swe4300-match'))return;
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');
   box.innerHTML='';
   if(canManageDeletion()){
@@ -361,6 +364,7 @@ function renderStableMatches(allowHydrate=true){
       if(selected && canManageDeletion())box.appendChild(deletionButton(t,selected));
     }
   }
+  box.__sweMatchSignature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.()]);
   // Targeted and mobile refreshes do not emit the global swe:rendered event.
   // Keep the King-of-the-pitch launch control synchronized anyway.
   setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);

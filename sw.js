@@ -1,4 +1,4 @@
-const SW_BUILD='50.78-vote-panel';
+const SW_BUILD='50.79-stable-scores';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 

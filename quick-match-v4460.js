@@ -3,6 +3,7 @@
 'use strict';
 if(window.SWE_QUICK_MATCH_UI)return;
 const drafts=new Map(),pending=new Set();
+let revision=0;
 const key=(m,suffix)=>String(m.id)+':'+suffix;
 const draft=(m,suffix,initial)=>{const k=key(m,suffix);if(!drafts.has(k))drafts.set(k,{...initial});return drafts.get(k)};
 const eq=(a,b)=>String(a)===String(b);
@@ -54,7 +55,7 @@ function choose(label,options,value,change){
   for(const [id,text] of options){const o=node('option',text);o.value=id;s.append(o)}
   s.value=value??'';s.onchange=()=>change(s.value);wrap.append(s);return wrap;
 }
-function redraw(){if(typeof renderMatches==='function')renderMatches(false);window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true)}
+function redraw(changed=true){if(changed)revision++;if(typeof renderMatches==='function')renderMatches(false);window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true)}
 async function action(m,type,payload,success){
   if(pending.has(String(m.id)))return;
   if(!editable(m))return toast('Tournoi terminé ou droit de saisie manquant.');
@@ -97,8 +98,9 @@ function render(panel,m){
       for(const id of roster(m,tid)){
         const row=node('div',undefined,'swe4460-player-row');
         const b=button('⚽ '+name(id)+(isSub(m,id)?' · Remplaçant':''),()=>action(m,mode.attach?'attach':'add',{team_id:tid,scorer_id:id}),busy);
+        row.dataset.replacePlayer=id;
         b.className='swe4460-scorer'+(isSub(m,id)?' swe4460-sub':'');row.append(b);
-        row.append(button('🔁',()=>{const d=draft(m,'sub',{});d.out=id;d.open=true;redraw()},busy));row.lastChild.setAttribute('aria-label','Remplacer '+name(id));
+        row.append(button('🔁',()=>{const d=draft(m,'sub',{});d.out=id;d.open=true;d.incoming='';redraw();const form=document.querySelector('.swe4460-subform');form?.scrollIntoView?.({block:'nearest'});form?.querySelector('select')?.focus({preventScroll:true})},busy));row.lastChild.setAttribute('aria-label','Remplacer '+name(id));
         col.append(row);
       }
       teams.append(col);
@@ -109,10 +111,13 @@ function render(panel,m){
   if(can&&sub.open){
     const form=node('section',undefined,'swe4460-subform');
     form.append(node('b','Remplacer '+name(sub.out)+' pour ce match'));
-    const options=(S.tPlayers||[]).filter(p=>eq(p.tournament_id,m.tournament_id)&&p.present&&p.is_substitute&&p.registration_status!=='waitlist'&&!roster(m,m.home_team_id).concat(roster(m,m.away_team_id)).some(id=>eq(id,p.player_id)));
-    form.append(choose('Remplaçant déclaré',[['','Choisir…'],...options.map(p=>[p.player_id,name(p.player_id)])],sub.incoming,v=>{sub.incoming=v}));
+    const occupied=new Set(roster(m,m.home_team_id).concat(roster(m,m.away_team_id)).map(String));
+    if(m.status!=='finished')for(const other of S.matches||[])if(!eq(other.id,m.id)&&eq(other.tournament_id,m.tournament_id)&&['live','playing','in_progress'].includes(other.status))for(const tid of [other.home_team_id,other.away_team_id])for(const id of roster(other,tid))occupied.add(String(id));
+    const options=(S.tPlayers||[]).filter(p=>eq(p.tournament_id,m.tournament_id)&&p.present&&p.registration_status!=='waitlist'&&player(p.player_id)&&!occupied.has(String(p.player_id))).sort((a,b)=>Number(!!b.is_substitute)-Number(!!a.is_substitute)||name(a.player_id).localeCompare(name(b.player_id),'fr'));
+    form.append(choose('Joueur entrant',[['','Choisir…'],...options.map(p=>[p.player_id,name(p.player_id)+(p.is_substitute?' · Remplaçant prioritaire':' · Autre présent')])],sub.incoming,v=>{sub.incoming=v}));
     form.append(button('Confirmer le remplacement',()=>{if(!sub.incoming)return toast('Choisis un remplaçant.');action(m,'substitute',{out_id:sub.out,in_id:sub.incoming},()=>{sub.open=false;sub.incoming=''})},busy));
-    form.append(button('Annuler',()=>{sub.open=false;redraw()},busy));panel.append(form);
+    form.append(button('Annuler',()=>{sub.open=false;redraw()},busy));if(!options.length)form.append(node('p','Aucun autre joueur présent disponible.'));
+    const outgoing=panel.querySelector('[data-replace-player="'+sub.out+'"]');if(outgoing)outgoing.after(form);else panel.append(form);
   }
   panel.append(node('h4','Buts enregistrés · passeurs modifiables'));
   if(!goals.length)panel.append(node('p','Aucun buteur enregistré.'));
@@ -149,8 +154,8 @@ function render(panel,m){
   }else panel.append(node('p',tour(m)?.status==='finished'?'Tournoi terminé · résultats verrouillés':String(m.status)==='finished'?'Match terminé · correction réservée à l’administrateur':'Consultation seule'));
 }
 const css=node('style');css.textContent='.swe4460{font-size:16px}.swe4460-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}.swe4460-player-row{display:flex;gap:6px;margin:8px 0}.swe4460-scorer{flex:1;text-align:left;min-width:0;font-weight:900}.swe4460 button,.swe4460 select,.swe4460 input{min-height:44px;font-size:14px}.swe4460-fields{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.swe4460-fields label{display:grid;gap:4px;flex:1;min-width:140px}.swe4460-goal{padding:12px;border:2px solid #b5cce0;border-radius:12px;margin:10px 0}.swe4460-goal p{margin:6px 0}.swe4460-goal-red{background:#fff0f0;border-color:#dc2626}.swe4460-goal-blue{background:#eff6ff;border-color:#2563eb}.swe4460-goal-yellow{background:#fffbeb;border-color:#d97706}.swe4460-goal-green{background:#f0fdf4;border-color:#16a34a}.swe4460-goal-black{background:#e5e7eb;border-color:#111827}.swe4460-goal-white{background:#fff;border-color:#94a3b8}.swe4460-goal-neutral{background:#f0f9ff;border-color:#0284c7}.swe4460-sub,.swe4460-subform{background:#fff0d7!important;color:#683900!important;border:1px solid #bf7200!important;border-radius:8px;padding:8px}.swe4460 details{margin-top:12px}.swe4460 summary{cursor:pointer;padding:10px}.swe4460 input{width:100%;min-width:0}@media(max-width:600px){.swe4460-teams{grid-template-columns:1fr}.swe4460-fields>*{flex:1 1 100%}}#matchesList .swe4300-match.finished{opacity:1}';document.head.append(css);
-window.SWE_QUICK_MATCH_UI={render,roster,action};
-document.addEventListener('swe:match-remote-final',()=>{if(!pending.size)redraw()});
+window.SWE_QUICK_MATCH_UI={render,roster,action,getRevision:()=>revision};
+document.addEventListener('swe:match-remote-final',()=>{if(!pending.size)redraw(false)});
 document.addEventListener('swe:substitution',redraw);
 redraw();
 })();

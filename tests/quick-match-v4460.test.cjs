@@ -58,3 +58,18 @@ test('failed save preserves draft and permits retry',async()=>{
  assert.ok(![...w.document.querySelectorAll('button')].find(b=>b.textContent==='Enregistrer le passeur').disabled);
  dom.window.close();
 });
+test('unchanged refreshes keep score DOM and focus; changes still update the score',()=>{
+ const {w,dom}=setup();const field=w.document.querySelector('select[aria-label="Passeur"]');field.focus();
+ for(let i=0;i<8;i++){w.SWE_RENDER_MATCHES_4302(false);w.document.dispatchEvent(new w.CustomEvent('swe:match-remote-final'));}
+ assert.equal(w.document.querySelector('select[aria-label="Passeur"]'),field);assert.equal(w.document.activeElement,field);
+ w.S.matches[0].home_score=3;w.SWE_RENDER_MATCHES_4302(false);assert.match(w.document.querySelector('.swe4300-result').textContent,/3 - 0/);dom.window.close();
+});
+test('replacement opens beside the outgoing player, with designated substitutes first and other present players available',()=>{
+ const {w,dom}=setup();w.S.players.push({id:'other',name:'Aaron'},{id:'absent',name:'Absent'},{id:'waiting',name:'Waiting'},{id:'playing',name:'Playing'});
+ w.S.tPlayers.push({tournament_id:'t',player_id:'other',present:true,is_substitute:false},{tournament_id:'t',player_id:'absent',present:false},{tournament_id:'t',player_id:'waiting',present:true,registration_status:'waitlist'},{tournament_id:'t',player_id:'playing',present:true});
+ w.S.matches[0].status='live';w.S.matches[0].pitch='A';w.S.matches.push({pitch:'B',id:'othermatch',tournament_id:'t',home_team_id:'third',away_team_id:'fourth',status:'live'});w.S.teamPlayers.push({team_id:'third',player_id:'playing'});w.SWE_RENDER_MATCHES_4302(false);
+ w.document.querySelector('button[aria-label="Remplacer Baptiste"]').click();
+ const form=w.document.querySelector('.swe4460-subform');assert.equal(form.previousElementSibling.dataset.replacePlayer,'p');
+ const options=[...form.querySelector('select').options];assert.deepEqual(options.map(o=>o.value),['','r','other']);assert.match(options[1].textContent,/prioritaire/);
+ dom.window.close();
+});
