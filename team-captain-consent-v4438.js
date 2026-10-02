@@ -14,12 +14,12 @@
     document.querySelectorAll('[data-team-mate]').forEach(mate=>{
       const id=mate.dataset.teamMate;
       const row=mate.closest('label');
-      if(!row||row.querySelector('[data-team-consent]'))return;
-      const consent=document.createElement('label');
+      if(!row||document.querySelector('[data-team-consent="'+id+'"]'))return;
+      const consent=document.createElement('div');
       consent.style.cssText='display:block;margin:5px 0 2px 28px;font-size:.88rem;color:#31506f';
-      consent.innerHTML='<input type="checkbox" data-team-consent="'+id+'" style="width:auto" disabled> ✅ Il m’a donné son accord : l’ajouter directement';
+      consent.innerHTML='<label style="display:block;margin:6px 0"><input type="radio" name="team-consent-'+id+'" data-team-consent="'+id+'" style="width:auto" disabled> ✅ J’ai son accord : l’ajouter directement</label><label style="display:block;margin:6px 0"><input type="radio" name="team-consent-'+id+'" data-team-pending="'+id+'" style="width:auto" checked disabled> ⏳ Je n’ai pas son accord : lui demander de confirmer</label>';
       row.after(consent);
-      mate.addEventListener('change',()=>{consent.querySelector('input').disabled=!mate.checked;if(!mate.checked)consent.querySelector('input').checked=false;});
+      const sync=()=>{consent.querySelectorAll('input').forEach(input=>input.disabled=!mate.checked);if(!mate.checked)consent.querySelector('[data-team-pending]').checked=true;};mate.addEventListener('change',sync);sync();
     });
   }
   function scheduleChoices(){setTimeout(installChoices,350);setTimeout(installChoices,900);}
