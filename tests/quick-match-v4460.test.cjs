@@ -8,7 +8,7 @@ function setup(){
  const dom=new JSDOM('<div id="matchesList"></div>',{runScripts:'outside-only',url:'https://example.test'});
  const w=dom.window;
  w.S={activeTour:'t',session:{user:{}},tournaments:[{id:'t',status:'open'}],matches:[{id:'m',tournament_id:'t',home_team_id:'h',away_team_id:'a',home_score:1,away_score:0,status:'finished',substitutions:[]}],teams:[{id:'h',name:'Noirs'},{id:'a',name:'Blancs'}],players:[{id:'p',name:'Baptiste'},{id:'q',name:'Andy'},{id:'r',name:'Rémi'},{id:'x',name:'Alex'}],teamPlayers:[{team_id:'h',player_id:'p'},{team_id:'h',player_id:'q'},{team_id:'a',player_id:'x'}],matchAssignments:[],goals:[{id:'g',match_id:'m',team_id:'h',scorer_player_id:'p',assister_player_id:null}],tPlayers:[{tournament_id:'t',player_id:'r',present:true,is_substitute:true}]};
- w.CSS={escape:s=>s};w.toast=()=>{};w.confirm=()=>true;w.currentTour=()=>w.S.tournaments[0];w.canEditCurrentMatches=()=>w.S.tournaments[0].status!=='finished';w.isAdmin=()=>false;
+ w.CSS={escape:s=>s};w.toast=()=>{};w.confirm=()=>true;w.currentTour=()=>w.S.tournaments[0];w.canEditCurrentMatches=()=>w.S.tournaments[0].status!=='finished';w.isAdmin=()=>true;
  w.renderMatches=()=>{};w.loadTournament=async()=>{};
  let calls=[];
  w.sb={rpc:async(method,args)=>{calls.push({method,args});const g=w.S.goals[0];if(args.p_action==='edit')g.assister_player_id=args.p_payload.assister_id;return {data:{match:w.S.matches[0],goals:w.S.goals,assignments:w.S.matchAssignments},error:null}}};
@@ -16,7 +16,7 @@ function setup(){
  w.eval(fs.readFileSync(path.join(root,'quick-match-v4460.js'),'utf8'));
  return {w,dom,calls};
 }
-test('one scoring entry, finished match editable for allowed co-manager; drafts survive full rebuilds',async()=>{
+test('one scoring entry, finished match editable for administrator; drafts survive full rebuilds',async()=>{
  const {w,dom,calls}=setup();
  assert.equal(w.document.querySelectorAll('.swe4301-goal-form,.swe4360-quick,.swe4303d,.swe4303m,.swe4300-edit').length,0);
  assert.equal(w.document.querySelectorAll('.swe4460-scorer').length,3);
@@ -34,7 +34,7 @@ test('one scoring entry, finished match editable for allowed co-manager; drafts 
  dom.window.close();
 });
 test('closed tournament and missing rights remove every editing entry',()=>{
- const {w,dom}=setup();w.S.tournaments[0].status='finished';w.SWE_RENDER_MATCHES_4302(false);
+ const {w,dom}=setup();w.isAdmin=()=>false;w.S.tournaments[0].status='finished';w.SWE_RENDER_MATCHES_4302(false);
  assert.equal(w.document.querySelectorAll('.swe4460 button,.swe4460 select').length,0);
  w.S.tournaments[0].status='open';w.canEditCurrentMatches=()=>false;w.SWE_RENDER_MATCHES_4302(false);
  assert.equal(w.document.querySelectorAll('.swe4460 button,.swe4460 select').length,0);dom.window.close();
@@ -84,4 +84,16 @@ test('championship keeps fifteen matches in five rounds, completed scores and se
  buttons[14].click();assert.ok(w.document.querySelectorAll('.swe4300-round')[4].querySelector('.swe4300-match'));assert.equal(w.document.querySelector('.swe4300-round [aria-selected=true]').textContent,buttons[14].textContent);
  const selected=w.document.querySelector('.swe4300-round [aria-selected=true]');w.SWE_RENDER_MATCHES_4302(false);assert.equal(w.document.querySelector('.swe4300-round [aria-selected=true]'),selected);
  w.document.querySelector('.swe4300-round [role=tab]').click();assert.match(w.document.querySelector('.swe4300-match').className,/finished/);assert.ok(w.document.querySelector('.swe4300-round').querySelector('.swe4300-match'));assert.ok(w.document.querySelector('.swe4300-round [role=tab]').classList.contains('completed'));dom.window.close();
+});
+
+test('finished matches are locked for co-managers and editable by admin or super admin',()=>{
+ const {w,dom}=setup();w.isAdmin=()=>false;w.SWE_RENDER_MATCHES_4302(false);assert.equal(w.document.querySelectorAll('.swe4460 button,.swe4460 select,.swe4460 input').length,0);
+ w.isAdmin=()=>true;w.SWE_RENDER_MATCHES_4302(false);assert.ok(w.document.querySelector('.swe4460 button'));
+ w.isAdmin=()=>false;w.S.isSuperAdmin=true;w.SWE_RENDER_MATCHES_4302(false);assert.ok(w.document.querySelector('.swe4460 button'));dom.window.close();
+});
+
+test('finishing selects the next unplayed match and opens history after the final match',()=>{
+ const {w,dom}=setup();w.S.tournaments[0].name='Conquête';w.S.matches=Array.from({length:3},(_,i)=>({id:'m'+i,tournament_id:'t',home_team_id:'h',away_team_id:'a',match_order:i+1,rotation_role:'championship',round_label:'Tour 1 · '+['Carrefour','Mercedes','Boulogne'][i],status:i===0?'finished':'scheduled',home_score:0,away_score:0}));
+ w.SWE_MATCH_COMMON_4302.selectNextMatch(w.S.matches[0]);w.SWE_RENDER_MATCHES_4302(false);assert.match(w.document.querySelector('[role=tab][aria-selected=true]').textContent,/Mercedes/);
+ w.S.matches.forEach(m=>m.status='finished');w.SWE_MATCH_COMMON_4302.selectNextMatch(w.S.matches[2]);w.SWE_RENDER_MATCHES_4302(false);assert.ok(w.document.querySelector('.swe4300-finished-tab.active'));dom.window.close();
 });

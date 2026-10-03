@@ -1,4 +1,4 @@
-const SW_BUILD='50.84-round-details';
+const SW_BUILD='50.85-finish-next';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 

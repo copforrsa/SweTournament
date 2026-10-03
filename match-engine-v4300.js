@@ -387,7 +387,13 @@ function renderStableMatches(allowHydrate=true){
   setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);
 }
 
-window.SWE_MATCH_COMMON_4302={kingReign,decorateKingTeam,hydrate,saveScore,deleteGoalAndSyncScore,renderGoalPanel,buildCard,renderStableMatches,teamById,playerById,playersForTeam,canEditScores,adminUser,current,syncCardScore};
+function selectNextMatch(completed){
+  const matches=(state.matches||[]).filter(m=>String(m.tournament_id)===String(completed.tournament_id)).sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
+  const next=matches.find(m=>m.status!=='finished'&&Number(m.match_order)>Number(completed.match_order))||matches.find(m=>m.status!=='finished');
+  selectedMatchByTournament.set(String(completed.tournament_id),next?String(next.id):'finished');
+}
+
+window.SWE_MATCH_COMMON_4302={selectNextMatch,kingReign,decorateKingTeam,hydrate,saveScore,deleteGoalAndSyncScore,renderGoalPanel,buildCard,renderStableMatches,teamById,playerById,playersForTeam,canEditScores,adminUser,current,syncCardScore};
 if(!context)try{window.__SWE_NATIVE_RENDER_MATCHES=typeof renderMatches==='function'?renderMatches:null;renderMatches=renderStableMatches}catch(e){console.error('SWÉ V43.02 remplacement renderMatches',e)}
 window.SWE_RENDER_MATCHES_4302=renderStableMatches;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>renderStableMatches(true),100),{once:true});else setTimeout(()=>renderStableMatches(true),100);

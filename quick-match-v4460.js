@@ -20,7 +20,7 @@ const editable=m=>{
   if(superAdmin())return true;
   if(!t)return false;
   if(t.status==='finished')return groupAdmin();
-  if(String(m.status)==='finished')return groupAdmin()||(typeof canEditCurrentMatches==='function'&&canEditCurrentMatches());
+  if(String(m.status)==='finished')return groupAdmin();
   return typeof canEditCurrentMatches==='function'&&canEditCurrentMatches();
 };
 const conquestRole=m=>['championship','conquest'].includes(String(m?.rotation_role||''));
@@ -72,6 +72,7 @@ async function action(m,type,payload,success){
       const i=S.matches.findIndex(x=>eq(x.id,m.id));if(i>=0)S.matches[i]=data.match;
       S.goals=[...(S.goals||[]).filter(g=>!eq(g.match_id,m.id)),...data.goals];
       S.matchAssignments=[...(S.matchAssignments||[]).filter(a=>!eq(a.match_id,m.id)),...data.assignments];
+      if(type==='conquest_finish')window.SWE_MATCH_COMMON_4302?.selectNextMatch?.(data.match);
     }
     success?.();toast('Enregistré ✓');
   }catch(e){toast(e.message||'Enregistrement impossible. Ta saisie est conservée.')}
