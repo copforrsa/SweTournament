@@ -73,3 +73,15 @@ test('replacement opens beside the outgoing player, with designated substitutes 
  const options=[...form.querySelector('select').options];assert.deepEqual(options.map(o=>o.value),['','r','other']);assert.match(options[1].textContent,/prioritaire/);
  dom.window.close();
 });
+
+test('championship keeps fifteen matches in five rounds, completed scores and selection survive refresh',()=>{
+ const {w,dom}=setup();w.S.tournaments[0].name='Conquête';
+ w.S.matches=Array.from({length:15},(_,i)=>({id:'m'+i,tournament_id:'t',home_team_id:'h',away_team_id:'a',match_order:i+1,rotation_role:'championship',round_label:'Tour '+(Math.floor(i/3)+1)+' · '+['Carrefour','Mercedes','Boulogne'][i%3],status:i===0?'finished':'scheduled',home_score:i===0?2:0,away_score:0}));
+ w.SWE_RENDER_MATCHES_4302(false);
+ const groups=w.document.querySelectorAll('.swe4300-round');assert.equal(groups.length,5);
+ for(const group of groups)assert.equal(group.querySelectorAll('[role=tab]').length,3);
+ const buttons=w.document.querySelectorAll('.swe4300-round [role=tab]');assert.match(buttons[0].textContent,/Carrefour.*2 – 0 ✓/);
+ buttons[14].click();assert.equal(w.document.querySelector('.swe4300-round [aria-selected=true]').textContent,buttons[14].textContent);
+ const selected=w.document.querySelector('.swe4300-round [aria-selected=true]');w.SWE_RENDER_MATCHES_4302(false);assert.equal(w.document.querySelector('.swe4300-round [aria-selected=true]'),selected);
+ w.document.querySelector('.swe4300-round [role=tab]').click();assert.match(w.document.querySelector('.swe4300-match').className,/finished/);dom.window.close();
+});

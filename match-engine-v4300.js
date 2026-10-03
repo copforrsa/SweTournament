@@ -87,6 +87,12 @@ function installCss(){
   if(E('sweMatchEngine4302Css'))return;
   const s=document.createElement('style');s.id='sweMatchEngine4302Css';s.textContent=`
   #matchesList .swe4300-match{background:#fff;border:1px solid #dfe7ef;border-radius:18px;padding:15px;margin:12px 0;box-shadow:0 5px 16px rgba(15,23,42,.06)}
+  .swe4300-round-tabs{display:block!important;overflow:visible!important}
+  .swe4300-round{margin:0 0 10px;padding:12px;border:1px solid #d5dce5;border-radius:12px;background:#f7f9fc}
+  .swe4300-round h3{margin:0 0 8px;font-size:16px;color:#16283c}
+  .swe4300-round-games{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .swe4300-round-games .swe4300-pitch-tab{white-space:normal;text-align:left;width:100%}
+  @media(max-width:650px){.swe4300-round-games{grid-template-columns:1fr}}
   .swe4300-pitch-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 1px 8px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
   .swe4300-pitch-tab{flex:0 0 auto;min-height:42px;border:1px solid #bfd2e5;border-radius:12px;background:#f5f9fd;color:#17324d;font-weight:900;padding:9px 13px;white-space:nowrap}
   .swe4300-pitch-tab.active{background:linear-gradient(135deg,#1769e0,#10b7c9);border-color:transparent;color:#fff;box-shadow:0 5px 14px rgba(23,105,224,.23)}
@@ -319,7 +325,7 @@ function renderStableMatches(allowHydrate=true){
     const conquest=/conqu[êe]te/i.test([t.name,t.format,t.reservation_reference].filter(Boolean).join(' '));
     let current;
     if(conquest){
-      current=active;
+      current=rows.filter(m=>m.rotation_role==='championship'||String(m.status)!=='finished');
     }else{
       const byPitch=new Map();
       active.forEach(m=>byPitch.set(String(m.pitch||m.round_label||'Terrain'),m));
@@ -331,12 +337,19 @@ function renderStableMatches(allowHydrate=true){
     let selectedKey=previous==='finished'&&finished.length?'finished':(current.some(m=>String(m.id)===String(previous))?String(previous):(current[0]?String(current[0].id):(finished.length?'finished':null)));
     selectedMatchByTournament.set(String(t.id),selectedKey);
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
+    const rounds=new Map();
     current.forEach(m=>{
       const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(String(m.id)===selectedKey?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===selectedKey?'true':'false');
       const home=teamById(m.home_team_id),away=teamById(m.away_team_id);
-      button.textContent=conquest?'⚔️ '+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2'):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
-      button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};tabs.appendChild(button);
+      button.textContent=conquest?(m.rotation_role==='championship'?(m.pitch||m.round_label?.split(' · ')[1]||'Terrain')+' · ':'⚔️ ')+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+(m.status==='finished'?' · '+Number(m.home_score||0)+' – '+Number(m.away_score||0)+' ✓':''):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
+      button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};
+      if(conquest&&m.rotation_role==='championship'&&/^Tour \d+(?: · .+)?$/.test(m.round_label||'')){
+        const round=m.round_label.split(' · ')[0];let group=rounds.get(round);
+        if(!group){const section=document.createElement('section');section.className='swe4300-round';const heading=document.createElement('h3');heading.textContent=round;group=document.createElement('div');group.className='swe4300-round-games';section.append(heading,group);tabs.appendChild(section);rounds.set(round,group)}
+        group.appendChild(button);
+      }else tabs.appendChild(button);
     });
+    if(rounds.size)tabs.classList.add('swe4300-round-tabs');
     box.appendChild(tabs);
     if(finished.length){
       // This control deliberately sits outside the horizontal terrain strip:
