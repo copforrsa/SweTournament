@@ -81,7 +81,7 @@ test('championship keeps fifteen matches in five rounds, completed scores and se
  const groups=w.document.querySelectorAll('.swe4300-round');assert.equal(groups.length,5);
  for(const group of groups)assert.equal(group.querySelectorAll('[role=tab]').length,3);
  const buttons=w.document.querySelectorAll('.swe4300-round [role=tab]');assert.match(buttons[0].textContent,/Carrefour.*2 – 0 ✓/);
- buttons[14].click();assert.equal(w.document.querySelector('.swe4300-round [aria-selected=true]').textContent,buttons[14].textContent);
+ buttons[14].click();assert.ok(w.document.querySelectorAll('.swe4300-round')[4].querySelector('.swe4300-match'));assert.equal(w.document.querySelector('.swe4300-round [aria-selected=true]').textContent,buttons[14].textContent);
  const selected=w.document.querySelector('.swe4300-round [aria-selected=true]');w.SWE_RENDER_MATCHES_4302(false);assert.equal(w.document.querySelector('.swe4300-round [aria-selected=true]'),selected);
- w.document.querySelector('.swe4300-round [role=tab]').click();assert.match(w.document.querySelector('.swe4300-match').className,/finished/);dom.window.close();
+ w.document.querySelector('.swe4300-round [role=tab]').click();assert.match(w.document.querySelector('.swe4300-match').className,/finished/);assert.ok(w.document.querySelector('.swe4300-round').querySelector('.swe4300-match'));assert.ok(w.document.querySelector('.swe4300-round [role=tab]').classList.contains('completed'));dom.window.close();
 });

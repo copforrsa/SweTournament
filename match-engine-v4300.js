@@ -96,6 +96,8 @@ function installCss(){
   .swe4300-pitch-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 1px 8px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
   .swe4300-pitch-tab{flex:0 0 auto;min-height:42px;border:1px solid #bfd2e5;border-radius:12px;background:#f5f9fd;color:#17324d;font-weight:900;padding:9px 13px;white-space:nowrap}
   .swe4300-pitch-tab.active{background:linear-gradient(135deg,#1769e0,#10b7c9);border-color:transparent;color:#fff;box-shadow:0 5px 14px rgba(23,105,224,.23)}
+  .swe4300-pitch-tab.completed{background:#dcfce7;border-color:#86efac;color:#14532d}
+  .swe4300-pitch-tab.completed.active{background:#bbf7d0;border:2px solid #15803d;color:#14532d;box-shadow:0 0 0 2px #dcfce7}
   .swe4300-finished-tab{display:block;width:100%;min-height:44px;margin:2px 0 10px;border:1px solid #7c9bb8;border-radius:12px;background:#edf4fa;color:#17324d;font-weight:900;padding:10px 13px;text-align:left}
   .swe4300-finished-tab.active{background:linear-gradient(135deg,#475569,#0f172a);border-color:transparent;color:#fff}
   .swe4300-finished-picker{display:grid;gap:7px;margin:8px 0 12px}.swe4300-finished-choice{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;width:100%;min-height:48px;padding:9px 11px;border:1px solid #c5d5e4;border-radius:12px;background:#f8fbfe;color:#17324d;text-align:left}.swe4300-finished-choice.active{border:2px solid #1769e0;background:#eaf3ff}.swe4300-finished-choice b{white-space:nowrap}.swe4300-finished-choice span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.swe4300-finished-choice em{font-style:normal;font-weight:950;white-space:nowrap;color:#0f4f9c}
@@ -339,7 +341,7 @@ function renderStableMatches(allowHydrate=true){
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
     const rounds=new Map();
     current.forEach(m=>{
-      const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(String(m.id)===selectedKey?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===selectedKey?'true':'false');
+      const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(m.status==='finished'?' completed':'')+(String(m.id)===selectedKey?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===selectedKey?'true':'false');
       const home=teamById(m.home_team_id),away=teamById(m.away_team_id);
       button.textContent=conquest?(m.rotation_role==='championship'?(m.pitch||m.round_label?.split(' · ')[1]||'Terrain')+' · ':'⚔️ ')+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+(m.status==='finished'?' · '+Number(m.home_score||0)+' – '+Number(m.away_score||0)+' ✓':''):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};
@@ -373,8 +375,10 @@ function renderStableMatches(allowHydrate=true){
       if(canManageDeletion())box.appendChild(deletionButton(t,selectedFinished));
     }else{
       const selected=current.find(m=>String(m.id)===selectedKey)||current[0];
-      if(selected)box.appendChild(buildCard(selected,rows.indexOf(selected)));
-      if(selected && canManageDeletion())box.appendChild(deletionButton(t,selected));
+      const roundGroup=selected?.rotation_role==='championship'?rounds.get(selected.round_label?.split(' · ')[0]):null;
+      const detailHost=roundGroup?.parentElement||box;
+      if(selected)detailHost.appendChild(buildCard(selected,rows.indexOf(selected)));
+      if(selected && canManageDeletion())detailHost.appendChild(deletionButton(t,selected));
     }
   }
   box.__sweMatchSignature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.()]);
