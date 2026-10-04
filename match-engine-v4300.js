@@ -327,7 +327,7 @@ function renderStableMatches(allowHydrate=true){
     const conquest=/conqu[êe]te/i.test([t.name,t.format,t.reservation_reference].filter(Boolean).join(' '));
     let current;
     if(conquest){
-      current=rows.filter(m=>m.rotation_role==='championship'||String(m.status)!=='finished');
+      current=rows;
     }else{
       const byPitch=new Map();
       active.forEach(m=>byPitch.set(String(m.pitch||m.round_label||'Terrain'),m));
@@ -345,12 +345,13 @@ function renderStableMatches(allowHydrate=true){
       const home=teamById(m.home_team_id),away=teamById(m.away_team_id);
       button.textContent=conquest?(m.rotation_role==='championship'?(m.pitch||m.round_label?.split(' · ')[1]||'Terrain')+' · ':'⚔️ ')+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+(m.status==='finished'?' · '+Number(m.home_score||0)+' – '+Number(m.away_score||0)+' ✓':''):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};
-      if(conquest&&m.rotation_role==='championship'&&/^Tour \d+(?: · .+)?$/.test(m.round_label||'')){
-        const round=m.round_label.split(' · ')[0];let group=rounds.get(round);
+      if(conquest&&matchSection(m)){
+        const round=matchSection(m);let group=rounds.get(round);
         if(!group){const section=document.createElement('section');section.className='swe4300-round';const heading=document.createElement('h3');heading.textContent=round;group=document.createElement('div');group.className='swe4300-round-games';section.append(heading,group);tabs.appendChild(section);rounds.set(round,group)}
         group.appendChild(button);
       }else tabs.appendChild(button);
     });
+    if(conquest)for(const title of ['Barrages','Demi-finales','Finale']){let group=rounds.get(title);if(!group){const section=document.createElement('section');section.className='swe4300-round';const heading=document.createElement('h3');heading.textContent=title;group=document.createElement('div');group.className='swe4300-round-games';const note=document.createElement('p');note.className='muted';note.textContent='Les matchs apparaîtront après qualification.';section.append(heading,group,note);rounds.set(title,group)}tabs.appendChild(group.parentElement)}
     if(rounds.size)tabs.classList.add('swe4300-round-tabs');
     box.appendChild(tabs);
     if(finished.length){
@@ -375,7 +376,7 @@ function renderStableMatches(allowHydrate=true){
       if(canManageDeletion())box.appendChild(deletionButton(t,selectedFinished));
     }else{
       const selected=current.find(m=>String(m.id)===selectedKey)||current[0];
-      const roundGroup=selected?.rotation_role==='championship'?rounds.get(selected.round_label?.split(' · ')[0]):null;
+      const roundGroup=selected?rounds.get(matchSection(selected)):null;
       const detailHost=roundGroup?.parentElement||box;
       if(selected)detailHost.appendChild(buildCard(selected,rows.indexOf(selected)));
       if(selected && canManageDeletion())detailHost.appendChild(deletionButton(t,selected));
@@ -385,6 +386,15 @@ function renderStableMatches(allowHydrate=true){
   // Targeted and mobile refreshes do not emit the global swe:rendered event.
   // Keep the King-of-the-pitch launch control synchronized anyway.
   setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);
+}
+
+function matchSection(m){
+  if(/^Tour \d+(?: · .+)?$/.test(m.round_label||''))return m.round_label.split(' · ')[0];
+  const label=String(m.round_label||'').toLowerCase();
+  if(m.format_stage==='semi_final'||/demi/.test(label))return 'Demi-finales';
+  if(m.format_stage==='final'||/finale/.test(label))return 'Finale';
+  if(m.format_stage==='playoff'||/barrage/.test(label))return 'Barrages';
+  return null;
 }
 
 function selectNextMatch(completed){
