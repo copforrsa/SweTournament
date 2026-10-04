@@ -25,7 +25,9 @@ const editable=m=>{
 };
 const conquestRole=m=>['championship','conquest'].includes(String(m?.rotation_role||''));
 function finishControl(m,can,busy){
-  if(!can||!conquestRole(m))return null;
+  if(!conquestRole(m))return null;
+  if(m.status==='finished'){const box=node('section',undefined,'swe4460-finish');box.append(button('✓ Match terminé',()=>{},true));return box}
+  if(!can)return null;
   const tied=Number(m.home_score||0)===Number(m.away_score||0);
   const finalPhase=String(m.rotation_role)==='conquest';
   const box=node('section',undefined,'swe4460-finish');

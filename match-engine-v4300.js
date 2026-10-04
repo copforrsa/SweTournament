@@ -8,6 +8,7 @@ const safe=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'
 let hydrating=false;
 const selectedMatchByTournament=new Map();
 const selectedFinishedMatchByTournament=new Map();
+const knownMatchCount=new Map();
 // The test view supplies data and actions; the match cards keep the same renderer.
 const context=window.SWE_MATCH_CONTEXT||null;
 const state=context?context.state:S;
@@ -333,10 +334,13 @@ function renderStableMatches(allowHydrate=true){
       active.forEach(m=>byPitch.set(String(m.pitch||m.round_label||'Terrain'),m));
       current=[...byPitch.values()];
     }
-    const previous=selectedMatchByTournament.get(String(t.id));
+    let previous=selectedMatchByTournament.get(String(t.id));
+    const oldCount=knownMatchCount.get(String(t.id));
+    if(oldCount!==undefined&&rows.length>oldCount&&(previous==='finished'||rows.find(m=>String(m.id)===String(previous))?.status==='finished'))previous=null;
+    knownMatchCount.set(String(t.id),rows.length);
     // Keep the completed-match view selected after its own click. Previously
     // it was immediately replaced by the first active pitch (Carrefour).
-    let selectedKey=previous==='finished'&&finished.length?'finished':(current.some(m=>String(m.id)===String(previous))?String(previous):(current[0]?String(current[0].id):(finished.length?'finished':null)));
+    let selectedKey=previous==='finished'&&finished.length?'finished':(current.some(m=>String(m.id)===String(previous))?String(previous):(current.find(m=>m.status!=='finished')?String(current.find(m=>m.status!=='finished').id):(finished.length?'finished':null)));
     selectedMatchByTournament.set(String(t.id),selectedKey);
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
     const rounds=new Map();

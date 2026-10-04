@@ -1,4 +1,4 @@
-const SW_BUILD='50.86-playoff-sections';
+const SW_BUILD='50.87-current-phase';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
