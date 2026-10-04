@@ -1,4 +1,4 @@
-const SW_BUILD='50.87-current-phase';
+const SW_BUILD='50.88-live-score-line';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
