@@ -1,4 +1,4 @@
-const SW_BUILD='50.90-player-readability';
+const SW_BUILD='50.91-fast-conquest';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
