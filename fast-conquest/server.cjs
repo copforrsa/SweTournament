@@ -25,7 +25,6 @@ async function command(repository,userId,input,random){
   else if(action==='finish'||action==='correct'){
    const row=c.matches.find(m=>m.format_slot==='fast:'+matchId);
    if(!row)throw new Error('Match introuvable');
-   if(action==='finish'&&!row.captains_confirmed)throw new Error('Les deux capitaines doivent valider les buteurs et passeurs');
    const result={homeScore:action==='correct'?input.homeScore:row.home_score,awayScore:action==='correct'?input.awayScore:row.away_score,penalties:input.penalties||null};
    if(action==='correct')state=E.correct(state,matchId,result);else E.finish(state,matchId,result);
   }else throw new Error('Action inconnue');
