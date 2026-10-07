@@ -313,13 +313,21 @@ function renderStableMatches(allowHydrate=true){
   const signature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.(),window.SWE_FAST_CONQUEST_CONTEXT?.version]);
   if(box.__sweMatchSignature===signature&&box.querySelector('.swe4300-match'))return;
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');
+  // Keep document height while replacing the match. Otherwise the browser
+  // clamps scrollY to the temporary bottom and anchors to later rounds.
+  const scrollXBefore=window.scrollX,scrollYBefore=window.scrollY;
+  const minHeightBefore=box.style.minHeight,anchorBefore=box.style.overflowAnchor;
+  box.style.minHeight=box.getBoundingClientRect().height+'px';
+  box.style.overflowAnchor='none';
+  const fastPanel=box.querySelector('#fastConquestPanel');
   box.innerHTML='';
+  if(fastPanel)box.appendChild(fastPanel);
   if(canManageDeletion()){
     const controls=document.createElement('div');controls.className='card';controls.dataset.sweMatchAdmin='';
     const label=document.createElement('p');label.textContent='Administration des matchs — '+(t.name||t.tournament_date||'Tournoi');
     controls.append(label,deletionButton(t));box.appendChild(controls);
   }
-  if(!rows.length){box.innerHTML='<div class="card"><p class="muted">Chargement des matchs…</p></div>';if(allowHydrate)hydrate(t.id);return}
+  if(!rows.length){box.style.minHeight=minHeightBefore;box.style.overflowAnchor=anchorBefore;box.innerHTML='<div class="card"><p class="muted">Chargement des matchs…</p></div>';if(allowHydrate)hydrate(t.id);return}
   if(rows.length){
     const finished=rows.filter(m=>String(m.status)==='finished');
     const active=rows.filter(m=>String(m.status)!=='finished');
@@ -388,6 +396,9 @@ function renderStableMatches(allowHydrate=true){
     }
   }
   box.__sweMatchSignature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.(),window.SWE_FAST_CONQUEST_CONTEXT?.version]);
+  box.style.minHeight=minHeightBefore;
+  box.style.overflowAnchor=anchorBefore;
+  window.scrollTo({left:scrollXBefore,top:scrollYBefore,behavior:'instant'});
   // Targeted and mobile refreshes do not emit the global swe:rendered event.
   // Keep the King-of-the-pitch launch control synchronized anyway.
   setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);
