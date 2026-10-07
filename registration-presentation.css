@@ -136,3 +136,8 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 #publicView.swe-premium.sp-fast-conquest .sp-hero :is(h1,p,.sp-brand,.sp-brand small,.sp-eyebrow,.sp-meta span,.sp-meta b){color:#172131!important}
 #publicView.swe-premium.sp-fast-conquest #registrationFormat{display:inline-block;background:#ffe2b8;border:1px solid #94400c;border-radius:999px;padding:8px 13px;font-size:12px;letter-spacing:.7px;color:#172131!important}
 #publicView.swe-premium.sp-fast-conquest .sp-pitch{opacity:.15}
+
+#publicView.swe-premium.sp-fast-conquest #registrationRules{background:#fffaf5;border-color:#cc752d}
+#publicView.swe-premium.sp-fast-conquest #registrationRules h3{font-size:15px;line-height:1.4;margin:22px 0 10px;color:#172131}
+#publicView.swe-premium.sp-fast-conquest #registrationRules p{font-size:14px;line-height:1.8;margin:0 0 16px;color:#25354b}
+#publicView.swe-premium.sp-fast-conquest #publicWorkspaceName{-webkit-text-fill-color:#172131!important;text-shadow:none!important}
