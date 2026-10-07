@@ -41,6 +41,7 @@ function mount(){
  box.append(n('h2','⚔️ Fast Conquête'),n('p','Deux matchs de qualification, puis la conquête des trois terrains.'));
  box.append(n('strong',c.state?phases[c.state.phase]:'Composition des équipes'));
  box.append(n('p','Carrefour · Terres du Roi | Mercedes · Terrain des Conquérants | Boulogne · Terres des Bannis'));
+ if(!c.state||c.state.qualificationMethod==='balanced_levels')box.append(n('p','Qualifications : deux tours, deux adversaires différents et changement de terrain. Le calendrier minimise les écarts de niveau entre les équipes validées.'));
  if((S.teams||[]).length!==6)box.append(n('p','⚠️ Exactement six équipes sont requises.'));
  const controls=n('div');controls.className='fast-actions';
  controls.append(button('Actualiser',()=>refresh(true)));

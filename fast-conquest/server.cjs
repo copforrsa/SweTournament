@@ -14,12 +14,12 @@ async function command(repository,userId,input,random){
   if(state)throw new Error('Tournoi déjà lancé');
   if(!c.locked)throw new Error('Verrouille les équipes avant le lancement');
   if(c.pitch_count!==3)throw new Error('Trois terrains sont requis');
-  state=E.create(c.teams);
+  state=E.create(c.teams,c.team_ratings?Object.fromEntries(c.team_ratings.map(t=>[t.id,t.rating])):undefined);
  }else{
   if(!state)throw new Error('Tournoi non lancé');
   if(action==='delete_match')state=E.remove(state,matchId);
   else if(action==='repair')state.matches.forEach(m=>delete m.deleted);
-  else if(action==='reset')state=E.create(c.teams);
+  else if(action==='reset')state=E.create(c.teams,c.team_ratings?Object.fromEntries(c.team_ratings.map(t=>[t.id,t.rating])):undefined);
   else if(action==='draw')E.proposeDraw(state,random);
   else if(action==='validate_draw')E.validateDraw(state,userId);
   else if(action==='finish'||action==='correct'){

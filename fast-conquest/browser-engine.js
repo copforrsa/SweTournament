@@ -5,10 +5,37 @@ const PITCHES=['Carrefour','Mercedes','Boulogne'];
 const ROLES=['Terres du Roi','Terrain des Conquérants','Terres des Bannis'];
 const PHASES=['qualification','conquest_1','conquest_2','finals','finished'];
 const fail=message=>{throw new Error(message)};
-function create(teamIds){
+function balancedPairs(teamIds,ratings){
+ const values=teamIds.map(id=>ratings[id]);
+ if(values.some(v=>typeof v!=='number'||!Number.isFinite(v)))fail('Le niveau de chaque équipe est requis');
+ const matchings=remaining=>{
+  if(!remaining.length)return [[]];
+  const [a,...rest]=remaining,out=[];
+  rest.forEach((b,i)=>{for(const tail of matchings(rest.filter((_,j)=>j!==i)))out.push([[a,b],...tail])});
+  return out;
+ };
+ const all=matchings([0,1,2,3,4,5]);let best=null,bestMax=Infinity,bestCost=Infinity;
+ for(const first of all)for(const second of all){
+  if(second.some(([a,b])=>first.some(([x,y])=>a===x&&b===y)))continue;
+  const gaps=[...first,...second].map(([a,b])=>Math.abs(values[a]-values[b]));
+  const max=Math.max(...gaps),cost=gaps.reduce((sum,v)=>sum+v*v,0);
+  if(max<bestMax-1e-9||Math.abs(max-bestMax)<1e-9&&cost<bestCost-1e-9){best=[first,second];bestMax=max;bestCost=cost}
+ }
+ const prior=new Map();best[0].forEach(([a,b],p)=>{prior.set(a,p);prior.set(b,p)});
+ const second=Array(3);for(const [a,b] of best[1]){const p=[0,1,2].find(p=>p!==prior.get(a)&&p!==prior.get(b));second[p]=[a,b]}
+ return [best[0],second];
+}
+function rebuildQualification(s){
+ const rebuilt=create(s.teams);rebuilt.matches=[];
+ for(const m of s.matches.filter(m=>m.phase==='qualification'))add(rebuilt,m.id,m.home,m.away,PITCHES.indexOf(m.pitch),'qualification',m.label);
+ if(s.qualificationMethod)rebuilt.qualificationMethod=s.qualificationMethod;
+ return rebuilt;
+}
+function create(teamIds,teamRatings){
  if(!Array.isArray(teamIds)||teamIds.length!==6||new Set(teamIds).size!==6||teamIds.some(x=>!x))fail('Exactement six équipes distinctes sont requises');
  const state={format:'fast_conquest',version:1,phase:'qualification',teams:[...teamIds],matches:[],ranking:null,finalRanking:null,draw:null};
- const pairs=[[[0,1],[2,3],[4,5]],[[3,5],[0,4],[1,2]]];
+ const pairs=teamRatings?balancedPairs(teamIds,teamRatings):[[[0,1],[2,3],[4,5]],[[3,5],[0,4],[1,2]]];
+ if(teamRatings)state.qualificationMethod='balanced_levels';
  pairs.forEach((round,r)=>round.forEach(([h,a],p)=>add(state,`q${r+1}_${p+1}`,teamIds[h],teamIds[a],p,'qualification',`Qualification ${r+1}`)));
  return state;
 }
@@ -90,7 +117,7 @@ function progression(s){
 }
 function correct(s,id,result){
  const old=s.matches.find(m=>m.id===id);if(!old||old.status!=='finished')fail('Match terminé requis');
- const phase=old.phase,rebuilt=create(s.teams);
+ const phase=old.phase,rebuilt=rebuildQualification(s);
  // Replay preceding phases, preserving a previously validated random tie draw.
  for(const p of PHASES.slice(0,PHASES.indexOf(phase)+1)){
   for(const m of s.matches.filter(m=>m.phase===p&&m.status==='finished'))finish(rebuilt,m.id,m.id===id?result:m);
@@ -102,7 +129,7 @@ function correct(s,id,result){
 }
 function remove(s,id){
  const target=s.matches.find(m=>m.id===id);if(!target)fail('Match introuvable');
- const rebuilt=create(s.teams);
+ const rebuilt=rebuildQualification(s);
  for(const p of PHASES.slice(0,PHASES.indexOf(target.phase)+1)){
   for(const m of s.matches.filter(m=>m.phase===p&&m.status==='finished'&&m.id!==id)){
    if(p==='qualification'&&target.label==='Qualification 1'&&m.label==='Qualification 2')continue;
@@ -115,5 +142,4 @@ function remove(s,id){
  rebuilt.matches.find(m=>m.id===id).deleted=true;return rebuilt;
 }
 window.SWE_FAST_ENGINE={create,finish,correct,remove,standings,tiedGroups,proposeDraw,validateDraw,progression,PHASES,PITCHES,ROLES};
-
 })();
