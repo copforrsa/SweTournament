@@ -129,3 +129,10 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 #publicView.swe-premium .sp-rating-grid{position:relative}.sp-rating-challenge{margin-top:12px;padding-top:10px;border-top:1px dashed currentColor;font-family:Georgia,serif;font-style:italic;font-size:.82rem;line-height:1.35;font-weight:800;letter-spacing:.01em}.sp-academy .sp-rating-challenge{color:#4b4fa3}.sp-match-rating .sp-rating-challenge{color:#16814c;text-align:right}.sp-rating-challenge:before{content:'⚽';font-family:system-ui;font-style:normal;margin-right:6px;font-size:.82em}.sp-match-rating .sp-rating-challenge:before{display:none}@media(min-width:621px){#publicView.swe-premium .sp-rating-grid:after{content:'↝';position:absolute;left:50%;bottom:16px;z-index:2;transform:translateX(-50%);width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#d49816;border:1px solid #e6c468;box-shadow:0 2px 8px #153b5a24;font-size:17px;font-style:normal}}
 
 .sp-score-value .sp-rating-change{align-self:flex-start;margin-top:3px;font-size:1rem;line-height:1.4;font-weight:850;letter-spacing:0;border-radius:8px;padding:2px 7px;white-space:nowrap}.sp-rating-change.up{color:#087443;background:#dcfce7}.sp-rating-change.down{color:#b91c1c;background:#fee2e2}.sp-rating-change.stable{color:#475569;background:#e2e8f0}
+
+/* Fast Conquête public registration identity and accessible contrast. */
+#publicView.swe-premium.sp-fast-conquest{--sp-accent:#94400c;--sp-pale:#fff0dc;background:#fff7ec}
+#publicView.swe-premium.sp-fast-conquest .sp-hero{background:linear-gradient(120deg,#ffad55,#ff8b38);color:#172131}
+#publicView.swe-premium.sp-fast-conquest .sp-hero :is(h1,p,.sp-eyebrow,.sp-meta span,.sp-meta b){color:#172131!important}
+#publicView.swe-premium.sp-fast-conquest #registrationFormat{display:inline-block;background:#ffe2b8;border:1px solid #94400c;border-radius:999px;padding:8px 13px;font-size:12px;letter-spacing:.7px;color:#172131!important}
+#publicView.swe-premium.sp-fast-conquest .sp-pitch{opacity:.15}
