@@ -55,7 +55,7 @@ function apply(){
   const format=E('registrationFormat')?.textContent||'';
   const root=E('publicView');
   if(!root)return;
-  const conquest=/conqu[êe]te/i.test(format);
+  const conquest=!root.classList.contains('sp-fast-conquest')&&/conqu[êe]te/i.test(format);
   root.classList.toggle('swe-conquest-public-registration',conquest);
   if(conquest)shortenVenue();
 }
