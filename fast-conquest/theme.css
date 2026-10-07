@@ -2,3 +2,14 @@
 .fast-conquest h2,.fast-conquest h3,.fast-conquest b,.fast-conquest strong{color:#ffe5a2!important}.fast-conquest p,.fast-conquest .muted{color:#ffe9dc!important}.fast-conquest label{display:block;margin:10px 0}.fast-conquest input[type=checkbox]{width:auto;margin-right:8px}.fast-conquest select,.fast-conquest textarea,.fast-conquest input{color:#172131!important;background:#fff!important}.fast-conquest textarea{display:block;width:100%;min-height:70px}.fast-conquest button{color:#172131!important;background:#ffda73!important;border:1px solid #f9d57c;margin:5px 5px 5px 0;white-space:normal}.fast-conquest button:disabled{background:#c0b4b0!important;color:#403636!important;opacity:.8;cursor:not-allowed}.fast-conquest details{border:1px solid #b7816b;border-radius:10px;padding:10px;margin:12px 0}.fast-conquest summary{cursor:pointer;color:#8ff1e6;font-weight:bold}.fast-actions{display:flex;flex-wrap:wrap;gap:5px}.fast-conquest ol{padding-left:25px}.fast-conquest li{padding:4px}
 @media(max-width:600px){.fast-conquest{padding:12px}.fast-actions button{flex:1 1 130px}.fast-conquest select{max-width:100%}}
 .fast-format-view{background:linear-gradient(140deg,#632e24,#270c1b 55%,#090a0d);padding:14px;border-radius:20px}.fast-format-view>.card{background:#fffaf5}.swe-results-page:has(#fastConquestLive){background:linear-gradient(140deg,#632e24,#270c1b 55%,#090a0d);background-attachment:fixed}
+
+/* Fast Conquête creation: orange surface with dark, readable copy. */
+#tournamentAdminCard.fast-conquest{background:linear-gradient(135deg,#ffad55,#ff8b38)!important;color:#172131!important;border-color:#b94b0c}
+#tournamentAdminCard.fast-conquest :is(h2,h3,b,strong,p,label,small,summary,.muted,.tour-create-eyebrow){color:#172131!important}
+#tournamentAdminCard.fast-conquest .tour-create-hero{background:#ffc17c!important;color:#172131!important;border:1px solid #b94b0c}
+#tournamentAdminCard.fast-conquest .tour-create-icon{background:#ffe4c3!important}
+#tournamentAdminCard.fast-conquest :is(.player,.tour-create-guide>div){background:#fffaf5!important;color:#172131!important;border-color:#b8692b}
+#tournamentAdminCard.fast-conquest input::placeholder,#tournamentAdminCard.fast-conquest textarea::placeholder{color:#526070!important;opacity:1}
+#tournamentAdminCard.fast-conquest button{background:#172131!important;color:#fff!important;border-color:#172131}
+#tournamentAdminCard.fast-conquest button:disabled{background:#ddd4ca!important;color:#403636!important;opacity:1}
+#tournamentAdminCard.fast-conquest :is(input,select,textarea,button):focus-visible{outline:3px solid #075c70;outline-offset:2px}
