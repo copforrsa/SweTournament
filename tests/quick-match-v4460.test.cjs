@@ -7,6 +7,7 @@ const root=path.resolve(__dirname,'..');
 function setup(){
  const dom=new JSDOM('<div id="matchesList"></div>',{runScripts:'outside-only',url:'https://example.test'});
  const w=dom.window;
+ w.scrollTo=({left=0,top=0})=>{w.scrollX=left;w.scrollY=top};
  w.S={activeTour:'t',session:{user:{}},tournaments:[{id:'t',status:'open'}],matches:[{id:'m',tournament_id:'t',home_team_id:'h',away_team_id:'a',home_score:1,away_score:0,status:'finished',substitutions:[]}],teams:[{id:'h',name:'Noirs'},{id:'a',name:'Blancs'}],players:[{id:'p',name:'Baptiste'},{id:'q',name:'Andy'},{id:'r',name:'Rémi'},{id:'x',name:'Alex'}],teamPlayers:[{team_id:'h',player_id:'p'},{team_id:'h',player_id:'q'},{team_id:'a',player_id:'x'}],matchAssignments:[],goals:[{id:'g',match_id:'m',team_id:'h',scorer_player_id:'p',assister_player_id:null}],tPlayers:[{tournament_id:'t',player_id:'r',present:true,is_substitute:true}]};
  w.CSS={escape:s=>s};w.toast=()=>{};w.confirm=()=>true;w.currentTour=()=>w.S.tournaments[0];w.canEditCurrentMatches=()=>w.S.tournaments[0].status!=='finished';w.isAdmin=()=>true;
  w.renderMatches=()=>{};w.loadTournament=async()=>{};
@@ -16,6 +17,30 @@ function setup(){
  w.eval(fs.readFileSync(path.join(root,'quick-match-v4460.js'),'utf8'));
  return {w,dom,calls};
 }
+test('score rebuild retains scroll position and the Fast Conquête panel',()=>{
+ const {w,dom}=setup();
+ const panel=w.document.createElement('section');panel.id='fastConquestPanel';
+ w.document.getElementById('matchesList').prepend(panel);
+ w.scrollTo({left:0,top:650});
+ w.S.matches[0].home_score=2;w.renderMatches(false);
+ assert.equal(w.scrollY,650);
+ assert.equal(w.document.getElementById('fastConquestPanel'),panel);
+ assert.equal(w.document.getElementById('matchesList').style.minHeight,'');
+ dom.window.close();
+});
+test('opening the tournament tab starts at top; clicking the same tab preserves position',()=>{
+ const dom=new JSDOM('<div class="view active" id="view-matches"></div><div class="view" id="view-tournaments"></div><nav><button class="tab" data-view="tournaments"></button></nav>',{runScripts:'outside-only'});
+ const w=dom.window;
+ w.S={lastView:'matches',workspaceFeatures:{tournaments_enabled:true},publicMode:true};
+ w.isCoorg=()=>false;w.matchMedia=()=>({matches:true});
+ w.scrollTo=({top})=>{w.scrollY=top};w.scrollY=900;
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ w.eval(app.slice(app.indexOf('function setView(v){'),app.indexOf('// `start` is an entry intent')));
+ w.setView('tournaments');assert.equal(w.scrollY,0);
+ assert.equal(w.document.getElementById('view-tournaments').classList.contains('active'),true);
+ w.scrollY=450;w.setView('tournaments');assert.equal(w.scrollY,450);
+ dom.window.close();
+});
 test('one scoring entry, finished match editable for administrator; drafts survive full rebuilds',async()=>{
  const {w,dom,calls}=setup();
  assert.equal(w.document.querySelectorAll('.swe4301-goal-form,.swe4360-quick,.swe4303d,.swe4303m,.swe4300-edit').length,0);
