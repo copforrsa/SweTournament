@@ -247,7 +247,9 @@ function setView(v){
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
   const activeTab=document.querySelector('.tab.active');
   if(activeTab&&window.matchMedia('(max-width:650px)').matches){
-    requestAnimationFrame(()=>activeTab.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'nearest',inline:'center'}));
+    // Move only the horizontal tab strip; scrollIntoView also moves the page.
+    const strip=activeTab.parentElement;
+    if(strip)strip.scrollLeft=Math.max(0,activeTab.offsetLeft-strip.offsetLeft-(strip.clientWidth-activeTab.offsetWidth)/2);
   }
   if(v==='teams'){
     if(S.activeTour&&S.tournaments.some(t=>String(t.id)===String(S.activeTour)))S.teamCompetitionId=S.activeTour;
@@ -265,6 +267,7 @@ function setView(v){
   }
   if(v==='ranking')renderRanking();
   S.lastView=v;
+  if(previousView!==v)window.scrollTo({top:0,left:0,behavior:'instant'});
   if(['home','myplayer','players','coorganizers','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
 }
 
