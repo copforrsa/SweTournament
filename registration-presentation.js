@@ -52,6 +52,28 @@ function mount(ctx){
  const identityContent=identityStep.querySelector('.sp-flow-content'),selectedStatus=E('publicSelectedStatus'),selectionHint=selectedStatus?.nextElementSibling;
  [registration?.querySelector('.sp-name-label'),select,E('registrationSelectionLock'),selectedStatus,selectionHint?.classList.contains('muted')?selectionHint:null,E('publicTeamInvitationDecision')].filter(Boolean).forEach(el=>identityContent.append(el));
  [E('publicParticipationActions'),E('publicPaymentBox'),E('publicRegStatus')].filter(Boolean).forEach(el=>attendanceStep.querySelector('.sp-flow-content').append(el));
+
+ const inactive=document.createElement('details');inactive.id='registrationInactiveMembers';inactive.className='sp-inactive-members';
+ inactive.innerHTML='<summary>Mon nom n’apparaît pas · Réactiver mon profil</summary><p>Retrouve ton nom si ton profil est devenu inactif après quatre tournois manqués, puis réactive-le pour pouvoir t’inscrire.</p><select aria-label="Joueur inactif"><option value="">Chargement…</option></select><button type="button">Réactiver mon profil</button><p role="status"></p>';
+ identityContent.append(inactive);
+ let inactiveLoading=false;
+ inactive.addEventListener('toggle',async()=>{
+  if(!inactive.open||inactiveLoading)return;inactiveLoading=true;
+  const pick=inactive.querySelector('select'),button=inactive.querySelector('button'),status=inactive.querySelector('[role="status"]');button.disabled=true;
+  try{const r=await sb.rpc('public_reactivate_inactive_member',{p_token:ctx.token,p_tournament_id:ctx.data().tournament.id});if(r.error)throw r.error;
+   pick.replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent='Choisis ton nom';pick.append(empty);
+   for(const p of r.data||[]){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;pick.append(o)}
+   status.textContent=r.data?.length?'':'Aucun profil réactivable. Pour une suspension manuelle, contacte l’organisateur.';
+   button.disabled=!r.data?.length;
+  }catch(e){status.textContent=e.message||'Liste indisponible.'}finally{inactiveLoading=false}
+ });
+ inactive.querySelector('button').onclick=async()=>{
+  const pick=inactive.querySelector('select'),button=inactive.querySelector('button'),status=inactive.querySelector('[role="status"]');
+  if(!pick.value){status.textContent='Choisis ton nom.';return}button.disabled=true;
+  try{const r=await sb.rpc('public_reactivate_inactive_member',{p_token:ctx.token,p_tournament_id:ctx.data().tournament.id,p_player_id:pick.value});if(r.error)throw r.error;
+   status.textContent='Profil réactivé. Tu peux maintenant choisir ton nom et t’inscrire.';window.location.reload();
+  }catch(e){status.textContent=e.message||'Réactivation impossible.';button.disabled=false}
+ };
  const guestChoice=document.createElement('div');guestChoice.id='registrationGuestChoice';guestChoice.className='sp-binary-choice';guestChoice.innerHTML='<button type="button" data-guest-choice="yes">Oui, j’ai des invités</button><button type="button" data-guest-choice="no">Non, je viens seul</button>';
  const registeredActions=document.createElement('div');registeredActions.id='registrationRegisteredActions';registeredActions.className='sp-registered-actions';registeredActions.innerHTML='<p><b>Tu es déjà inscrit.</b> Que veux-tu faire ?</p><div><button type="button" data-registered-action="cooler">🧊 Ma 3e mi-temps</button><button type="button" data-registered-action="guests">👤 J’ai des invités</button><button type="button" data-registered-action="team">⚽ Voir ma proposition d’équipe</button><button type="button" data-registered-action="leave" class="danger">Je me désinscris</button></div><section data-leave-reason hidden><label>Motif de désinscription<select><option value="">Choisir un motif…</option><option>Empêchement personnel</option><option>Blessure ou problème de santé</option><option>Changement professionnel</option><option>Transport / disponibilité</option><option>Autre motif</option></select></label><button type="button" data-confirm-leave>Confirmer ma désinscription</button></section>';
  guestsStep.querySelector('.sp-flow-content').append(registeredActions);
