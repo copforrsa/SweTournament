@@ -4,6 +4,7 @@
  const E=id=>document.getElementById(id);
  let dialog,content,signature='',timer;
  function standings(t){
+  if(t.format==='fast_conquest'&&t.rotation_state?.fast_conquest&&window.SWE_FAST_ENGINE){const s=t.rotation_state.fast_conquest,rows=window.SWE_FAST_ENGINE.standings(s),order=s.finalRanking||s.ranking||rows.map(r=>r.id);return order.map(id=>{const r=rows.find(x=>x.id===id);return {...r,name:(S.teams||[]).find(x=>x.id===id)?.name||'Équipe',mj:r.played,pts:r.points,bp:r.for,bc:r.against}})}
   const rows=(S.teams||[]).filter(x=>String(x.tournament_id)===String(t.id)).map(x=>({id:String(x.id),name:x.name,mj:0,pts:0,bp:0,bc:0})),map=new Map(rows.map(x=>[x.id,x]));
   for(const m of S.matches||[]){
    if(String(m.tournament_id)!==String(t.id)||m.status!=='finished'||m.rotation_role==='conquest'||m.competition_type==='conquest_playoff')continue;
@@ -17,7 +18,7 @@
   if(!dialog?.open)return;
   const t=typeof currentTour==='function'?currentTour():null,rows=t?standings(t):[],next=JSON.stringify([t?.id,t?.name,rows]);if(next===signature)return;signature=next;content.replaceChildren();
   const title=document.createElement('h3');title.textContent=t?.name||'Choisis un tournoi';content.append(title);
-  const note=document.createElement('p');note.className='muted';note.textContent='Matchs terminés uniquement · 3 points par victoire, 1 par nul. Les barrages, demi-finales et finale ne modifient pas le classement.';content.append(note);
+  const note=document.createElement('p');note.className='muted';note.textContent=t?.format==='fast_conquest'&&t.rotation_state?.fast_conquest?.finalRanking?'Classement final du Fast Conquête. Les statistiques affichées concernent les deux qualifications.':'Matchs terminés uniquement · 3 points par victoire, 1 par nul. Les barrages, demi-finales et finale ne modifient pas le classement.';content.append(note);
   if(!rows.length){const empty=document.createElement('p');empty.textContent='Aucune équipe disponible.';content.append(empty);return}
   const table=document.createElement('table');table.innerHTML='<thead><tr><th>Rang</th><th>Équipe</th><th>MJ</th><th>Diff.</th><th>Pts</th></tr></thead>';const body=document.createElement('tbody');
   rows.forEach((r,i)=>{const tr=document.createElement('tr');for(const value of [i+1,r.name,r.mj,(r.bp-r.bc>0?'+':'')+(r.bp-r.bc),r.pts]){const td=document.createElement('td');td.textContent=String(value);tr.append(td)}body.append(tr)});table.append(body);content.append(table);

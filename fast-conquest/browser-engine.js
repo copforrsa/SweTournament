@@ -1,3 +1,4 @@
+(()=>{
 'use strict';
 // Pure domain engine. Persistence and authorization belong to the server adapter.
 const PITCHES=['Carrefour','Mercedes','Boulogne'];
@@ -113,4 +114,6 @@ function remove(s,id){
  }
  rebuilt.matches.find(m=>m.id===id).deleted=true;return rebuilt;
 }
-module.exports={create,finish,correct,remove,standings,tiedGroups,proposeDraw,validateDraw,progression,PHASES,PITCHES,ROLES};
+window.SWE_FAST_ENGINE={create,finish,correct,remove,standings,tiedGroups,proposeDraw,validateDraw,progression,PHASES,PITCHES,ROLES};
+
+})();

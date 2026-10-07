@@ -113,4 +113,4 @@ function remove(s,id){
  }
  rebuilt.matches.find(m=>m.id===id).deleted=true;return rebuilt;
 }
-module.exports={create,finish,correct,remove,standings,tiedGroups,proposeDraw,validateDraw,progression,PHASES,PITCHES,ROLES};
+export {create,finish,correct,remove,standings,tiedGroups,proposeDraw,validateDraw,progression,PHASES,PITCHES,ROLES};

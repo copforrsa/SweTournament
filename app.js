@@ -330,7 +330,7 @@ function hasTemporaryAdmin(){
   return new Date(S.myPermissions.temporary_admin_until).getTime()>Date.now();
 }
 function hasAdminOps(){return isAdmin()||hasTemporaryAdmin()}
-function formatLabel(t){return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='league'?'Ligue':'Classique')}
+function formatLabel(t){if(t?.format==='fast_conquest')return '⚔️ Fast Conquête';return t?.format==='king_of_pitch'?'Roi du terrain':(t?.format==='league'?'Ligue':'Classique')}
 function registrationLink(t){
   if(!t||!S.workspace?.public_token)return '';
   if(t.short_code)return APP_URL+'?s='+encodeURIComponent(String(t.short_code).toUpperCase());
@@ -3402,6 +3402,7 @@ $('#createTournament').onclick=async()=>{
       name:$('#tourName').value.trim()||null,
       tournament_date:date,
       format:$('#tourFormat').value,
+      fast_team_mode:$('#tourFormat').value==='fast_conquest'?$('#tourTeamCompositionMode input:checked')?.value:null,
       status:'draft',
       max_players:Math.max(10,Math.min(35,Number($('#tourMaxPlayers').value)||35)),
       registration_open:$('#tourRegistrationOpen').checked,
@@ -3419,11 +3420,12 @@ $('#createTournament').onclick=async()=>{
       allow_external_players:!!$('#tourAllowExternal')?.checked,
       external_payment_required:!!$('#tourExternalPaymentRequired')?.checked && !!S.organizerSettings?.external_payment_ready,online_payment_enabled:!!$('#tourOnlinePaymentEnabled')?.checked && !!S.organizerSettings?.external_payment_ready,third_half_active:!!S.workspaceFeatures.third_half_enabled&&!!$('#tourThirdHalfActive')?.checked,
       // Le choix est fait à la création : l'admin compose seul ou ouvre un avis collégial.
-      team_review_requested:!!S.workspaceFeatures.team_review_enabled&&$('#tourTeamCompositionMode input:checked')?.value==='collaborative',
+      team_review_requested:$('#tourFormat').value!=='fast_conquest'&&!!S.workspaceFeatures.team_review_enabled&&$('#tourTeamCompositionMode input:checked')?.value==='collaborative',
       // Cinq propositions au total : le premier tirage + quatre nouveaux tirages.
       max_team_redraws:4,
       team_review_duration_minutes:60
     };
+    if(row.format==='fast_conquest'&&(!row.fast_team_mode||pitchIds.length!==3))throw new Error('Choisis le mode de composition et exactement trois terrains pour Fast Conquête.');
     if(row.discovery_mode!=='unlisted'&&!row.allow_external_players)throw new Error('Active « Accepter des joueurs externes » pour rendre ce Swé visible aux joueurs solo.');
     if(row.admin_payment_link_enabled&&(!row.admin_payment_provider||!row.admin_payment_link))throw new Error('Choisis la solution de paiement et ajoute ton lien HTTPS avant de l’afficher.');
     if(row.external_payment_required&&row.entry_fee_cents<=0)throw new Error('Indique un prix par participant avant d’exiger un paiement en ligne.');
@@ -3791,6 +3793,7 @@ $('#addTeam').onclick=async()=>{
   await loadTournament();renderTeams();toast('Équipe créée pour « '+(t.name||t.tournament_date)+' » ✅');
 };
 async function runSmartTeamGeneration(isRedraw=false){
+  if(currentTour()?.format==='fast_conquest')return window.SWE_FAST_CONQUEST?.act('generate');
   if(isRedraw&&!isAdmin())return toast('Seul l’administrateur peut appliquer un nouveau tirage.');
   if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_generate_teams)return toast('Tu n’es pas autorisé à générer les équipes.');
   const t=currentTour();if(!t)return toast('Choisis d’abord le tournoi ou le Swé de Ligue concerné.');
@@ -4485,7 +4488,7 @@ async function rankingDataset(){
   const t=currentTour();
   if(S.rankMode==='day'){
     const mids=S.matches.map(m=>m.id);
-    return {goals:S.goals||[],matches:S.matches||[],tournaments:t?[t]:[]};
+    const ms=(S.matches||[]).filter(m=>m.competition_type!=='fast_conquest'||m.status==='finished'),ids=new Set(ms.map(m=>m.id));return {goals:(S.goals||[]).filter(g=>ids.has(g.match_id)),matches:ms,tournaments:t?[t]:[]};
   }
   let seasonId=t?.season_id||null;
   if(!seasonId){
@@ -4498,7 +4501,7 @@ async function rankingDataset(){
   const tids=tournaments.map(x=>x.id);
   if(!tids.length)return {goals:[],matches:[],tournaments:[]};
   const mr=await sb.from('matches').select('*').in('tournament_id',tids);
-  const matches=mr.data||[];
+  const matches=(mr.data||[]).filter(m=>m.competition_type!=='fast_conquest'||m.status==='finished');
   const mids=matches.map(x=>x.id);
   if(!mids.length)return {goals:[],matches,tournaments};
   const gr=await sb.from('goals').select('*').in('match_id',mids);
@@ -4559,7 +4562,7 @@ async function renderRanking(){
   });
 
   matches.forEach(m=>{
-    const winner=Number(m.home_score)>Number(m.away_score)?m.home_team_id:(Number(m.away_score)>Number(m.home_score)?m.away_team_id:null);
+    const winner=m.competition_type==='fast_conquest'&&m.tie_break_winner_team_id?m.tie_break_winner_team_id:Number(m.home_score)>Number(m.away_score)?m.home_team_id:(Number(m.away_score)>Number(m.home_score)?m.away_team_id:null);
     rankingAssignments.filter(a=>a.match_id===m.id&&a.team_id).forEach(a=>{
       const st=playerSeasonStats.get(a.player_id);if(!st)return;
       if(winner&&String(a.team_id)===String(winner))st.matchWins++;
@@ -4584,7 +4587,7 @@ async function renderRanking(){
       else{a.n++;b.n++;a.pts++;b.pts++}
     });
     rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
-    const champion=rows[0];if(!champion)continue;
+    const champion=tour.format==='fast_conquest'?rows.find(r=>r.id===tour.rotation_state?.fast_conquest?.champion):rows[0];if(!champion)continue;
     const mids=new Set(tourMatches.map(m=>m.id));
     const champs=new Set(rankingAssignments.filter(a=>mids.has(a.match_id)&&String(a.team_id)===String(champion.id)).map(a=>a.player_id));
     champs.forEach(pid=>{if(playerSeasonStats.has(pid))playerSeasonStats.get(pid).trophies++;});
@@ -4654,7 +4657,7 @@ async function renderRanking(){
   $('#shareText').value=txt;
 }
 
-function renderTeamRanking(){const r=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(r.map(x=>[x.id,x]));S.matches.forEach(m=>{const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});r.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);$('#teamRank').innerHTML=r.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune équipe</p>'}
+function renderTeamRanking(){const fast=currentTour();if(fast?.format==='fast_conquest'&&fast.rotation_state?.fast_conquest&&window.SWE_FAST_ENGINE){const s=fast.rotation_state.fast_conquest,stats=window.SWE_FAST_ENGINE.standings(s),ids=s.finalRanking||s.ranking||stats.map(r=>r.id);$('#teamRank').innerHTML=ids.map((id,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(S.teams.find(t=>t.id===id)?.name||'Équipe')+'</span><b class="right">'+(s.finalRanking?(i===0?'🏆 Champion':''):(stats.find(r=>r.id===id)?.points||0)+' pts')+'</b></div>').join('');return}const r=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(r.map(x=>[x.id,x]));S.matches.forEach(m=>{const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});r.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);$('#teamRank').innerHTML=r.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune équipe</p>'}
 document.querySelectorAll('.rankMode').forEach(b=>b.onclick=()=>{S.rankMode=b.dataset.mode;document.querySelectorAll('.rankMode').forEach(x=>x.classList.toggle('primary',x===b));renderRanking()});
 $('#shareWhatsapp').onclick=async()=>{const text=$('#shareText').value;if(navigator.share){try{await navigator.share({title:'Classement du tournoi',text});return}catch{}}await navigator.clipboard.writeText(text);toast('Résumé copié')};
 if($('#copySeasonPublicShareLink'))$('#copySeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');try{await navigator.clipboard.writeText(link);toast('Lien de la saison copié ✅')}catch(e){$('#seasonPublicShareLink').select();document.execCommand('copy');toast('Lien de la saison copié ✅')}};
@@ -6636,6 +6639,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
   }
 
   function tournamentStandings(tournamentId){
+    const ft=tournaments.find(t=>t.id===tournamentId);if(ft?.format==='fast_conquest'&&ft.rotation_state?.fast_conquest&&window.SWE_FAST_ENGINE){const fs=ft.rotation_state.fast_conquest,rows=window.SWE_FAST_ENGINE.standings(fs),ids=fs.finalRanking||fs.ranking||rows.map(r=>r.id);return ids.map(id=>{const r=rows.find(r=>r.id===id);return {...r,id,name:teams.find(t=>t.id===id)?.name||'Équipe',mj:r.played,v:r.wins,n:r.draws,d:r.losses,bp:r.for,bc:r.against,pts:r.points}})}
     const tt=teams.filter(x=>x.tournament_id===tournamentId);
     const rows=tt.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
     const map=new Map(rows.map(x=>[x.id,x]));
@@ -6708,7 +6712,8 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
 
   seasonMatchesForWins.forEach(m=>{
     let winner=null;
-    if(Number(m.home_score)>Number(m.away_score))winner=m.home_team_id;
+    if(m.competition_type==='fast_conquest'&&m.tie_break_winner_team_id)winner=m.tie_break_winner_team_id;
+    else if(Number(m.home_score)>Number(m.away_score))winner=m.home_team_id;
     else if(Number(m.away_score)>Number(m.home_score))winner=m.away_team_id;
     matchAssignments.filter(a=>a.match_id===m.id&&a.team_id).forEach(a=>{
       const s=seasonWinStats.get(a.player_id);if(!s)return;
@@ -6722,7 +6727,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
 
   seasonTours.forEach(t=>{
     const standings=tournamentStandings(t.id);
-    const champion=standings[0];
+    const champion=t.format==='fast_conquest'?standings.find(x=>x.id===t.rotation_state?.fast_conquest?.champion):standings[0];
     if(!champion)return;
     const tMatchIds=new Set(matches.filter(m=>m.tournament_id===t.id).map(m=>m.id));
     const championPlayers=new Set(matchAssignments.filter(a=>tMatchIds.has(a.match_id)&&String(a.team_id)===String(champion.id)).map(a=>a.player_id));

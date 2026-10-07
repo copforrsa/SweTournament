@@ -4,7 +4,7 @@
   const E=id=>document.getElementById(id);
   const state=()=>{try{return typeof S!=='undefined'?S:null}catch(_){return null}};
   const current=()=>{const s=state();return (s?.tournaments||[]).find(t=>String(t.id)===String(s?.activeTour))||null};
-  const isConquest=t=>/conqu[êe]te/i.test([t?.name,t?.format,t?.reservation_reference].filter(Boolean).join(' '));
+  const isConquest=t=>t?.format!=='fast_conquest'&&/conqu[êe]te/i.test([t?.name,t?.format,t?.reservation_reference].filter(Boolean).join(' '));
   const admin=()=>{try{return (typeof hasAdminOps==='function'&&hasAdminOps())||(typeof isAdmin==='function'&&isAdmin())}catch(_){return false}};
   const rpc=async(name,args)=>{const r=await sb.rpc(name,args);if(r.error)throw r.error;return r.data};
   let timer=0,observer=null,observedBox=null;

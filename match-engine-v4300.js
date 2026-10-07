@@ -273,6 +273,7 @@ function deletionButton(t,m=null){
     const label=t.name||t.tournament_date||t.id;
     if(!confirm((m?'Supprimer ce match':'Supprimer TOUS les matchs')+' du tournoi « '+label+' » ? Les scores et buts associés seront supprimés. Les équipes et inscriptions seront conservées.'))return;
     if(!m && prompt('Pour confirmer la suppression de tous les matchs de « '+label+' », saisis REINITIALISER')!=='REINITIALISER')return;
+    if(t.format==='fast_conquest')return window.SWE_FAST_CONQUEST?.act(m?'delete_match':'reset',m?{matchId:m.format_slot.replace(/^fast:/,'')}:{},true);
     button.disabled=true;
     try{
       const result=await sb.rpc(m?'admin_delete_tournament_match_v1':'admin_reset_tournament_matches_v1',m?{p_match_id:m.id}:{p_tournament_id:t.id});
@@ -296,7 +297,7 @@ function renderStableMatches(allowHydrate=true){
   const t=current(),box=E('matchesList'),selector=E('matchCompetitionSelect'),status=E('matchCompetitionStatus');
   if(!context)window.SWEPitchRoles?.mountMatches(t);
   if(!box)return;
-  const eligible=(state.tournaments||[]).filter(x=>x.status!=='finished').sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
+  const eligible=(state.tournaments||[]).filter(x=>x.status!=='finished'||x.format==='fast_conquest'&&String(x.id)===String(t?.id)).sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
   if(selector){
     const assigned=!context?window.SWE_ASSIGNED_TEST_MATCHES:null,selected=assigned?.value()||t?.id||'';
     const html='<option value="">Choisir une compétition ou un match test</option>'+eligible.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name||x.tournament_date||'Compétition')+'</option>').join('')+(assigned?.options()||'');
@@ -309,7 +310,7 @@ function renderStableMatches(allowHydrate=true){
   // of whether earlier matches have already finished.
   const rows=[...(state.matches||[])].sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
   // Repeated refreshes with identical data must preserve the score form DOM.
-  const signature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.()]);
+  const signature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.(),window.SWE_FAST_CONQUEST_CONTEXT?.version]);
   if(box.__sweMatchSignature===signature&&box.querySelector('.swe4300-match'))return;
   if(status)status.innerHTML=(t.format==='league'?'Swé de Ligue : ':'Tournoi : ')+safe(t.name||t.tournament_date||'Compétition')+' • '+rows.length+' match'+(rows.length>1?'s':'');
   box.innerHTML='';
@@ -325,7 +326,7 @@ function renderStableMatches(allowHydrate=true){
     // En Conquête, le championnat est préparé d'un coup : les matchs sans
     // terrain doivent tous rester accessibles, un onglet par match. Dans les
     // autres formats, on conserve un seul match courant par terrain.
-    const conquest=/conqu[êe]te/i.test([t.name,t.format,t.reservation_reference].filter(Boolean).join(' '));
+    const conquest=t.format==='fast_conquest'||/conqu[êe]te/i.test([t.name,t.format,t.reservation_reference].filter(Boolean).join(' '));
     let current;
     if(conquest){
       current=rows;
@@ -355,7 +356,7 @@ function renderStableMatches(allowHydrate=true){
         group.appendChild(button);
       }else tabs.appendChild(button);
     });
-    if(conquest)for(const title of ['Barrages','Demi-finales','Finale']){let group=rounds.get(title);if(!group){const section=document.createElement('section');section.className='swe4300-round';const heading=document.createElement('h3');heading.textContent=title;group=document.createElement('div');group.className='swe4300-round-games';const note=document.createElement('p');note.className='muted';note.textContent='Les matchs apparaîtront après qualification.';section.append(heading,group,note);rounds.set(title,group)}tabs.appendChild(group.parentElement)}
+    if(conquest&&t.format!=='fast_conquest')for(const title of ['Barrages','Demi-finales','Finale']){let group=rounds.get(title);if(!group){const section=document.createElement('section');section.className='swe4300-round';const heading=document.createElement('h3');heading.textContent=title;group=document.createElement('div');group.className='swe4300-round-games';const note=document.createElement('p');note.className='muted';note.textContent='Les matchs apparaîtront après qualification.';section.append(heading,group,note);rounds.set(title,group)}tabs.appendChild(group.parentElement)}
     if(rounds.size)tabs.classList.add('swe4300-round-tabs');
     box.appendChild(tabs);
     if(finished.length){
@@ -386,13 +387,14 @@ function renderStableMatches(allowHydrate=true){
       if(selected && canManageDeletion())detailHost.appendChild(deletionButton(t,selected));
     }
   }
-  box.__sweMatchSignature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.()]);
+  box.__sweMatchSignature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.(),window.SWE_FAST_CONQUEST_CONTEXT?.version]);
   // Targeted and mobile refreshes do not emit the global swe:rendered event.
   // Keep the King-of-the-pitch launch control synchronized anyway.
   setTimeout(()=>window.SWE_MOUNT_MATCH_EXTRAS_4306?.(true),0);
 }
 
 function matchSection(m){
+  if(m.competition_type==='fast_conquest')return ({qualification:m.round_label?.split(' · ')[0],conquest_1:'Conquête 1',conquest_2:'Conquête 2',finals:'Finales'})[m.format_stage]||null;
   if(/^Tour \d+(?: · .+)?$/.test(m.round_label||''))return m.round_label.split(' · ')[0];
   const label=String(m.round_label||'').toLowerCase();
   if(m.format_stage==='semi_final'||/demi/.test(label))return 'Demi-finales';
