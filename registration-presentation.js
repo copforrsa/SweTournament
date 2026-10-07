@@ -121,7 +121,7 @@ function mount(ctx){
   const season=(d.seasons||[]).find(x=>x.id===d.tournament.season_id)||(d.seasons||[]).find(x=>x.is_active);
   const tours=d.tournaments.filter(t=>t.format!=='league'&&season&&(t.season_id===season.id||(!t.season_id&&(!season.starts_on||t.tournament_date>=season.starts_on)&&(!season.ends_on||t.tournament_date<=season.ends_on))));
   const seasonIds=new Set(tours.map(t=>t.id));
-  const stats={matches:0,wins:0,goals:0,assists:0,tournamentsWon:0},ratings=[],playedTeams=new Map();
+  const stats={matches:0,wins:0,goals:0,assists:0,tournamentsWon:0},ratings=[],matchRatingHistory=[],playedTeams=new Map();
   const seasonMatches=(d.matches||[]).filter(m=>seasonIds.has(m.tournament_id));
   const matchIds=new Set(seasonMatches.map(m=>m.id));
   for(const g of (d.goals||[]).filter(g=>matchIds.has(g.match_id)&&!g.is_own_goal)){if(g.scorer_player_id===pid)stats.goals++;if(g.assister_player_id===pid)stats.assists++;}
@@ -134,7 +134,7 @@ function mount(ctx){
    const team=own?own.team_id:(!assignments.length||archived)?d.teamPlayers.find(tp=>tp.player_id===pid&&[m.home_team_id,m.away_team_id].includes(tp.team_id))?.team_id:null;
    if(!team||![m.home_team_id,m.away_team_id].includes(team))continue;
    const final=m.status==='finished'||archived;
-   if(final){const r=ctx.rateMatch?.(m,pid,team,d.goals||[]);if(r&&Number.isFinite(r.rating))ratings.push(r.rating);}
+   if(final){const r=ctx.rateMatch?.(m,pid,team,d.goals||[]);if(r&&Number.isFinite(r.rating)){ratings.push(r.rating);matchRatingHistory.push({rating:r.rating,tournamentId:m.tournament_id})}}
    if(!playedTeams.has(m.tournament_id))playedTeams.set(m.tournament_id,new Set());playedTeams.get(m.tournament_id).add(team);
    stats.matches++;
    if(final&&((team===m.home_team_id&&Number(m.home_score)>Number(m.away_score))||(team===m.away_team_id&&Number(m.away_score)>Number(m.home_score))))stats.wins++;
@@ -149,11 +149,16 @@ function mount(ctx){
   const ratingCaption=academy?.rating_frozen?'Note figée pour cette équipe':delta||'Évaluation du groupe · sur 10';
   const note=loadState=== 'loading'?'Chargement…':loadState=== 'unavailable'?'Note indisponible':academy?.avg_rating!=null?format(Number(academy.avg_rating)*2,10):'Non noté';
   const player=d.players.find(p=>p.id===pid),matchAverage=ratings.length?ratings.reduce((sum,n)=>sum+n,0)/ratings.length:null;
+  const ratedTours=tours.filter(t=>matchRatingHistory.some(r=>r.tournamentId===t.id)).sort((a,b)=>String(b.tournament_date||'').localeCompare(String(a.tournament_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))||String(b.id).localeCompare(String(a.id)));
+  const latestMatchTour=ratedTours[0],previousMatchRatings=matchRatingHistory.filter(r=>r.tournamentId!==latestMatchTour?.id);
+  const previousMatchAverage=previousMatchRatings.length?previousMatchRatings.reduce((sum,r)=>sum+r.rating,0)/previousMatchRatings.length:null;
+  const matchChange=matchAverage!==null&&previousMatchAverage!==null?(Math.round((matchAverage-previousMatchAverage)*100)/100||0):null;
   const scoreCard=(label,value,scale,caption,tone,challenge)=>{
    const valid=value!==null&&value!==undefined&&Number.isFinite(Number(value)),percentage=valid?Math.max(0,Math.min(100,Number(value)/scale*100)):0;
    const change=Number(academy?.last_tournament_delta??academy?.rating_delta)*2;
+   const matchEvolution=valid&&tone==='sp-match-rating'&&matchChange!==null?'<sup class="sp-rating-change '+(matchChange>0?'up':matchChange<0?'down':'stable')+'" aria-label="Évolution de la Note Match après le dernier tournoi : '+esc(matchChange.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}))+'" title="Moyenne avant et après les notes du dernier tournoi">'+(matchChange>0?'↑ +':matchChange<0?'↓ ':'→ ')+esc(matchChange.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}))+' <small>dernier tournoi</small></sup>':'';
    const evolution=valid&&tone==='sp-academy'&&!academy?.rating_is_estimate&&academy?.rating_delta!=null&&Number.isFinite(change)?'<sup class="sp-rating-change '+(change>0?'up':change<0?'down':'stable')+'" aria-label="Progression : '+esc('Dernière progression : '+change.toLocaleString('fr-FR'))+'" title="'+esc(academy?.last_tournament_delta!=null?'Dernier tournoi':'Évolution cumulée')+'">'+(change>0?'↑ +':change<0?'↓ ':'→ ')+esc(change.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}))+(academy?.last_tournament_delta!=null?' <small>dernier tournoi</small>':'')+'</sup>':'';
-   return '<div class="sp-score-card '+tone+'"><span class="sp-score-label">'+esc(label)+'</span><div class="sp-score-value'+(valid?'':' sp-score-empty')+'">'+(valid?esc(Number(value).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1}))+evolution+' <small>/ '+scale+'</small>':esc(caption))+'</div><div class="sp-score-track" aria-hidden="true"><i style="width:'+percentage+'%"></i></div><p>'+esc(valid?caption:label==='Note Match'?'Les notes apparaîtront après tes matchs.':'Ta note apparaîtra une fois disponible.')+'</p>'+(challenge?'<div class="sp-rating-challenge">'+esc(challenge)+'</div>':'')+'</div>';
+   return '<div class="sp-score-card '+tone+'"><span class="sp-score-label">'+esc(label)+'</span><div class="sp-score-value'+(valid?'':' sp-score-empty')+'">'+(valid?esc(Number(value).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1}))+evolution+matchEvolution+' <small>/ '+scale+'</small>':esc(caption))+'</div><div class="sp-score-track" aria-hidden="true"><i style="width:'+percentage+'%"></i></div><p>'+esc(valid?caption:label==='Note Match'?'Les notes apparaîtront après tes matchs.':'Ta note apparaîtra une fois disponible.')+'</p>'+(challenge?'<div class="sp-rating-challenge">'+esc(challenge)+'</div>':'')+'</div>';
   };
   setHtml(panel,'<div class="sp-player-heading"><div><div class="sp-eyebrow">MON PROFIL JOUEUR</div><h3>'+esc(player?.name||'Mon profil')+'</h3></div><span class="sp-season-tag">'+esc(season?.name||'Aucune saison active')+'</span></div><div class="sp-rating-grid">'+scoreCard(academy?.rating_is_estimate?'Estimation invité':'Note '+group,academy?.rating_is_estimate?Number(academy.balancing_estimate)*2:loadState=== 'ready'&&academy?.avg_rating!=null?Number(academy.avg_rating)*2:null,10,academy?.rating_is_estimate?'Pour équilibrer les équipes · aucune note membre':note==='Chargement…'||note==='Note indisponible'||note==='Non noté'?note:ratingCaption,'sp-academy','Tu penses qu’ils ont raison ?')+scoreCard('Note Match',matchAverage,10,ratings.length?'Moyenne de '+ratings.length+' match'+(ratings.length>1?'s':'')+' noté'+(ratings.length>1?'s':''):'Non noté','sp-match-rating','Prouve-le sur le terrain !')+'</div><div class="sp-season-heading">Mes résultats de la saison</div><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists],['Tournois remportés',stats.tournamentsWon]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
  }
