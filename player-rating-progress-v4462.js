@@ -7,7 +7,7 @@ const state=()=>typeof S==='undefined'?null:S,client=()=>typeof sb==='undefined'
 let info=null,key='',loadedAt=0,busy=false,filter='all';
 function textRating(r){
  if(!r||r.avg_rating==null)return 'Pas encore noté';
- return num(r.avg_rating)+'/5 · '+signed(r.rating_delta||0)+' d’évolution cumulée'+(r.has_pending?' · '+signed(r.pending_delta||0)+' provisoire (vote en cours)':'');
+ return num(Number(r.avg_rating)*2)+'/10'+(r.last_tournament_delta!=null?' · '+signed(Number(r.last_tournament_delta)*2)+' au dernier tournoi':'')+' · '+signed(Number(r.rating_delta||0)*2)+' d’évolution cumulée'+(r.has_pending?' · '+signed(Number(r.pending_delta||0)*2)+' provisoire (vote en cours)':'');
 }
 function apply(){
  const box=E('playersList'),s=state();if(!box||!s?.workspace?.id)return;
