@@ -133,6 +133,6 @@ body.swe-premium-page>.app{max-width:1240px;padding:28px 22px}
 /* Fast Conquête public registration identity and accessible contrast. */
 #publicView.swe-premium.sp-fast-conquest{--sp-accent:#94400c;--sp-pale:#fff0dc;background:#fff7ec}
 #publicView.swe-premium.sp-fast-conquest .sp-hero{background:linear-gradient(120deg,#ffad55,#ff8b38);color:#172131}
-#publicView.swe-premium.sp-fast-conquest .sp-hero :is(h1,p,.sp-eyebrow,.sp-meta span,.sp-meta b){color:#172131!important}
+#publicView.swe-premium.sp-fast-conquest .sp-hero :is(h1,p,.sp-brand,.sp-brand small,.sp-eyebrow,.sp-meta span,.sp-meta b){color:#172131!important}
 #publicView.swe-premium.sp-fast-conquest #registrationFormat{display:inline-block;background:#ffe2b8;border:1px solid #94400c;border-radius:999px;padding:8px 13px;font-size:12px;letter-spacing:.7px;color:#172131!important}
 #publicView.swe-premium.sp-fast-conquest .sp-pitch{opacity:.15}
