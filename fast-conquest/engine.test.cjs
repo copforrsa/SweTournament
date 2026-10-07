@@ -1,0 +1,23 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),E=require('./engine.cjs');
+const teams=['a','b','c','d','e','f'];
+function qualification(){const s=E.create(teams);for(const id of s.matches.map(m=>m.id))E.finish(s,id,{homeScore:1,awayScore:0});if(s.phase==='qualification'){E.proposeDraw(s,()=>.42);E.validateDraw(s,'organizer')}return s}
+test('six distinct teams required',()=>{for(const t of [teams.slice(0,5),[...teams,'g'],['a','a','c','d','e','f']])assert.throws(()=>E.create(t));});
+test('two rounds, six fixtures, two opponents and two pitches per team',()=>{
+ const s=E.create(teams);assert.equal(s.matches.length,6);const pairs=new Set();for(const m of s.matches){const pair=[m.home,m.away].sort().join('|');assert.ok(!pairs.has(pair));pairs.add(pair)}for(const team of teams){const ms=s.matches.filter(m=>[m.home,m.away].includes(team));assert.equal(ms.length,2);assert.equal(new Set(ms.map(m=>m.pitch)).size,2)}
+});
+test('second round is blocked until the first three games are finished',()=>{const s=E.create(teams);assert.throws(()=>E.finish(s,'q2_1',{homeScore:0,awayScore:0}),/premier tour/);assert.equal(s.matches[3].status,'scheduled');});
+test('qualification draws allowed; perfect equality awaits a validated organizer draw',()=>{
+ const s=E.create(teams);for(const id of s.matches.map(m=>m.id))E.finish(s,id,{homeScore:0,awayScore:0});assert.equal(s.phase,'qualification');assert.equal(s.matches.length,6);assert.deepEqual(E.standings(s).map(r=>r.points),[2,2,2,2,2,2]);const draw=E.proposeDraw(s,()=>.2);assert.equal(draw.validated,false);assert.throws(()=>E.validateDraw(s,null));E.validateDraw(s,'organizer');assert.equal(s.phase,'conquest_1');assert.equal(s.matches.length,9);assert.deepEqual(s.matches.slice(6).map(m=>[m.home,m.away]),[[s.ranking[0],s.ranking[1]],[s.ranking[2],s.ranking[3]],[s.ranking[4],s.ranking[5]]]);
+});
+test('qualification rejects shootouts and malformed scores',()=>{const s=E.create(teams);for(const score of [-1,1.2,null])assert.throws(()=>E.finish(s,'q1_1',{homeScore:score,awayScore:0}));assert.throws(()=>E.finish(s,'q1_1',{homeScore:0,awayScore:0,penalties:{home:[true,true,true],away:[false,false,false]}}));});
+test('conquest requires a winner; three kicks then sudden death',()=>{
+ const s=qualification(),m=s.matches.find(m=>m.phase==='conquest_1');assert.throws(()=>E.finish(s,m.id,{homeScore:1,awayScore:1}),/tirs au but/);assert.equal(m.status,'scheduled');assert.throws(()=>E.finish(s,m.id,{homeScore:1,awayScore:1,penalties:{home:[true,false,true],away:[true,true,false]}}),/mort subite/);E.finish(s,m.id,{homeScore:1,awayScore:1,penalties:{home:[true,false,true,true],away:[true,true,false,false]}});assert.equal(m.winner,m.home);assert.equal(m.homeScore,1);assert.equal(m.awayScore,1);
+});
+test('correct promotion, semifinals and fifth-place participants',()=>{
+ const s=qualification();for(const m of s.matches.filter(m=>m.phase==='conquest_1'))E.finish(s,m.id,{homeScore:2,awayScore:0});const c=s.matches.find(m=>m.id==='c1_1'),m=s.matches.find(m=>m.id==='c1_2'),b=s.matches.find(m=>m.id==='c1_3');assert.deepEqual(s.matches.filter(m=>m.phase==='conquest_2').map(m=>[m.home,m.away,m.pitch]),[[c.winner,m.winner,'Carrefour'],[c.loser,b.winner,'Mercedes'],[m.loser,b.loser,'Boulogne']]);
+});
+test('14 games only, no Boulogne final, complete unique ranking and correct game counts',()=>{
+ const s=qualification();while(s.phase!=='finished'){const phase=s.phase;for(const id of s.matches.filter(m=>m.phase===phase).map(m=>m.id))E.finish(s,id,{homeScore:2,awayScore:1})}assert.equal(s.matches.length,14);assert.deepEqual(s.matches.filter(m=>m.phase==='finals').map(m=>m.pitch),['Carrefour','Mercedes']);assert.equal(new Set(s.finalRanking).size,6);assert.equal(s.champion,s.finalRanking[0]);assert.equal(s.king,s.champion);s.finalRanking.forEach((team,i)=>assert.equal(s.matches.filter(m=>[m.home,m.away].includes(team)).length,i<4?5:4));assert.throws(()=>E.finish(s,'final',{homeScore:2,awayScore:1}),/déjà terminé/);
+});
+test('incomplete phase never creates its successors',()=>{const s=qualification();const games=s.matches.filter(m=>m.phase==='conquest_1');E.finish(s,games[0].id,{homeScore:1,awayScore:0});E.finish(s,games[1].id,{homeScore:1,awayScore:0});assert.equal(s.phase,'conquest_1');assert.equal(s.matches.length,9);});
