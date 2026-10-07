@@ -30,7 +30,7 @@ async function inbox(){
  inboxBusy=true;try{const {data,error}=await sb.rpc('fast_conquest_inbox',{p_workspace_id:S.workspace.id});if(error||!Array.isArray(data))return;
  let box=document.getElementById('fastConquestInbox');if(!data.length){box?.remove();return}const home=document.getElementById('view-home');if(!home)return;
  if(!box){box=n('section');box.id='fastConquestInbox';box.className='fast-conquest';box.setAttribute('aria-live','polite');home.prepend(box)}const sig=JSON.stringify(data);if(box.dataset.signature===sig)return;box.dataset.signature=sig;box.replaceChildren();box.append(n('h3','Salon de Vote et appréciations · Fast Conquête'));
- for(const item of data)box.append(button((item.vote_open?'🗳️ Vote ouvert':'⭐ Notes de fin de tournoi')+' · '+(item.name||'Fast Conquête'),async()=>{await loadAll();S.activeTour=item.id;await loadTournament();cached=null;setView('matches');renderMatches(false);await refresh(true)}));
+ for(const item of data)box.append(button((item.vote_open?'🗳️ Vote ouvert':item.notes_open?'⭐ Notes de fin de tournoi':'🗳️ Préparer le vote de composition')+' · '+(item.name||'Fast Conquête'),async()=>{await loadAll();S.activeTour=item.id;await loadTournament();cached=null;setView('matches');renderMatches(false);await refresh(true)}));
  }finally{inboxBusy=false}
 }
 function picker(label,options,value){const l=n('label',label),s=n('select');for(const [id,name] of options){const o=n('option',name);o.value=id;s.append(o)}if(value!==undefined)s.value=value;s.dataset.fastDraft=label;l.append(s);return {l,s}}
