@@ -16,10 +16,11 @@ function rememberDrafts(){for(const el of document.querySelectorAll('.view.activ
 function restoreDrafts(){for(const el of document.querySelectorAll('.view.active input,.view.active select,.view.active textarea')){const value=drafts.get(el.id||el.dataset.fastDraft);if(value){el.value=value.value;if(el.type==='checkbox'||el.type==='radio')el.checked=value.checked}}}
 async function selectGroup(workspaceId){
  const member=(state()?.memberships||[]).find(m=>String(m.workspace_id)===String(workspaceId)&&['admin','coorganizer'].includes(m.role));if(!member)return;
- const select=document.getElementById('sweSpaceGroup');select.disabled=true;
- try{localStorage.setItem('swe_workspace_id',member.workspace_id);const url=new URL(location.href);url.searchParams.set('workspace',member.workspace_id);url.searchParams.delete('start');history.replaceState({},'',url.pathname+url.search+url.hash);managementView='home';persist();state().spacesReady=false;await boot();switching=true;try{setView(mode==='player'?'myplayer':'home')}finally{switching=false}apply();}
+ const select=document.getElementById('sweSpaceGroup');select.disabled=true;rememberDrafts();mode='management';managementView='home';persist();const title=document.querySelector('#sweSpaceBar strong');if(title)title.textContent='Ouverture du groupe…';const toggle=document.querySelector('#sweSpaceBar [data-space-switch]');if(toggle)toggle.disabled=true;
+ if(String(state().workspace?.id)!==String(member.workspace_id)){state().activeTour=null;state().teamCompetitionId=null;state().activeLeague=null;}
+ try{localStorage.setItem('swe_workspace_id',member.workspace_id);const url=new URL(location.href);url.searchParams.set('workspace',member.workspace_id);url.searchParams.delete('start');history.replaceState({},'',url.pathname+url.search+url.hash);managementView='home';persist();state().spacesReady=false;await boot();if(!state().activeTour&&state().tournaments?.length){state().activeTour=state().tournaments[0].id;await loadTournament();renderAll()}switching=true;try{setView(mode==='player'?'myplayer':'home')}finally{switching=false}apply();}
  catch(e){state().spacesReady=true;apply();if(typeof toast==='function')toast(e.message||'Impossible d’ouvrir ce groupe.')}
- finally{select.disabled=false}
+ finally{select.disabled=false;if(toggle)toggle.disabled=false}
 }
 function switchSpace(next){if(!ready()||next===mode||next==='management'&&!canManage())return;rememberDrafts();scroll[mode]=window.scrollY;mode=next;persist();switching=true;try{setView(mode==='player'?'myplayer':managementView)}finally{switching=false}apply();restoreDrafts();window.scrollTo({top:scroll[mode],behavior:'instant'});}
 const groups={home:['myPlayerMySwes','myPlayerInvites','myPlayerRequests'],swes:['myPlayerMySwes','myPlayerInvites','myPlayerRequests','myPlayerOpportunities','mySweHistoryCode'],profile:['myPlayerName','myPlayerStats','swe4338Health','myPlayerIdentity'],group:['myPlayerGroups']};
