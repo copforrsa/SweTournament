@@ -1,4 +1,4 @@
-const SW_BUILD='50.95-archive-history';
+const SW_BUILD='50.98-fast-conquest-archive-label';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
