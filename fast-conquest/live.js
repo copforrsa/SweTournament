@@ -16,7 +16,11 @@ function livePositions(s){
 }
 window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
  if(client){window.SWE_FAST_LIVE_REFRESH=()=>privatePanel(tour,client,players).catch(()=>{});window.SWE_FAST_LIVE_REFRESH();}
- let panel=document.getElementById('fastConquestLive');if(tour.format!=='fast_conquest'){panel?.remove();return}
+ const rankingSection=document.getElementById('liveRanking')?.closest('section.card'),matchesSection=document.getElementById('liveMatches')?.closest('section.card');
+ let panel=document.getElementById('fastConquestLive');if(tour.format!=='fast_conquest'){panel?.remove();if(rankingSection)rankingSection.hidden=false;if(matchesSection)matchesSection.hidden=false;return}
+ if(rankingSection)rankingSection.hidden=true;if(matchesSection)matchesSection.hidden=true;
+ const eventCards=new Map([...document.querySelectorAll('#liveMatches .live-match')].map(card=>[Number(card.querySelector('.muted')?.textContent.match(/^Match (\d+)/)?.[1]),card.querySelector('.live-match-events')]));
+ const wasOpen=panel?.querySelector('[data-fast-fixtures]')?.open===true;
  if(!panel){panel=n('section');panel.id='fastConquestLive';panel.className='fast-conquest';document.getElementById('liveCoorgRating')?.before(panel)}panel.replaceChildren();
  const s=tour.rotation_state?.fast_conquest,name=id=>teams.find(t=>t.id===id)?.name||'Équipe';panel.append(n('h2','⚔️ Fast Conquête'),n('p','Deux matchs de qualification, puis la conquête des trois terrains.'));
  if(!s){panel.append(n('p','Préparation des six équipes.'));return}panel.append(n('h3','Phase en cours · '+labels[s.phase]));
@@ -28,7 +32,7 @@ window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
  liveRank.append(rankGrid);panel.append(liveRank);
  const group=m=>m.phase==='qualification'?m.label:m.phase==='conquest_1'?'Conquête 1':m.phase==='conquest_2'?(m.id==='place_5'?'Match pour la 5e place':'Demi-finales'):m.id==='bronze'?'Match pour la 3e place':'Finale';
  const groups=new Map();for(const m of s.matches||[]){if(m.deleted)continue;const key=group(m);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m)}
- const board=n('div');board.className='fast-live-fixtures';panel.append(n('h3','Tableau des rencontres'),board);
+ const disclosure=n('details');disclosure.dataset.fastFixtures='1';disclosure.open=wasOpen;const summary=n('summary','Tableau des rencontres · Développer');disclosure.append(summary);disclosure.addEventListener('toggle',()=>{summary.textContent='Tableau des rencontres · '+(disclosure.open?'Masquer':'Développer')});const board=n('div');board.className='fast-live-fixtures';disclosure.append(board);panel.append(disclosure);
  for(const [label,matches] of groups){
   const section=n('section');section.setAttribute('aria-label',label);section.append(n('h4',label));
   const wrap=n('div');wrap.style.overflowX='auto';const table=n('table');table.className='live-table';table.style.cssText='width:100%;min-width:420px;background:#fff;color:#172033;border-radius:10px;overflow:hidden;text-align:left';
@@ -37,6 +41,7 @@ window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
    const row=n('tr'),terrain=n('td'),encounter=n('td'),score=n('td');
    terrain.append(n('strong',m.pitch),n('div',m.pitchRole||''));terrain.style.cssText='min-width:120px;border-left:4px solid '+(m.pitch==='Carrefour'?'#d97706':m.pitch==='Mercedes'?'#0891b2':'#b45309');
    encounter.append(n('strong',name(m.home)+' — '+name(m.away)));
+   const events=eventCards.get(Number(m.order));if(events){const eventDetails=n('details');const eventSummary=n('summary','Buteurs et passeurs');eventSummary.style.setProperty('color','#172033','important');eventDetails.append(eventSummary,events.cloneNode(true));encounter.append(eventDetails)}
    score.append(n('strong',String(m.homeScore??0)+' — '+String(m.awayScore??0)),n('div',m.status==='finished'?'Terminé':['live','started','in_progress'].includes(m.status)?'En cours':'À jouer'));
    score.style.whiteSpace='nowrap';if(m.penalties&&m.winner)score.append(n('div','TAB : '+name(m.winner)));
    for(const cell of [terrain,encounter,score]){cell.style.padding='10px';row.append(cell)}body.append(row);
@@ -46,7 +51,7 @@ window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
 
  const titles=document.getElementById('liveTournamentTitles');if(titles)titles.textContent=s.champion?'🏆 Champion du tournoi et 👑 Roi du terrain : '+name(s.champion):'Le Champion et le Roi du terrain seront désignés après la finale.';
  if(s.champion)panel.append(n('h2','🏆 Champion et 👑 Roi du terrain : '+name(s.champion)));
- const ranking=document.getElementById('liveRanking'),title=document.getElementById('liveRankingTitle');if(ranking){ranking.replaceChildren();title.textContent=s.finalRanking?'Classement final':'Classement en direct';const table=n('table');table.className='live-table';const head=n('tr');for(const label of ['Place','Équipe','État'])head.append(n('th',label));table.append(head);for(const item of livePositions(s)){const row=n('tr');row.append(n('td',item.place),n('td',name(item.id)),n('td',item.state));if(item.fixed)row.className='fast-ranking-fixed';table.append(row)}ranking.append(table)}
+
 };
 async function privatePanel(tour,client,players){
  if(tour.format!=='fast_conquest')return;
