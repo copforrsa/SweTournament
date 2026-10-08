@@ -234,6 +234,7 @@ function renderHostWelcome(){
 }
 
 function setView(v){
+  if(window.SWE_SPACES)v=window.SWE_SPACES.beforeView(v);
   const previousView=S.lastView;
   if(v==='myplayer'&&!S.playerAccountAccess&&S.workspace)v='home';
   if(v==='permissions'&&!isAdmin())v='home';
@@ -267,6 +268,7 @@ function setView(v){
   }
   if(v==='ranking')renderRanking();
   S.lastView=v;
+  window.SWE_SPACES?.apply();
   if(previousView!==v)window.scrollTo({top:0,left:0,behavior:'instant'});
   if(['home','myplayer','players','coorganizers','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
 }
@@ -1331,6 +1333,7 @@ async function boot(){
       $('#accountOnboarding')?.classList.add('hidden');
       $('#workspaceSetup')?.classList.add('hidden');
     }else showAccountOnboarding();
+    S.spacesReady=true;window.SWE_SPACES?.apply();
     return;
   }
   const requestedWorkspace=new URLSearchParams(location.search).get('workspace');
@@ -1357,6 +1360,7 @@ async function boot(){
     if(startMode==='player')setView('myplayer');else if(startMode==='home')setView('home');
     if(startMode==='player'||startMode==='home')consumeStartMode();
   }
+  S.spacesReady=true;window.SWE_SPACES?.apply();
 }
 $('#createWorkspace').onclick=async()=>{
   const btn=$('#createWorkspace');const name=$('#newWorkspace')?.value.trim();
@@ -1368,7 +1372,7 @@ $('#createWorkspace').onclick=async()=>{
     if(error)throw error;if(!workspaceId)throw new Error('Impossible de créer l’espace.');
     localStorage.setItem('swe_workspace_id',workspaceId);
     toast('Espace créé • tes 2 mois d’essai commencent maintenant 🎁');
-    await boot();setView('home');
+    await boot();window.SWE_SPACES?.switchSpace('management');setView('home');
   }catch(error){toast(friendlyAuthError(error))}
   finally{btn.disabled=false;btn.textContent="Créer mon espace et démarrer l’essai"}
 };
