@@ -590,6 +590,16 @@ select{background-color:#fff} textarea{resize:vertical}
  #view-tournaments .tournament-current-head button{width:100%}
 }
 
+/* Page dédiée aux résultats d'une archive : même lecture immédiate que le direct. */
+#view-tournament-history{display:none}
+#view-tournament-history.active{display:block}
+.history-live-hero{position:relative;overflow:hidden;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:28px;border-radius:22px;background:linear-gradient(125deg,#092d4a,#096f74 58%,#12a5bc);color:#fff;box-shadow:0 15px 32px rgba(8,77,106,.2)}
+.history-live-hero:after{content:'⚽';position:absolute;right:-18px;bottom:-54px;font-size:170px;opacity:.12;transform:rotate(-15deg)}
+.history-live-hero>div{position:relative;z-index:1}.history-live-kicker{display:block;color:#ffdc74;font-size:.72rem;font-weight:900;letter-spacing:.13em}.history-live-hero h1{margin:8px 0 6px;font-size:clamp(1.55rem,3.4vw,2.35rem);line-height:1.12}.history-live-hero p{max-width:600px;margin:0;color:#d9f4f7}.history-live-date{padding:9px 12px;border:1px solid #ffffff40;border-radius:12px;background:#ffffff18;font-size:.85rem;font-weight:800;white-space:nowrap}
+.history-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.history-summary-grid article{display:grid;gap:5px;padding:16px;border:1px solid #d4e5ef;border-radius:16px;background:#fff;box-shadow:0 5px 14px rgba(22,73,109,.06)}.history-summary-grid span,.history-card-heading span{color:#49728d;font-size:.67rem;font-weight:900;letter-spacing:.1em}.history-summary-grid b{color:#103b61;font-size:1.05rem}
+.history-results-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.history-card{padding:18px;border:1px solid #d4e3ee;border-radius:18px;background:#fff;box-shadow:0 6px 16px rgba(22,73,109,.06)}.history-card h2{margin:0 0 13px;color:#123b61;font-size:1.08rem}.history-ranking{grid-column:1/-1}.history-match-card{margin-top:14px}.history-card .rank{border-bottom:1px solid #e6eef4}.history-card .rank:last-child{border-bottom:0}.history-card-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.history-card-heading h2{margin:4px 0 0}.history-card-heading button{margin:0;background:#eef7ff;color:#155c97;border-color:#c9e4f8;font-weight:800}
+@media(max-width:720px){.history-live-hero{padding:21px;display:grid}.history-live-date{justify-self:start}.history-summary-grid,.history-results-grid{grid-template-columns:1fr}.history-ranking{grid-column:auto}.history-card-heading{align-items:flex-start;flex-direction:column}.history-card-heading button{width:100%}}
+
 /* V50.56 — native tournament cards; never override inactive view visibility */
 #view-tournaments .tournament-current-card{padding:0!important;overflow:hidden;background:#fff!important}
 #view-tournaments .tournament-current-head{padding:24px;background:linear-gradient(120deg,#10264c,#164e91 65%,#087f96);color:#fff;align-items:stretch}
