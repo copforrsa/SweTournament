@@ -3345,6 +3345,7 @@ async function showTournamentHistory(t){
 
   const champion=stats[0]?.name||'Résultats disponibles';
   panel.innerHTML=
+    '<div style="margin-bottom:14px"><button id="backToTournamentArchives" type="button">← Retour aux archives</button></div>'+
     '<section class="history-live-hero">'+
       '<div><span class="history-live-kicker">SWÉ ARCHIVES · RÉSULTATS OFFICIELS</span><h1>⚽ '+esc(t.name||('Tournoi du '+t.tournament_date))+'</h1><p>Résultats, classement final, buteurs et passeurs du tournoi.</p></div>'+
       '<div class="history-live-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</div>'+
@@ -3360,7 +3361,9 @@ async function showTournamentHistory(t){
       '<article class="history-card"><h2>🎯 Passeurs du tournoi</h2>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+'</article>'+
     '</section>'+
     '<section class="history-card history-match-card"><div class="history-card-heading"><div><span>FEUILLE DE MATCH</span><h2>📋 Tous les résultats</h2></div><button id="closeHistoryPanel">← Retour aux archives</button></div>'+(matchRows||'<p class="muted">Aucun match enregistré.</p>')+'</section>';
-  $('#closeHistoryPanel').onclick=()=>setView('tournaments');
+  const returnToArchives=()=>{const view=$('#view-tournaments');if(view)view.dataset.tournamentPane='archives';setView('tournaments');};
+  $('#backToTournamentArchives').onclick=returnToArchives;
+  $('#closeHistoryPanel').onclick=returnToArchives;
   setView('tournament-history');
 }
 
