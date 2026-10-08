@@ -3242,40 +3242,45 @@ function renderTournaments(){
   });
 
   if(finished.length){
-    const h=document.createElement('h2');h.className='sectiontitle';h.style.margin='20px 0 10px';h.textContent='Tournois archivés ('+finished.length+')';box.appendChild(h);
+    const archiveSection=document.createElement('section');
+    archiveSection.className='tournament-archives-section';
+    const h=document.createElement('div');h.className='tournament-archives-heading';
+    h.innerHTML='<div><span>ARCHIVES</span><h2>Tournois terminés</h2><p>Résultats, équipes, buteurs et passeurs restent disponibles à tout moment.</p></div><b>'+finished.length+' tournoi'+(finished.length>1?'s':'')+'</b>';
+    archiveSection.appendChild(h);
+    const archiveList=document.createElement('div');archiveList.className='tournament-archives-list';
+    archiveSection.appendChild(archiveList);
+    box.appendChild(archiveSection);
+    finished.forEach(t=>{
+      const d=document.createElement('article');d.className='tournament-archive-card';
+      const format=t.format==='king_of_pitch'?'👑 Roi du terrain':t.format==='league'?'🏁 Championnat':t.format==='conquest'?'⚔️ Conquête':'⚽ Tournoi';
+      d.innerHTML='<div class="tournament-archive-mark">🏆</div><div class="tournament-archive-main"><div class="tournament-archive-top"><div><span class="tournament-archive-kicker">TERMINÉ</span><h3>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</h3></div><span class="tournament-archive-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</span></div><div class="tournament-archive-meta"><span>'+esc(format)+'</span></div></div>';
+      const actions=document.createElement('div');actions.className='tournament-archive-actions';
+      const view=document.createElement('button');view.textContent='Voir les résultats';view.className='primary';
+      view.onclick=async()=>await showTournamentHistory(t);
+      actions.appendChild(view);
+      if(isAdmin()){
+        const payReport=document.createElement('button');payReport.textContent='🧾 Paiements';
+        payReport.onclick=async()=>{
+          payReport.disabled=true;
+          const {data,error}=await sb.rpc('admin_get_tournament_payment_report',{p_tournament_id:t.id});
+          payReport.disabled=false;
+          if(error)return toast(error.message);
+          if(!data)return toast('Aucun rapport de paiement archivé pour ce tournoi.');
+          paymentReportPrint(data,'Administrateur');
+        };
+        actions.appendChild(payReport);
+      }
+      if(hasAdminOps()){
+        const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
+        del.onclick=async()=>await deleteTournament(t);
+        actions.appendChild(del);
+      }else if(isCoorg()){
+        actions.appendChild(makeDisabledActionButton('Supprimer','Seul l’administrateur ou un admin temporaire peut supprimer un tournoi'));
+      }
+      d.appendChild(actions);
+      archiveList.appendChild(d);
+    });
   }
-  finished.forEach(t=>{
-    const d=document.createElement('div');d.className='player';
-    const top=document.createElement('div');top.className='row';
-    top.innerHTML='<span style="flex:1"><b>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' • Terminé</div><div class="muted">📅 '+esc(seasonNameForTournament(t))+'</div></span>';
-    const actions=document.createElement('div');actions.className='row';
-    const view=document.createElement('button');view.textContent='Voir les résultats';view.className='primary';
-    view.onclick=async()=>await showTournamentHistory(t);
-    actions.appendChild(view);
-    if(isAdmin()){
-      const payReport=document.createElement('button');payReport.textContent='🧾 Rapport paiements';
-      payReport.onclick=async()=>{
-        payReport.disabled=true;
-        const {data,error}=await sb.rpc('admin_get_tournament_payment_report',{p_tournament_id:t.id});
-        payReport.disabled=false;
-        if(error)return toast(error.message);
-        if(!data)return toast('Aucun rapport de paiement archivé pour ce tournoi.');
-        paymentReportPrint(data,'Administrateur');
-      };
-      actions.appendChild(payReport);
-    }
-    if(hasAdminOps()){
-      const del=document.createElement('button');del.textContent='Supprimer';del.className='danger';
-      del.onclick=async()=>await deleteTournament(t);
-      actions.appendChild(del);
-    }else if(isCoorg()){
-      actions.appendChild(makeDisabledActionButton('Supprimer','Seul l’administrateur ou un admin temporaire peut supprimer un tournoi'));
-    }
-    top.appendChild(actions);
-    d.appendChild(top);
-    appendTournamentSeasonControl(d,t);
-    box.appendChild(d);
-  });
 
   if(!tournamentOnly.length)box.innerHTML='<p class="muted">Aucun tournoi pour le moment.</p>';
   updateTournamentCountdowns();
