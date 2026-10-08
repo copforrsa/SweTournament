@@ -4687,11 +4687,11 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_members'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_invites'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=5031-role-by-pitch',{updateViaCache:'none'})
+  navigator.serviceWorker.register('./sw.js?v=5095-archive-history',{updateViaCache:'none'})
     .then(reg=>{
       reg.update().catch(()=>{});
       const reloadAfterWorkerUpdate=()=>{
-        if(sessionStorage.getItem('SW_BUILD_RELOAD_5031'))return;
+        if(sessionStorage.getItem('SW_BUILD_RELOAD_5095'))return;
         sessionStorage.setItem('SW_BUILD_RELOAD_5031','1');
         location.reload();
       };
