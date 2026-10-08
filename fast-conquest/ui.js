@@ -30,8 +30,24 @@ async function inbox(){
  inboxBusy=true;try{const {data,error}=await sb.rpc('fast_conquest_inbox',{p_workspace_id:S.workspace.id});if(error||!Array.isArray(data))return;
  let box=document.getElementById('fastConquestInbox');if(!data.length){box?.remove();return}const home=document.getElementById('view-home');if(!home)return;
  if(!box){box=n('section');box.id='fastConquestInbox';box.className='fast-conquest';box.setAttribute('aria-live','polite');home.prepend(box)}const sig=JSON.stringify(data);if(box.dataset.signature===sig)return;box.dataset.signature=sig;box.replaceChildren();box.append(n('h3','Salon de Vote et appréciations · Fast Conquête'));
- for(const item of data)box.append(button((item.vote_open?'🗳️ Vote ouvert':item.notes_open?'⭐ Notes de fin de tournoi':'🗳️ Préparer le vote de composition')+' · '+(item.name||'Fast Conquête'),async()=>{await loadAll();S.activeTour=item.id;await loadTournament();cached=null;if(!item.notes_open){window.SWETeamDrawSalonV2?.open(item.id);return}setView('matches');renderMatches(false);await refresh(true)}));
+ for(const item of data)box.append(button((item.vote_open?'🗳️ Vote ouvert':item.notes_open?'⭐ Notes de fin de tournoi':'🗳️ Préparer le vote de composition')+' · '+(item.name||'Fast Conquête'),async()=>{if(item.notes_open){await openNotes(item.id);return}await loadAll();S.activeTour=item.id;await loadTournament();cached=null;if(!item.notes_open){window.SWETeamDrawSalonV2?.open(item.id);return}setView('matches');renderMatches(false);await refresh(true)}));
  }finally{inboxBusy=false}
+}
+async function openNotes(tournamentId){
+ let dialog=document.getElementById('fastNotesDialog');dialog?.remove();dialog=n('dialog');dialog.id='fastNotesDialog';dialog.className='fast-conquest';dialog.style.cssText='position:fixed;margin:auto;width:min(760px,94vw);max-height:88vh;overflow:auto;z-index:100000;padding:20px';dialog.setAttribute('aria-label','Salon de notation confidentiel');document.body.append(dialog);
+ const close=button('Fermer',()=>dialog.close());dialog.append(close,n('h2','Votes / Notes de fin de tournoi'),n('p','Chargement du salon…'));dialog.showModal();dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+ try{
+  const {data:c,error}=await sb.rpc('fast_conquest_context',{p_tournament_id:tournamentId});if(error)throw error;if(!c.can_note)throw Error('Seuls l’organisateur et les co-gestionnaires désignés présents peuvent noter.');if(!c.notes_open)throw Error(c.notes_closed?'Les votes sont clôturés.':'Le salon sera ouvert à la fin du tournoi.');
+  if(!dialog.isConnected)return;dialog.replaceChildren(close,n('h2','Votes / Notes de fin de tournoi'),n('p','Confidentiel · avis modifiables jusqu’à la clôture.'));
+  const known=new Map((S.players||[]).map(p=>[p.id,p.name]));
+  if((c.participants||[]).some(id=>!known.has(id))){const r=await sb.from('players').select('id,name').in('id',c.participants);if(r.error)throw r.error;for(const p of r.data||[])known.set(p.id,p.name)}
+  for(const id of c.participants||[]){
+   const prior=(c.my_notes||[]).find(x=>x.player_id===id),name=known.get(id)||'Joueur',pick=picker(name,[['','Choisir'],['1','Blessé / non évaluable'],['2','Nettement en dessous'],['3','En dessous de son niveau'],['4','A tenu son rang'],['5','A créé la surprise'],['6','Maestro du jour']],prior?.appreciation_code||'');
+   const card=n('section');card.style.cssText='padding:12px 0;border-top:1px solid #b7816b';const obs=n('textarea');obs.value=prior?.comment||'';obs.maxLength=1000;obs.setAttribute('aria-label','Observation confidentielle pour '+name);const status=n('p');status.setAttribute('role','status');
+   const save=button('Enregistrer',async()=>{if(!pick.s.value){status.textContent='Choisis une appréciation.';return}save.disabled=true;try{const r=await sb.rpc('fast_conquest_manage',{p_tournament_id:tournamentId,p_action:'note',p_payload:{playerId:id,code:Number(pick.s.value),comment:obs.value}});if(r.error)throw r.error;status.textContent='Enregistré ✓'}catch(e){status.textContent=e.message||'Enregistrement impossible'}finally{save.disabled=false}});
+   card.append(pick.l,obs,save,status);dialog.append(card);
+  }
+ }catch(e){dialog.append(n('p',e.message||'Impossible d’ouvrir le salon.'))}
 }
 function picker(label,options,value){const l=n('label',label),s=n('select');for(const [id,name] of options){const o=n('option',name);o.value=id;s.append(o)}if(value!==undefined)s.value=value;s.dataset.fastDraft=label;l.append(s);return {l,s}}
 function mount(){
@@ -119,7 +135,7 @@ function submitFinish(m,action,home,away){
  act(action,payload,true);
 }
 function creation(){for(const id of ['view-matches','view-teams'])document.getElementById(id)?.classList.toggle('fast-format-view',t()?.format==='fast_conquest');const select=document.getElementById('tourFormat');if(!select)return;let option=select.querySelector('option[value="fast_conquest"]');if(!option){option=n('option','⚔️ Fast Conquête');option.value='fast_conquest';select.append(option)}option.disabled=!S.workspaceFeatures?.tournaments_enabled;const card=document.getElementById('tournamentAdminCard');card?.classList.toggle('fast-conquest',select.value==='fast_conquest');}
-window.SWE_FAST_CONQUEST={refresh,act,finishControl};document.addEventListener('swe:rendered',()=>{creation();clearTimeout(timer);timer=setTimeout(()=>refresh(),50)});document.addEventListener('change',e=>{if(e.target.id==='tourFormat')creation()});
+window.SWE_FAST_CONQUEST={refresh,act,finishControl,openNotes};document.addEventListener('swe:rendered',()=>{creation();clearTimeout(timer);timer=setTimeout(()=>refresh(),50)});document.addEventListener('change',e=>{if(e.target.id==='tourFormat')creation()});
 const host=document.getElementById('matchesList');if(host)new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(()=>refresh(),100)}).observe(host,{childList:true});
 creation();refresh();setInterval(()=>{if(document.visibilityState!=='hidden')refresh()},10000);
 })();
