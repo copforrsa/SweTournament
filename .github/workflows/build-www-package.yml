@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: swe-www-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -16,6 +20,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,11 +29,12 @@ jobs:
         run: npm ci --prefix tests --ignore-scripts
 
       - name: Check JavaScript syntax
+        timeout-minutes: 5
         shell: bash
         run: |
           set -euo pipefail
           find . -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
-          node --test tests/*.test.cjs
+          timeout 180s node --test tests/*.test.cjs
 
       - name: Install browser test runner
         run: |
