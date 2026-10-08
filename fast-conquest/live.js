@@ -2,12 +2,28 @@
 'use strict';
 const labels={qualification:'Qualifications',conquest_1:'Conquête 1',conquest_2:'Conquête 2',finals:'Finales',finished:'Tournoi terminé'};
 const n=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
+function livePositions(s){
+ const match=id=>(s.matches||[]).find(m=>m.id===id),done=id=>{const m=match(id);return m?.status==='finished'?m:null};
+ if(s.finalRanking)return s.finalRanking.map((id,i)=>({id,place:String(i+1)+(i===0?'er':'e'),state:'Place définitive',fixed:true}));
+ const seed=s.ranking||window.SWE_FAST_ENGINE.standings(s).map(r=>r.id),rows=[];
+ const addPair=(id,places,state)=>{const m=match(id);if(!m)return;const complete=done(id);if(complete){rows.push({id:complete.winner,place:places[0],state:'Place définitive',fixed:true},{id:complete.loser,place:places[1],state:'Place définitive',fixed:true})}else for(const team of [m.home,m.away])rows.push({id:team,place:places[0]+'–'+places[1],state,fixed:false})};
+ if(match('final')||match('bronze')){addPair('final',['1er','2e'],'Finale à jouer');addPair('bronze',['3e','4e'],'Petite finale à jouer');addPair('place_5',['5e','6e'],'Match de classement à jouer');return rows}
+ if(match('semi_1')||match('semi_2')||match('place_5')){
+  for(const id of ['semi_1','semi_2']){const m=match(id);if(m)for(const team of [m.home,m.away])rows.push({id:team,place:'1er–4e',state:'Demi-finales',fixed:false})}
+  addPair('place_5',['5e','6e'],'Match de classement à jouer');return rows
+ }
+ return seed.map((id,i)=>({id,place:String(i+1)+(i===0?'er':'e'),state:s.ranking?'Classement qualificatif':'Position provisoire',fixed:false}));
+}
 window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
  if(client){window.SWE_FAST_LIVE_REFRESH=()=>privatePanel(tour,client,players).catch(()=>{});window.SWE_FAST_LIVE_REFRESH();}
  let panel=document.getElementById('fastConquestLive');if(tour.format!=='fast_conquest'){panel?.remove();return}
  if(!panel){panel=n('section');panel.id='fastConquestLive';panel.className='fast-conquest';document.getElementById('liveCoorgRating')?.before(panel)}panel.replaceChildren();
  const s=tour.rotation_state?.fast_conquest,name=id=>teams.find(t=>t.id===id)?.name||'Équipe';panel.append(n('h2','⚔️ Fast Conquête'),n('p','Deux matchs de qualification, puis la conquête des trois terrains.'));
  if(!s){panel.append(n('p','Préparation des six équipes.'));return}panel.append(n('h3','Phase en cours · '+labels[s.phase]));
+ const liveRank=n('section');liveRank.className='fast-live-ranking';liveRank.style.cssText='margin:18px 0;padding:16px;border:1px solid rgba(255,205,74,.65);border-radius:14px;background:rgba(10,25,48,.38)';liveRank.append(n('h3','Classement en direct'));
+ const rankGrid=n('div');rankGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px';
+ for(const row of livePositions(s)){const card=n('div');card.style.cssText='display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:11px 13px;border-radius:11px;background:'+(row.fixed?'#fff4c7':'rgba(255,255,255,.1)')+';color:'+(row.fixed?'#442c00':'#fff');const place=n('strong',row.place);place.style.cssText='min-width:52px;font-size:1.08rem;color:'+(row.fixed?'#9a5a00':'#ffd66b');const info=n('div');info.append(n('strong',name(row.id)),n('div',row.state));info.lastChild.style.cssText='font-size:.78rem;opacity:.82;margin-top:2px';card.append(place,info);rankGrid.append(card)}
+ liveRank.append(rankGrid);panel.append(liveRank);
  const group=m=>m.phase==='qualification'?m.label:m.phase==='conquest_1'?'Conquête 1':m.phase==='conquest_2'?(m.id==='place_5'?'Match pour la 5e place':'Demi-finales'):m.id==='bronze'?'Match pour la 3e place':'Finale';
  const groups=new Map();for(const m of s.matches||[]){if(m.deleted)continue;const key=group(m);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m)}
  const board=n('div');board.className='fast-live-fixtures';panel.append(n('h3','Tableau des rencontres'),board);
@@ -28,7 +44,7 @@ window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
 
  const titles=document.getElementById('liveTournamentTitles');if(titles)titles.textContent=s.champion?'🏆 Champion du tournoi et 👑 Roi du terrain : '+name(s.champion):'Le Champion et le Roi du terrain seront désignés après la finale.';
  if(s.champion)panel.append(n('h2','🏆 Champion et 👑 Roi du terrain : '+name(s.champion)));
- const ranking=document.getElementById('liveRanking'),title=document.getElementById('liveRankingTitle');if(ranking){ranking.replaceChildren();title.textContent=s.finalRanking?'Classement final':'Classement des qualifications';const table=n('table');table.className='live-table';const head=n('tr');for(const label of ['#','Équipe',...(s.finalRanking?[]:['MJ','Diff','Buts','Pts'])])head.append(n('th',label));table.append(head);const rows=window.SWE_FAST_ENGINE.standings(s),ids=s.finalRanking||s.ranking||rows.map(x=>x.id);ids.forEach((id,i)=>{const row=n('tr');row.append(n('td',String(i+1)),n('td',name(id)));if(!s.finalRanking){const r=rows.find(x=>x.id===id);for(const val of [r.played,r.difference,r.for,r.points])row.append(n('td',String(val)))}table.append(row)});ranking.append(table)}
+ const ranking=document.getElementById('liveRanking'),title=document.getElementById('liveRankingTitle');if(ranking){ranking.replaceChildren();title.textContent=s.finalRanking?'Classement final':'Classement en direct';const table=n('table');table.className='live-table';const head=n('tr');for(const label of ['Place','Équipe','État'])head.append(n('th',label));table.append(head);for(const item of livePositions(s)){const row=n('tr');row.append(n('td',item.place),n('td',name(item.id)),n('td',item.state));if(item.fixed)row.className='fast-ranking-fixed';table.append(row)}ranking.append(table)}
 };
 async function privatePanel(tour,client,players){
  if(tour.format!=='fast_conquest')return;
