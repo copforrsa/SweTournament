@@ -95,11 +95,26 @@ function submitFinish(m,action,home,away){
  const payload={matchId:m.format_slot.replace(/^fast:/,''),homeScore:home,awayScore:away};
  if(m.format_stage!=='qualification'&&Number(home)===Number(away)){
   document.getElementById('fastPenaltyWinner')?.remove();
-  const dialog=n('dialog');dialog.id='fastPenaltyWinner';dialog.setAttribute('aria-label','Vainqueur aux tirs au but');dialog.style.cssText='max-width:420px;width:calc(100% - 32px);border:1px solid #b97d25;border-radius:16px;padding:20px;background:#fff;color:#172638';
-  dialog.append(n('h3','Qui a gagné aux tirs au but ?'));
-  const choices=n('div');choices.style.cssText='display:flex;gap:10px;flex-wrap:wrap';
-  for(const id of [m.home_team_id,m.away_team_id])choices.append(button('🏆 '+team(id),()=>{payload.penalties={winnerTeamId:id};dialog.close();dialog.remove();act(action,payload,true)}));
-  dialog.append(choices,button('Annuler',()=>{dialog.close();dialog.remove()}));dialog.addEventListener('cancel',()=>dialog.remove());document.body.append(dialog);dialog.showModal();return;
+  if(!document.getElementById('fastPenaltyStyle')){const css=n('style');css.id='fastPenaltyStyle';css.textContent=`
+#fastPenaltyWinner{box-sizing:border-box;width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;margin:auto;padding:24px;border:2px solid #e9a13d;border-radius:20px;background:#fff;color:#172638;box-shadow:0 20px 70px #0005}
+#fastPenaltyWinner::backdrop{background:#07152db3}
+#fastPenaltyWinner .fast-penalty-label{display:block;color:#8b4804;font-size:12px;font-weight:850;letter-spacing:.08em}
+#fastPenaltyWinner h3{margin:8px 0 10px;font-size:21px;line-height:1.3;color:#172638}
+#fastPenaltyWinner .fast-penalty-score{margin:0 0 20px;font-weight:700;color:#4b6072;line-height:1.5;overflow-wrap:anywhere}
+#fastPenaltyWinner .fast-penalty-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#fastPenaltyWinner .fast-penalty-team{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:100px;width:100%;margin:0;padding:14px 10px;background:#fff8ed;color:#172638;border:2px solid #d9e2e8;border-top:6px solid #e99a28;border-radius:14px;font-size:17px;font-weight:850;white-space:normal;overflow-wrap:anywhere;box-shadow:none}
+#fastPenaltyWinner .fast-penalty-team span{font-size:26px}
+#fastPenaltyWinner .fast-penalty-team:hover{background:#ffebc3;border-color:#b87113}
+#fastPenaltyWinner button:focus-visible{outline:3px solid #176ac8;outline-offset:3px}
+#fastPenaltyWinner .fast-penalty-cancel{display:block;width:100%;min-height:44px;margin:18px 0 0;padding:10px;background:#f1f4f6;color:#405465;border:1px solid #cad6df;border-radius:10px;box-shadow:none}
+`;document.head.append(css);}
+  const dialog=n('dialog');dialog.id='fastPenaltyWinner';dialog.setAttribute('aria-labelledby','fastPenaltyTitle');
+  const label=n('span','TIRS AU BUT');label.className='fast-penalty-label';const title=n('h3','Choisis l’équipe gagnante');title.id='fastPenaltyTitle';
+  const score=n('p',team(m.home_team_id)+' · '+home+' — '+away+' · '+team(m.away_team_id));score.className='fast-penalty-score';dialog.append(label,title,score);
+  const choices=n('div');choices.className='fast-penalty-choices';
+  for(const id of [m.home_team_id,m.away_team_id]){const choice=button('',()=>{payload.penalties={winnerTeamId:id};dialog.close();dialog.remove();act(action,payload,true)});choice.className='fast-penalty-team';choice.append(n('span','🏆'),n('b',team(id)));const tm=(S.teams||[]).find(x=>x.id===id);if(tm){const color=typeof sweTeamColor==='function'?sweTeamColor(tm):tm.color;if(color)choice.style.borderTopColor=color;}choices.append(choice);}
+  const cancel=button('Annuler',()=>{dialog.close();dialog.remove()});cancel.className='fast-penalty-cancel';
+  dialog.append(choices,cancel);dialog.addEventListener('cancel',()=>dialog.remove());document.body.append(dialog);dialog.showModal();return;
  }
  act(action,payload,true);
 }
