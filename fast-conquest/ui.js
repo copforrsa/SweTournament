@@ -66,7 +66,16 @@ function mount(){
   const subs=(S.tPlayers||[]).filter(x=>x.present&&x.is_substitute);if(subs.length){const tp=picker('Équipe',(S.teams||[]).map(x=>[x.id,x.name])),sp=picker('Remplaçant',subs.map(x=>[x.player_id,player(x.player_id)]));cap.append(tp.l,sp.l,button('Enregistrer le refus de cette équipe',()=>act('refuse_sub',{teamId:tp.s.value,playerId:sp.s.value,refused:true})),button('Autoriser ce remplaçant',()=>act('refuse_sub',{teamId:tp.s.value,playerId:sp.s.value,refused:false})));}box.append(cap);
  }
 
- if(c.state){const state=c.state;if(state.matches.some(m=>m.deleted)){box.append(n('p','Un match a été supprimé. Régénère les rencontres manquantes pour poursuivre.'));if(c.admin&&c.entitled)controls.append(button('Régénérer les matchs supprimés',()=>act('repair',{},true)));}if(state.phase==='qualification'&&state.matches.filter(m=>m.phase==='qualification').every(m=>m.status==='finished')&&!state.ranking){box.append(n('p','Égalité parfaite : tirage au sort puis validation organisateur requis.'));if(c.admin&&c.entitled){controls.append(button('Effectuer le tirage au sort',()=>act('draw',{},true)));if(state.draw){box.append(n('p',state.draw.ranking.map(team).join(' → ')));controls.append(button('Valider ce départage',()=>act('validate_draw',{},true)))}}}
+ if(c.state){const state=c.state;if(state.matches.some(m=>m.deleted)){box.append(n('p','Un match a été supprimé. Régénère les rencontres manquantes pour poursuivre.'));if(c.admin&&c.entitled)controls.append(button('Régénérer les matchs supprimés',()=>act('repair',{},true)));}if(state.phase==='qualification'&&state.matches.filter(m=>m.phase==='qualification').every(m=>m.status==='finished')&&!state.ranking){
+   const next=n('section');next.className='fast-next-phase';next.setAttribute('aria-label','Passage à Conquête 1');
+   const groups=window.SWE_FAST_ENGINE.tiedGroups(window.SWE_FAST_ENGINE.standings(state));
+   next.append(n('p','Qualifications terminées · Égalité parfaite : '+groups.map(g=>g.map(team).join(' / ')).join(' ; ')+'. Départage requis avant Conquête 1.'));
+   if(c.admin&&c.entitled){
+    if(!state.draw)next.append(button('Départager les équipes à égalité',()=>act('draw',{},true)));
+    else{next.append(n('p','Classement proposé : '+state.draw.ranking.map((id,i)=>(i+1)+'. '+team(id)).join(' · ')));next.append(button('Valider et générer Conquête 1',()=>act('validate_draw',{},true)));}
+   }else next.append(n('p','L’organisateur doit valider le départage.'));
+   if(overview)panel.insertBefore(next,overview);else panel.append(next);
+  }
   for(const move of window.SWE_FAST_ENGINE.progression(state))box.append(n('p',team(move.team)+' · '+move.message));
   const rank=n('ol');for(const id of state.finalRanking||state.ranking||[])rank.append(n('li',team(id)));if(rank.childNodes.length)box.append(n('h3',state.finalRanking?'Classement final':'Classement des qualifications'),rank);
   if(state.champion)box.append(n('h2','🏆 Champion et 👑 Roi du terrain : '+team(state.champion)));
