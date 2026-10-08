@@ -3319,11 +3319,8 @@ async function showTournamentHistory(t){
   let ass=[...ps.values()].filter(x=>x.a).sort((a,b)=>b.a-a.a||a.name.localeCompare(b.name));
   scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
 
-  let panel=$('#historyPanel');
-  if(!panel){
-    panel=document.createElement('div');panel.id='historyPanel';panel.className='card';panel.style.marginTop='12px';
-    $('#tournamentList').parentElement.appendChild(panel);
-  }
+  const panel=$('#tournamentHistoryPage');
+  if(!panel)return toast('La page des résultats est indisponible.');
 
   const teamRows=stats.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ • '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
   const scorerRows=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('');
@@ -3346,14 +3343,25 @@ async function showTournamentHistory(t){
       '</div>';
   }).join('');
 
+  const champion=stats[0]?.name||'Résultats disponibles';
   panel.innerHTML=
-    '<div class="row" style="justify-content:space-between"><div><h2 class="sectiontitle" style="margin:0">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</h2><div class="muted">'+t.tournament_date+'</div></div><button id="closeHistoryPanel">Fermer</button></div>'+
-    '<h3>🏆 Classement final</h3>'+(teamRows||'<p class="muted">Aucun classement.</p>')+
-    '<h3 style="margin-top:16px">⚽ Buteurs du tournoi</h3>'+(scorerRows||'<p class="muted">Aucun buteur.</p>')+
-    '<h3 style="margin-top:16px">🎯 Passeurs du tournoi</h3>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+
-    '<h3 style="margin-top:16px">📋 Résultats</h3>'+(matchRows||'<p class="muted">Aucun match enregistré.</p>');
-  $('#closeHistoryPanel').onclick=()=>panel.remove();
-  panel.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});
+    '<section class="history-live-hero">'+
+      '<div><span class="history-live-kicker">SWÉ ARCHIVES · RÉSULTATS OFFICIELS</span><h1>⚽ '+esc(t.name||('Tournoi du '+t.tournament_date))+'</h1><p>Résultats, classement final, buteurs et passeurs du tournoi.</p></div>'+
+      '<div class="history-live-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</div>'+
+    '</section>'+
+    '<section class="history-summary-grid">'+
+      '<article><span>🏆 VAINQUEUR</span><b>'+esc(champion)+'</b></article>'+
+      '<article><span>⚽ MATCHS JOUÉS</span><b>'+(matches||[]).length+'</b></article>'+
+      '<article><span>🔥 BUTS MARQUÉS</span><b>'+goals.length+'</b></article>'+
+    '</section>'+
+    '<section class="history-results-grid">'+
+      '<article class="history-card history-ranking"><h2>🏆 Classement final</h2>'+(teamRows||'<p class="muted">Aucun classement.</p>')+'</article>'+
+      '<article class="history-card"><h2>⚽ Buteurs du tournoi</h2>'+(scorerRows||'<p class="muted">Aucun buteur.</p>')+'</article>'+
+      '<article class="history-card"><h2>🎯 Passeurs du tournoi</h2>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+'</article>'+
+    '</section>'+
+    '<section class="history-card history-match-card"><div class="history-card-heading"><div><span>FEUILLE DE MATCH</span><h2>📋 Tous les résultats</h2></div><button id="closeHistoryPanel">← Retour aux archives</button></div>'+(matchRows||'<p class="muted">Aucun match enregistré.</p>')+'</section>';
+  $('#closeHistoryPanel').onclick=()=>setView('tournaments');
+  setView('tournament-history');
 }
 
 $('#newSeasonBtn').onclick=()=>$('#newSeasonBox').classList.toggle('hidden');
