@@ -17,3 +17,16 @@ test('numeric notes dialog groups all players, filters teammates and opponents, 
  assert.equal(calls[0].p_payload.rating,0);assert.equal(calls[0].p_payload.code,undefined);assert.equal(calls[0].p_tournament_id,'tour');
  }finally{w.close()}
 });
+test('first evaluation uses four criteria and role; prior evaluation uses tournament /10',async()=>{
+ const d=new JSDOM('<div></div>',{runScripts:'outside-only'}),w=d.window,calls=[];
+ try{
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){};w.S={players:[],workspaceFeatures:{}};w.currentTour=()=>null;
+ const c={can_note:true,notes_open:true,participants:['new','known'],participant_details:[{id:'new',name:'Nouveau',requires_initial:true},{id:'known',name:'Déjà évalué',requires_initial:false}],my_notes:[],note_teams:[]};
+ w.sb={rpc:async(name,p)=>name==='fast_conquest_context'?{data:c}:(calls.push(p),{data:{}})};w.eval(fs.readFileSync('fast-conquest/ui.js','utf8'));await w.SWE_FAST_CONQUEST.openNotes('tour');
+ const fresh=w.document.querySelector('[data-note-id="new"]'),known=w.document.querySelector('[data-note-id="known"]');assert.equal(fresh.querySelectorAll('select').length,5);assert.equal(known.querySelectorAll('select').length,1);
+ fresh.querySelector('button').click();assert.equal(calls.length,0);
+ [...fresh.querySelectorAll('select')].forEach((s,i)=>s.value=i===4?'metronome':'4');fresh.querySelector('button').click();await new Promise(r=>setTimeout(r,0));assert.deepEqual(JSON.parse(JSON.stringify(calls[0].p_payload.initialSkills)),{cardio:4,dribble:4,collectif:4,frappe:4,preferred_role:'metronome'});assert.equal(calls[0].p_payload.rating,undefined);
+ known.querySelector('select').value='8';known.querySelector('button').click();await new Promise(r=>setTimeout(r,0));assert.equal(calls[1].p_payload.rating,8);
+ await w.SWE_FAST_CONQUEST.openNotes('tour');assert.equal(w.document.querySelector('[data-note-id="new"]').querySelectorAll('select').length,5);
+ }finally{w.close()}
+});
