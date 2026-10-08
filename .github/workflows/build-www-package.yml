@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           find . -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
-          timeout 180s node --test tests/*.test.cjs
+          timeout 180s node --require ./tests/dom-cleanup.cjs --test tests/*.test.cjs fast-conquest/*.test.cjs
 
       - name: Install browser test runner
         run: |
