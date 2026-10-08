@@ -669,3 +669,33 @@ select{background-color:#fff} textarea{resize:vertical}
 #view-tournaments[data-tournament-pane]:not([data-tournament-pane="reports"]) > #sweRatingReportsCard{display:none!important}
 
 #view-tournaments .tournament-current-head .tournament-info-item{background:#102f55!important;border-color:#ffffff30!important}
+
+
+/* Archives : lecture rapide, sans classement de saison dans l’onglet Tournois. */
+#view-tournaments .tournament-archives-section{margin-top:22px;padding:20px;border:1px solid #d7e3f0;border-radius:20px;background:linear-gradient(145deg,#f6f9fd,#edf4fb)}
+#view-tournaments .tournament-archives-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:15px}
+#view-tournaments .tournament-archives-heading span{display:block;color:#2771bc;font-size:.72rem;font-weight:900;letter-spacing:.11em}
+#view-tournaments .tournament-archives-heading h2{margin:3px 0 4px;color:#102d52;font-size:1.32rem}
+#view-tournaments .tournament-archives-heading p{margin:0;color:#56708b;font-size:.9rem}
+#view-tournaments .tournament-archives-heading>b{display:grid;place-items:center;min-width:104px;padding:10px 13px;border-radius:14px;background:#123968;color:#fff;text-align:center;font-size:.82rem}
+#view-tournaments .tournament-archives-list{display:grid;gap:11px}
+#view-tournaments .tournament-archive-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;padding:15px 16px;border:1px solid #d3e1ee;border-radius:16px;background:#fff;box-shadow:0 5px 14px rgba(26,65,112,.06)}
+#view-tournaments .tournament-archive-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:linear-gradient(145deg,#fff2c6,#f9d96d);font-size:1.45rem}
+#view-tournaments .tournament-archive-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+#view-tournaments .tournament-archive-kicker{display:block;margin-bottom:2px;color:#56708b;font-size:.65rem;font-weight:900;letter-spacing:.1em}
+#view-tournaments .tournament-archive-card h3{margin:0;color:#122d50;font-size:1rem}
+#view-tournaments .tournament-archive-date{padding:5px 8px;border-radius:999px;background:#f0f5fa;color:#476782;font-size:.76rem;font-weight:800;white-space:nowrap}
+#view-tournaments .tournament-archive-meta{display:flex;gap:7px;margin-top:7px;flex-wrap:wrap}
+#view-tournaments .tournament-archive-meta span{padding:5px 8px;border-radius:999px;background:#eef7ff;color:#1769ae;font-size:.76rem;font-weight:800}
+#view-tournaments .tournament-archive-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+#view-tournaments .tournament-archive-actions button{margin:0;min-height:38px;font-size:.78rem;white-space:nowrap}
+@media(max-width:720px){
+  #view-tournaments .tournament-archives-section{padding:14px}
+  #view-tournaments .tournament-archives-heading{align-items:flex-start;flex-direction:column}
+  #view-tournaments .tournament-archives-heading>b{min-width:0}
+  #view-tournaments .tournament-archive-card{grid-template-columns:auto minmax(0,1fr)}
+  #view-tournaments .tournament-archive-actions{grid-column:1/-1;justify-content:stretch}
+  #view-tournaments .tournament-archive-actions button{flex:1}
+  #view-tournaments .tournament-archive-top{display:block}
+  #view-tournaments .tournament-archive-date{display:inline-block;margin-top:7px}
+}
