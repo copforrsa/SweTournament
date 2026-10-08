@@ -2655,7 +2655,7 @@ $('#addPlayers').onclick=async()=>{
 
 async function deleteTournament(t){
   if(!hasAdminOps())return toast('Tu n’es pas autorisé à supprimer un tournoi.');
-  const label=t.name||('Tournoi du '+t.tournament_date);
+  const label=t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date));
   if(!confirm('Supprimer définitivement « '+label+' » ?\n\nLes équipes, matchs, buts et données liées à ce tournoi seront également supprimés. Cette action est irréversible.'))return;
   const {error}=await sb.rpc('delete_tournament_admin',{p_tournament_id:t.id});
   if(error)return toast(error.message);
@@ -2854,7 +2854,7 @@ function renderTournaments(){
     const generatedInfo=t.generated_team_count
       ? t.generated_team_count+' équipes • '+(t.recommended_pitch_count||1)+' terrain'+((t.recommended_pitch_count||1)>1?'s':'')+' • '+(t.odd_team_rotation_rule?'Règle 2 buts d’écart / 10 min':'Matchs de 10 min')
       : 'Équipes non générées';
-    top.innerHTML='<div><div class="tournament-current-name">'+esc(t.name||('Tournoi du '+t.tournament_date))+'</div>'+
+    top.innerHTML='<div><div class="tournament-current-name">'+esc(t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date)))+'</div>'+
       '<div class="tournament-badges"><span class="tournament-badge">📅 '+esc(t.tournament_date)+'</span><span class="tournament-badge">⚽ '+esc(formatLabel(t))+'</span><span class="tournament-badge">🏆 '+esc(seasonNameForTournament(t))+'</span></div>'+
       '<div class="tournament-info-grid">'+
         '<div class="tournament-info-item"><span class="tournament-info-label">Lieu / terrains</span><span class="tournament-info-value">📍 '+esc(venueLabel)+'</span></div>'+
@@ -3140,7 +3140,7 @@ function renderTournaments(){
       };
       waBtn.onclick=()=>{
         if(!publicUrl)return toast('Lien public indisponible.');
-        const title=t.name||('Tournoi du '+t.tournament_date);
+        const title=t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date));
         const msg='⚽ '+title+'\n📅 '+t.tournament_date+'\n\nLes inscriptions sont ouvertes. Clique sur le lien, choisis ton nom puis indique si tu participes :\n'+publicUrl;
         window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');
       };
@@ -3252,8 +3252,8 @@ function renderTournaments(){
     box.appendChild(archiveSection);
     finished.forEach(t=>{
       const d=document.createElement('article');d.className='tournament-archive-card';
-      const format=t.format==='king_of_pitch'?'👑 Roi du terrain':t.format==='league'?'🏁 Championnat':t.format==='conquest'?'⚔️ Conquête':'⚽ Tournoi';
-      d.innerHTML='<div class="tournament-archive-mark">🏆</div><div class="tournament-archive-main"><div class="tournament-archive-top"><div><span class="tournament-archive-kicker">TERMINÉ</span><h3>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</h3></div><span class="tournament-archive-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</span></div><div class="tournament-archive-meta"><span>'+esc(format)+'</span></div></div>';
+      const format=t.format==='fast_conquest'?'⚔️ Fast Conquête':t.format==='king_of_pitch'?'👑 Roi du terrain':t.format==='league'?'🏁 Championnat':t.format==='conquest'?'⚔️ Conquête':'⚽ Tournoi';
+      d.innerHTML='<div class="tournament-archive-mark">🏆</div><div class="tournament-archive-main"><div class="tournament-archive-top"><div><span class="tournament-archive-kicker">TERMINÉ</span><h3>'+esc(t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date)))+'</h3></div><span class="tournament-archive-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</span></div><div class="tournament-archive-meta"><span>'+esc(format)+'</span></div></div>';
       const actions=document.createElement('div');actions.className='tournament-archive-actions';
       const view=document.createElement('button');view.textContent='Voir les résultats';view.className='primary';
       view.onclick=async()=>await showTournamentHistory(t);
@@ -3347,7 +3347,7 @@ async function showTournamentHistory(t){
   panel.innerHTML=
     '<div style="margin-bottom:14px"><button id="backToTournamentArchives" type="button">← Retour aux archives</button></div>'+
     '<section class="history-live-hero">'+
-      '<div><span class="history-live-kicker">SWÉ ARCHIVES · RÉSULTATS OFFICIELS</span><h1>⚽ '+esc(t.name||('Tournoi du '+t.tournament_date))+'</h1><p>Résultats, classement final, buteurs et passeurs du tournoi.</p></div>'+
+      '<div><span class="history-live-kicker">SWÉ ARCHIVES · RÉSULTATS OFFICIELS</span><h1>⚽ '+esc(t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date)))+'</h1><p>Résultats, classement final, buteurs et passeurs du tournoi.</p></div>'+
       '<div class="history-live-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</div>'+
     '</section>'+
     '<section class="history-summary-grid">'+
@@ -6931,7 +6931,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
   pubHist.closest('.card')?.classList.toggle('hidden',regTour?.format==='league');
   finishedHistory.forEach(t=>{
     const d=document.createElement('div');d.className='player row';
-    d.innerHTML='<span style="flex:1"><b>'+esc(t.name||('Tournoi du '+t.tournament_date))+'</b><div class="muted">'+t.tournament_date+' • Terminé</div></span>';
+    d.innerHTML='<span style="flex:1"><b>'+esc(t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date)))+'</b><div class="muted">'+t.tournament_date+' • Terminé</div></span>';
     const b=document.createElement('a');b.textContent='Voir les résultats';b.className='primary';
     b.href=publicHistoryUrl(token,t.id);
     d.appendChild(b);pubHist.appendChild(d);
