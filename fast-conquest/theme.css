@@ -27,3 +27,13 @@
 #fastConquestLive .fast-live-ranking .fast-rank-card.is-open{background:#65434a!important;border:1px solid #805761}
 #fastConquestLive .fast-live-ranking .fast-rank-card.is-open :is(.fast-rank-info,.fast-rank-info strong,.fast-rank-info div){color:#fff!important;opacity:1!important}
 #fastConquestLive .fast-live-ranking .fast-rank-card.is-open .fast-rank-place{color:#ffe083!important}
+
+#fastConquestLive .fast-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end;margin:18px 0}
+#fastConquestLive .fast-podium-card{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:18px 10px;min-height:135px;border-radius:14px;border:2px solid #a0aec0;overflow-wrap:anywhere;color:#172033!important;background:#e8edf3}
+#fastConquestLive .fast-podium-card div{font-size:2.2rem}
+#fastConquestLive .fast-podium-card strong{color:#172033!important;font-size:1.15rem}
+#fastConquestLive .fast-podium-card span{font-size:.85rem;margin-top:6px}
+#fastConquestLive .fast-podium-1{grid-column:2;grid-row:1;min-height:175px;background:#ffe5a2;border-color:#d49a18;box-shadow:0 0 20px #d49a1833}
+#fastConquestLive .fast-podium-2{grid-column:1;grid-row:1;background:#e8edf3;border-color:#9baabd}
+#fastConquestLive .fast-podium-3{grid-column:3;grid-row:1;background:#f5d7bd;border-color:#bc7846;min-height:120px}
+@media(max-width:480px){#fastConquestLive .fast-podium{gap:6px}#fastConquestLive .fast-podium-card{padding:12px 6px}#fastConquestLive .fast-podium-card strong{font-size:.95rem}#fastConquestLive .fast-podium-card span{font-size:.75rem}}
