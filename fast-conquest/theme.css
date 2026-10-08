@@ -21,3 +21,9 @@
 #fastConquestLive .fast-live-fixtures table tbody tr:nth-child(even){background:#fff!important}
 #fastConquestLive .fast-live-fixtures table td{border-bottom:1px solid #cbd5e1}
 #fastConquestLive .fast-live-fixtures h4{color:#fff4e9!important}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-fixed{background:#fff4c7!important;border:1px solid #edc75a}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-fixed :is(.fast-rank-place,.fast-rank-info,.fast-rank-info strong,.fast-rank-info div){color:#452b00!important;opacity:1!important}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-fixed .fast-rank-place{color:#8a4f00!important}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-open{background:#65434a!important;border:1px solid #805761}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-open :is(.fast-rank-info,.fast-rank-info strong,.fast-rank-info div){color:#fff!important;opacity:1!important}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-open .fast-rank-place{color:#ffe083!important}
