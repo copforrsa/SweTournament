@@ -91,7 +91,18 @@ function finishControl(m,can,busy){
  const record=cached?.data?.matches?.find(x=>x.id===m.id);if(!m.pitch){box.append(n('p','Tour précédent à terminer avant ce match.'));return box}
  if(can)box.append(button('Terminer le match',()=>submitFinish(m,'finish',m.home_score,m.away_score),busy));return box;
 }
-function submitFinish(m,action,home,away){const payload={matchId:m.format_slot.replace(/^fast:/,''),homeScore:home,awayScore:away};if(m.format_stage!=='qualification'&&Number(home)===Number(away)){const h=prompt('Tirs au but '+team(m.home_team_id)+' : trois tireurs, puis mort subite. 1 = marqué, 0 = raté (ex. 1011)'),a=h===null?null:prompt('Tirs au but '+team(m.away_team_id)+' : même nombre de tirs');if(a===null)return;const parse=x=>/^[01]{3,}$/.test(x)?[...x].map(y=>y==='1'):null;payload.penalties={home:parse(h),away:parse(a)}}act(action,payload,true)}
+function submitFinish(m,action,home,away){
+ const payload={matchId:m.format_slot.replace(/^fast:/,''),homeScore:home,awayScore:away};
+ if(m.format_stage!=='qualification'&&Number(home)===Number(away)){
+  document.getElementById('fastPenaltyWinner')?.remove();
+  const dialog=n('dialog');dialog.id='fastPenaltyWinner';dialog.setAttribute('aria-label','Vainqueur aux tirs au but');dialog.style.cssText='max-width:420px;width:calc(100% - 32px);border:1px solid #b97d25;border-radius:16px;padding:20px;background:#fff;color:#172638';
+  dialog.append(n('h3','Qui a gagné aux tirs au but ?'));
+  const choices=n('div');choices.style.cssText='display:flex;gap:10px;flex-wrap:wrap';
+  for(const id of [m.home_team_id,m.away_team_id])choices.append(button('🏆 '+team(id),()=>{payload.penalties={winnerTeamId:id};dialog.close();dialog.remove();act(action,payload,true)}));
+  dialog.append(choices,button('Annuler',()=>{dialog.close();dialog.remove()}));dialog.addEventListener('cancel',()=>dialog.remove());document.body.append(dialog);dialog.showModal();return;
+ }
+ act(action,payload,true);
+}
 function creation(){for(const id of ['view-matches','view-teams'])document.getElementById(id)?.classList.toggle('fast-format-view',t()?.format==='fast_conquest');const select=document.getElementById('tourFormat');if(!select)return;let option=select.querySelector('option[value="fast_conquest"]');if(!option){option=n('option','⚔️ Fast Conquête');option.value='fast_conquest';select.append(option)}option.disabled=!S.workspaceFeatures?.tournaments_enabled;const card=document.getElementById('tournamentAdminCard');card?.classList.toggle('fast-conquest',select.value==='fast_conquest');}
 window.SWE_FAST_CONQUEST={refresh,act,finishControl};document.addEventListener('swe:rendered',()=>{creation();clearTimeout(timer);timer=setTimeout(()=>refresh(),50)});document.addEventListener('change',e=>{if(e.target.id==='tourFormat')creation()});
 const host=document.getElementById('matchesList');if(host)new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(()=>refresh(),100)}).observe(host,{childList:true});

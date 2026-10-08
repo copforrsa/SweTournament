@@ -69,6 +69,10 @@ function validateDraw(s,operator){
  s.draw.validated=true;s.draw.validatedBy=operator;s.ranking=[...s.draw.ranking];advance(s);return s;
 }
 function penaltyWinner(m,penalties){
+ if(penalties?.winnerTeamId!==undefined){
+  if(![m.home,m.away].includes(penalties.winnerTeamId)||penalties.home!==undefined||penalties.away!==undefined)fail('Choisis une des deux équipes gagnantes aux tirs au but');
+  return penalties.winnerTeamId;
+ }
  if(!penalties||!Array.isArray(penalties.home)||!Array.isArray(penalties.away))fail('Séance de tirs au but requise');
  const h=penalties.home,a=penalties.away;
  if(h.length!==a.length||h.length<3||[...h,...a].some(x=>typeof x!=='boolean'))fail('Trois tireurs par équipe puis mort subite par paires');
