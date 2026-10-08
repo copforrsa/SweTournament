@@ -7,7 +7,25 @@ window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
  let panel=document.getElementById('fastConquestLive');if(tour.format!=='fast_conquest'){panel?.remove();return}
  if(!panel){panel=n('section');panel.id='fastConquestLive';panel.className='fast-conquest';document.getElementById('liveCoorgRating')?.before(panel)}panel.replaceChildren();
  const s=tour.rotation_state?.fast_conquest,name=id=>teams.find(t=>t.id===id)?.name||'Équipe';panel.append(n('h2','⚔️ Fast Conquête'),n('p','Deux matchs de qualification, puis la conquête des trois terrains.'));
- if(!s){panel.append(n('p','Préparation des six équipes.'));return}panel.append(n('h3',labels[s.phase]));for(const m of window.SWE_FAST_ENGINE.progression(s))panel.append(n('p',name(m.team)+' · '+m.message));
+ if(!s){panel.append(n('p','Préparation des six équipes.'));return}panel.append(n('h3','Phase en cours · '+labels[s.phase]));
+ const group=m=>m.phase==='qualification'?m.label:m.phase==='conquest_1'?'Conquête 1':m.phase==='conquest_2'?(m.id==='place_5'?'Match pour la 5e place':'Demi-finales'):m.id==='bronze'?'Match pour la 3e place':'Finale';
+ const groups=new Map();for(const m of s.matches||[]){if(m.deleted)continue;const key=group(m);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m)}
+ const board=n('div');board.className='fast-live-fixtures';panel.append(n('h3','Tableau des rencontres'),board);
+ for(const [label,matches] of groups){
+  const section=n('section');section.setAttribute('aria-label',label);section.append(n('h4',label));
+  const wrap=n('div');wrap.style.overflowX='auto';const table=n('table');table.className='live-table';table.style.cssText='width:100%;min-width:420px;background:#fff;color:#172033;border-radius:10px;overflow:hidden;text-align:left';
+  const head=n('thead'),hr=n('tr');for(const text of ['Terrain','Rencontre','Score / État'])hr.append(n('th',text));head.append(hr);table.append(head);
+  const body=n('tbody');for(const m of matches){
+   const row=n('tr'),terrain=n('td'),encounter=n('td'),score=n('td');
+   terrain.append(n('strong',m.pitch),n('div',m.pitchRole||''));terrain.style.cssText='min-width:120px;border-left:4px solid '+(m.pitch==='Carrefour'?'#d97706':m.pitch==='Mercedes'?'#0891b2':'#b45309');
+   encounter.append(n('strong',name(m.home)+' — '+name(m.away)));
+   score.append(n('strong',String(m.homeScore??0)+' — '+String(m.awayScore??0)),n('div',m.status==='finished'?'Terminé':['live','started','in_progress'].includes(m.status)?'En cours':'À jouer'));
+   score.style.whiteSpace='nowrap';if(m.penalties&&m.winner)score.append(n('div','TAB : '+name(m.winner)));
+   for(const cell of [terrain,encounter,score]){cell.style.padding='10px';row.append(cell)}body.append(row);
+  }table.append(body);wrap.append(table);section.append(wrap);board.append(section);
+ }
+ const moves=window.SWE_FAST_ENGINE.progression(s);if(moves.length){const details=n('details');details.append(n('summary','Montées et descentes de terrain'));for(const m of moves)details.append(n('p',name(m.team)+' · '+m.message));panel.append(details)}
+
  const titles=document.getElementById('liveTournamentTitles');if(titles)titles.textContent=s.champion?'🏆 Champion du tournoi et 👑 Roi du terrain : '+name(s.champion):'Le Champion et le Roi du terrain seront désignés après la finale.';
  if(s.champion)panel.append(n('h2','🏆 Champion et 👑 Roi du terrain : '+name(s.champion)));
  const ranking=document.getElementById('liveRanking'),title=document.getElementById('liveRankingTitle');if(ranking){ranking.replaceChildren();title.textContent=s.finalRanking?'Classement final':'Classement des qualifications';const table=n('table');table.className='live-table';const head=n('tr');for(const label of ['#','Équipe',...(s.finalRanking?[]:['MJ','Diff','Buts','Pts'])])head.append(n('th',label));table.append(head);const rows=window.SWE_FAST_ENGINE.standings(s),ids=s.finalRanking||s.ranking||rows.map(x=>x.id);ids.forEach((id,i)=>{const row=n('tr');row.append(n('td',String(i+1)),n('td',name(id)));if(!s.finalRanking){const r=rows.find(x=>x.id===id);for(const val of [r.played,r.difference,r.for,r.points])row.append(n('td',String(val)))}table.append(row)});ranking.append(table)}
