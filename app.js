@@ -1212,7 +1212,7 @@ function renderMyPlayerHub(){
   if($('#myPlayerPublic'))$('#myPlayerPublic').checked=!!p.is_public;
   if($('#myPlayerDiscoverable')){$('#myPlayerDiscoverable').checked=!!p.discoverable;$('#myPlayerDiscoverable').disabled=!p.is_public;}
   if($('#myPlayerNotify')){$('#myPlayerNotify').checked=!!p.notify_upcoming_swes;$('#myPlayerNotify').disabled=false;}
-  const rating=st.rating==null?'—':Number(st.rating).toFixed(1)+'/5';
+  const rating=st.rating==null?'—':(Number(st.rating)*2).toFixed(1)+'/10';
   if($('#myPlayerStats'))$('#myPlayerStats').innerHTML=[['🏟️','Groupes',st.groups||0],['🎮','Swés joués',st.tournaments||0],['⚽','Matchs',st.matches||0],['✅','Victoires',st.wins||0],['🏆','Trophées',st.trophies||0],['🥅','Buts',st.goals||0],['🎯','Passes',st.assists||0],['⭐','Note',rating]].map(x=>'<div><span>'+x[0]+'</span><small>'+x[1]+'</small><b>'+x[2]+'</b></div>').join('');
   const groups=Array.isArray(d.groups)?d.groups:[];
   if($('#myPlayerGroups')){
@@ -1245,7 +1245,7 @@ function renderPlayerDirectoryCard(){
   const box=$('#playerDirectoryResults');if(!box)return;
   const rows=S.playerDirectory||[];
   if(!rows.length){box.innerHTML='<div class="muted">Lance une recherche pour consulter les joueurs publics disponibles.</div>';return;}
-  box.innerHTML=rows.map(r=>'<div class="player directory-player"><div style="flex:1"><div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><b>'+esc(r.display_name)+'</b><span class="player-id-mini">'+esc(r.public_player_id)+'</span></div><div class="muted">'+esc(r.home_area||'Zone non renseignée')+' • '+Number(r.groups_count||0)+' groupe(s) • '+Number(r.tournaments_count||0)+' Swé(s)</div><div class="small" style="margin-top:4px">⚽ '+Number(r.matches_count||0)+' matchs • 🥅 '+Number(r.goals_count||0)+' buts • 🎯 '+Number(r.assists_count||0)+' passes'+(r.rating!=null?' • ⭐ '+Number(r.rating).toFixed(1)+'/5':'')+'</div></div><button class="primary" data-directory-invite="'+r.global_player_id+'">Inviter au Swé</button></div>').join('');
+  box.innerHTML=rows.map(r=>'<div class="player directory-player"><div style="flex:1"><div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><b>'+esc(r.display_name)+'</b><span class="player-id-mini">'+esc(r.public_player_id)+'</span></div><div class="muted">'+esc(r.home_area||'Zone non renseignée')+' • '+Number(r.groups_count||0)+' groupe(s) • '+Number(r.tournaments_count||0)+' Swé(s)</div><div class="small" style="margin-top:4px">⚽ '+Number(r.matches_count||0)+' matchs • 🥅 '+Number(r.goals_count||0)+' buts • 🎯 '+Number(r.assists_count||0)+' passes'+(r.rating!=null?' • ⭐ '+(Number(r.rating)*2).toFixed(1)+'/10':'')+'</div></div><button class="primary" data-directory-invite="'+r.global_player_id+'">Inviter au Swé</button></div>').join('');
 }
 
 function renderAdminPlayerRequests(){
@@ -2388,10 +2388,10 @@ function renderPlayers(){
     let meta=(x.active?'Actif':'Inactif')+(g?' • '+esc(g):' • Membre du groupe');
     if(S.workspaceFeatures.player_ratings_enabled&&isAdmin()){
       const aggregate=playerSkillAggregate(x.id);
-      meta+=aggregate&&Number(aggregate.voter_count)>0?' • Moyenne '+Number(aggregate.avg_rating).toFixed(1)+'/5 • '+aggregate.voter_count+' votant'+(Number(aggregate.voter_count)>1?'s':''):' • Aucun avis';
+      meta+=aggregate&&Number(aggregate.voter_count)>0?' • Moyenne '+(Number(aggregate.avg_rating)*2).toFixed(1)+'/10 • '+aggregate.voter_count+' votant'+(Number(aggregate.voter_count)>1?'s':''):' • Aucun avis';
     }else if(S.workspaceFeatures.player_ratings_enabled&&isCoorg()){
       const aggregate=playerSkillAggregate(x.id);
-      if(aggregate&&Number(aggregate.voter_count)>0)meta+=' • Verdict des co-gestionnaires : '+Number(aggregate.avg_rating).toFixed(1)+'/5';
+      if(aggregate&&Number(aggregate.voter_count)>0)meta+=' • Verdict des co-gestionnaires : '+(Number(aggregate.avg_rating)*2).toFixed(1)+'/10';
     }
     info.innerHTML='<b>'+esc(x.name)+'</b>'+(x.is_group_member===false?'<span class="guest-badge">Guest</span>':'')+
       '<div class="muted">'+meta+'</div>';
@@ -2433,7 +2433,7 @@ function renderPlayers(){
       if(!summary.count){
         reviewBox.innerHTML='<b>📊 Synthèse des évaluations</b><div class="muted small" style="margin-top:4px">Aucune évaluation pour le moment.</div>';
       }else{
-        const n=v=>v==null?'—':Number(v).toFixed(1)+'/5';
+        const n=v=>v==null?'—':(Number(v)*2).toFixed(1)+'/10';
         const chips='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">'+
           '<span class="guest-badge">❤️ Cardio '+n(aggregate?.avg_cardio??summary.cardio)+'</span>'+
           '<span class="guest-badge">🪄 Dribble '+n(aggregate?.avg_dribble??summary.dribble)+'</span>'+
@@ -2443,12 +2443,12 @@ function renderPlayers(){
         const roleName=r=>skillRoleLabel(r.preferred_role).replace(/^[^ ]+\s/,'');
         const voters=summary.reviews.map(r=>{
           const who=String(r.evaluator_user_id)===String(S.session?.user?.id)?'Admin':((r.evaluator_email||'Co-organisateur').split('@')[0]);
-          const detail='Cardio '+(r.cardio??'—')+'/5 • Dribble '+(r.dribble??'—')+'/5 • Collectif '+(r.collectif??'—')+'/5 • Frappe '+(r.frappe??'—')+'/5 • Rôle : '+roleName(r);
-          return '<span title="'+esc(detail)+'" style="display:inline-flex;gap:4px;align-items:center;margin:4px 6px 0 0;padding:5px 8px;border-radius:9px;background:#fff;border:1px solid #e3ebe6;cursor:help"><b>'+esc(who)+'</b> '+Number(r.rating).toFixed(1)+'/5 <small>ⓘ</small></span>';
+          const detail='Cardio '+(r.cardio==null?'—':Number(r.cardio)*2)+'/10 • Dribble '+(r.dribble==null?'—':Number(r.dribble)*2)+'/10 • Collectif '+(r.collectif==null?'—':Number(r.collectif)*2)+'/10 • Frappe '+(r.frappe==null?'—':Number(r.frappe)*2)+'/10 • Rôle : '+roleName(r);
+          return '<span title="'+esc(detail)+'" style="display:inline-flex;gap:4px;align-items:center;margin:4px 6px 0 0;padding:5px 8px;border-radius:9px;background:#fff;border:1px solid #e3ebe6;cursor:help"><b>'+esc(who)+'</b> '+(Number(r.rating)*2).toFixed(1)+'/10 <small>ⓘ</small></span>';
         }).join('');
         const count=Number(aggregate?.voter_count??summary.count);
         const avg=aggregate?.avg_rating!=null?Number(aggregate.avg_rating):summary.avg;
-        reviewBox.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><b>📊 Synthèse des évaluations</b><span><b>'+avg.toFixed(1)+'/5</b> • '+count+' votant'+(count>1?'s':'')+'</span></div>'+chips+'<div class="small muted" style="margin-top:5px">Survole une note ⓘ pour voir son détail.</div><div class="small" style="margin-top:2px">'+voters+'</div>';
+        reviewBox.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><b>📊 Synthèse des évaluations</b><span><b>'+(avg*2).toFixed(1)+'/10</b> • '+count+' votant'+(count>1?'s':'')+'</span></div>'+chips+'<div class="small muted" style="margin-top:5px">Survole une note ⓘ pour voir son détail.</div><div class="small" style="margin-top:2px">'+voters+'</div>';
       }
       d.appendChild(reviewBox);
     }
@@ -2545,14 +2545,14 @@ function renderPlayers(){
     }
     if(S.workspaceFeatures.player_ratings_enabled&&isCoorg()&&S.myLinkedPlayerId&&String(S.myLinkedPlayerId)===String(x.id)){
       const selfNote=document.createElement('div');selfNote.style.cssText='margin-top:8px;padding:9px 10px;border-radius:12px;background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb';
-      selfNote.innerHTML='<b>👤 Ton profil</b><div class="small">On te connaît 😏 : pas question de te mettre 5/5 partout ! Ton propre profil est donc hors vote 😂.</div>';
+      selfNote.innerHTML='<b>👤 Ton profil</b><div class="small">On te connaît 😏 : pas question de te mettre 10/10 partout ! Ton propre profil est donc hors vote 😂.</div>';
       d.appendChild(selfNote);
     }
     if(S.workspaceFeatures.player_ratings_enabled&&(isAdmin()||isCoorg())&&!(isCoorg()&&S.myLinkedPlayerId&&String(S.myLinkedPlayerId)===String(x.id))){
       const existing=S.myRatings.find(r=>r.player_id===x.id);
       const rate=document.createElement('div');rate.className='player-skill-review player-rating-card';
       const aggregate=playerSkillAggregate(x.id);
-      const aggText=aggregate&&Number(aggregate.voter_count)>0?(isCoorg()?'<div class="player-rating-verdict"><b>🕵️ Verdict collectif</b><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong></div>':'<div class="player-rating-verdict"><b>🕵️ Verdict collectif</b><span><strong>'+Number(aggregate.avg_rating).toFixed(1)+'/5</strong> • '+aggregate.voter_count+' évaluation'+(Number(aggregate.voter_count)>1?'s':'')+'</span></div>'):'<div class="player-rating-verdict is-empty">📊 Pas encore assez d’avis pour une moyenne.</div>';
+      const aggText=aggregate&&Number(aggregate.voter_count)>0?(isCoorg()?'<div class="player-rating-verdict"><b>🕵️ Verdict collectif</b><strong>'+(Number(aggregate.avg_rating)*2).toFixed(1)+'/10</strong></div>':'<div class="player-rating-verdict"><b>🕵️ Verdict collectif</b><span><strong>'+(Number(aggregate.avg_rating)*2).toFixed(1)+'/10</strong> • '+aggregate.voter_count+' évaluation'+(Number(aggregate.voter_count)>1?'s':'')+'</span></div>'):'<div class="player-rating-verdict is-empty">📊 Pas encore assez d’avis pour une moyenne.</div>';
       const title=document.createElement('div');title.className='player-rating-head';title.innerHTML='<div class="player-rating-title-row"><b>⚽ Mon évaluation</b><span class="player-rating-private">🔒 CONFIDENTIEL</span></div><div class="muted small player-rating-scale">1 à renforcer · 2 moyen · 3 bon · 4 très bon · 5 excellent</div><div class="player-rating-balance">⚖️ Ces critères alimentent la création des équipes équilibrées.</div>'+aggText;
       const criteria=document.createElement('div');criteria.className='player-rating-criteria';
       const values={};
@@ -2561,7 +2561,7 @@ function renderPlayers(){
       Object.entries(labels).forEach(([key,txt])=>{
         const wrap=document.createElement('label');wrap.className='player-rating-field';
         const cap=document.createElement('span');cap.className='player-rating-label';cap.textContent=txt;
-        const sel=document.createElement('select');sel.className='player-rating-select';sel.setAttribute('aria-label',txt);sel.innerHTML='<option value="">—</option>'+[1,2,3,4,5].map(n=>'<option value="'+n+'">'+n+'/5 · '+levelText[n]+'</option>').join('');
+        const sel=document.createElement('select');sel.className='player-rating-select';sel.setAttribute('aria-label',txt);sel.innerHTML='<option value="">—</option>'+[1,2,3,4,5].map(n=>'<option value="'+n+'">'+(n*2)+'/10 · '+levelText[n]+'</option>').join('');
         if(existing?.[key])sel.value=String(existing[key]);
         values[key]=sel;wrap.append(cap,sel);criteria.appendChild(wrap);
       });
@@ -3525,7 +3525,7 @@ async function syncTournamentSubstitutes(tournamentId){
   if(result.error)throw result.error;
   return result.data||null;
 }
-function chienBoulLabel(score){return '🐶⚽ Note équipe évaluée par Chien Boul Academy : '+Number(score||0).toFixed(1)+'/5';}
+function chienBoulLabel(score){return '🐶⚽ Note équipe évaluée par Chien Boul Academy : '+(Number(score||0)*2).toFixed(1)+'/10';}
 
 function renderTeams(){
   // L'onglet Équipes suit toujours le tournoi actuellement ouvert. Cela évite
@@ -3827,7 +3827,7 @@ async function runSmartTeamGeneration(isRedraw=false){
     const n=Number(data?.team_count||S.teams.length||0);
     if(t.format==='league')$('#teamBalanceInfo').textContent=n+' équipes générées automatiquement selon les niveaux privés définis par l’administrateur.';
     else{
-      const subs=Number(data?.substitute_count||0),pitches=Number(data?.pitch_count||1),scores=(data?.team_scores||[]).map(x=>x.team_name+' '+Number(x.score||0).toFixed(1)+'/5 • '+x.mention).join(' · ');
+      const subs=Number(data?.substitute_count||0),pitches=Number(data?.pitch_count||1),scores=(data?.team_scores||[]).map(x=>x.team_name+' '+(Number(x.score||0)*2).toFixed(1)+'/10 • '+x.mention).join(' · ');
       $('#teamBalanceInfo').innerHTML='<b>'+n+' équipes • '+pitches+' terrain'+(pitches>1?'s':'')+'</b>'+(subs?' • '+subs+' remplaçant'+(subs>1?'s':'')+' parmi les derniers inscrits':'')+'<br>🔒 Les équipes complètes et les joueurs ayant accepté leur place ont été conservés. Les autres joueurs ont été répartis dans les places libres pour équilibrer les niveaux.'+(scores?'<br><b>⚖️ Note moyenne équipes :</b> '+esc(scores):'')+'<br>Règle automatique : '+(data?.odd_team_rule?'2 buts d’écart = l’équipe dehors rentre, sinon 10 min maximum.':'matchs de 10 min.')+(t.team_review_requested&&S.workspaceFeatures.team_review_enabled?(reviewError?'<br><b>⚠️ Avis des co-gestionnaires :</b> les équipes sont créées, mais le lancement des votes a échoué. Relance la page puis réessaie.':'<br><b>🗳️ Validation :</b> les équipes restent masquées du lien public pendant la fenêtre d’avis des co-gestionnaires présents.'):'<br><b>👑 Composition administrateur :</b> les équipes sont publiées directement, sans vote.');
     }
     toast(reviewError?'Équipes générées, mais les votes n’ont pas démarré : '+reviewError.message:(isRedraw?'Nouveau tirage créé. Nouvelle fenêtre d’avis ouverte ✅':(t.team_review_requested?'Équipes générées • avis des co-gestionnaires ouvert ✅':n+' équipes générées et publiées ✅')));
@@ -4757,7 +4757,7 @@ function makeVisualTeams(ctx,t){
     vText(ctx,sweTeamColorLabel(team),295,y+57,120,'700 18px Arial','#66756e');
     const balance=S.teamBalanceScores.find(x=>String(x.team_id)===String(team.id));
     if(balance){
-      vText(ctx,'🐶 Chien Boul Academy '+Number(balance.team_score||0).toFixed(1)+'/5',930,y+58,310,'700 19px Arial','#0c6b3d','right');
+      vText(ctx,'🐶 Chien Boul Academy '+(Number(balance.team_score||0)*2).toFixed(1)+'/10',930,y+58,310,'700 19px Arial','#0c6b3d','right');
     }
     let tx=285,ty=y+50;
     names.forEach((name,i)=>{
@@ -5429,7 +5429,7 @@ async function loadPublicPage(token,bootState){
         const gl=tournamentGroupLevels.find(x=>String(x.tournament_id)===String(regTour.id));
         const score=gl&&Number.isFinite(Number(gl.avg_rating))?Number(gl.avg_rating):null;
         const label=score===null?'En cours d’évaluation':(score<1.5?'À renforcer':score<2.5?'Moyen':score<3.5?'Bon':score<4.5?'Très bon':'Excellent');
-        return item('⚡','Niveau du groupe',score===null?label:(score.toFixed(1).replace('.',',')+' / 5 — '+label),'Généré automatiquement en fonction du niveau des joueurs du groupe.');
+        return item('⚡','Niveau du groupe',score===null?label:((score*2).toFixed(1).replace('.',',')+' / 10 — '+label),'Généré automatiquement en fonction du niveau des joueurs du groupe.');
       })()+
       item('📅','Rendez-vous',esc(regTour.tournament_date||'À préciser')+(regTour.start_time?' • '+esc(String(regTour.start_time).slice(0,5)):''),esc(regTour.venue||'Terrain à préciser'))+
       item('⏳','Fin des inscriptions',esc(deadline))+
@@ -6847,7 +6847,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
             const playersHtml=teamPlayers.filter(tp=>tp.team_id===team.id).map(tp=>{const pl=pmap.get(tp.player_id);return pl?'<div class="public-team-player swe-player-with-avatar">'+playerAvatarHtml(pl)+esc(pl.name)+(pl.is_group_member===false?' <span class="guest-badge">Guest</span>':'')+'</div>':''}).join('');
       const crown=team.id===championTeamId?'👑 ':'';
       const champ=team.id===championTeamId?'<div class="public-team-shirt">🏆 Équipe victorieuse</div>':'';
-      const avg=Number(team.team_score||0)>0?'<div class="public-team-average">🐶⚽ <b>Note équipe évaluée par Chien Boul Academy : '+Number(team.team_score).toFixed(1)+'/5</b>'+(team.mention?' • '+esc(team.mention):'')+'</div>':'';return '<div class="public-team-card"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+'<div class="public-team-shirt">👕 Maillots : '+esc(label)+'</div></div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
+      const avg=Number(team.team_score||0)>0?'<div class="public-team-average">🐶⚽ <b>Note équipe évaluée par Chien Boul Academy : '+(Number(team.team_score)*2).toFixed(1)+'/10</b>'+(team.mention?' • '+esc(team.mention):'')+'</div>':'';return '<div class="public-team-card"><div class="public-team-head" style="background:'+bg+';color:'+fg+'"><div>'+crown+esc(team.name)+'</div>'+champ+'<div class="public-team-shirt">👕 Maillots : '+esc(label)+'</div></div>'+avg+'<div class="public-team-players">'+(playersHtml||'<div class="muted">Aucun joueur</div>')+'</div></div>';
     }).join('')||(publicTeamReviewEnabled&&['pending','redraw_requested'].includes(publicTeamReviewStates.find(x=>String(x.tournament_id)===String(latest.id))?.status)?'<div class="public-review-wait"><b>🗳️ Composition en validation</b><div>Les co-gestionnaires présents disposent d’une heure pour donner leur avis. Les équipes seront publiées dès validation.</div></div>':'<p class="muted">Aucune équipe.</p>');
     const publicAssigned=new Set(teamPlayers.map(x=>String(x.player_id)));
     const publicSubs=registrations.filter(r=>r.tournament_id===latest.id&&r.present&&r.is_substitute&&r.registration_status!=='waitlist'&&!publicAssigned.has(String(r.player_id))).map(r=>pmap.get(r.player_id)).filter(Boolean);

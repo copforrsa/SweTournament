@@ -68,7 +68,7 @@ async function enhanceProfileStats(){
   const rating=profileSummary?.rating??st.rating;
   const roleKey=profileSummary?.preferred_role||null;
   const role=roleKey?(ROLE_LABELS[roleKey]||roleKey):'—';
-  const ratingTxt=rating==null?'—':Number(rating).toFixed(1)+'/5';
+  const ratingTxt=rating==null?'—':(Number(rating)*2).toFixed(1)+'/10';
   const cards=[
     ['🏟️','Groupes',st.groups||0],
     ['🎮','Tournois joués',st.tournaments||0],

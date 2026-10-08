@@ -11,7 +11,7 @@ test('team name selection shows rating evolution and ignores a stale player resp
  creator.value='b';creator.dispatchEvent(new w.Event('change'));
  waiting.b({avg_rating:3.3,rating_delta:0.3});for(let i=0;i<10;i++)await Promise.resolve();
  waiting.a({avg_rating:1,rating_delta:-0.2});for(let i=0;i<10;i++)await Promise.resolve();
- const panel=w.document.querySelector('#registrationTeamPlayerStats');assert.match(panel.textContent,/Bob/);assert.match(panel.textContent,/\+0,3 d’évolution/);assert.doesNotMatch(panel.textContent,/Alice/);
+ const panel=w.document.querySelector('#registrationTeamPlayerStats');assert.match(panel.textContent,/Bob/);assert.match(panel.textContent,/\+0,6 d’évolution/);assert.doesNotMatch(panel.textContent,/Alice/);
 });
 test('relation buttons live in Joueurs / Notes and preserve unsaved rating inputs',async()=>{
  const dom=new JSDOM('<div id="view-players"><div id="playersList"><div class="player"><div class="row">A</div><input value="draft"></div><div class="player"><div class="row">B</div></div></div></div><div id="view-myplayer"></div>',{runScripts:'outside-only'}),w=dom.window;
@@ -25,5 +25,5 @@ test('relation buttons live in Joueurs / Notes and preserve unsaved rating input
  assert.equal(w.document.querySelector('[data-rating-player="a"]').classList.contains('swe-relation-hidden'),true);
  assert.equal(w.document.querySelector('[data-rating-player="b"]').classList.contains('swe-relation-hidden'),false);
  bar.querySelector('[data-relation="with"]').click();assert.equal(w.document.querySelector('input'),input);assert.equal(input.value,'draft');
- assert.match(w.document.querySelector('.swe-rating-evolution').textContent,/3,3\/5 · \+0,3/);
+ assert.match(w.document.querySelector('.swe-rating-evolution').textContent,/6,6\/10 · \+0,6/);
 });

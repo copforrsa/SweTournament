@@ -86,7 +86,7 @@
 
   function teamHtml(snapshot){
     return list(snapshot?.teams).map(team=>{
-      const average=team.average_rating==null?'':'<div style="font-weight:800;color:#1762bf">Moyenne : '+esc(Number(team.average_rating).toFixed(2).replace('.',','))+' / 5</div>';
+      const average=team.average_rating==null?'':'<div style="font-weight:800;color:#1762bf">Moyenne : '+esc((Number(team.average_rating)*2).toFixed(2).replace('.',','))+' / 10</div>';
       const players=list(team.players).map(player=>'<div>'+esc(player.name)+(player.locked?' 🔒':'')+'</div>').join('');
       return '<div class="swe-v2-team"><b>'+esc(team.name||'Équipe')+'</b>'+average+'<small>'+players+'</small></div>';
     }).join('')||'<span class="muted">Aucune équipe dans cette proposition.</span>';

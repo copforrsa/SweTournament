@@ -240,8 +240,8 @@
                   esc(p.player_name) +
                   '<small class="swe-rate-status done">✓ Déjà noté</small>' +
                   '<small style="display:block;color:#607067">Note définitive : ' +
-                  Number(ex.rating).toFixed(1) +
-                  '/5</small></strong><label style="grid-column:span 5">Appréciation du jour<select data-k="appreciation" ' +
+                  (Number(ex.rating)*2).toFixed(1) +
+                  '/10</small></strong><label style="grid-column:span 5">Appréciation du jour<select data-k="appreciation" ' +
                   (expired || ob ? "disabled" : "") +
                   ">" +
                   appreciationOptions(ob?.appreciation_code) +
