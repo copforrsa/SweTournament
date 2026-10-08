@@ -405,7 +405,10 @@ function renderStableMatches(allowHydrate=true){
 }
 
 function matchSection(m){
-  if(m.competition_type==='fast_conquest')return ({qualification:m.round_label?.split(' · ')[0],conquest_1:'Conquête 1',conquest_2:'Conquête 2',finals:'Finales'})[m.format_stage]||null;
+  if(m.competition_type==='fast_conquest'){
+    if(m.format_stage==='finals')return m.format_slot==='fast:bronze'||/petite finale|3e place/i.test(m.round_label||'')?'Match pour la 3e place':'Finale';
+    return ({qualification:m.round_label?.split(' · ')[0],conquest_1:'Conquête 1',conquest_2:'Conquête 2'})[m.format_stage]||null;
+  }
   if(/^Tour \d+(?: · .+)?$/.test(m.round_label||''))return m.round_label.split(' · ')[0];
   const label=String(m.round_label||'').toLowerCase();
   if(m.format_stage==='semi_final'||/demi/.test(label))return 'Demi-finales';
