@@ -37,14 +37,20 @@ function picker(label,options,value){const l=n('label',label),s=n('select');for(
 function mount(){
  const tour=t(),host=document.getElementById('matchesList');if(!host||tour?.format!=='fast_conquest'||cached?.id!==tour.id)return;
  let box=document.getElementById('fastConquestPanel');if(!box){box=n('section');box.id='fastConquestPanel';box.className='fast-conquest';host.prepend(box)}
- const c=cached.data,signature=JSON.stringify([c,pending,S.teams,S.coorgs,S.players]);if(box.dataset.signature===signature)return;box.dataset.signature=signature;for(const el of box.querySelectorAll('[data-fast-draft]'))drafts.set(tour.id+':'+el.dataset.fastDraft,el.value);box.replaceChildren();
- box.append(n('h2','⚔️ Fast Conquête'),n('p','Deux matchs de qualification, puis la conquête des trois terrains.'));
+ const c=cached.data,signature=JSON.stringify([c,pending,S.teams,S.coorgs,S.players]);if(box.dataset.signature===signature)return;box.dataset.signature=signature;for(const el of box.querySelectorAll('[data-fast-draft]'))drafts.set(tour.id+':'+el.dataset.fastDraft,el.value);const overviewOpen=box.querySelector('[data-fast-overview]')?.open===true;box.replaceChildren();
+ const panel=box;let overview=null;
+ if(c.state){
+  const heading=n('div');heading.className='fast-match-heading';heading.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap';
+  const title=n('h2','⚔️ Fast Conquête');title.style.margin='0';heading.append(title,n('strong',phases[c.state.phase]),button('Actualiser',()=>refresh(true)));panel.append(heading);
+  overview=n('details');overview.dataset.fastOverview='';overview.open=overviewOpen;overview.append(n('summary','Progression et réglages du tournoi'));panel.append(overview);box=n('div');overview.append(box);
+ }
+ if(!c.state)box.append(n('h2','⚔️ Fast Conquête'),n('p','Deux matchs de qualification, puis la conquête des trois terrains.'));
  box.append(n('strong',c.state?phases[c.state.phase]:'Composition des équipes'));
  box.append(n('p','Carrefour · Terres du Roi | Mercedes · Terrain des Conquérants | Boulogne · Terres des Bannis'));
  if(!c.state||c.state.qualificationMethod==='balanced_levels')box.append(n('p','Qualifications : deux tours, deux adversaires différents et changement de terrain. Le calendrier minimise les écarts de niveau entre les équipes validées.'));
  if((S.teams||[]).length!==6)box.append(n('p','⚠️ Exactement six équipes sont requises.'));
  const controls=n('div');controls.className='fast-actions';
- controls.append(button('Actualiser',()=>refresh(true)));
+ if(!c.state)controls.append(button('Actualiser',()=>refresh(true)));
  if(c.mode==='collaborative'&&c.entitled&&!c.admin&&!c.state)controls.append(button('Ouvrir le salon · 5 tirages',()=>window.SWETeamDrawSalonV2?.open(tour.id)));
  if(c.admin&&c.entitled&&!c.state){
   if(c.mode==='collaborative')controls.append(button('Ouvrir le salon · 5 tirages',()=>window.SWETeamDrawSalonV2?.open(tour.id),c.locked));else controls.append(button('Générer six équipes équilibrées',()=>{if(!S.teams.length||confirm('Remplacer les compositions actuelles par six équipes équilibrées ?'))act('generate')},c.locked||c.vote_open));
@@ -66,7 +72,7 @@ function mount(){
   if(state.champion)box.append(n('h2','🏆 Champion et 👑 Roi du terrain : '+team(state.champion)));
   if(c.notes_open||c.notes_closed){const notes=n('section');notes.append(n('h3','Votes / Notes de fin de tournoi'),n('p',c.notes_closed?'Votes clôturés':'Notes confidentielles et modifiables jusqu’à clôture.'));
    if(c.can_note&&c.notes_open){const participants=[...new Set((S.matchAssignments||[]).map(x=>x.player_id))];for(const id of participants){const prior=c.my_notes.find(x=>x.player_id===id),pick=picker(player(id),[['','Choisir'],['1','Blessé / non évaluable'],['2','Nettement en dessous'],['3','En dessous de son niveau'],['4','A tenu son rang'],['5','A créé la surprise'],['6','Maestro du jour']],prior?.appreciation_code||'');const obs=n('textarea');pick.s.dataset.fastDraft='note-code-'+id;obs.dataset.fastDraft='note-comment-'+id;obs.value=prior?.comment||'';obs.maxLength=1000;obs.setAttribute('aria-label','Observation confidentielle pour '+player(id));notes.append(pick.l,obs,button('Enregistrer la note',()=>act('note',{playerId:id,code:Number(pick.s.value),comment:obs.value})))}}
-   if(c.admin&&c.entitled){notes.append(button('Clôturer les votes',()=>{if(confirm('Clôturer les notes et les intégrer à l’historique ?'))act('close_notes')},!c.notes_open));for(const row of c.note_summary||[])notes.append(n('p',player(row.player_id)+' · '+Number(row.average).toFixed(1)+'/6 · '+row.voters+' avis'+(row.observations?.length?' · '+row.observations.join(' ; '):'')))}box.append(notes);
+   if(c.admin&&c.entitled){notes.append(button('Clôturer les votes',()=>{if(confirm('Clôturer les notes et les intégrer à l’historique ?'))act('close_notes')},!c.notes_open));for(const row of c.note_summary||[])notes.append(n('p',player(row.player_id)+' · '+Number(row.average).toFixed(1)+'/6 · '+row.voters+' avis'+(row.observations?.length?' · '+row.observations.join(' ; '):'')))}if(overview)panel.insertBefore(notes,overview);else box.append(notes);
   }
  }
  box.append(controls);for(const el of box.querySelectorAll('[data-fast-draft]')){const key=tour.id+':'+el.dataset.fastDraft;if(drafts.has(key))el.value=drafts.get(key)}window.SWE_FAST_CONQUEST_CONTEXT=c;
