@@ -162,7 +162,14 @@ function render(data){
  const individual=new Map();goals.forEach(g=>{const scorerId=String(g.scorer_player_id||'');if(scorerId&&players.has(scorerId)){if(!individual.has(scorerId))individual.set(scorerId,{name:players.get(scorerId).name,g:0,a:0});individual.get(scorerId).g++}const assisterId=String(g.assister_player_id||'');if(assisterId&&players.has(assisterId)){if(!individual.has(assisterId))individual.set(assisterId,{name:players.get(assisterId).name,g:0,a:0});individual.get(assisterId).a++}});
  const playerStats=[...individual.values()];const scorers=competitionRanks(playerStats.filter(x=>x.g>0).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name,'fr')),'g');const assists=competitionRanks(playerStats.filter(x=>x.a>0).sort((a,b)=>b.a-a.a||a.name.localeCompare(b.name,'fr')),'a');$('#liveScorers').innerHTML=statRows(scorers,'g','but');$('#liveAssists').innerHTML=statRows(assists,'a','passe');
  $('#liveMatches').innerHTML=matches.length?(()=>{
-   const cards=matches.map(m=>{
+   const matchGroup=m=>{
+     if(m.format_stage==='qualification')return m.round_label?.split(' · ')[0]||'Qualifications';
+     if(m.format_stage==='conquest_1')return 'Conquête 1';
+     if(m.format_stage==='conquest_2')return m.format_slot==='fast:place_5'||/5e/.test(m.round_label||'')?'Match pour la 5e place':'Demi-finales';
+     if(m.format_stage==='finals')return m.format_slot==='fast:bronze'||/petite finale|3e place/i.test(m.round_label||'')?'Match pour la 3e place':'Finale';
+     return m.round_label||'Matchs';
+   };
+   const matchCards=matches.map(m=>{
      const h=teamMap.get(String(m.home_team_id)),a=teamMap.get(String(m.away_team_id)),finished=!!(m.finished_at||m.status==='finished');
      const hs=Number(m.home_score||0),as=Number(m.away_score||0);
      const st=finished?'Terminé':m.started_at||['started','live','in_progress'].includes(String(m.status))?'En cours':'À jouer';
@@ -170,7 +177,10 @@ function render(data){
      const teamLabel=(team,won,lost)=>'<span class="live-team-name '+(won?'is-conqueror ':'')+(lost?'is-loser':'')+'">'+(won?'<small>⚔️ CONQUÉRANTS</small>':'')+esc(team?.name||'?')+(lost?'<em>Défaite</em>':'')+'</span>';
      const events=(goalsByMatch.get(String(m.id))||[]).map(g=>{const scorer=players.get(String(g.scorer_player_id||''));const assister=players.get(String(g.assister_player_id||''));const gt=teamMap.get(String(g.team_id||''));return '<div class="live-match-event">⚽ <b>'+esc(scorer?.name||'Buteur')+'</b>'+(assister?' <span>← passe de <b>'+esc(assister.name)+'</b></span>':' <span>• sans passe</span>')+(gt?' <span>• '+esc(gt.name)+'</span>':'')+'</div>'}).join('');
      return '<article class="live-match"><div><div class="muted">Match '+Number(m.match_order||0)+(m.pitch?' • '+esc(m.pitch):'')+' • '+st+(tour.format==='fast_conquest'?' • '+esc(m.round_label||''):'')+'</div><div class="live-match-teams">'+teamLabel(h,homeWon,homeLost)+'<span class="live-score">'+hs+' - '+as+'</span>'+teamLabel(a,awayWon,awayLost)+'</div>'+(events?'<div class="live-match-events">'+events+'</div>':'')+'</div></article>';
-   }).join('');
+   });
+   const groups=new Map();
+   matches.forEach((m,i)=>{const label=matchGroup(m);if(!groups.has(label))groups.set(label,[]);groups.get(label).push(matchCards[i]);});
+   const cards=tour.format==='fast_conquest'?[...groups].map(([label,items])=>'<section class="live-match-phase" aria-label="'+esc(label)+'"><h3>'+esc(label)+'</h3>'+items.join('')+'</section>').join(''):matchCards.join('');
    const done=matches.filter(m=>m.finished_at||m.status==='finished').length;
    const conquest=String(tour.format||tour.tournament_format||tour.rotation_mode||'').toLowerCase().includes('conquest');
    const teamCount=teams.length;
