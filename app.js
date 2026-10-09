@@ -1518,6 +1518,8 @@ async function loadAll(){
   if(!S.activeLeague){const al=S.leagues.find(l=>l.status==='active')||S.leagues[0];S.activeLeague=al?.id||null;}
   r=await sb.from('tournaments').select('*').eq('workspace_id',w).order('tournament_date',{ascending:false});S.tournaments=r.data||[];
   if(isAdmin()&&S.workspaceFeatures.third_half_enabled){r=await sb.rpc('admin_get_third_half_assignments_v1',{p_workspace_id:w});S.thirdHalfAssignments=r.error?[]:(Array.isArray(r.data)?r.data:[]);}else S.thirdHalfAssignments=[];
+  const registrationTourIds=S.tournaments.filter(t=>t.status!=='finished').map(t=>t.id);
+  if(registrationTourIds.length){const registrations=await sb.from('tournament_players').select('tournament_id,player_id').in('tournament_id',registrationTourIds).eq('present',true).neq('registration_status','cancelled');S.thirdHalfRegistrations=registrations.error?[]:registrations.data||[];}else S.thirdHalfRegistrations=[];
   if(!S.activeTour){const next=S.tournaments.find(t=>t.status!=='finished');S.activeTour=next?next.id:null;}
   await loadTournament();
   const editingReview=document.activeElement?.closest?.('.player-skill-review');
@@ -2910,7 +2912,7 @@ function renderTournaments(){
       reg.appendChild(adminPayment);
 
       const assignment=(S.thirdHalfAssignments||[]).find(x=>String(x.tournament_id)===String(t.id))||{};
-      const registeredIds=new Set((assignment.registered_player_ids||[]).map(String));
+      const registeredIds=new Set([...(assignment.registered_player_ids||[]),...(S.thirdHalfRegistrations||[]).filter(row=>String(row.tournament_id)===String(t.id)).map(row=>row.player_id),...(String(currentTour()?.id)===String(t.id)?(S.tPlayers||[]).filter(row=>row.present&&row.registration_status!=='cancelled').map(row=>row.player_id):[])].map(String));
       const candidates=(S.players||[]).filter(p=>p.active!==false).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr'));
       const assignmentOptions=(selected,empty)=>'<option value="">'+empty+'</option>'+candidates.map(p=>'<option value="'+esc(p.id)+'" '+(String(p.id)===String(selected||'')?'selected':'')+'>'+esc(p.name)+' • '+(p.is_group_member===false?'Non-membre':'Membre du groupe')+'</option>').join('');
       const paymentCandidates=candidates.filter(p=>registeredIds.has(String(p.id))||String(p.id)===String(assignment.payment_player_id||''));
