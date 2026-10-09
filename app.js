@@ -5672,10 +5672,11 @@ async function loadPublicPage(token,bootState){
     }
 
     function renderPublicThirdHalfRegistration(){
-      const box=$('#publicThirdHalfRegistration');if(!box)return;
+      const box=$('#publicThirdHalfRegistration');
       const state=publicThirdHalfState;
       const donorBox=$('#publicCoolerDonors'),donorCard=$('#publicThirdHalfDonorCard');
       if(donorBox){const labels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 bières',beers_5:'5 bières',beers_6:'6 bières',ti_punch:'Du ti-punch',fruits:'Des fruits',cups:'Des gobelets',soft_drinks:'Boissons sans alcool',snacks:'Amuse-gueules',other:'Autre apport'};const contributions=(state?.contributions||[]).filter(x=>x.contribution_mode==='money'||x.contribution_item);donorBox.innerHTML=contributions.map(x=>'<div class="third-half-donor-row"><span><strong>'+esc(x.player_name||'Joueur')+'</strong><small>'+(x.contribution_mode==='money'?'💶 '+euroCents(x.contribution_amount_cents||0):'🎒 '+esc(labels[x.contribution_item]||x.contribution_item||'Apport matériel'))+'</small></span></div>').join('');const empty=donorCard?.querySelector('p.muted');if(empty){empty.hidden=contributions.length>0;empty.textContent='Aucune participation enregistrée pour ce tournoi pour le moment.';}}
+      if(!box)return;
       if(!publicThirdHalf||!regTour.third_half_active||!state?.enabled){box.className='hidden';box.innerHTML='';return;}
       const pid=$('#publicPlayerSelect')?.value||'';
       const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
