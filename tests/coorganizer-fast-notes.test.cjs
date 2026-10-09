@@ -10,3 +10,12 @@ test('Ivory dashboard opens Fast notes despite inactive legacy appreciation requ
  const b=w.document.querySelector('[data-coorg-action="rating"]');assert(b);assert.equal(b.disabled,false);assert.match(b.closest('article').textContent,/0 \/ 31 joueurs notés/);b.click();assert.equal(opened,'fast');
  }finally{w.close()}
 });
+test('legacy enhancement keeps permanent vote card visible through repeated mutations',async()=>{
+ const d=new JSDOM('<div id="sweCoorgDashboard4399"><select id="sweVoteTournamentSelect"></select><section class="swe-coorg-section"><h2>Salon de Vote et appréciations</h2><span class="swe-coorg-pending">0 action en attente</span><div class="swe-coorg-actions"><article class="swe-coorg-action waiting" data-action-kind="team"><button disabled>En attente</button></article></div></section></div>',{url:'https://app.swetournament.fr',runScripts:'outside-only'}),w=d.window;
+ try{
+ w.S={workspace:{id:'ws',role:'coorganizer'},myPermissions:{}};w.sb={rpc:async()=>({data:{assigned:false}})};
+ const card=w.document.querySelector('[data-action-kind="team"]');w.eval(fs.readFileSync('coorganizer-experience-v4402.js','utf8'));
+ for(let i=0;i<3;i++){w.document.body.append(w.document.createElement('span'));await new Promise(r=>setTimeout(r,90));assert.equal(w.document.querySelector('[data-action-kind="team"]'),card);}
+ assert(card.isConnected);assert.equal(card.querySelector('button').disabled,true);
+ }finally{w.close()}
+});
