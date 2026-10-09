@@ -188,7 +188,7 @@ function render(data){
    return '<details class="live-matches-disclosure"><summary><span>📋 Résultats et feuilles de match</span><b>'+done+' / '+expectedConquestMatches+' terminés</b><small>Développer</small></summary><div class="live-match-list">'+cards+'<div class="live-results-bottom"><button type="button" class="live-collapse-results">⌃ Masquer les résultats</button></div></div></details>';
  })():'<p class="muted">Les matchs ne sont pas encore créés.</p>';
  const now=new Date();$('#liveUpdated').textContent='Actualisé '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setStatus(navigator.onLine?(tournamentFinished?'Tournoi terminé • résultats actualisés':'Live connecté • mise à jour toutes les 15 s'):'Hors connexion • dernier état affiché',navigator.onLine);
- window.SWE_FAST_LIVE?.(tour,teams,sb,players);
+ window.SWE_FAST_LIVE?.(tour,teams,sb,players,teamPlayers);
 }
 function showTestLogin(){
  setStatus('Connexion requise pour le match test',false);
