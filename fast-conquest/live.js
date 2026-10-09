@@ -14,7 +14,7 @@ function livePositions(s){
  }
  return seed.map((id,i)=>({id,place:String(i+1)+(i===0?'er':'e'),state:s.ranking?'Classement qualificatif':'Position provisoire',fixed:false}));
 }
-window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
+window.SWE_FAST_LIVE=(tour,teams,client,players,teamPlayers=[])=>{
  if(client){window.SWE_FAST_LIVE_REFRESH=()=>privatePanel(tour,client,players).catch(()=>{});window.SWE_FAST_LIVE_REFRESH();}
  const rankingSection=document.getElementById('liveRanking')?.closest('section.card'),matchesSection=document.getElementById('liveMatches')?.closest('section.card');
  let panel=document.getElementById('fastConquestLive');if(tour.format!=='fast_conquest'){panel?.remove();if(rankingSection)rankingSection.hidden=false;if(matchesSection)matchesSection.hidden=false;return}
@@ -26,7 +26,7 @@ window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
  if(!s){panel.append(n('p','Préparation des six équipes.'));return}panel.append(n('h3','Phase en cours · '+labels[s.phase]));
  const liveRank=n('section');liveRank.className='fast-live-ranking';liveRank.style.cssText='margin:18px 0;padding:16px;border:1px solid rgba(255,205,74,.65);border-radius:14px;background:rgba(10,25,48,.38)';liveRank.append(n('h3',s.finalRanking?'Classement final':'Classement en direct'));
  const positions=livePositions(s),medals=positions.filter(row=>row.fixed&&['1er','2e','3e'].includes(row.place));
- if(medals.length){const podium=n('div');podium.className='fast-podium';podium.setAttribute('aria-label','Podium du tournoi');for(const row of medals){const rank=parseInt(row.place,10),card=n('article');card.className='fast-podium-card fast-podium-'+rank;card.append(n('div',['','🏆','🥈','🥉'][rank]),n('strong',row.place+' · '+name(row.id)),n('span',rank===1?'Champion · Roi du terrain':rank===2?'Vice-champion':'Troisième place'));podium.append(card)}liveRank.append(podium)}
+ if(medals.length){const podium=n('div');podium.className='fast-podium';podium.setAttribute('aria-label','Podium du tournoi');for(const row of medals){const rank=parseInt(row.place,10),card=n('article');card.className='fast-podium-card fast-podium-'+rank;card.append(n('div',['','🏆','🥈','🥉'][rank]),n('strong',row.place+' · '+name(row.id)),n('span',rank===1?'Champion conquérant':rank===2?'Vice-champion':'Troisième place'));podium.append(card)}liveRank.append(podium)}
  const rankGrid=n('div');rankGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px';
  for(const row of positions.filter(row=>!medals.some(medal=>medal.id===row.id))){const card=n('div');card.className='fast-rank-card '+(row.fixed?'is-fixed':'is-open');card.style.cssText='display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:11px 13px;border-radius:11px;background:'+(row.fixed?'#fff4c7':'rgba(255,255,255,.1)');const place=n('strong',row.place);place.className='fast-rank-place';place.style.cssText='min-width:52px;font-size:1.08rem';const info=n('div');info.className='fast-rank-info';info.append(n('strong',name(row.id)),n('div',row.state));info.lastChild.style.cssText='font-size:.78rem;margin-top:2px';card.append(place,info);rankGrid.append(card)}
  liveRank.append(rankGrid);panel.append(liveRank);
@@ -49,8 +49,8 @@ window.SWE_FAST_LIVE=(tour,teams,client,players)=>{
  }
  const moves=window.SWE_FAST_ENGINE.progression(s);if(moves.length){const details=n('details');details.append(n('summary','Montées et descentes de terrain'));for(const m of moves)details.append(n('p',name(m.team)+' · '+m.message));panel.append(details)}
 
- const titles=document.getElementById('liveTournamentTitles');if(titles)titles.textContent=s.champion?'🏆 Champion du tournoi et 👑 Roi du terrain : '+name(s.champion):'Le Champion et le Roi du terrain seront désignés après la finale.';
- if(s.champion)panel.append(n('h2','🏆 Champion et 👑 Roi du terrain : '+name(s.champion)));
+ const titles=document.getElementById('liveTournamentTitles');if(titles)titles.textContent=s.champion?'🏆 Champion conquérant : '+name(s.champion):'Le Champion conquérant sera désigné après la finale.';
+ if(s.champion){const winner=n('section');winner.className='fast-champion';winner.append(n('h2','🏆 Champion conquérant : '+name(s.champion)));const ids=[...new Set(teamPlayers.filter(tp=>String(tp.team_id)===String(s.champion)).map(tp=>String(tp.player_id)))];const names=ids.map(id=>players?.get?.(id)?.name).filter(Boolean);if(names.length)winner.append(n('p',names.join(' · ')));panel.append(winner)}
 
 };
 async function privatePanel(tour,client,players){
