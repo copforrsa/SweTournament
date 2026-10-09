@@ -3091,7 +3091,7 @@ function renderTournaments(){
 
         let rolePatch={};
         try{rolePatch=roleEditor?.patch()||{}}catch(error){return toast(error.message)}
-        const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' — ');
+        const venue=complex?.name||null;
 
         saveDetails.disabled=true;
         saveDetails.textContent='Enregistrement…';
@@ -3420,7 +3420,7 @@ $('#createTournament').onclick=async()=>{
   if(selectedPitches.length!==pitchIds.length)return toast('Un terrain sélectionné est invalide.');
   btn.disabled=true;btn.textContent='Création…';
   try{
-    const venue=[complex?.name,selectedPitches.map(p=>p.name).join(', ')].filter(Boolean).join(' — ');
+    const venue=complex?.name||null;
     const row={
       workspace_id:S.workspace.id,
       season_id:$('#seasonSelect').value||null,
