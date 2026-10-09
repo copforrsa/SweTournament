@@ -32,7 +32,7 @@ async function boot(){
  await load('/player-profile-compact.js?v=4399-player-r1','player-profile-compact');
  await load('/player-home.js?v=4417','player-home-v4417');
  await load('/coorganizer-insights-v4400.js?v=4401','coorganizer-insights-v4401');
- await load('/coorganizer-experience-v4402.js?v=4402','coorganizer-experience-v4402');
+ await load('/coorganizer-experience-v4402.js?v=5100-stable-salon','coorganizer-experience-v4402');
  await load('/football-avatar-picker-v4404.js?v=4405','football-avatar-picker-v4405');
  await load('/player-profile-fixes-v4404.js?v=4404b','player-profile-fixes-v4404');
  await load('/superadmin-rating-correction-v4400.js?v=4400','superadmin-rating-correction-v4400');
