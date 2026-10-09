@@ -49,3 +49,12 @@
 #fastConquestLive .fast-podium-3{--podium-accent:#ffb77e;border-color:#d69664}
 #fastConquestLive .fast-live-ranking .fast-rank-card.is-fixed{background:linear-gradient(135deg,#253247,#172033)!important;border-color:#52667e;border-radius:12px 4px 12px 4px}
 #fastConquestLive .fast-live-ranking .fast-rank-card.is-fixed :is(.fast-rank-place,.fast-rank-info,.fast-rank-info strong,.fast-rank-info div){color:#f1f5f9!important}
+
+/* Fast Conquête orange identity across organizer and live views. */
+.fast-conquest{background:linear-gradient(135deg,#ffad55,#ff8b38)!important;color:#172131!important;border-color:#b94b0c}
+.fast-conquest :is(h2,h3,h4,b,strong,p,label,small,summary,.muted){color:#172131!important}
+.fast-format-view,.swe-results-page:has(#fastConquestLive){background:linear-gradient(135deg,#ffad55,#ff8b38)!important}
+#fastConquestLive .fast-live-ranking{background:#fff3e3!important;border-color:#b94b0c}
+#fastConquestLive .fast-live-fixtures h4{color:#172131!important}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-open{background:#ffe2bf!important;border-color:#bd682b}
+#fastConquestLive .fast-live-ranking .fast-rank-card.is-open :is(.fast-rank-place,.fast-rank-info,.fast-rank-info strong,.fast-rank-info div){color:#172131!important}
