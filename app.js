@@ -5674,6 +5674,8 @@ async function loadPublicPage(token,bootState){
     function renderPublicThirdHalfRegistration(){
       const box=$('#publicThirdHalfRegistration');if(!box)return;
       const state=publicThirdHalfState;
+      const donorBox=$('#publicCoolerDonors'),donorCard=$('#publicThirdHalfDonorCard');
+      if(donorBox){const labels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 bières',beers_5:'5 bières',beers_6:'6 bières',ti_punch:'Du ti-punch',fruits:'Des fruits',cups:'Des gobelets',soft_drinks:'Boissons sans alcool',snacks:'Amuse-gueules',other:'Autre apport'};const contributions=(state?.contributions||[]).filter(x=>x.contribution_mode==='money'||x.contribution_item);donorBox.innerHTML=contributions.map(x=>'<div class="third-half-donor-row"><span><strong>'+esc(x.player_name||'Joueur')+'</strong><small>'+(x.contribution_mode==='money'?'💶 '+euroCents(x.contribution_amount_cents||0):'🎒 '+esc(labels[x.contribution_item]||x.contribution_item||'Apport matériel'))+'</small></span></div>').join('');const empty=donorCard?.querySelector('p.muted');if(empty){empty.hidden=contributions.length>0;empty.textContent='Aucune participation enregistrée pour ce tournoi pour le moment.';}}
       if(!publicThirdHalf||!regTour.third_half_active||!state?.enabled){box.className='hidden';box.innerHTML='';return;}
       const pid=$('#publicPlayerSelect')?.value||'';
       const reg=registrations.find(r=>r.tournament_id===regTour.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
@@ -5825,12 +5827,8 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     async function loadPublicThirdHalfRegistration(force=false){
       if(!publicThirdHalf||!regTour.third_half_active)return renderPublicThirdHalfRegistration();
       if(!force&&Date.now()-publicThirdHalfLoadedAt<20000)return renderPublicThirdHalfRegistration();
-      const {data,error}=await sb.rpc('get_public_third_half_registration_v2',{p_token:token,p_tournament_id:regTour.id});
-      if(!error&&data){
-        const summary=await sb.rpc('get_public_third_half_contributions_v1',{p_token:token,p_tournament_id:regTour.id});
-        publicThirdHalfState={...data,...(!summary.error&&summary.data?summary.data:{})};
-        publicThirdHalfLoadedAt=Date.now();
-      }
+      const [base,summary]=await Promise.all([sb.rpc('get_public_third_half_registration_v2',{p_token:token,p_tournament_id:regTour.id}),sb.rpc('get_public_third_half_contributions_v1',{p_token:token,p_tournament_id:regTour.id})]);
+      if(!base.error||!summary.error){publicThirdHalfState={...(base.data||{}),...(!summary.error&&summary.data?summary.data:{})};publicThirdHalfLoadedAt=Date.now();}
       renderPublicThirdHalfRegistration();
     }
 
