@@ -98,11 +98,11 @@ function mount(ctx){
   identityStep.classList.toggle('is-complete',!!pid&&!identityStep.classList.contains('is-editing'));identityStep.classList.toggle('is-current',!pid||identityStep.classList.contains('is-editing'));
   attendanceStep.hidden=!pid;attendanceStep.classList.toggle('is-complete',!!reg&&!attendanceStep.classList.contains('is-editing'));attendanceStep.classList.toggle('is-current',!!pid&&(!reg||attendanceStep.classList.contains('is-editing')));
   const guestsDone=guestAnswer===false||(guestAnswer===true&&guestCompleted.get(pid)===true);
-  guestsStep.hidden=!reg||action==='cooler';guestsStep.classList.toggle('is-complete',false);guestsStep.classList.toggle('is-current',!!reg&&!guestsStep.hidden);
+  guestsStep.hidden=!pid||action==='cooler';guestsStep.classList.toggle('is-complete',false);guestsStep.classList.toggle('is-current',!!reg&&!guestsStep.hidden);
   guestChoice.querySelectorAll('button').forEach(button=>{const selected=guestAnswer!==undefined&&((button.dataset.guestChoice==='yes')===guestAnswer);button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
-  registeredActions.hidden=!!action;guestChoice.hidden=action!=='guests';
-  if(guest){guest.hidden=action!=='guests'||guestAnswer!==true;if(action!=='guests'||guestAnswer!==true)guest.open=false;}
-  guestContinue.hidden=action!=='guests'||guestAnswer!==true;
+  registeredActions.hidden=!reg||!!action;guestChoice.hidden=!!reg&&action!=='guests';
+  if(guest){guest.hidden=(!!reg&&action!=='guests')||guestAnswer!==true;if((!!reg&&action!=='guests')||guestAnswer!==true)guest.open=false;}
+  guestContinue.hidden=(!!reg&&action!=='guests')||guestAnswer!==true;
   const teamDecision=E('publicTeamInvitationDecision');if(teamDecision){teamDecision.hidden=action!=='team';if(action==='team')guestsStep.querySelector('.sp-flow-content').append(teamDecision);}
   const thirdBox=E('publicThirdHalfRegistration'),thirdEnabled=!!reg&&action==='cooler'&&thirdBox&&!thirdBox.classList.contains('hidden');thirdHalfStep.hidden=!thirdEnabled;
   thirdHalfStep.classList.toggle('is-current',thirdEnabled&&guestsDone);playerPanel.hidden=!pid;
