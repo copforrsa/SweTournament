@@ -7,7 +7,7 @@ let membershipLoading=null;
 function setVersion44(){window.SWEApplyBuild?.();}
 function playersViewActive(){return document.getElementById('view-players')?.classList.contains('active')}
 function topPlayerCards(){const box=document.getElementById('playersList');return box?[...box.children].filter(x=>x.classList?.contains('player')):[]}
-function playerCardName(card){return card?.querySelector(':scope > .row > span:first-child > b')?.textContent?.trim()||''}
+function playerCardName(card){return card?.querySelector(':scope > .row b')?.textContent?.trim()||''}
 function findPlayerCard(pl){return topPlayerCards().find(c=>String(c.dataset.playerId||c.dataset.swePlayerId44||'')===String(pl?.id))||topPlayerCards().find(c=>playerCardName(c)===String(pl?.name||'').trim())||null}
 async function loadMembershipFlags(force=false){
   if(typeof S==='undefined'||!S.workspace?.id)return;
@@ -46,12 +46,12 @@ function decoratePlayers44(){
     const guest=pl.is_group_member===false;
     card.style.opacity=guest?'.58':'1';card.style.background=guest?'#f1f3f2':'';
     let badge=card.querySelector('[data-group-state44]');card.querySelector('[data-group-state40]')?.remove();
-    if(!badge){badge=document.createElement('div');badge.dataset.groupState44='1';badge.style.cssText='margin-top:4px;font-size:11px;font-weight:800';card.querySelector(':scope > .row > span:first-child')?.appendChild(badge)}
+    if(!badge){badge=document.createElement('div');badge.dataset.groupState44='1';badge.style.cssText='margin-top:4px;font-size:11px;font-weight:800';}const identity=card.querySelector(':scope > .row b')?.parentElement;if(identity&&badge.parentElement!==identity)identity.appendChild(badge);
     badge.textContent=guest?'Invité • ne fait pas partie du groupe':'Membre du groupe';badge.style.color=guest?'#6b7280':'#15803d';
     let joined=card.querySelector('[data-joined-member44]');const f=membershipFlags.get(String(pl.id));
     if(!guest&&(f?.was_guest||pl.was_guest)&&(f?.joined_group_at||pl.joined_group_at)){
       if(!joined){joined=document.createElement('div');joined.dataset.joinedMember44='1';joined.style.cssText='margin-top:3px;font-size:11px;font-weight:800;color:#15803d';badge.insertAdjacentElement('afterend',joined)}
-      joined.textContent='✓ A rejoint le groupe';
+      if(badge.parentElement&&joined.parentElement!==badge.parentElement)badge.insertAdjacentElement('afterend',joined);joined.textContent='✓ A rejoint le groupe';
     }else joined?.remove();
   });
   cleanReliabilityNoise();
