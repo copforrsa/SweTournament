@@ -2387,7 +2387,7 @@ function renderPlayers(){
   }
   refreshGuestOfSelect();
   S.players.forEach(x=>{
-    const d=document.createElement('div');d.className='player'+(x.is_group_member===false?' guest-row':'');
+    const d=document.createElement('div');d.className='player'+(x.is_group_member===false?' guest-row':'');d.dataset.playerId=String(x.id);d.dataset.swePlayerId44=String(x.id);
     const top=document.createElement('div');top.className='row';
     const info=document.createElement('span');info.style.flex='1';
     const g=guestLabel(x);
