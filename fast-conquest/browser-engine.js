@@ -86,7 +86,6 @@ function finish(s,id,result){
  const m=s.matches.find(x=>x.id===id);if(!m)fail('Match introuvable');
  if(m.status==='finished')fail('Match déjà terminé');
  if(s.phase!==m.phase)fail('Phase précédente non terminée');
- if(m.phase==='qualification'&&m.label==='Qualification 2'&&s.matches.some(x=>x.label==='Qualification 1'&&x.status!=='finished'))fail('Le premier tour doit être terminé');
  const {homeScore,awayScore}=result||{};
  if(!Number.isInteger(homeScore)||!Number.isInteger(awayScore)||homeScore<0||awayScore<0)fail('Scores entiers positifs ou nuls requis');
  const winner=homeScore===awayScore?(m.phase==='qualification'?null:penaltyWinner(m,result.penalties)):(homeScore>awayScore?m.home:m.away);
@@ -136,7 +135,6 @@ function remove(s,id){
  const rebuilt=rebuildQualification(s);
  for(const p of PHASES.slice(0,PHASES.indexOf(target.phase)+1)){
   for(const m of s.matches.filter(m=>m.phase===p&&m.status==='finished'&&m.id!==id)){
-   if(p==='qualification'&&target.label==='Qualification 1'&&m.label==='Qualification 2')continue;
    finish(rebuilt,m.id,m);
   }
   if(p==='qualification'&&target.phase!=='qualification'&&rebuilt.phase==='qualification'){
