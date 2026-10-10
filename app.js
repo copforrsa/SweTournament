@@ -6252,28 +6252,32 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
       $('#publicRegStatus').textContent='Inscription retirée.';
       await refreshPublicRegistration();
     };
-    $('#publicAddGuest').onclick=async()=>{
-      if(regTour.format!=='league'&&tournamentDeadlineMs(regTour)!==null&&Date.now()>=tournamentDeadlineMs(regTour))return $('#publicRegStatus').textContent='⛔ Les inscriptions sont terminées.';
+    const guestFeedback=message=>{let feedback=$('#publicGuestFeedback');if(!feedback){feedback=document.createElement('p');feedback.id='publicGuestFeedback';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');feedback.style.cssText='padding:10px;border:1px solid #9cb5cb;border-radius:10px;background:#eef6ff;color:#173b67;font-weight:700';$('#publicAddGuest').after(feedback);}feedback.textContent=message;const status=$('#publicRegStatus');if(status)status.textContent=message;};
+    $('#publicAddGuest').type='button';
+    $('#publicAddGuest').onclick=async event=>{
+      event?.preventDefault();
+      if(regTour.format!=='league'&&tournamentDeadlineMs(regTour)!==null&&Date.now()>=tournamentDeadlineMs(regTour))return guestFeedback('⛔ Les inscriptions sont terminées.');
       const host=$('#publicPlayerSelect').value;
       const guestName=$('#publicGuestName').value.trim();
-      if(!host)return $('#publicRegStatus').textContent='Choisis d’abord ton nom dans la liste ci-dessus. Tu peux ajouter un invité même si tu es déjà inscrit.';
-      if(!guestName)return $('#publicRegStatus').textContent='Entre le nom de ton invité.';
+      if(!host)return guestFeedback('Choisis d’abord ton nom dans la liste ci-dessus. Tu peux ajouter un invité même si tu es déjà inscrit.');
+      if(!guestName)return guestFeedback('Entre le nom de ton invité.');
       const existingGuest=players.find(p=>p.id===$('#publicPreviousGuest')?.value);
-      if(existingGuest&&registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===existingGuest.id&&r.present))return $('#publicRegStatus').textContent='Cet invité est déjà inscrit à cette édition.';
+      if(existingGuest&&registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===existingGuest.id&&r.present))return guestFeedback('Cet invité est déjà inscrit à cette édition.');
       const usageBefore=publicGuestUsage(host);
-      if(usageBefore.remaining<=0)return $('#publicRegStatus').textContent='Tu as déjà utilisé tes 5 invitations pour ce tournoi.';
+      if(usageBefore.remaining<=0)return guestFeedback('Tu as déjà utilisé tes 5 invitations pour ce tournoi.');
       const phone=$('#publicGuestPhone').value.trim();
       const addMember=$('#publicGuestMember').checked;
-      if(addMember&&!phone)return $('#publicRegStatus').textContent='Pour ajouter ton invité comme membre du groupe, indique son numéro de mobile.';
-      const b=$('#publicAddGuest');b.disabled=true;
+      if(addMember&&!phone)return guestFeedback('Pour ajouter ton invité comme membre du groupe, indique son numéro de mobile.');
+      const b=$('#publicAddGuest'),originalLabel=b.textContent;b.disabled=true;b.textContent='Enregistrement…';guestFeedback('Enregistrement de ton invité…');try{
       const {data,error}=await sb.rpc('public_register_tournament_guest',{p_token:token,p_tournament_id:regTour.id,p_host_player_id:host,p_guest_name:guestName,p_phone_number:phone||null,p_add_as_member:addMember});
-      b.disabled=false;if(error)return $('#publicRegStatus').textContent=error.message;
+      b.disabled=false;if(error)return guestFeedback(error.message);
       $('#publicGuestName').value='';$('#publicPreviousGuest').value='';$('#publicGuestPhone').value='';$('#publicGuestMember').checked=false;
       const used=publicGuestUsage(host).used+1;
       const remaining=Math.max(0,PUBLIC_GUEST_LIMIT-used);
       const hostIsRegistered=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===host&&r.present);
-      $('#publicRegStatus').textContent=(data?.status==='waitlist'?'🟠 Quota atteint : l’invité est inscrit comme remplaçant.':'🟢 Invité ajouté et confirmé !')+(data?.member?' Il est aussi enregistré comme membre du groupe.':'')+(!hostIsRegistered&&regTour.format!=='league'?' Tu restes non inscrit au tournoi.':'')+' • '+remaining+' invitation'+(remaining>1?'s':'')+' restante'+(remaining>1?'s':'')+'.';
+      guestFeedback((data?.status==='waitlist'?'🟠 Quota atteint : l’invité est inscrit comme remplaçant.':'🟢 Invité ajouté et confirmé !')+(data?.member?' Il est aussi enregistré comme membre du groupe.':'')+(!hostIsRegistered&&regTour.format!=='league'?' Tu restes non inscrit au tournoi.':'')+' • '+remaining+' invitation'+(remaining>1?'s':'')+' restante'+(remaining>1?'s':'')+'.');
       await refreshPublicRegistration();
+      }catch(error){guestFeedback(error?.message||'Connexion interrompue. Réessaie d’ajouter ton invité.');}finally{b.disabled=false;b.textContent=originalLabel;}
     };
     if(window.__swePublicRegistrationInterval)clearInterval(window.__swePublicRegistrationInterval);
     window.__swePublicRegistrationInterval=window.setInterval(()=>{
