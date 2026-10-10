@@ -5846,7 +5846,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
 
     function publicGuestUsage(hostId){
       const used=registrations.filter(r=>
-        r.tournament_id===regTour.id &&
+        r.tournament_id===regTour.id && r.present && r.registration_status!=='cancelled' &&
         String(r.registered_by_player_id||'')===String(hostId||'')
       ).length;
       return {used,remaining:Math.max(0,PUBLIC_GUEST_LIMIT-used)};
@@ -5871,8 +5871,9 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     function renderPreviousGuests(){
       const select=$('#publicPreviousGuest'),wrap=$('#publicPreviousGuestsWrap'),host=$('#publicPlayerSelect')?.value;
       if(!select||!wrap)return;
+      let own=$('#publicOwnGuests');if(!own){own=document.createElement('div');own.id='publicOwnGuests';$('#publicAddGuest')?.after(own);}if(own){own.replaceChildren();for(const row of registrations.filter(r=>r.tournament_id===regTour.id&&r.present&&r.registration_status!=='cancelled'&&String(r.registered_by_player_id)===String(host))){const person=players.find(p=>p.id===row.player_id),line=document.createElement('div'),b=document.createElement('button');line.textContent=(person?.name||'Invité')+' ';b.type='button';b.textContent='Retirer cet invité';b.onclick=async()=>{if(!confirm('Retirer '+(person?.name||'cet invité')+' du tournoi ?'))return;b.disabled=true;const result=await sb.rpc('public_remove_own_tournament_guest',{p_token:token,p_tournament_id:regTour.id,p_host_player_id:host,p_guest_player_id:row.player_id});if(result.error){b.disabled=false;guestFeedback(result.error.message);return}await refreshPublicRegistration();};line.append(b);own.append(line);}}
       const previousIds=new Set(registrations.filter(r=>r.tournament_id!==regTour.id&&(String(r.registered_by_player_id||'')===String(host)||players.some(p=>p.id===r.player_id&&String(p.guest_of_player_id||'')===String(host)))).map(r=>r.player_id));
-      const previous=host?players.filter(p=>p.is_group_member===false&&previousIds.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name)):[];
+      const previous=host?players.filter(p=>p.is_group_member===false&&(previousIds.has(p.id)||String(p.guest_of_player_id||'')===String(host))).sort((a,b)=>a.name.localeCompare(b.name)):[];
       wrap.classList.toggle('hidden',!previous.length);
       if(document.activeElement===select)return;
       const old=select.value,html='<option value="">Ajouter un nouvel invité</option>'+previous.map(p=>{const present=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===p.id&&r.present);return '<option value="'+p.id+'" '+(present?'disabled':'')+'>'+esc(p.name)+(present?' — déjà inscrit':'')+'</option>';}).join('');
