@@ -8,7 +8,7 @@ function setVersion44(){window.SWEApplyBuild?.();}
 function playersViewActive(){return document.getElementById('view-players')?.classList.contains('active')}
 function topPlayerCards(){const box=document.getElementById('playersList');return box?[...box.children].filter(x=>x.classList?.contains('player')):[]}
 function playerCardName(card){return card?.querySelector(':scope > .row > span:first-child > b')?.textContent?.trim()||''}
-function findPlayerCard(pl){return topPlayerCards().find(c=>playerCardName(c)===String(pl?.name||'').trim())||null}
+function findPlayerCard(pl){return topPlayerCards().find(c=>String(c.dataset.playerId||c.dataset.swePlayerId44||'')===String(pl?.id))||topPlayerCards().find(c=>playerCardName(c)===String(pl?.name||'').trim())||null}
 async function loadMembershipFlags(force=false){
   if(typeof S==='undefined'||!S.workspace?.id)return;
   if(!force&&membershipLoadedFor===String(S.workspace.id))return;
@@ -71,7 +71,7 @@ async function savePlayerInfo44(btn){
   const {name,phone,status,host}=controlsForCard(card);if(!name||!status)return toast('Formulaire joueur incomplet.');
   const currentName=playerCardName(card);
   const knownNames=[currentName,name.defaultValue,name.value].map(value=>String(value||'').trim()).filter(Boolean);
-  let pl=(S.players||[]).find(player=>String(player.id)===String(card.dataset.swePlayerId44||''))||null;
+  let pl=(S.players||[]).find(player=>String(player.id)===String(card.dataset.playerId||card.dataset.swePlayerId44||''))||null;
   if(!pl){const matches=(S.players||[]).filter(player=>knownNames.includes(String(player.name||'').trim()));if(matches.length===1)pl=matches[0];}
   if(!pl)return toast('Fiche joueur introuvable. Actualise la page puis réessaie.');
   const newName=name.value.trim(),isMember=status.value==='member',wasGuest=pl.is_group_member===false;
