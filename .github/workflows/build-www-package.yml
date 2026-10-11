@@ -34,6 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           find . -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
+          export NODE_PATH="$PWD/tests/node_modules"
           timeout 180s node --require ./tests/dom-cleanup.cjs --test tests/*.test.cjs fast-conquest/*.test.cjs
 
       - name: Install browser test runner
@@ -44,6 +45,7 @@ jobs:
       - name: Check registration, history, reports and live match
         env:
           CODEX_PRIMARY_RUNTIME_NODE_MODULES: /tmp/swe-browser-tests/node_modules
+          NODE_PATH: ${{ github.workspace }}/tests/node_modules
         run: |
           node tests/browser-smoke.cjs
           node tests/registration-preview.cjs
