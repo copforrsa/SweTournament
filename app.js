@@ -357,7 +357,7 @@ function seasonPublicRankingLink(){
   if(season?.id)q.set('season',season.id);
   return APP_URL+'season.html?'+q.toString();
 }
-function canEditCurrentMatches(){const t=currentTour();return !!t && t.status!=='finished' && (hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores))}
+function canEditCurrentMatches(){const t=currentTour();return !!t && (S.isSuperAdmin || (t.status!=='finished' && (hasAdminOps()||(isCoorg()&&S.myPermissions.can_enter_scores))))}
 // Creating, editing or deleting a match changes the official tournament record.
 // Co-organizers (including temporary admins) can enter results, but only the
 // workspace administrator can alter match structure or delete a match.
@@ -4090,10 +4090,30 @@ function renderMatches(){
     S.goals.filter(g=>g.match_id===m.id).forEach(g=>{
       const r=document.createElement('div');r.className='row small';
       r.innerHTML='<span style="flex:1">⚽ '+esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' ← '+esc(p(g.assister_player_id)?.name||''):'')+'</span>';
+      if(S.isSuperAdmin){
+        const edit=document.createElement('button');edit.textContent='Modifier';edit.className='ghost';
+        edit.onclick=()=>{
+          const ids=[...new Set([...(matchTeamPlayerIds(m.id,g.team_id)||[]),g.scorer_player_id,g.assister_player_id].filter(Boolean))];
+          const opts=(selected,placeholder)=>'<option value="">'+placeholder+'</option>'+ids.map(id=>'<option value="'+esc(id)+'" '+(String(id)===String(selected)?'selected':'')+'>'+esc(playerDisplayName(p(id))||'Joueur')+'</option>').join('');
+          const wrap=document.createElement('div');wrap.className='card';wrap.style.cssText='margin-top:8px;padding:10px';
+          wrap.innerHTML='<label class="form-field"><span>Buteur</span><select class="sa-goal-scorer">'+opts(g.scorer_player_id,'Choisir le buteur')+'</select></label><label class="form-field"><span>Passeur</span><select class="sa-goal-assister">'+opts(g.assister_player_id,'Sans passe')+'</select></label><div class="row" style="gap:8px;margin-top:8px"><button type="button" class="primary sa-goal-save">Enregistrer</button><button type="button" class="ghost sa-goal-cancel">Annuler</button></div><div class="small muted sa-goal-error"></div>';
+          r.after(wrap);edit.disabled=true;
+          wrap.querySelector('.sa-goal-cancel').onclick=()=>{wrap.remove();edit.disabled=false};
+          wrap.querySelector('.sa-goal-save').onclick=async()=>{
+            const scorer=wrap.querySelector('.sa-goal-scorer').value,assister=wrap.querySelector('.sa-goal-assister').value,save=wrap.querySelector('.sa-goal-save');
+            if(!scorer){wrap.querySelector('.sa-goal-error').textContent='Choisis le buteur.';return}
+            if(assister&&assister===scorer){wrap.querySelector('.sa-goal-error').textContent='Le buteur et le passeur doivent être différents.';return}
+            save.disabled=true;
+            const {error}=await sb.from('goals').update({scorer_player_id:scorer,assister_player_id:assister||null}).eq('id',g.id);
+            if(error){wrap.querySelector('.sa-goal-error').textContent=error.message;save.disabled=false;return}
+            await loadTournament();renderAll();toast('Buteur / passeur modifié ✅');
+          };
+        };
+        r.appendChild(edit);
+      }
       const x=document.createElement('button');x.textContent='Annuler';
-
-      x.onclick=async()=>{const {error}=await sb.from('goals').delete().eq('id',g.id);if(error)return toast(error.message);await loadTournament();renderAll();toast('But annulé')};
-      if(canEditCurrentMatches())r.appendChild(x);hist.appendChild(r);
+      x.onclick=async()=>{if(!confirm('Annuler ce but ?'))return;const {error}=await sb.from('goals').delete().eq('id',g.id);if(error)return toast(error.message);await loadTournament();renderAll();toast('But annulé')};
+      if(canEditCurrentMatches()||S.isSuperAdmin)r.appendChild(x);hist.appendChild(r);
     });
     d.appendChild(hist);box.appendChild(d);
   });
