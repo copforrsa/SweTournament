@@ -138,7 +138,7 @@ select{background-color:#fff} textarea{resize:vertical}
 #view-home .grid.g2 button[data-go]{min-height:64px;text-align:left;padding:14px 16px;background:#f5f8f6;border:1px solid #e0e9e3;font-size:14px}
 #view-home .grid.g2 button[data-go]:hover{background:#edf7f0;border-color:#bee4ca}
 .readonly-note{padding:11px 13px;border-radius:13px;background:#f2f6f3;color:#52685b;font-size:13px;margin:8px 0;border:1px solid #e1e9e4}
-.guest-row{opacity:.58;filter:grayscale(.25)}.guest-badge{display:inline-block;font-size:.76rem;padding:2px 7px;border-radius:999px;background:#e8ece9;color:#536158;margin-left:6px}.guest-note{font-size:.82rem;color:#6b7280}
+.guest-row{opacity:1;filter:none;background:#fff4e6;color:#743b00;border-color:#edb46a}.guest-row .guest-badge{background:#ffe1b8;color:#743b00}.guest-row .guest-note{color:#8a4300}.swe-player-inactive{opacity:.58!important;filter:grayscale(1)!important}.guest-badge{display:inline-block;font-size:.76rem;padding:2px 7px;border-radius:999px;background:#e8ece9;color:#536158;margin-left:6px}.guest-note{font-size:.82rem;color:#6b7280}
 .public-title{font-size:24px;margin:0}.public-sub{color:#c3d4c9;margin-top:4px}.visual-actions button{min-width:0}
 #matchesList .match .grid.g3{margin-top:12px}#matchesList .match .grid.g3 select{min-height:52px}#matchesList .match .primary{min-width:108px}
 #tournamentList .player,#playersList .player,#teamList .team{padding:14px}
