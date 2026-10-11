@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const phases={qualification:'Qualifications',conquest_1:'Conquête 1',conquest_2:'Conquête 2',finals:'Finales',finished:'Tournoi terminé'};
-let cached=null,loading=false,pending=false,timer;const drafts=new Map();
+let cached=null,loading=false,pending=false,timer,deepNoteLinkHandled=false;const drafts=new Map();
 const t=()=>{try{return currentTour()}catch(_){return null}};
 const n=(tag,text)=>{const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x};
 const team=id=>(S.teams||[]).find(x=>x.id===id)?.name||'Équipe';
@@ -10,9 +10,14 @@ const player=id=>(S.players||[]).find(x=>x.id===id)?.name||'Joueur';
 const button=(label,fn,disabled=false)=>{const b=n('button',label);b.type='button';b.disabled=disabled||pending;b.onclick=fn;return b};
 async function refresh(force=false){
  inbox().catch(()=>{});
+ openDeepNoteLink().catch(()=>{});
  const tour=t();if(tour?.format!=='fast_conquest'){document.getElementById('fastConquestPanel')?.remove();cached=null;return}
  if(loading)return;if(!force&&cached?.id===tour.id&&Date.now()-cached.at<5000){mount();return}
  loading=true;try{const r=await sb.rpc('fast_conquest_context',{p_tournament_id:tour.id});if(r.error)throw r.error;if(t()?.id===tour.id){if(r.data.tournament)Object.assign(tour,r.data.tournament);const matchKey=data=>JSON.stringify((data?.matches||[]).map(m=>[m.id,m.status,m.pitch,m.scoring_digest]));if((r.data.matches?.length||(S.matches||[]).length)&&matchKey(r.data)!==matchKey(cached?.data))await loadTournament();cached={id:tour.id,at:Date.now(),data:r.data};mount();if(typeof renderMatches==='function'&&(S.matches||[]).length)renderMatches(false)}}catch(e){cached=null;window.SWE_FAST_CONQUEST_CONTEXT=null;document.getElementById('fastConquestPanel')?.remove();if(typeof renderMatches==='function'&&(S.matches||[]).length)renderMatches(false);if(force)toast(e.message||'Accès Fast Conquête refusé')}finally{loading=false}
+}
+async function openDeepNoteLink(){
+ const id=new URLSearchParams(location.search).get('fast_notes');if(!id||deepNoteLinkHandled||!S.session?.user)return;deepNoteLinkHandled=true;
+ try{await openNotes(id);const url=new URL(location.href);url.searchParams.delete('fast_notes');history.replaceState(null,'',url)}catch(_){deepNoteLinkHandled=false}
 }
 async function act(action,payload={},engine=false){
  if(pending)return;const tour=t();if(tour?.format!=='fast_conquest')return;
