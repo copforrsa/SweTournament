@@ -2829,8 +2829,30 @@ function appendTournamentSeasonControl(container,t){
   container.appendChild(wrap);
 }
 
+
+function renderSeasonManagement(){
+ const card=$('#seasonAdminCard');if(!card)return;
+ let list=$('#seasonManagementList');if(!list){list=document.createElement('div');list.id='seasonManagementList';list.style.marginTop='12px';card.append(list);}
+ list.replaceChildren();
+ if(!isAdmin())return;
+ for(const season of S.seasons){
+  const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:12px;justify-content:space-between;margin:8px 0;';
+  const label=document.createElement('span');label.textContent=season.name+(season.is_active?' • active':'');label.style.cssText='min-width:0;overflow-wrap:anywhere;';
+  const button=document.createElement('button');button.type='button';button.className='danger';button.textContent='Supprimer la saison';button.style.flexShrink='0';
+  button.onclick=async()=>{
+   const count=S.tournaments.filter(t=>t.season_id===season.id).length;
+   if(!confirm('Supprimer la saison « '+season.name+' » ?\n\n'+count+' tournoi(s) seront conservés avec leurs résultats et passeront hors saison.'))return;
+   button.disabled=true;
+   try{const {data,error}=await sb.from('seasons').delete().eq('id',season.id).eq('workspace_id',S.workspace.id).select('id');if(error)throw error;if(!data?.length)throw new Error('Suppression refusée : droit administrateur requis.');await loadAll();toast('Saison supprimée. Les tournois et résultats sont conservés.');}
+   catch(e){button.disabled=false;toast(e.message||'Impossible de supprimer la saison.');}
+  };
+  row.append(label,button);list.append(row);
+ }
+}
+
 function renderTournaments(){
   // V40.02 : l'éditeur de tournoi est protégé des synchronisations automatiques.
+  renderSeasonManagement();
   const ss=$('#seasonSelect');
   ss.innerHTML='<option value="">Sans saison</option>'+S.seasons.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join('');
   const box=$('#tournamentList');box.innerHTML='';
@@ -3255,7 +3277,7 @@ function renderTournaments(){
     finished.forEach(t=>{
       const d=document.createElement('article');d.className='tournament-archive-card';
       const format=t.format==='fast_conquest'?'⚔️ Fast Conquête':t.format==='king_of_pitch'?'👑 Roi du terrain':t.format==='league'?'🏁 Championnat':t.format==='conquest'?'⚔️ Conquête':'⚽ Tournoi';
-      d.innerHTML='<div class="tournament-archive-mark">🏆</div><div class="tournament-archive-main"><div class="tournament-archive-top"><div><span class="tournament-archive-kicker">TERMINÉ</span><h3>'+esc(t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date)))+'</h3></div><span class="tournament-archive-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</span></div><div class="tournament-archive-meta"><span>'+esc(format)+'</span></div></div>';
+      d.innerHTML='<div class="tournament-archive-mark">🏆</div><div class="tournament-archive-main"><div class="tournament-archive-top"><div><span class="tournament-archive-kicker">TERMINÉ</span><h3>'+esc(t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date)))+'</h3></div><span class="tournament-archive-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</span></div><div class="tournament-archive-meta"><span>'+esc(format)+'</span><span>🏆 Saison : '+esc(seasonNameForTournament(t))+'</span></div></div>';
       const actions=document.createElement('div');actions.className='tournament-archive-actions';
       const view=document.createElement('button');view.textContent='Voir les résultats';view.className='primary';
       view.onclick=async()=>await showTournamentHistory(t);
@@ -3350,7 +3372,7 @@ async function showTournamentHistory(t){
     '<div style="margin-bottom:14px"><button id="backToTournamentArchives" type="button">← Retour aux archives</button></div>'+
     '<section class="history-live-hero">'+
       '<div><span class="history-live-kicker">SWÉ ARCHIVES · RÉSULTATS OFFICIELS</span><h1>⚽ '+esc(t.name||((t.format==='fast_conquest'?'Fast Conquête du ':'Tournoi du ')+(t.format==='fast_conquest'?String(t.tournament_date||'').split('-').reverse().join('.'):t.tournament_date)))+'</h1><p>Résultats, classement final, buteurs et passeurs du tournoi.</p></div>'+
-      '<div class="history-live-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'</div>'+
+      '<div class="history-live-date">📅 '+esc(t.tournament_date||'Date non renseignée')+'<div style="margin-top:8px">🏆 Saison : '+esc(seasonNameForTournament(t))+'</div></div>'+
     '</section>'+
     '<section class="history-summary-grid">'+
       '<article><span>🏆 VAINQUEUR</span><b>'+esc(champion)+'</b></article>'+
