@@ -32,7 +32,7 @@ window.SWE_FAST_LIVE=(tour,teams,client,players,teamPlayers=[])=>{
  liveRank.append(rankGrid);panel.append(liveRank);
  const group=m=>m.phase==='qualification'?m.label:m.phase==='conquest_1'?'Conquête 1':m.phase==='conquest_2'?(m.id==='place_5'?'Match pour la 5e place':'Demi-finales'):m.id==='bronze'?'Match pour la 3e place':'Finale';
  const groups=new Map();for(const m of s.matches||[]){if(m.deleted)continue;const key=group(m);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m)}
- const disclosure=n('details');disclosure.dataset.fastFixtures='1';disclosure.open=wasOpen;const summary=n('summary','Tableau des rencontres · Développer');disclosure.append(summary);disclosure.addEventListener('toggle',()=>{summary.textContent='Tableau des rencontres · '+(disclosure.open?'Masquer':'Développer')});const board=n('div');board.className='fast-live-fixtures';disclosure.append(board);panel.append(disclosure);
+ const disclosure=n('details');disclosure.dataset.fastFixtures='1';disclosure.open=wasOpen;const summary=n('summary','📋 Tableau des rencontres · '+(wasOpen?'Masquer':'Voir les matchs'));disclosure.append(summary);disclosure.addEventListener('toggle',()=>{summary.textContent='📋 Tableau des rencontres · '+(disclosure.open?'Masquer':'Voir les matchs')});const board=n('div');board.className='fast-live-fixtures';disclosure.append(board);panel.append(disclosure);
  for(const [label,matches] of groups){
   const section=n('section');section.setAttribute('aria-label',label);section.append(n('h4',label));
   const wrap=n('div');wrap.style.overflowX='auto';const table=n('table');table.className='live-table';table.style.cssText='width:100%;min-width:420px;background:#fff;color:#172033;border-radius:10px;overflow:hidden;text-align:left';
