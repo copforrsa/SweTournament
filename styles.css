@@ -709,3 +709,9 @@ select{background-color:#fff} textarea{resize:vertical}
   #view-tournaments .tournament-archive-top{display:block}
   #view-tournaments .tournament-archive-date{display:inline-block;margin-top:7px}
 }
+
+/* Guests retain full contrast; inactive player cards alone are dimmed. */
+#playersList > .player.guest-row:not(:has(.player-action-enable)){opacity:1!important;filter:none!important;background:#fff4e6!important}
+#playersList > .player:has(.player-action-enable){opacity:.58!important;filter:grayscale(1)!important}
+#playersList [data-group-state44]{color:#743b00!important}
+#sweGuestLegend44{display:none!important}
