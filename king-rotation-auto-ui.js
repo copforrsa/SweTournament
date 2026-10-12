@@ -77,6 +77,10 @@ function mount(){
   panel.dataset.signature=signature;
   panel.replaceChildren();
   panel.append(make('h3','👑 Roi du terrain · Circuit automatique'));
+  if(active&&Number(current.rotation_state?.version||0)<2){
+    panel.append(make('p','Circuit historique : les matchs et rotations de cette ancienne version sont conservés sans changement.'));
+    return;
+  }
 
   const hint=make('p');
   hint.className='muted';
@@ -153,6 +157,21 @@ function mount(){
       selects[role.key]=select;label.append(select);row.append(label);
     }
     panel.append(row);
+    const breakLabel=make('label');
+    breakLabel.style.cssText='display:flex;flex-direction:column;gap:4px;margin:12px 0;font-weight:700;';
+    breakLabel.append(make('span','Départage des matchs nuls sur Mercedes et Boulogne'));
+    const breakSelect=make('select');
+    breakSelect.style.cssText='min-height:42px;max-width:430px;';
+    for(const [value,label] of [
+      ['shifumi_1','Shifumi · 1 manche'],
+      ['shifumi_3','Shifumi · 3 manches'],
+      ['penalties','Tirs au but (TAB)']
+    ])breakSelect.append(new Option(label,value));
+    breakSelect.value=current.tie_break_method||'shifumi_1';
+    breakLabel.append(breakSelect);
+    panel.append(breakLabel);
+    const noteKing=make('p','Carrefour : première égalité départagée obligatoirement aux TAB à 3 tireurs ; ensuite le Roi en titre reste en cas de nul.');
+    noteKing.className='muted';panel.append(noteKing);
     const explanation=make('p','Choisis le terrain du Roi, des Conquérants et des Bannis. Tu gardes les trois matchs, leurs scores et leurs buteurs. La rotation démarrera après la clôture du troisième match.');
     explanation.className='muted';explanation.style.marginTop='8px';panel.append(explanation);
     const activate=make('button','👑 Activer les rotations automatiques');
@@ -164,13 +183,13 @@ function mount(){
       if(pending)return;
       const values=roles.map(role=>selects[role.key].value);
       if(values.some(v=>!v)||new Set(values).size!==3){feedback.textContent='Choisis trois terrains différents.';return}
-      const summary=roles.map(role=>role.title+' : '+selects[role.key].selectedOptions[0]?.textContent).join('\n');
+      const summary=roles.map(role=>role.title+' : '+selects[role.key].selectedOptions[0]?.textContent).join('\n')+'\nDépartage Mercedes/Boulogne : '+breakSelect.selectedOptions[0]?.textContent;
       if(!confirm('Activer les rotations automatiques du Roi du terrain ?\n\n'+summary+'\n\nLes matchs et résultats déjà saisis sont conservés.'))return;
       pending=true;activate.disabled=true;feedback.textContent='Activation du circuit…';
       try{
-        const params={p_tournament_id:current.id};
+        const params={p_tournament_id:current.id,p_tie_break_method:breakSelect.value};
         for(const role of roles)params[role.param]=selects[role.key].value;
-        const {error}=await sb.rpc('swe_king_start_v1',params);
+        const {error}=await sb.rpc('swe_king_start_with_tie_v1',params);
         if(error)throw error;
         await refresh();
         toast('Circuit Roi du terrain activé ✅');
