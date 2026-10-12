@@ -10,6 +10,47 @@ const roles=[
 const tour=()=>{try{return currentTour()}catch(_){return null}};
 const admin=()=>typeof isAdmin==='function'&&(isAdmin()||!!S.isSuperAdmin);
 const make=(tag,txt)=>{const el=document.createElement(tag);if(txt!==undefined)el.textContent=txt;return el};
+
+function resolveTie(match,home,away,homeScore,awayScore){
+  if(Number(homeScore)!==Number(awayScore))
+    return {tie_break_winner_team_id:null,tie_break_method_used:null};
+  const t=tour();
+  if(t?.format!=='king_of_pitch')return null;
+  const role=match.rotation_role||
+    (String(match.pitch||'').toLocaleLowerCase('fr').includes('carrefour')?'king':
+     String(match.pitch||'').toLocaleLowerCase('fr').includes('mercedes')?'middle':
+     String(match.pitch||'').toLocaleLowerCase('fr').includes('boulogne')?'stream':
+     Number(match.match_order)===1?'king':Number(match.match_order)===2?'middle':'stream');
+  const active=!!t.rotation_state?.initialized&&t.rotation_mode==='king_of_pitch';
+  const round=active?Number(t.rotation_state?.round||1):1;
+  if(role==='king'&&round>1){
+    const holder=String(t.rotation_state?.king_holder_team_id||'');
+    if(![match.home_team_id,match.away_team_id].some(id=>String(id)===holder)){
+      toast('Roi en titre inconnu : actualise le circuit avant de terminer le match.');
+      return null;
+    }
+    const name=String(match.home_team_id)===holder?home:away;
+    if(!confirm('Match nul sur Carrefour : le Roi en titre '+name+' conserve la couronne.\nLe prétendant descend à Mercedes.\nConfirmer la clôture ?'))return null;
+    return {tie_break_winner_team_id:holder,tie_break_method_used:'king_retains'};
+  }
+  let method='penalties_3',description='tirs au but obligatoires avec 3 tireurs (pas de Shifumi)';
+  if(role!=='king'){
+    method=t.tie_break_method||'shifumi_1';
+    description={shifumi_1:'Shifumi · 1 manche',shifumi_3:'Shifumi · 3 manches',penalties:'tirs au but (TAB)'}[method]||'départage prévu pour le tournoi';
+  }
+  const choice=prompt('Match nul · '+(role==='king'?'Carrefour (premier Roi)':role==='middle'?'Terrain des Conquérants':'Terres des Bannis')+
+    '\nDépartage : '+description+
+    '\n\nAprès le départage, indique le vainqueur :\n1 = '+home+'\n2 = '+away+
+    '\nAnnuler = ne pas clôturer');
+  if(choice===null)return null;
+  if(choice!=='1'&&choice!=='2'){
+    toast('Choisis 1 ou 2 après le départage.');
+    return null;
+  }
+  return {tie_break_winner_team_id:choice==='1'?match.home_team_id:match.away_team_id,tie_break_method_used:method};
+}
+window.SWEKingResolveTie=resolveTie;
+
 const refresh=async()=>{await loadAll();renderMatches();};
 
 function mount(){
