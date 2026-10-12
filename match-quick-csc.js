@@ -155,19 +155,20 @@
       select.value='';
       select.disabled=true;
       const label=select.closest('label');
-      if(label&&label!==entry&&!label.querySelector('button'))label.hidden=true;
-      else select.hidden=true;
+      if(label&&label!==entry&&!label.querySelector('button')){label.hidden=true;label.style.display='none';}
+      else{select.hidden=true;select.style.display='none';}
     }
     for(const button of entry.querySelectorAll('button')){
       if(/enregistrer le passeur/i.test(button.textContent||'')){
-        button.disabled=true;button.hidden=true;
+        button.disabled=true;button.hidden=true;button.style.display='none';
       }
     }
     // Le formulaire de passe décisive disparaît pour ce CSC uniquement.
     for(const node of entry.querySelectorAll('label,div,span,p,small')){
       if(node===entry||node.children.length)continue;
-      if(/^(passeur|passeur à compléter|aucun passeur)$/i.test((node.textContent||'').trim()))
-        node.hidden=true;
+      if(/^(passeur|passeur à compléter|aucun passeur)$/i.test((node.textContent||'').trim())){
+        node.hidden=true;node.style.display='none';
+      }
     }
     if(!entry.querySelector('.swe-csc-assist-info')){
       const info=document.createElement('div');
