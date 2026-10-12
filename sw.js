@@ -1,4 +1,4 @@
-const SW_BUILD='51.29-king-auto-rotation';
+const SW_BUILD='51.31-king-rules-audit';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
