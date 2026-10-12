@@ -1,0 +1,19 @@
+/* Format-specific UI: one mapping for creation and active tournament screens. */
+html[data-swe-format] body{
+  background:linear-gradient(180deg,var(--swe-format-dark) 0%,var(--swe-format-bg) 220px,var(--swe-format-soft) 600px)!important;
+}
+html[data-swe-format] #tournamentAdminCard .tour-create-hero{
+  background:linear-gradient(130deg,var(--swe-format-dark),var(--swe-format-bg))!important;
+  color:#fff;
+}
+html[data-swe-format] #view-tournaments .tournament-current-head{
+  background:linear-gradient(120deg,var(--swe-format-dark),var(--swe-format-bg))!important;
+  color:#fff;
+}
+html[data-swe-format] #view-tournaments .tournament-current-card{
+  border-left:5px solid var(--swe-format-bg)!important;
+}
+html[data-swe-format] #tournamentAdminCard #tourFormat{
+  border-color:var(--swe-format-bg);
+  box-shadow:0 0 0 2px var(--swe-format-soft);
+}
