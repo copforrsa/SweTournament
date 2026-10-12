@@ -216,8 +216,8 @@ function mount(ctx){
   const label=finished?'Tournoi terminé':begun?'Matchs en direct':t.team_review_status==='pending'?'Équipes en validation':t.team_review_status==='approved'?'Équipes validées':isFull?'Effectif complet':isClosed?'Inscriptions closes':'Inscriptions ouvertes';
   const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
   setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
-  const fast=t.format==='fast_conquest',king=!fast&&(t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch'),conquest=!fast&&!king&&isConquest(t),format=fast?'⚔️ Fast Conquête':king?'Roi du terrain':conquest?'Conquête du terrain':'Tournoi classique',formatEl=E('registrationFormat');
-  root.classList.toggle('sp-conquest',conquest);root.classList.toggle('sp-fast-conquest',fast);header.querySelector(':scope > p').textContent=fast?'Deux matchs de qualification, puis la conquête des trois terrains.':'Un terrain. Des équipes. Un moment à partager.';
+  const fast=t.format==='fast_conquest',king=!fast&&t.format==='king_of_pitch',conquest=!fast&&!king&&t.format==='conquest',format=fast?'⚡ FAST CONQUÊTE':king?'👑 ROI DU TERRAIN':conquest?'⚔️ CONQUÊTE':'TOURNOI CLASSIQUE',formatEl=E('registrationFormat');
+  root.classList.toggle('sp-conquest',conquest);root.classList.toggle('sp-fast-conquest',fast);root.dataset.tournamentFormat=t.format||'classic';header.querySelector(':scope > p').textContent=fast?'Deux matchs de qualification, puis la conquête des trois terrains.':'Un terrain. Des équipes. Un moment à partager.';
   formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
   const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
   const venueRaw=t.venue||'';

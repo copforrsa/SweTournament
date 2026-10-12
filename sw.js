@@ -1,4 +1,4 @@
-const SW_BUILD='51.34-shifumi-winner-first';
+const SW_BUILD='51.35-public-format-identity';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 

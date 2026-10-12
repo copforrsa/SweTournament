@@ -1,0 +1,23 @@
+/* Official public registration identity determined solely by saved tournament format. */
+#publicView[data-tournament-format="king_of_pitch"] .sp-hero{
+ background:radial-gradient(circle at 88% 65%,#2276cf 0%,transparent 48%),linear-gradient(125deg,#071f50,#1769e0)!important;
+}
+#publicView[data-tournament-format="conquest"] .sp-hero{
+ background:radial-gradient(circle at 88% 65%,#a7294d 0%,transparent 48%),linear-gradient(125deg,#30000f,#800020)!important;
+}
+#publicView[data-tournament-format="fast_conquest"] .sp-hero{
+ background:radial-gradient(circle at 88% 65%,#ffbd62 0%,transparent 48%),linear-gradient(125deg,#693000,#f28c28)!important;
+}
+#publicView[data-tournament-format="conquest"] #registrationFormat,
+#publicView[data-tournament-format="fast_conquest"] #registrationFormat{
+ display:inline-flex!important;align-items:center;width:max-content;max-width:100%;
+ padding:9px 14px!important;border-radius:999px!important;
+ font-size:12px!important;font-weight:900!important;letter-spacing:.7px;
+ color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+#publicView[data-tournament-format="conquest"] #registrationFormat{
+ background:#6c1128!important;border:1px solid #f3a0b1!important;
+}
+#publicView[data-tournament-format="fast_conquest"] #registrationFormat{
+ background:#8a4000!important;border:1px solid #ffd39b!important;
+}
