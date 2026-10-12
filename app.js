@@ -4090,8 +4090,8 @@ function renderMatches(){
     fill();team.onchange=()=>{fill();updateGoalKind()};sc.onchange=updateGoalKind;updateGoalKind();form.append(team,sc,as,responsible);
     // Raccourcis CSC placés du côté de l'équipe responsable, pas du bénéficiaire.
     const cscControls=document.createElement('div');
-    cscControls.className='row';
-    cscControls.style.cssText='gap:8px;flex-wrap:wrap;margin:8px 0';
+    cscControls.className='row swe-match-csc-actions';
+    cscControls.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0';
     const cscPicker=document.createElement('div');
     cscPicker.className='row hidden';
     cscPicker.style.cssText='gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0';
@@ -4099,7 +4099,7 @@ function renderMatches(){
     [home,away].forEach(side=>{
       const cscButton=document.createElement('button');
       cscButton.type='button';
-      cscButton.textContent='⚽ CSC · '+side.name;
+      cscButton.textContent='⚽ CSC · '+side.name;cscButton.style.cssText='width:100%;min-height:44px;font-weight:700';
       cscButton.onclick=()=>{
         cscResponsibleTeam=side.id;
         const ids=matchTeamPlayerIds(m.id,side.id);
@@ -4136,7 +4136,7 @@ function renderMatches(){
       b.disabled=false;if(error)return toast(error.message);
       sc.value='';as.value='';await loadTournament();renderAll();toast('But ajouté ✅');
     };
-    if(canEditCurrentMatches())d.append(form,b,cscControls,cscPicker);
+    if(canEditCurrentMatches()){d.append(form,b);d.insertBefore(cscControls,d.children[1]||null);d.insertBefore(cscPicker,cscControls.nextSibling);}
 
     const hist=document.createElement('div');hist.style.marginTop='8px';
     S.goals.filter(g=>g.match_id===m.id).forEach(g=>{
