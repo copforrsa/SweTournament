@@ -213,6 +213,16 @@
         const changed=(first.nodeValue||'').replace(/^\s*⚽\s*/,'');
         if(changed!==first.nodeValue)first.nodeValue=changed;
       }
+      // Certains thèmes placent le ballon bleu dans un span ou juste avant le titre.
+      const inlineIcon=header.firstElementChild;
+      if(inlineIcon&&/^\s*⚽\s*$/.test(inlineIcon.textContent||''))inlineIcon.remove();
+      const sibling=header.previousSibling;
+      if(sibling?.nodeType===Node.TEXT_NODE){
+        const clean=(sibling.nodeValue||'').replace(/^\s*⚽\s*/,'');
+        if(clean!==sibling.nodeValue)sibling.nodeValue=clean;
+      }else if(sibling?.nodeType===Node.ELEMENT_NODE&&/^\s*⚽\s*$/.test(sibling.textContent||'')){
+        sibling.remove();
+      }
       const label=document.createElement('span');
       label.className='swe-csc-history-label';
       label.style.cssText='display:inline-flex;align-items:center;gap:3px;color:#bc1d36;font-weight:800;margin-right:5px;';
