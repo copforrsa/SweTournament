@@ -1,7 +1,7 @@
 Warning: truncated output (original token count: 148672)
 Total output lines: 7043
 
-const SW_BUILD='50.99-fast-conquest-notes-access';
+const SW_BUILD='51.22-csc-finish-audit';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
