@@ -9,7 +9,7 @@
   };
   const assignedIds=(matchId,teamId)=>[...new Set(matchTeamPlayerIds(matchId,teamId).filter(id=>p(id)))];
   const playerButtons=(panel,ids)=>{
-    const names=ids.map(id=>playerDisplayName(p(id))).filter(Boolean);
+    const names=ids.flatMap(id=>[p(id)?.name,playerDisplayName(p(id))]).filter(Boolean);
     return [...panel.querySelectorAll('button')].filter(button=>
       !button.closest('.swe-quick-csc')&&names.some(name=>nameOnButton(button,name))
     );
