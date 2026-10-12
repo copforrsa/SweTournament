@@ -93,8 +93,21 @@
         }
         response=await sb.rpc('conquest_finish_match_v2',{p_match_id:fresh.id,p_tie_break_winner_team_id:winner});
       }else{
+        const finishFields={status:'finished',finished_at:new Date().toISOString()};
+        if(tour.format==='king_of_pitch'){
+          if(Number(fresh.home_score)===Number(fresh.away_score)){
+            const choice=prompt('Roi du terrain : match à égalité ('+score+').\nChoisis le vainqueur du départage :\n1 = '+home+'\n2 = '+away+'\nAnnuler = ne pas terminer le match');
+            if(choice===null)return;
+            if(choice!=='1'&&choice!=='2')throw Error('Choisis 1 ou 2 pour départager les équipes.');
+            finishFields.tie_break_winner_team_id=choice==='1'?fresh.home_team_id:fresh.away_team_id;
+            finishFields.tie_break_method_used='manual';
+          }else{
+            finishFields.tie_break_winner_team_id=null;
+            finishFields.tie_break_method_used=null;
+          }
+        }
         response=await sb.from('matches')
-          .update({status:'finished',finished_at:new Date().toISOString()})
+          .update(finishFields)
           .eq('id',fresh.id).neq('status','finished').select('id');
         if(!response.error&&Array.isArray(response.data)&&!response.data.length)
           throw Error('Le match a été clôturé par un autre utilisateur.');
