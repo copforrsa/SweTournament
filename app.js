@@ -1577,7 +1577,8 @@ function ratingForMatchPlayer(match,playerId,teamId,goalRows=S.goals){
   const mg=(goalRows||[]).filter(g=>String(g.match_id)===String(match.id));
   const goals=mg.filter(g=>String(g.scorer_player_id)===String(playerId)&&!g.is_own_goal).length;
   const assists=mg.filter(g=>String(g.assister_player_id||'')===String(playerId)).length;
-  return {rating:Math.min(10,base+goals+(assists*.5)),base,goals,assists,result:own>opp?'V':(own===opp?'N':'D')};
+  const ownGoals=mg.filter(g=>g.is_own_goal&&String(g.scorer_player_id)===String(playerId)).length;
+  return {rating:Math.max(0,Math.min(10,base+goals+(assists*.5)-ownGoals)),base,goals,assists,ownGoals,result:own>opp?'V':(own===opp?'N':'D')};
 }
 function topPlayersFromData(matchRows,goalRows,assignmentRows,playerRows,tournamentIds=null){
   const matchMap=new Map((matchRows||[]).filter(m=>!tournamentIds||tournamentIds.has(m.tournament_id)).map(m=>[m.id,m]));
