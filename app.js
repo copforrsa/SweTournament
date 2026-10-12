@@ -2880,6 +2880,8 @@ function renderTournaments(){
   }
   current.forEach(t=>{
     const d=document.createElement('div');d.className='player tournament-current-card';
+    // Keep each existing/test tournament card tied to its own saved format.
+    if(window.SWE_FORMAT_THEMES?.[t.format])d.dataset.sweFormat=t.format;
     const top=document.createElement('div');top.className='tournament-current-head';
     const pitchLabels=(t.reserved_pitch_ids||[]).map(id=>pitchName(id)).filter(Boolean);
     const venueLabel=pitchLabels.length?(complexLabel(t.complex_id)+' • '+pitchLabels.join(', ')):(t.venue||'Terrains non renseignés');
