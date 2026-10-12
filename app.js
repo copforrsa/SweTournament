@@ -1568,8 +1568,9 @@ function ratingForMatchPlayer(match,playerId,teamId,goalRows=S.goals){
   const base=difference>2?7:difference>0?6:difference===0?5:difference>=-2?4:difference>=-5?3:2;
   const mg=(goalRows||[]).filter(g=>String(g.match_id)===String(match.id));
   const goals=mg.filter(g=>String(g.scorer_player_id)===String(playerId)&&!g.is_own_goal).length;
-  const assists=mg.filter(g=>String(g.assister_player_id||'')===String(playerId)).length;
-  return {rating:Math.min(10,base+goals+(assists*.5)),base,goals,assists,result:own>opp?'V':(own===opp?'N':'D')};
+  const assists=mg.filter(g=>!g.is_own_goal&&String(g.assister_player_id||'')===String(playerId)).length;
+  const ownGoals=mg.filter(g=>g.is_own_goal&&String(g.scorer_player_id)===String(playerId)).length;
+  return {rating:Math.max(0,Math.min(10,base+goals+(assists*.5)-ownGoals)),base,goals,assists,ownGoals,result:own>opp?'V':(own===opp?'N':'D')};
 }
 function topPlayersFromData(matchRows,goalRows,assignmentRows,playerRows,tournamentIds=null){
   const matchMap=new Map((matchRows||[]).filter(m=>!tournamentIds||tournamentIds.has(m.tournament_id)).map(m=>[m.id,m]));
@@ -2709,7 +2710,7 @@ if(!window.__sweDeadlineTimer){
   window.__sweDeadlineTimer=setInterval(updateTournamentCountdowns,1000);
 }
 function tournamentAutoPlan(count){
-  const n=Math.max(0,Math.min(35,Number(count||0)));
+  const n=Math.max(0,Number(count||0));
   if(n<10)return {teams:0,pitches:0,core:0,subs:n,rule:'10 joueurs minimum pour créer 2 équipes'};
   const teams=Math.floor(n/5);
   const core=teams*5;
@@ -3451,7 +3452,7 @@ $('#createTournament').onclick=async()=>{
       format:$('#tourFormat').value,
       fast_team_mode:$('#tourFormat').value==='fast_conquest'?$('#tourTeamCompositionMode input:checked')?.value:null,
       status:'draft',
-      max_players:Math.max(10,Math.min(35,Number($('#tourMaxPlayers').value)||35)),
+      max_players:Math.max(10,Math.floor(Number($('#tourMaxPlayers').value)||35)),
       registration_open:$('#tourRegistrationOpen').checked,
       registration_deadline:registrationDeadline,
       complex_id:complexId,
@@ -4071,16 +4072,30 @@ function renderMatches(){
     function fill(){
       S.goalTeamSelections[m.id]=team.value;
       const ids=matchTeamPlayerIds(m.id,team.value);
-      sc.innerHTML='<option value="">Buteur</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
+      sc.innerHTML='<option value="">Buteur</option><option value="__csc__">CSC — Contre son camp</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
       as.innerHTML='<option value="">Sans passe</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
     }
-    fill();team.onchange=fill;form.append(team,sc,as);
+    const responsible=document.createElement('select');
+    const updateGoalKind=()=>{
+      const csc=sc.value==='__csc__';
+      responsible.classList.toggle('hidden',!csc);
+      as.classList.toggle('hidden',csc);
+      if(csc){
+        const opposingTeam=team.value===home.id?away.id:home.id;
+        const ids=matchTeamPlayerIds(m.id,opposingTeam);
+        responsible.innerHTML='<option value="">Joueur responsable du CSC</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
+        as.value='';
+      }
+    };
+    fill();team.onchange=()=>{fill();updateGoalKind()};sc.onchange=updateGoalKind;updateGoalKind();form.append(team,sc,as,responsible);
     const b=document.createElement('button');b.textContent='+ But';b.className='primary';
     b.onclick=async()=>{
       if(!sc.value)return toast('Choisis le buteur');
-      if(as.value===sc.value)return toast('Buteur et passeur différents');
+      const isOwnGoal=sc.value==='__csc__';
+      if(isOwnGoal&&!responsible.value)return toast('Choisis le joueur responsable du CSC dans l’équipe adverse');
+      if(!isOwnGoal&&as.value===sc.value)return toast('Buteur et passeur différents');
       const selectedTeam=team.value;S.goalTeamSelections[m.id]=selectedTeam;b.disabled=true;
-      const {error}=await sb.from('goals').insert({match_id:m.id,team_id:selectedTeam,scorer_player_id:sc.value,assister_player_id:as.value||null});
+      const {error}=await sb.from('goals').insert({match_id:m.id,team_id:selectedTeam,scorer_player_id:isOwnGoal?responsible.value:sc.value,assister_player_id:isOwnGoal?null:(as.value||null),is_own_goal:isOwnGoal});
       b.disabled=false;if(error)return toast(error.message);
       sc.value='';as.value='';await loadTournament();renderAll();toast('But ajouté ✅');
     };
@@ -4089,7 +4104,7 @@ function renderMatches(){
     const hist=document.createElement('div');hist.style.marginTop='8px';
     S.goals.filter(g=>g.match_id===m.id).forEach(g=>{
       const r=document.createElement('div');r.className='row small';
-      r.innerHTML='<span style="flex:1">⚽ '+esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' ← '+esc(p(g.assister_player_id)?.name||''):'')+'</span>';
+      r.innerHTML='<span style="flex:1">⚽ '+(g.is_own_goal?'CSC — '+esc(p(g.scorer_player_id)?.name||'?')+' (−1 sur la note)':esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' ← '+esc(p(g.assister_player_id)?.name||''):''))+'</span>';
       if(S.isSuperAdmin){
         const edit=document.createElement('button');edit.textContent='Modifier';edit.className='ghost';
         edit.onclick=()=>{
