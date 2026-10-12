@@ -483,8 +483,8 @@
         </div>
         <div class="tour-create-guide">
           <div><span>⏱️</span><b>Clôture obligatoire</b><small>La date et l’heure alimentent automatiquement le compte à rebours joueur. Par défaut : la veille à 17h.</small></div>
-          <div><span>👥</span><b>Jusqu’à 35 joueurs</b><small>La capacité reste modifiable. Les remplaçants sont gérés automatiquement selon le nombre d’inscrits.</small></div>
-          <div><span>⚡</span><b>Format automatique</b><small>10 → 2 équipes / 1 terrain · 20 → 4 / 2 · 30 → 6 / 3 · 35 → 7 / 3.</small></div>
+          <div><span>👥</span><b>Capacité configurable</b><small>Le nombre de places est défini pour chaque tournoi. Les remplaçants sont gérés automatiquement selon le nombre d’inscrits.</small></div>
+          <div><span>⚡</span><b>Format automatique</b><small>Le nombre d’équipes et de terrains dépend des inscrits et de la configuration du tournoi.</small></div>
         </div>
         <div class="grid g2"><label><span class="muted">Date du tournoi *</span><input id="tourDate" type="date" required></label><label><span class="muted">Format *</span><select id="tourFormat"><option value="classic">Classique</option><option value="conquest">⚔️ Conquête du terrain</option><option value="king_of_pitch">👑 Roi du terrain</option></select></label></div><div class="space"></div><label class="player" style="display:block;background:#eef8f2;border-color:#b7dfc4"><span class="muted">⏱️ Fin des inscriptions *</span><input id="tourRegistrationDeadline" type="datetime-local" required><div class="muted" style="margin-top:5px">Le compte à rebours sera affiché systématiquement sur le lien d’inscription jusqu’à cette date.</div></label>
         <div class="space"></div><input id="tourName" placeholder="Nom facultatif"><div class="space"></div>
@@ -503,7 +503,7 @@
         </div>
         <div class="space"></div>
         <div class="grid g2">
-          <label class="player"><span class="muted">Places maximum</span><input id="tourMaxPlayers" type="number" min="10" max="35" value="35"></label>
+          <label class="player"><span class="muted">Places maximum</span><input id="tourMaxPlayers" type="number" min="10" value="35"></label>
           <label class="player row" style="justify-content:flex-start"><input id="tourRegistrationOpen" type="checkbox" style="width:auto" checked><span><b>Ouvrir les inscriptions</b><div class="muted">Les joueurs pourront s’inscrire via le lien public.</div></span></label>
         </div>
         <div class="player" style="margin-top:12px;background:#f7fbff;border:1px solid #bcd8fb">
