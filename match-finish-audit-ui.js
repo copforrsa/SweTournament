@@ -1,0 +1,193 @@
+// SWÉ Tournament — clôture visible des matchs et auteur de clôture pour l'administrateur.
+(function setupMatchFinishAuditUI(){
+  'use strict';
+  let scheduled=false,loading=false,auditKey='',auditRecords=new Map();
+
+  const current=()=>typeof currentTour==='function'?currentTour():null;
+  const allowed=()=>typeof canEditCurrentMatches==='function'&&canEditCurrentMatches();
+  const isAdministrator=()=>typeof isAdmin==='function'&&(isAdmin()||!!S.isSuperAdmin);
+  const matchesRoot=()=>document.getElementById('matchesList');
+  const normalize=s=>String(s||'').replace(/\s+/g,' ').trim();
+
+  function cardMatch(card){
+    if(!card||!card.isConnected)return null;
+    const explicit=card.dataset.matchId;
+    if(explicit)return S.matches.find(m=>String(m.id)===String(explicit))||null;
+    const root=matchesRoot();
+    const cards=[...(root?.querySelectorAll(':scope > .match')||[])];
+    const idx=cards.indexOf(card);
+    if(idx>=0&&S.matches[idx])return S.matches[idx];
+    const title=normalize(card.textContent).slice(0,190);
+    const matchNumber=title.match(/(?:^|\s|⚽)\s*match\s*(\d+)\b/i);
+    const index=matchNumber?Number(matchNumber[1])-1:-1;
+    if(index>=0&&S.matches[index])return S.matches[index];
+    return null;
+  }
+
+  function cards(){
+    const root=matchesRoot();
+    if(!root)return [];
+    const primary=[...root.querySelectorAll(':scope > .match,[data-match-id].match')];
+    if(primary.length)return [...new Set(primary)];
+    return [...root.querySelectorAll('[data-match-id]')].filter(x=>x.closest('#matchesList'));
+  }
+
+  function quickHeading(card){
+    const walker=document.createTreeWalker(card,NodeFilter.SHOW_TEXT);
+    let n;
+    while((n=walker.nextNode())){
+      if(/saisie rapide/i.test(n.nodeValue||''))return n.parentElement;
+    }
+    return null;
+  }
+
+  function visible(el){
+    if(!el||!el.isConnected)return false;
+    return el.getClientRects().length>0&&getComputedStyle(el).visibility!=='hidden';
+  }
+
+  async function finish(match,button){
+    if(!allowed())return toast('Saisie non autorisée.');
+    const tour=current();
+    if(!tour||tour.id!==match.tournament_id)return toast('Tournoi non sélectionné.');
+    if(tour.format==='fast_conquest'){
+      return toast('Termine ce match depuis les commandes Fast Conquête.');
+    }
+    button.disabled=true;
+    try{
+      const fetched=await sb.from('matches').select('id,status,home_score,away_score,competition_type,home_team_id,away_team_id').eq('id',match.id).single();
+      if(fetched.error)throw fetched.error;
+      const fresh=fetched.data;
+      if(fresh.status==='finished'){toast('Ce match est déjà terminé.');await loadTournament();renderMatches();return;}
+      const home=S.teams.find(t=>t.id===fresh.home_team_id)?.name||'Équipe 1';
+      const away=S.teams.find(t=>t.id===fresh.away_team_id)?.name||'Équipe 2';
+      const score=Number(fresh.home_score||0)+' - '+Number(fresh.away_score||0);
+      if(!confirm('Terminer ce match ?\n'+home+' '+score+' '+away+'\n\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
+      let response;
+      if(tour.format==='conquest'&&fresh.competition_type==='conquest_playoff'){
+        let winner=null;
+        if(Number(fresh.home_score)===Number(fresh.away_score)){
+          const choice=prompt('Match nul : qui remporte le départage ?\n1 = '+home+'\n2 = '+away+'\nAnnuler = garder le match en cours');
+          if(choice===null)return;
+          if(choice!=='1'&&choice!=='2')return toast('Choisis 1 ou 2.');
+          winner=choice==='1'?fresh.home_team_id:fresh.away_team_id;
+        }
+        response=await sb.rpc('conquest_finish_match_v2',{p_match_id:fresh.id,p_tie_break_winner_team_id:winner});
+      }else{
+        response=await sb.from('matches')
+          .update({status:'finished',finished_at:new Date().toISOString()})
+          .eq('id',fresh.id).neq('status','finished').select('id');
+        if(!response.error&&Array.isArray(response.data)&&!response.data.length)
+          throw Error('Le match a été clôturé par un autre utilisateur.');
+      }
+      if(response.error)throw response.error;
+      auditKey='';await loadTournament();renderAll();
+      toast('Match terminé et clôture tracée ✅');
+    }catch(error){
+      toast(error?.message||'Impossible de terminer le match.');
+    }finally{button.disabled=false;}
+  }
+
+  function addFinish(card,match){
+    if(!allowed()||match.status==='finished'||card.querySelector('.swe-quick-finish'))return;
+    if(current()?.format==='fast_conquest')return;
+    const heading=quickHeading(card);
+    const existing=[...card.querySelectorAll('button')].find(button=>/terminer le match/i.test(button.textContent||'')&&visible(button));
+    // L'ancien bouton, présent ailleurs sur la fiche, ne remplace pas celui de la saisie rapide.
+    if(!heading&&existing)return;
+    const row=document.createElement('div');row.className='swe-quick-finish';
+    row.style.cssText='margin-top:12px;display:flex;justify-content:flex-end;gap:8px;';
+    const button=document.createElement('button');
+    button.type='button';button.textContent='✅ Terminer le match';button.className='primary';
+    button.style.cssText='min-height:42px;min-width:170px;';
+    button.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();finish(match,button)});
+    row.append(button);
+
+    const controls=[...card.querySelectorAll('.swe-quick-csc')];
+    if(heading&&controls.length>=2){
+      let grid=controls[0].parentElement;
+      while(grid&&grid!==card&&!grid.contains(controls[1]))grid=grid.parentElement;
+      if(grid&&grid!==card){grid.after(row);return;}
+    }
+    if(heading){
+      // Place le contrôle avant le rappel des buts enregistrés, et non dans une équipe.
+      const walker=document.createTreeWalker(card,NodeFilter.SHOW_TEXT);
+      let n;
+      while((n=walker.nextNode())){
+        if(!/buts enregistrés/i.test(n.nodeValue||''))continue;
+        const label=n.parentElement;
+        const line=label?.closest('.row,.small,.muted')||label;
+        if(line&&line!==card&&line.parentElement){line.before(row);return;}
+      }
+    }
+    const manager=card.querySelector('.match-player-manager');
+    if(manager&&manager.parentElement){manager.after(row);return;}
+    card.append(row);
+  }
+
+  function renderAudit(){
+    if(!isAdministrator())return;
+    for(const card of cards()){
+      const match=cardMatch(card);
+      if(!match||match.status!=='finished')continue;
+      const record=auditRecords.get(String(match.id));
+      if(!record)continue;
+      let line=card.querySelector('.swe-match-finish-audit');
+      if(!line){
+        line=document.createElement('div');line.className='swe-match-finish-audit';
+        line.style.cssText='margin-top:8px;font-size:12px;color:var(--muted,#526b64);';
+        const badge=[...card.querySelectorAll('.guest-badge')].find(x=>/match terminé/i.test(x.textContent||''));
+        if(badge)badge.after(line);else card.append(line);
+      }
+      const when=record.finished_at?new Date(record.finished_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'date inconnue';
+      const who=record.finished_by_name||'Auteur non identifié';
+      line.textContent='🔎 Clôture : '+who+' · '+when;
+      line.title='Journal de clôture réservé à l’administrateur, utile en cas de réclamation.';
+    }
+  }
+
+  async function fetchAudit(){
+    if(!isAdministrator()||loading)return;
+    const tour=current();if(!tour?.id)return;
+    const fingerprint=tour.id+':'+S.matches.filter(m=>m.status==='finished').map(m=>m.id).join(',');
+    if(auditKey===fingerprint)return;
+    auditKey=fingerprint;loading=true;
+    try{
+      const {data,error}=await sb.rpc('admin_get_match_finish_audit_v1',{p_tournament_id:tour.id});
+      if(error)throw error;
+      if(current()?.id!==tour.id)return;
+      auditRecords=new Map((data||[]).map(item=>[String(item.match_id),item]));
+      renderAudit();
+    }catch(error){
+      auditKey='';
+      console.warn('Historique de clôture inaccessible :',error?.message||error);
+    }finally{loading=false;}
+  }
+
+  function mount(){
+    if(!S.session||!S.activeTour)return;
+    for(const card of cards()){
+      const match=cardMatch(card);
+      if(!match)continue;
+      if(match.status!=='finished')addFinish(card,match);
+    }
+    renderAudit();
+    if(isAdministrator()&&S.matches.some(m=>m.status==='finished'))fetchAudit();
+  }
+  function schedule(){
+    if(scheduled)return;
+    scheduled=true;
+    setTimeout(()=>{scheduled=false;try{mount()}catch(e){console.warn('Actions des matchs',e)}},180);
+  }
+  function boot(){
+    if(!document.body)return;
+    const observer=new MutationObserver(records=>{
+      if(records.some(r=>[...r.addedNodes].some(n=>n.nodeType===1&&!n.closest?.('.swe-quick-finish')&&!n.closest?.('.swe-match-finish-audit'))))schedule();
+    });
+    observer.observe(document.body,{childList:true,subtree:true});
+    schedule();
+  }
+  document.addEventListener('swe:rendered',schedule);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
