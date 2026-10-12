@@ -4105,20 +4105,21 @@ function renderMatches(){
       if(S.isSuperAdmin){
         const edit=document.createElement('button');edit.type='button';edit.textContent='✏️ Modifier';edit.className='ghost';
         edit.onclick=()=>{
-          const playerIds=[...new Set([...(matchTeamPlayerIds(m.id,g.team_id)||[]),g.scorer_player_id,g.assister_player_id].filter(Boolean))];
+          const responsibleTeamId=g.is_own_goal?(String(g.team_id)===String(m.home_team_id)?m.away_team_id:m.home_team_id):g.team_id;
+          const playerIds=[...new Set([...(matchTeamPlayerIds(m.id,responsibleTeamId)||[]),g.scorer_player_id,...(g.is_own_goal?[]:[g.assister_player_id])].filter(Boolean))];
           const options=(selected,placeholder)=>'<option value="">'+esc(placeholder)+'</option>'+playerIds.map(id=>'<option value="'+esc(id)+'"'+(String(id)===String(selected)?' selected':'')+'>'+esc(playerDisplayName(p(id))||'Joueur')+'</option>').join('');
           const editor=document.createElement('div');editor.className='card';editor.style.cssText='margin-top:8px;padding:10px';
-          editor.innerHTML='<div class="muted" style="margin-bottom:8px"><b>Modifier ce but</b></div><label class="form-field"><span>Buteur</span><select class="sa-goal-scorer">'+options(g.scorer_player_id,'Choisir le buteur')+'</select></label><label class="form-field"><span>Passeur</span><select class="sa-goal-assister">'+options(g.assister_player_id,'Sans passe')+'</select></label><div class="row" style="gap:8px;margin-top:8px"><button type="button" class="primary sa-goal-save">Enregistrer</button><button type="button" class="ghost sa-goal-cancel">Annuler</button></div><div class="small muted sa-goal-error"></div>';
+          editor.innerHTML='<div class="muted" style="margin-bottom:8px"><b>'+(g.is_own_goal?'Corriger le responsable du CSC':'Modifier ce but')+'</b></div><label class="form-field"><span>'+(g.is_own_goal?'Joueur responsable':'Buteur')+'</span><select class="sa-goal-scorer">'+options(g.scorer_player_id,g.is_own_goal?'Choisir le responsable':'Choisir le buteur')+'</select></label>'+(g.is_own_goal?'<div class="small muted">CSC · Aucune passe décisive</div>':'<label class="form-field"><span>Passeur</span><select class="sa-goal-assister">'+options(g.assister_player_id,'Sans passe')+'</select></label>')+'<div class="row" style="gap:8px;margin-top:8px"><button type="button" class="primary sa-goal-save">Enregistrer</button><button type="button" class="ghost sa-goal-cancel">Annuler</button></div><div class="small muted sa-goal-error"></div>';
           r.after(editor);edit.disabled=true;
           editor.querySelector('.sa-goal-cancel').onclick=()=>{editor.remove();edit.disabled=false};
           editor.querySelector('.sa-goal-save').onclick=async()=>{
             const scorer=editor.querySelector('.sa-goal-scorer').value;
-            const assister=editor.querySelector('.sa-goal-assister').value;
+            const assister=g.is_own_goal?'':editor.querySelector('.sa-goal-assister').value;
             const errorBox=editor.querySelector('.sa-goal-error');
             if(!scorer){errorBox.textContent='Choisis le buteur.';return}
             if(assister&&assister===scorer){errorBox.textContent='Le buteur et le passeur doivent être différents.';return}
             const save=editor.querySelector('.sa-goal-save');save.disabled=true;
-            const {error}=await sb.from('goals').update({scorer_player_id:scorer,assister_player_id:assister||null}).eq('id',g.id);
+            const {error}=await sb.from('goals').update({scorer_player_id:scorer,assister_player_id:g.is_own_goal?null:(assister||null),is_own_goal:!!g.is_own_goal}).eq('id',g.id);
             if(error){errorBox.textContent=error.message;save.disabled=false;return}
             await loadTournament();renderAll();toast('Buteur / passeur modifié ✅');
           };
