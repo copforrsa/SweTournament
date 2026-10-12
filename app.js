@@ -1613,7 +1613,7 @@ async function renderSeasonScorerSummary(){
   if(ge)throw ge;
   const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
   (goals||[]).forEach(g=>{
-    if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;
+    if(!g.is_own_goal&&stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;
     if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++;
   });
   let scor=[...stats.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||b.a-a.a||a.name.localeCompare(b.name));
@@ -3345,7 +3345,7 @@ async function showTournamentHistory(t){
 
   const ps=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
   goals.forEach(g=>{
-    if(ps.has(g.scorer_player_id))ps.get(g.scorer_player_id).g++;
+    if(!g.is_own_goal&&ps.has(g.scorer_player_id))ps.get(g.scorer_player_id).g++;
     if(g.assister_player_id&&ps.has(g.assister_player_id))ps.get(g.assister_player_id).a++;
   });
   let scor=[...ps.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name));
@@ -4601,7 +4601,7 @@ async function renderRanking(){
   const matchMap=new Map(matches.map(m=>[m.id,m]));
   goals.forEach(g=>{
     const m=matchMap.get(g.match_id);
-    if(stats.has(g.scorer_player_id)){
+    if(!g.is_own_goal&&stats.has(g.scorer_player_id)){
       const s=stats.get(g.scorer_player_id);s.g++;s.matchIds.add(g.match_id);if(m)s.tournamentIds.add(m.tournament_id);
     }
     if(g.assister_player_id&&stats.has(g.assister_player_id)){
@@ -4639,7 +4639,7 @@ async function renderRanking(){
     trophies:0,matchWins:0,g:0,a:0,ratingTotal:0,ratingMatches:0,avg:0
   }]));
   goals.forEach(g=>{
-    if(playerSeasonStats.has(g.scorer_player_id))playerSeasonStats.get(g.scorer_player_id).g++;
+    if(!g.is_own_goal&&playerSeasonStats.has(g.scorer_player_id))playerSeasonStats.get(g.scorer_player_id).g++;
     if(g.assister_player_id&&playerSeasonStats.has(g.assister_player_id))playerSeasonStats.get(g.assister_player_id).a++;
   });
 
@@ -4878,7 +4878,7 @@ function makeVisualResults(ctx,t){
 
 function tournamentScorerVisualData(){
   const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,g:0,guest:x.is_group_member===false}]));
-  S.goals.forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++});
+  S.goals.forEach(g=>{if(!g.is_own_goal&&stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++});
   let arr=[...stats.values()].filter(x=>x.g).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name));
   let prev=null,rank=0;
   return arr.map((x,i)=>{if(x.g!==prev){rank=i+1;prev=x.g}return {...x,rank}});
@@ -5217,7 +5217,7 @@ async function loadPublicPage(token,bootState){
     const leagueStats=new Map(leaguePeople.map(p=>[p.id,{id:p.id,name:p.name,g:0,a:0,w:0}]));
 
     goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{
-      if(leagueStats.has(g.scorer_player_id))leagueStats.get(g.scorer_player_id).g++;
+      if(!g.is_own_goal&&leagueStats.has(g.scorer_player_id))leagueStats.get(g.scorer_player_id).g++;
       if(g.assister_player_id&&leagueStats.has(g.assister_player_id))leagueStats.get(g.assister_player_id).a++;
     });
 
@@ -5373,7 +5373,7 @@ async function loadPublicPage(token,bootState){
     standings.sort((a,z)=>z.pts-a.pts||(z.bp-z.bc)-(a.bp-a.bc)||z.bp-a.bp);
     const teamRows=standings.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ • '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
     const stats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false,guest_of:x.guest_of_player_id}]));
-    tgoals.forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++});
+    tgoals.forEach(g=>{if(!g.is_own_goal&&stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++});
     let scor=[...stats.values()].filter(x=>x.g).sort((a,z)=>z.g-a.g||a.name.localeCompare(z.name));
     let prev=null,rank=0;scor=scor.map((x,i)=>{if(x.g!==prev){rank=i+1;prev=x.g}return {...x,rank}});
     let ass=[...stats.values()].filter(x=>x.a).sort((a,z)=>z.a-a.a||a.name.localeCompare(z.name));
@@ -6672,7 +6672,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     teamPlayers.filter(tp=>leagueTeamIds.has(tp.team_id)).forEach(tp=>leaguePlayerIds.add(tp.player_id));
     goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{if(g.scorer_player_id)leaguePlayerIds.add(g.scorer_player_id);if(g.assister_player_id)leaguePlayerIds.add(g.assister_player_id);});
     const stats=new Map(players.filter(pl=>leaguePlayerIds.has(pl.id)).map(pl=>[pl.id,{id:pl.id,name:pl.name,g:0,a:0,w:0}]));
-    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{if(stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++;});
+    goals.filter(g=>leagueMatchIds.has(g.match_id)).forEach(g=>{if(!g.is_own_goal&&stats.has(g.scorer_player_id))stats.get(g.scorer_player_id).g++;if(g.assister_player_id&&stats.has(g.assister_player_id))stats.get(g.assister_player_id).a++;});
     leagueMatches.forEach(m=>{const hs=Number(m.home_score||0),as=Number(m.away_score||0);if(hs===as)return;const winner=hs>as?m.home_team_id:m.away_team_id;teamPlayers.filter(tp=>tp.team_id===winner).forEach(tp=>{if(stats.has(tp.player_id))stats.get(tp.player_id).w++;});});
     function leagueRanks(arr,key){let prev=null,rank=0;return arr.sort((a,b)=>b[key]-a[key]||a.name.localeCompare(b.name)).map((x,i)=>{if(x[key]!==prev){rank=i+1;prev=x[key]}return {...x,rank};});}
     const scorers=leagueRanks([...stats.values()].filter(x=>x.g>0),'g');
@@ -6747,7 +6747,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     const tids=new Set(tournaments.filter(x=>x.format!=='league'&&(!season||x.season_id===season.id)).map(x=>x.id));
     const mids=new Set(matches.filter(x=>tids.has(x.tournament_id)).map(x=>x.id));
     const gs=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false}]));
-    goals.filter(g=>mids.has(g.match_id)&&!g.is_own_goal).forEach(g=>{if(gs.has(g.scorer_player_id))gs.get(g.scorer_player_id).g++;if(gs.has(g.assister_player_id))gs.get(g.assister_player_id).a++;});
+    goals.filter(g=>mids.has(g.match_id)&&!g.is_own_goal).forEach(g=>{if(!g.is_own_goal&&gs.has(g.scorer_player_id))gs.get(g.scorer_player_id).g++;if(gs.has(g.assister_player_id))gs.get(g.assister_player_id).a++;});
     const rankBy=key=>{let previous=null,rank=0;return [...gs.values()].filter(x=>x[key]).sort((a,b)=>b[key]-a[key]||a.name.localeCompare(b.name)).map((x,i)=>{if(x[key]!==previous){previous=x[key];rank=i+1}return {...x,rank}})};
     scor=rankBy('g');seasonAss=rankBy('a');
   }
@@ -6792,7 +6792,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
   const seasonMatchIdsForWins=new Set(seasonMatchesForWins.map(m=>m.id));
 
   goals.filter(g=>seasonMatchIdsForWins.has(g.match_id)).forEach(g=>{
-    if(seasonWinStats.has(g.scorer_player_id))seasonWinStats.get(g.scorer_player_id).g++;
+    if(!g.is_own_goal&&seasonWinStats.has(g.scorer_player_id))seasonWinStats.get(g.scorer_player_id).g++;
     if(g.assister_player_id&&seasonWinStats.has(g.assister_player_id))seasonWinStats.get(g.assister_player_id).a++;
   });
 
@@ -6852,7 +6852,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
 
     const tournamentGoalStats=new Map(players.map(x=>[x.id,{id:x.id,name:x.name,g:0,a:0,guest:x.is_group_member===false}]));
     goals.filter(g=>latestMatchIds.has(g.match_id)).forEach(g=>{
-      if(tournamentGoalStats.has(g.scorer_player_id))tournamentGoalStats.get(g.scorer_player_id).g++;
+      if(!g.is_own_goal&&tournamentGoalStats.has(g.scorer_player_id))tournamentGoalStats.get(g.scorer_player_id).g++;
       if(g.assister_player_id&&tournamentGoalStats.has(g.assister_player_id))tournamentGoalStats.get(g.assister_player_id).a++;
     });
     let tournamentScorers=[...tournamentGoalStats.values()].filter(x=>x.g)
