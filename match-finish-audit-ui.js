@@ -91,9 +91,9 @@
       if(tour.format!=='conquest'||fresh.competition_type!=='conquest_playoff'){
         const winnerName=String(tieDecision?.tie_break_winner_team_id||'')===String(fresh.home_team_id)?home:
           String(tieDecision?.tie_break_winner_team_id||'')===String(fresh.away_team_id)?away:null;
-        if(!confirm('Terminer ce match ?\\n'+home+' '+score+' '+away+
-          (winnerName?'\\nVainqueur du départage : '+winnerName:'')+
-          '\\n\\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
+        if(!confirm('Terminer ce match ?\n'+home+' '+score+' '+away+
+          (winnerName?'\nVainqueur du départage : '+winnerName:'')+
+          '\n\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
       }
       if(tour.format==='conquest'&&fresh.competition_type==='conquest_playoff'){
         let winner=null;
@@ -103,9 +103,9 @@
           if(choice!=='1'&&choice!=='2')return toast('Choisis 1 ou 2.');
           winner=choice==='1'?fresh.home_team_id:fresh.away_team_id;
         }
-        if(!confirm('Terminer ce match ?\\n'+home+' '+score+' '+away+
-          (winner?'\\nVainqueur du départage : '+(String(winner)===String(fresh.home_team_id)?home:away):'')+
-          '\\n\\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
+        if(!confirm('Terminer ce match ?\n'+home+' '+score+' '+away+
+          (winner?'\nVainqueur du départage : '+(String(winner)===String(fresh.home_team_id)?home:away):'')+
+          '\n\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
         response=await sb.rpc('conquest_finish_match_v2',{p_match_id:fresh.id,p_tie_break_winner_team_id:winner});
       }else{
         const finishFields={status:'finished',finished_at:new Date().toISOString()};
