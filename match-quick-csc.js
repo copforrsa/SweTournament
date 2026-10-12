@@ -139,6 +139,125 @@
   }
   // Affiche la vraie nature des buts contre leur camp dans le suivi des buteurs.
   // Les informations viennent de goals.is_own_goal, jamais d'une déduction sur le score.
+
+  // Les CSC sont portés au score de l'adversaire : le responsable est
+  // obligatoirement choisi dans l'équipe opposée à celle créditée du but.
+  function protectOwnGoalEntry(entry,editButton,goal,match){
+    if(entry.dataset.sweOwnGoalControls===String(goal.id))return;
+    const offenderTeamId=String(goal.team_id)===String(match.home_team_id)
+      ?match.away_team_id
+      :String(goal.team_id)===String(match.away_team_id)
+        ?match.home_team_id:null;
+    if(!offenderTeamId)return;
+    entry.dataset.sweOwnGoalControls=String(goal.id);
+
+    for(const select of entry.querySelectorAll('select')){
+      select.value='';
+      select.disabled=true;
+      const label=select.closest('label');
+      if(label&&label!==entry&&!label.querySelector('button'))label.hidden=true;
+      else select.hidden=true;
+    }
+    for(const button of entry.querySelectorAll('button')){
+      if(/enregistrer le passeur/i.test(button.textContent||'')){
+        button.disabled=true;button.hidden=true;
+      }
+    }
+    // Le formulaire de passe décisive disparaît pour ce CSC uniquement.
+    for(const node of entry.querySelectorAll('label,div,span,p,small')){
+      if(node===entry||node.children.length)continue;
+      if(/^(passeur|passeur à compléter|aucun passeur)$/i.test((node.textContent||'').trim()))
+        node.hidden=true;
+    }
+    if(!entry.querySelector('.swe-csc-assist-info')){
+      const info=document.createElement('div');
+      info.className='swe-csc-assist-info small';
+      info.style.cssText='margin:7px 0;color:#bc1d36;font-weight:700;';
+      info.textContent='CSC · Aucune passe décisive';
+      const actions=editButton.parentElement;
+      if(actions&&actions!==entry)actions.before(info);
+      else entry.appendChild(info);
+    }
+
+    if(editButton.dataset.sweCscCorrectionBound)return;
+    editButton.dataset.sweCscCorrectionBound='true';
+    editButton.addEventListener('click',event=>{
+      // Neutralise l'éditeur classique, qui utilise l'équipe bénéficiaire.
+      event.preventDefault();event.stopImmediatePropagation();
+      if(!canEditCurrentMatches()&&!S.isSuperAdmin)
+        return toast('Tu ne peux pas modifier ce match.');
+      let box=entry.querySelector('.swe-csc-correction');
+      if(box){box.remove();return;}
+      box=document.createElement('div');
+      box.className='swe-csc-correction';
+      box.style.cssText='margin-top:10px;padding:10px;border:1px solid #e4adbb;border-radius:12px;background:#fff9fb;';
+      const title=document.createElement('b');
+      title.textContent='Corriger le responsable du CSC · '+(tm(offenderTeamId)?.name||'Équipe fautive');
+      box.append(title);
+      const hint=document.createElement('div');
+      hint.className='small muted';
+      hint.textContent='Le but reste attribué à '+(tm(goal.team_id)?.name||"l’équipe adverse")+'.';
+      box.append(hint);
+
+      const roster=[...new Set(matchTeamPlayerIds(match.id,offenderTeamId))]
+        .filter(id=>p(id));
+      const choices=document.createElement('div');
+      choices.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:10px;';
+      const feedback=document.createElement('div');
+      feedback.className='small';
+      feedback.setAttribute('role','status');
+      feedback.style.cssText='margin-top:8px;color:#a11737;';
+      if(!roster.length)feedback.textContent='Aucun joueur trouvé dans l’équipe fautive.';
+      const close=document.createElement('button');
+      close.type='button';close.className='ghost smallbtn';
+      close.textContent='Annuler la correction';
+      close.style.marginTop='9px';
+      close.addEventListener('click',e=>{e.preventDefault();box.remove()});
+
+      for(const id of roster){
+        const choice=document.createElement('button');
+        choice.type='button';choice.className='smallbtn';
+        choice.textContent=playerDisplayName(p(id))||p(id)?.name||'Joueur';
+        if(String(id)===String(goal.scorer_player_id))
+          choice.title='Responsable actuel du CSC';
+        choice.addEventListener('click',async e=>{
+          e.preventDefault();e.stopPropagation();
+          for(const btn of choices.querySelectorAll('button'))btn.disabled=true;
+          close.disabled=true;
+          feedback.textContent='Enregistrement du CSC…';
+          try{
+            const read=await sb.from('goals')
+              .select('id,match_id,team_id,is_own_goal')
+              .eq('id',goal.id).single();
+            if(read.error)throw read.error;
+            if(!read.data?.is_own_goal||
+               String(read.data.match_id)!==String(match.id)||
+               String(read.data.team_id)!==String(goal.team_id))
+              throw Error('Ce but a changé. Actualise les matchs avant de corriger.');
+            const result=await sb.from('goals').update({
+              scorer_player_id:id,
+              assister_player_id:null,
+              assist_decided:true,
+              is_own_goal:true
+            }).eq('id',goal.id).eq('match_id',match.id)
+              .eq('team_id',goal.team_id).eq('is_own_goal',true).select('id');
+            if(result.error)throw result.error;
+            if(!result.data?.length)throw Error('Modification non enregistrée : vérifie tes autorisations.');
+            await loadTournament();renderAll();
+            toast('Responsable du CSC corrigé ✅');
+          }catch(error){
+            feedback.textContent=error?.message||'Correction du CSC impossible.';
+            for(const btn of choices.querySelectorAll('button'))btn.disabled=false;
+            close.disabled=false;
+          }
+        });
+        choices.append(choice);
+      }
+      box.append(choices,feedback,close);
+      entry.append(box);
+    },true);
+  }
+
   function annotateOwnGoals(){
     const host=document.getElementById('matchesList');
     if(!host||!Array.isArray(S.goals)||!Array.isArray(S.matches))return;
@@ -174,7 +293,7 @@
         }))continue;
         entry=node;break;
       }
-      if(!entry||entry.querySelector('.swe-csc-history-label'))continue;
+      if(!entry)continue;
       const headingText=normalise((entry.textContent||'').split(/\b(?:passeur|aucun passeur)\b/i)[0]);
       const matched=candidates.filter(goal=>{
         const person=p(goal.scorer_player_id)?.name||'';
@@ -189,6 +308,7 @@
         String(goal.team_id)===String(matched[0].team_id));
       if(possible.some(goal=>!goal.is_own_goal))continue;
 
+      if(!entry.querySelector('.swe-csc-history-label')){
       const person=normalise(p(matched[0].scorer_player_id)?.name||'');
       const team=normalise(tm(matched[0].team_id)?.name||'');
       const headingElements=[...entry.querySelectorAll('strong,b')];
@@ -229,6 +349,8 @@
       label.innerHTML=cscBallSvg()+' CSC ·';
       label.title='Contre son camp : le but est attribué à '+(tm(matched[0].team_id)?.name||"l'équipe adverse");
       header.prepend(label);
+      }
+      protectOwnGoalEntry(entry,action,matched[0],match);
     }
   }
 
