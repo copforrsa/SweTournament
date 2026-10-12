@@ -4017,7 +4017,7 @@ function renderMatches(){
   }
   S.matches.forEach((m,i)=>{
     const home=tm(m.home_team_id),away=tm(m.away_team_id);if(!home||!away)return;
-    const d=document.createElement('div');d.className='card match';
+    const d=document.createElement('div');d.className='card match';d.dataset.matchId=m.id;
     const matchFinished=m.status==='finished';
     d.innerHTML='<div class="muted">Match '+(i+1)+(m.pitch?' • '+esc(m.pitch):'')+(m.round_label?' • '+esc(m.round_label):'')+'</div><div class="row" style="justify-content:space-between"><b>'+esc(home.name)+'</b><span class="score">'+m.home_score+' - '+m.away_score+'</span><b>'+esc(away.name)+'</b></div>'+(matchFinished?'<div class="guest-badge" style="margin-top:8px;background:#e8f7ec;color:#176a36">✅ MATCH TERMINÉ</div>':'');
     if(canEditCurrentMatches()&&!matchFinished){
@@ -4098,7 +4098,7 @@ function renderMatches(){
     const hist=document.createElement('div');hist.style.marginTop='8px';
     S.goals.filter(g=>g.match_id===m.id).forEach(g=>{
       const r=document.createElement('div');r.className='row small';
-      r.innerHTML='<span style="flex:1">⚽ '+esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' ← '+esc(p(g.assister_player_id)?.name||''):'')+'</span>';
+      r.innerHTML='<span style="flex:1">⚽ '+(g.is_own_goal?'CSC · ':'')+esc(p(g.scorer_player_id)?.name||'?')+(g.assister_player_id?' ← '+esc(p(g.assister_player_id)?.name||''):'')+'</span>';
 
       // Le Super Admin peut corriger un but déjà enregistré, même après la fin du tournoi.
       // Les autres rôles gardent uniquement leurs droits de saisie habituels.
