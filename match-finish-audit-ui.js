@@ -113,7 +113,9 @@
           throw Error('Le match a été clôturé par un autre utilisateur.');
       }
       if(response.error)throw response.error;
-      auditKey='';await loadTournament();renderAll();
+      auditKey='';
+      if(tour.format==='king_of_pitch')await loadAll();
+      else {await loadTournament();renderAll();}
       toast('Match terminé et clôture tracée ✅');
     }catch(error){
       toast(error?.message||'Impossible de terminer le match.');
