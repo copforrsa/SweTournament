@@ -3366,8 +3366,8 @@ async function showTournamentHistory(t){
       const scorer=p(g.scorer_player_id);
       const assister=g.assister_player_id?p(g.assister_player_id):null;
       const team=teamMap.get(g.team_id);
-      return '<div class="small" style="margin-top:5px">⚽ '+esc(scorer?.name||'?')+
-        (assister?' <span class="muted">← passe '+esc(assister.name)+'</span>':'')+
+      return '<div class="small" style="margin-top:5px">⚽ '+(g.is_own_goal?'<span class="swe-csc-badge">CSC</span> ':'')+esc(scorer?.name||'?')+
+        (g.is_own_goal?' <span class="muted">• but contre son camp</span>':(assister?' <span class="muted">← passe '+esc(assister.name)+'</span>':''))+
         (team?' <span class="muted">• '+esc(team)+'</span>':'')+
         '</div>';
     }).join('');
@@ -5396,7 +5396,7 @@ async function loadPublicPage(token,bootState){
       const goalBlock=(teamId)=>{
         const rows=mg.filter(g=>String(g.team_id)===String(teamId)).map(g=>{
           const sc=pmap2.get(g.scorer_player_id),as=g.assister_player_id?pmap2.get(g.assister_player_id):null;
-          return '<div class="small" style="margin-top:5px">⚽ '+esc(sc?.name||'?')+(as?' <span class="muted">← '+esc(as.name)+'</span>':'')+'</div>';
+          return '<div class="small" style="margin-top:5px">⚽ '+(g.is_own_goal?'<span class="swe-csc-badge" title="But contre son camp">CSC</span> ':'')+esc(sc?.name||'?')+(g.is_own_goal?' <span class="muted">• but pour l’équipe adverse</span>':(as?' <span class="muted">← '+esc(as.name)+'</span>':''))+'</div>';
         }).join('');
         return rows||'<div class="small muted" style="margin-top:5px">Aucun buteur</div>';
       };
@@ -6944,7 +6944,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
         const rows=mg.filter(g=>String(g.team_id)===String(teamId)).map(g=>{
           const scorer=pmap.get(g.scorer_player_id);
           const assister=g.assister_player_id?pmap.get(g.assister_player_id):null;
-          return '<div class="small" style="margin-top:5px">⚽ '+esc(scorer?.name||'?')+(assister?' <span class="muted">← '+esc(assister.name)+'</span>':'')+'</div>';
+          return '<div class="small" style="margin-top:5px">⚽ '+(g.is_own_goal?'<span class="swe-csc-badge" title="But contre son camp">CSC</span> ':'')+esc(scorer?.name||'?')+(g.is_own_goal?' <span class="muted">• but pour l’équipe adverse</span>':(assister?' <span class="muted">← '+esc(assister.name)+'</span>':''))+'</div>';
         }).join('');
         return rows||'<div class="small muted" style="margin-top:5px">Aucun buteur</div>';
 
