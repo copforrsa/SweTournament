@@ -7,6 +7,7 @@
     const label=normalize(button.textContent),wanted=normalize(name);
     return !!wanted&&(label===wanted||label.endsWith(' '+wanted)||label.includes(' '+wanted+' '));
   };
+  const cscBallSvg=()=>'<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="19" height="19" style="vertical-align:-3px;flex:none;margin-right:3px"><circle cx="12" cy="12" r="10.4" fill="#d6283f" stroke="#921328" stroke-width="1.2"/><path d="m12 6 4.1 3-1.55 4.8h-5.1L7.9 9Z" fill="#fff"/><path d="M12 6V1.8M7.9 9 3.15 7.4M16.1 9l4.75-1.6M9.45 13.8 6.3 19.4M14.55 13.8l3.15 5.6" stroke="#fff" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>';
   const assignedIds=(matchId,teamId)=>[...new Set(matchTeamPlayerIds(matchId,teamId).filter(id=>p(id)))];
   const playerButtons=(panel,ids)=>{
     const names=ids.flatMap(id=>{const raw=p(id)?.name||'';const display=playerDisplayName(p(id));return [raw,display,raw.replace(/^\[[^\]]+\]\s*/,''),display.replace(/^\[[^\]]+\]\s*/,'')]}).filter(Boolean);
@@ -81,7 +82,7 @@
     control.dataset.cscTeam=beneficiaryTeamId;
     control.style.cssText='margin-top:8px;width:100%;';
     const trigger=document.createElement('button');
-    trigger.type='button';trigger.textContent='⚽ CSC';trigger.className='ghost smallbtn';
+    trigger.type='button';trigger.innerHTML=cscBallSvg()+' <span>CSC</span>';trigger.className='ghost smallbtn';
     trigger.setAttribute('aria-expanded','false');
     trigger.style.cssText='width:100%;min-height:38px;';
     const choices=document.createElement('div');
@@ -136,8 +137,95 @@
     control.append(trigger,choices);
     anchor.insertAdjacentElement('afterend',control);
   }
+  // Affiche la vraie nature des buts contre leur camp dans le suivi des buteurs.
+  // Les informations viennent de goals.is_own_goal, jamais d'une déduction sur le score.
+  function annotateOwnGoals(){
+    const host=document.getElementById('matchesList');
+    if(!host||!Array.isArray(S.goals)||!Array.isArray(S.matches))return;
+    const ownGoals=S.goals.filter(goal=>goal.is_own_goal);
+    if(!ownGoals.length)return;
+    const normalise=value=>normalize(value).replace(/^[⚽🏐🔵\s]+/,'');
+    const actionButtons=[...host.querySelectorAll('button')].filter(button=>/modifier le buteur/i.test(button.textContent||''));
+    for(const action of actionButtons){
+      const matchCard=action.closest('[data-match-id],.match,.match-card');
+      if(!matchCard)continue;
+      const explicit=matchCard.getAttribute('data-match-id');
+      const topText=(matchCard.textContent||'').slice(0,260);
+      const numberMatch=topText.match(/\bmatch\s*(\d+)\b/i);
+      const order=numberMatch?Number(numberMatch[1]):null;
+      const matches=S.matches.filter(m=>explicit?String(m.id)===String(explicit):order!==null&&Number(m.match_order)===order);
+      if(matches.length!==1)continue;
+      const match=matches[0];
+      const candidates=ownGoals.filter(goal=>String(goal.match_id)===String(match.id));
+      if(!candidates.length)continue;
+
+      // Remonter du bouton d'édition vers UNE fiche de but (et non toute la liste).
+      let entry=null;
+      for(let node=action.parentElement;node&&node!==matchCard;node=node.parentElement){
+        const text=node.textContent||'';
+        if(!/annuler ce but/i.test(text))continue;
+        if([...node.querySelectorAll('button')].filter(b=>/modifier le buteur/i.test(b.textContent||'')).length!==1)continue;
+        const heading=normalise(text.split(/\b(?:passeur|aucun passeur)\b/i)[0]);
+        if(heading.length>230||!heading)continue;
+        if(!candidates.some(goal=>{
+          const person=p(goal.scorer_player_id)?.name||'';
+          const team=tm(goal.team_id)?.name||'';
+          return person&&team&&heading.includes(normalise(person))&&heading.includes(normalise(team));
+        }))continue;
+        entry=node;break;
+      }
+      if(!entry||entry.querySelector('.swe-csc-history-label'))continue;
+      const headingText=normalise((entry.textContent||'').split(/\b(?:passeur|aucun passeur)\b/i)[0]);
+      const matched=candidates.filter(goal=>{
+        const person=p(goal.scorer_player_id)?.name||'';
+        const team=tm(goal.team_id)?.name||'';
+        return person&&team&&headingText.includes(normalise(person))&&headingText.includes(normalise(team));
+      });
+      if(!matched.length)continue;
+      // N'annoter qu'une ligne identifiable. Si un but normal et un CSC portent
+      // exactement le même joueur et l'équipe créditée, ne pas deviner.
+      const possible=S.goals.filter(goal=>String(goal.match_id)===String(match.id)&&
+        String(goal.scorer_player_id)===String(matched[0].scorer_player_id)&&
+        String(goal.team_id)===String(matched[0].team_id));
+      if(possible.some(goal=>!goal.is_own_goal))continue;
+
+      const person=normalise(p(matched[0].scorer_player_id)?.name||'');
+      const team=normalise(tm(matched[0].team_id)?.name||'');
+      const headingElements=[...entry.querySelectorAll('strong,b')];
+      let header=headingElements.find(el=>{
+        const label=normalise(el.textContent||'');
+        return label.includes(person)&&label.includes(team);
+      });
+      if(!header)header=headingElements.find(el=>normalise(el.textContent).includes(person));
+      if(!header){
+        // Le titre peut être un simple élément avec font-weight, sans <b>.
+        header=[...entry.querySelectorAll('div,span,p')]
+          .filter(el=>!el.querySelector('button'))
+          .find(el=>{
+            const label=normalise(el.textContent||'');
+            return label.length<160&&label.includes(person)&&label.includes(team);
+          });
+      }
+      if(!header)continue;
+      // Supprimer uniquement l'emoji de tête s'il est dans un nœud texte isolé.
+      const first=header.firstChild;
+      if(first?.nodeType===Node.TEXT_NODE){
+        const changed=(first.nodeValue||'').replace(/^\s*⚽\s*/,'');
+        if(changed!==first.nodeValue)first.nodeValue=changed;
+      }
+      const label=document.createElement('span');
+      label.className='swe-csc-history-label';
+      label.style.cssText='display:inline-flex;align-items:center;gap:3px;color:#bc1d36;font-weight:800;margin-right:5px;';
+      label.innerHTML=cscBallSvg()+' CSC ·';
+      label.title='Contre son camp : le but est attribué à '+(tm(matched[0].team_id)?.name||"l'équipe adverse");
+      header.prepend(label);
+    }
+  }
+
   function mount(){
-    if(!S.session||!S.activeTour||!canEditCurrentMatches())return;
+    if(!S.session||!S.activeTour)return;
+    annotateOwnGoals();
+    if(!canEditCurrentMatches())return;
     const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     let node;
     while((node=walker.nextNode())){
