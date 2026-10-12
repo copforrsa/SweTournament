@@ -81,8 +81,20 @@
       const home=S.teams.find(t=>t.id===fresh.home_team_id)?.name||'Équipe 1';
       const away=S.teams.find(t=>t.id===fresh.away_team_id)?.name||'Équipe 2';
       const score=Number(fresh.home_score||0)+' - '+Number(fresh.away_score||0);
-      if(!confirm('Terminer ce match ?\n'+home+' '+score+' '+away+'\n\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
       let response;
+      let tieDecision=null;
+      if(tour.format==='king_of_pitch'){
+        if(typeof window.SWEKingResolveTie!=='function')throw Error('Module Roi du terrain non chargé : actualise la page.');
+        tieDecision=window.SWEKingResolveTie(fresh,home,away,fresh.home_score,fresh.away_score);
+        if(!tieDecision)return;
+      }
+      if(tour.format!=='conquest'||fresh.competition_type!=='conquest_playoff'){
+        const winnerName=String(tieDecision?.tie_break_winner_team_id||'')===String(fresh.home_team_id)?home:
+          String(tieDecision?.tie_break_winner_team_id||'')===String(fresh.away_team_id)?away:null;
+        if(!confirm('Terminer ce match ?\\n'+home+' '+score+' '+away+
+          (winnerName?'\\nVainqueur du départage : '+winnerName:'')+
+          '\\n\\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
+      }
       if(tour.format==='conquest'&&fresh.competition_type==='conquest_playoff'){
         let winner=null;
         if(Number(fresh.home_score)===Number(fresh.away_score)){
@@ -91,16 +103,13 @@
           if(choice!=='1'&&choice!=='2')return toast('Choisis 1 ou 2.');
           winner=choice==='1'?fresh.home_team_id:fresh.away_team_id;
         }
+        if(!confirm('Terminer ce match ?\\n'+home+' '+score+' '+away+
+          (winner?'\\nVainqueur du départage : '+(String(winner)===String(fresh.home_team_id)?home:away):'')+
+          '\\n\\nLa clôture sera enregistrée avec ton compte et son heure.'))return;
         response=await sb.rpc('conquest_finish_match_v2',{p_match_id:fresh.id,p_tie_break_winner_team_id:winner});
       }else{
         const finishFields={status:'finished',finished_at:new Date().toISOString()};
-        if(tour.format==='king_of_pitch'){
-          if(typeof window.SWEKingResolveTie!=='function')
-            throw Error('Module Roi du terrain non chargé : actualise la page.');
-          const decision=window.SWEKingResolveTie(fresh,home,away,fresh.home_score,fresh.away_score);
-          if(!decision)return;
-          Object.assign(finishFields,decision);
-        }
+        if(tour.format==='king_of_pitch')Object.assign(finishFields,tieDecision);
         response=await sb.from('matches')
           .update(finishFields)
           .eq('id',fresh.id).neq('status','finished').select('id');
