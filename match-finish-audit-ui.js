@@ -74,7 +74,7 @@
     }
     button.disabled=true;
     try{
-      const fetched=await sb.from('matches').select('id,status,home_score,away_score,competition_type,home_team_id,away_team_id').eq('id',match.id).single();
+      const fetched=await sb.from('matches').select('id,status,home_score,away_score,competition_type,home_team_id,away_team_id,match_order,pitch,rotation_role').eq('id',match.id).single();
       if(fetched.error)throw fetched.error;
       const fresh=fetched.data;
       if(fresh.status==='finished'){toast('Ce match est déjà terminé.');await loadTournament();renderMatches();return;}
@@ -95,16 +95,11 @@
       }else{
         const finishFields={status:'finished',finished_at:new Date().toISOString()};
         if(tour.format==='king_of_pitch'){
-          if(Number(fresh.home_score)===Number(fresh.away_score)){
-            const choice=prompt('Roi du terrain : match à égalité ('+score+').\nChoisis le vainqueur du départage :\n1 = '+home+'\n2 = '+away+'\nAnnuler = ne pas terminer le match');
-            if(choice===null)return;
-            if(choice!=='1'&&choice!=='2')throw Error('Choisis 1 ou 2 pour départager les équipes.');
-            finishFields.tie_break_winner_team_id=choice==='1'?fresh.home_team_id:fresh.away_team_id;
-            finishFields.tie_break_method_used='manual';
-          }else{
-            finishFields.tie_break_winner_team_id=null;
-            finishFields.tie_break_method_used=null;
-          }
+          if(typeof window.SWEKingResolveTie!=='function')
+            throw Error('Module Roi du terrain non chargé : actualise la page.');
+          const decision=window.SWEKingResolveTie(fresh,home,away,fresh.home_score,fresh.away_score);
+          if(!decision)return;
+          Object.assign(finishFields,decision);
         }
         response=await sb.from('matches')
           .update(finishFields)
