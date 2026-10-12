@@ -1,4 +1,4 @@
-const SW_BUILD='51.32-king-audit-final';
+const SW_BUILD='51.33-format-existing-cards';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 

@@ -17,3 +17,23 @@ html[data-swe-format] #tournamentAdminCard #tourFormat{
   border-color:var(--swe-format-bg);
   box-shadow:0 0 0 2px var(--swe-format-soft);
 }
+
+/* Existing examples are separate cards: color by each tournament's stored format,
+ * not by the global active selection. Override old hard-coded blue/green banners. */
+#view-tournaments .tournament-current-card[data-swe-format="king_of_pitch"]{
+  --card-format-bg:#1769E0;--card-format-dark:#0D397A;--card-format-soft:#EAF2FF;
+}
+#view-tournaments .tournament-current-card[data-swe-format="conquest"]{
+  --card-format-bg:#800020;--card-format-dark:#4D0013;--card-format-soft:#FFF0F3;
+}
+#view-tournaments .tournament-current-card[data-swe-format="fast_conquest"]{
+  --card-format-bg:#F28C28;--card-format-dark:#924300;--card-format-soft:#FFF3E5;
+}
+#view-tournaments .tournament-current-card[data-swe-format]{
+  border-left:5px solid var(--card-format-bg)!important;
+  background:var(--card-format-soft)!important;
+}
+#view-tournaments .tournament-current-card[data-swe-format] .tournament-current-head{
+  background:linear-gradient(120deg,var(--card-format-dark),var(--card-format-bg))!important;
+  color:#fff!important;
+}
