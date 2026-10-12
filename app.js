@@ -3366,8 +3366,8 @@ async function showTournamentHistory(t){
       const scorer=p(g.scorer_player_id);
       const assister=g.assister_player_id?p(g.assister_player_id):null;
       const team=teamMap.get(g.team_id);
-      return '<div class="small" style="margin-top:5px">⚽ '+esc(scorer?.name||'?')+
-        (assister?' <span class="muted">← passe '+esc(assister.name)+'</span>':'')+
+      return '<div class="small" style="margin-top:5px">⚽ '+(g.is_own_goal?'<span class="swe-csc-badge">CSC</span> ':'')+esc(scorer?.name||'?')+
+        (g.is_own_goal?' <span class="muted">• but contre son camp</span>':(assister?' <span class="muted">← passe '+esc(assister.name)+'</span>':''))+
         (team?' <span class="muted">• '+esc(team)+'</span>':'')+
         '</div>';
     }).join('');
