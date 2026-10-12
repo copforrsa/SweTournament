@@ -15,44 +15,70 @@
     );
   };
   const findLocation=heading=>{
-    const root=heading.closest('.match,[data-match-id],.match-card');
-    const hintedId=root?.getAttribute('data-match-id');
-    const indexedCard=root?.matches('.match')&&root.closest('#matchesList')
-      ?[...root.parentElement.querySelectorAll(':scope > .match')].indexOf(root):-1;
-    for(let node=heading.parentElement,depth=0;node&&node!==document.body&&depth<9;node=node.parentElement,depth++){
-      if(!node.querySelectorAll('button').length)continue;
-      const prefix=(node.textContent||'').split(/saisie rapide/i)[0];
-      const matchLabel=prefix.match(/\bmatch\s*(\d+)\b/i);
-      const displayedIndex=matchLabel?Number(matchLabel[1])-1:-1;
-      const candidates=S.matches.map((match,index)=>{
-        if(match.status==='finished')return null;
-        if(hintedId&&String(hintedId)!==String(match.id))return null;
-        if(indexedCard>=0&&index!==indexedCard)return null;
-        if(displayedIndex>=0&&index!==displayedIndex)return null;
+    // La saisie Roi du terrain n'utilise pas toujours la même structure
+    // que la fiche "Matchs" classique. Utiliser le vrai match dans S.matches,
+    // jamais la position d'un élément HTML dans la liste.
+    const roots=[];
+    for(let el=heading.parentElement,depth=0;el&&el!==document.body&&depth<13;el=el.parentElement,depth++){
+      roots.push(el);
+      if(el.id==='matchesList')break;
+    }
+    const active=S.matches.filter(m=>m.status!=='finished');
+    for(const root of roots){
+      const buttons=root.querySelectorAll('button');
+      if(buttons.length<4)continue;
+      const assigned=root.closest('[data-match-id]');
+      const matchId=assigned?.getAttribute('data-match-id')||root.getAttribute('data-match-id')||'';
+      // Lire le titre situé au-dessus de "⚡ Saisie rapide", et non
+      // le texte d'une autre rencontre se trouvant après la carte.
+      const prefix=(root.textContent||'').split(/saisie rapide/i)[0];
+      const numberMatch=prefix.match(/\bmatch\s*(\d+)\b/i);
+      const matchNumber=numberMatch?Number(numberMatch[1]):null;
+      const candidates=[];
+      for(const match of active){
+        if(matchId&&String(matchId)!==String(match.id))continue;
+        if(matchNumber!==null&&Number(match.match_order)!==matchNumber)continue;
         const homeIds=assignedIds(match.id,match.home_team_id);
         const awayIds=assignedIds(match.id,match.away_team_id);
-        if(!homeIds.length||!awayIds.length)return null;
-        const home=playerButtons(node,homeIds),away=playerButtons(node,awayIds);
-        if(home.length<Math.min(2,homeIds.length)||away.length<Math.min(2,awayIds.length))return null;
-        return {match,homeIds,awayIds,home,away};
-      }).filter(Boolean);
-      if(candidates.length!==1)continue;
-      return candidates[0];
+        if(!homeIds.length||!awayIds.length)continue;
+        const home=playerButtons(root,homeIds);
+        const away=playerButtons(root,awayIds);
+        if(home.length<Math.min(2,homeIds.length)||away.length<Math.min(2,awayIds.length))continue;
+        // Si deux matchs affichent les mêmes joueurs, refuser de les confondre.
+        candidates.push({match,homeIds,awayIds,home,away,scope:root});
+      }
+      if(candidates.length===1)return candidates[0];
     }
     return null;
   };
-  function appendControl(buttons,playerIds,match,beneficiaryTeamId){
+  function columnAnchor(buttons,otherButtons,scope){
+    const last=buttons[buttons.length-1];
+    if(!last)return null;
+    // Chercher la colonne commune aux joueurs de cette équipe,
+    // sans englober également la colonne adverse.
+    for(let parent=last.parentElement;parent&&parent!==scope;parent=parent.parentElement){
+      if(!buttons.every(b=>parent.contains(b)))continue;
+      if(otherButtons.some(b=>parent.contains(b)))continue;
+      const direct=[...parent.children].find(child=>child.contains(last));
+      if(direct)return {anchor:direct,teamColumn:parent};
+    }
+    // Mise en page alternative : chaque joueur possède sa propre rangée.
+    const row=last.closest('.quick-player-row,.scorer-row,.match-scorer-row,.row');
+    if(row&&row!==scope&&!otherButtons.some(b=>row.contains(b)))
+      return {anchor:row,teamColumn:row.parentElement};
+    return {anchor:last.parentElement,teamColumn:last.parentElement};
+  }
+  function appendControl(buttons,otherButtons,playerIds,match,beneficiaryTeamId,scope){
     const last=buttons[buttons.length-1];
     if(!last)return;
-    let anchor=last.closest('.quick-player-row,.scorer-row,.match-scorer-row,.row')||last.parentElement;
-    if(anchor.querySelectorAll('button').filter(button=>buttons.includes(button)).length>1){
-      anchor=last.parentElement;
-    }
-    if(!anchor.parentElement||anchor.parentElement.closest('.swe-quick-csc'))return;
-    const following=anchor.nextElementSibling;
-    if(following?.classList?.contains('swe-quick-csc'))return;
+    const insertion=columnAnchor(buttons,otherButtons,scope);
+    const anchor=insertion?.anchor;
+    if(!anchor?.parentElement)return;
+    if(insertion.teamColumn?.querySelector('.swe-quick-csc[data-csc-team="'+beneficiaryTeamId+'"]'))return;
+    if(anchor.nextElementSibling?.matches?.('.swe-quick-csc[data-csc-team="'+beneficiaryTeamId+'"]'))return;
     const control=document.createElement('div');
     control.className='swe-quick-csc';
+    control.dataset.cscTeam=beneficiaryTeamId;
     control.style.cssText='margin-top:8px;width:100%;';
     const trigger=document.createElement('button');
     trigger.type='button';trigger.textContent='⚽ CSC';trigger.className='ghost smallbtn';
@@ -120,8 +146,8 @@
       if(!heading||heading.closest('.swe-quick-csc'))continue;
       const found=findLocation(heading);
       if(!found)continue;
-      appendControl(found.home,found.homeIds,found.match,found.match.away_team_id);
-      appendControl(found.away,found.awayIds,found.match,found.match.home_team_id);
+      appendControl(found.home,found.away,found.homeIds,found.match,found.match.away_team_id,found.scope);
+      appendControl(found.away,found.home,found.awayIds,found.match,found.match.home_team_id,found.scope);
     }
   }
   function schedule(){
