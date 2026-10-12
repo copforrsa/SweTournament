@@ -4088,6 +4088,43 @@ function renderMatches(){
       }
     };
     fill();team.onchange=()=>{fill();updateGoalKind()};sc.onchange=updateGoalKind;updateGoalKind();form.append(team,sc,as,responsible);
+    // Raccourcis CSC placés du côté de l'équipe responsable, pas du bénéficiaire.
+    const cscControls=document.createElement('div');
+    cscControls.className='row';
+    cscControls.style.cssText='gap:8px;flex-wrap:wrap;margin:8px 0';
+    const cscPicker=document.createElement('div');
+    cscPicker.className='row hidden';
+    cscPicker.style.cssText='gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0';
+    let cscResponsibleTeam=null;
+    [home,away].forEach(side=>{
+      const cscButton=document.createElement('button');
+      cscButton.type='button';
+      cscButton.textContent='⚽ CSC · '+side.name;
+      cscButton.onclick=()=>{
+        cscResponsibleTeam=side.id;
+        const ids=matchTeamPlayerIds(m.id,side.id);
+        cscPicker.innerHTML='';
+        const label=document.createElement('span');
+        label.textContent='CSC '+side.name+' — joueur responsable :';
+        const playerSelect=document.createElement('select');
+        playerSelect.innerHTML='<option value="">Choisir un joueur</option>'+ids.map(id=>'<option value="'+id+'">'+esc(playerDisplayName(p(id))||'')+'</option>').join('');
+        const confirmCsc=document.createElement('button');
+        confirmCsc.type='button';confirmCsc.className='primary';confirmCsc.textContent='Valider le CSC';
+        confirmCsc.onclick=async()=>{
+          if(!playerSelect.value)return toast('Choisis le joueur responsable du CSC');
+          const beneficiaryTeam=cscResponsibleTeam===home.id?away.id:home.id;
+          confirmCsc.disabled=true;
+          const {error}=await sb.from('goals').insert({match_id:m.id,team_id:beneficiaryTeam,scorer_player_id:playerSelect.value,assister_player_id:null,is_own_goal:true});
+          confirmCsc.disabled=false;
+          if(error)return toast(error.message);
+          await loadTournament();renderAll();toast('CSC enregistré : +1 pour l’équipe adverse, −1 sur la note du joueur ✅');
+        };
+        const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Annuler';cancel.onclick=()=>cscPicker.classList.add('hidden');
+        cscPicker.append(label,playerSelect,confirmCsc,cancel);
+        cscPicker.classList.remove('hidden');
+      };
+      cscControls.append(cscButton);
+    });
     const b=document.createElement('button');b.textContent='+ But';b.className='primary';
     b.onclick=async()=>{
       if(!sc.value)return toast('Choisis le buteur');
@@ -4099,7 +4136,7 @@ function renderMatches(){
       b.disabled=false;if(error)return toast(error.message);
       sc.value='';as.value='';await loadTournament();renderAll();toast('But ajouté ✅');
     };
-    if(canEditCurrentMatches())d.append(form,b);
+    if(canEditCurrentMatches())d.append(form,b,cscControls,cscPicker);
 
     const hist=document.createElement('div');hist.style.marginTop='8px';
     S.goals.filter(g=>g.match_id===m.id).forEach(g=>{
