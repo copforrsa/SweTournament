@@ -588,8 +588,16 @@ async function authState(){
 $('#login').onclick=async()=>{
   const email=$('#email').value.trim().toLowerCase();
   if(inviteEmailFromUrl&&email!==inviteEmailFromUrl)return toast('Cette invitation est prévue pour '+inviteEmailFromUrl);
-  const {error}=await sb.auth.signInWithPassword({email,password:$('#password').value});
-  error?toast(friendlyAuthError(error)):authState();
+  const button=$('#login'),label=button?.textContent||'Se connecter';
+  if(button){button.disabled=true;button.textContent='Connexion…'}
+  try{
+    const {error}=await sb.auth.signInWithPassword({email,password:$('#password').value});
+    if(error)toast(friendlyAuthError(error));else await authState();
+  }catch(error){
+    toast('Connexion impossible : '+friendlyAuthError(error));
+  }finally{
+    if(button){button.disabled=false;button.textContent=label}
+  }
 };
 $('#signup').onclick=async()=>{
   const email=$('#email').value.trim().toLowerCase();
