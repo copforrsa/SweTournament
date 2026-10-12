@@ -181,7 +181,16 @@
     }
 
     if(editButton.dataset.sweCscCorrectionBound)return;
-    editButton.dataset.sweCscCorrectionBound='true';
+    // L'ancienne commande ouvre aussi son éditeur de buteur. On remplace
+    // exclusivement CE bouton CSC par une copie sans anciens gestionnaires
+    // d'événements, afin de garder un seul éditeur et la même apparence.
+    const cscEdit=editButton.cloneNode(true);
+    cscEdit.removeAttribute('onclick');
+    cscEdit.onclick=null;
+    cscEdit.dataset.sweCscCorrectionBound='true';
+    cscEdit.classList.add('swe-csc-edit-trigger');
+    editButton.replaceWith(cscEdit);
+    editButton=cscEdit;
     editButton.addEventListener('click',event=>{
       // Neutralise l'éditeur classique, qui utilise l'équipe bénéficiaire.
       event.preventDefault();event.stopImmediatePropagation();
