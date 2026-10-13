@@ -38,16 +38,30 @@ function resolveTie(match,home,away,homeScore,awayScore){
     method=t.tie_break_method||'shifumi_1';
     description={shifumi_1:'Shifumi · 1 manche',shifumi_3:'Shifumi · 3 manches',penalties:'tirs au but (TAB)'}[method]||'départage prévu pour le tournoi';
   }
-  const choice=prompt('Match nul · '+(role==='king'?'Carrefour (premier Roi)':role==='middle'?'Terrain des Conquérants':'Terres des Bannis')+
-    '\nDépartage : '+description+
-    '\n\nAprès le départage, indique le vainqueur :\n1 = '+home+'\n2 = '+away+
-    '\nAnnuler = ne pas clôturer');
-  if(choice===null)return null;
-  if(choice!=='1'&&choice!=='2'){
-    toast('Choisis 1 ou 2 après le départage.');
-    return null;
-  }
-  return {tie_break_winner_team_id:choice==='1'?match.home_team_id:match.away_team_id,tie_break_method_used:method};
+  return new Promise(resolve=>{
+    const overlay=make('div');
+    overlay.className='swe-king-tie-overlay';
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    overlay.setAttribute('aria-label','Choisir le vainqueur du départage');
+    overlay.innerHTML='<div class="swe-king-tie-dialog"><h3>🤜 ✋ ✌️ Match nul — départage</h3><p class="swe-king-tie-method"></p><p>Quelle équipe a gagné ?</p><div class="swe-king-tie-choices"></div><button type="button" class="swe-king-tie-cancel">Annuler — ne pas clôturer</button></div>';
+    overlay.querySelector('.swe-king-tie-method').textContent=description;
+    const choices=overlay.querySelector('.swe-king-tie-choices');
+    let settled=false;
+    const done=value=>{if(settled)return;settled=true;document.removeEventListener('keydown',escapeKey);overlay.remove();resolve(value);};
+    const escapeKey=e=>{if(e.key==='Escape')done(null);};
+    [[home,match.home_team_id],[away,match.away_team_id]].forEach(([label,id])=>{
+      const button=make('button',label);
+      button.type='button';
+      button.className='swe-king-tie-team';
+      button.onclick=()=>done({tie_break_winner_team_id:id,tie_break_method_used:method});
+      choices.append(button);
+    });
+    overlay.querySelector('.swe-king-tie-cancel').onclick=()=>done(null);
+    document.addEventListener('keydown',escapeKey);
+    document.body.append(overlay);
+    choices.querySelector('button')?.focus();
+  });
 }
 window.SWEKingResolveTie=resolveTie;
 
