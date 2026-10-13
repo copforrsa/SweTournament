@@ -85,7 +85,7 @@
       let tieDecision=null;
       if(tour.format==='king_of_pitch'){
         if(typeof window.SWEKingResolveTie!=='function')throw Error('Module Roi du terrain non chargé : actualise la page.');
-        tieDecision=window.SWEKingResolveTie(fresh,home,away,fresh.home_score,fresh.away_score);
+        tieDecision=await window.SWEKingResolveTie(fresh,home,away,fresh.home_score,fresh.away_score);
         if(!tieDecision)return;
       }
       if(tour.format!=='conquest'||fresh.competition_type!=='conquest_playoff'){
