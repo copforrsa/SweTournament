@@ -1,4 +1,4 @@
-const SW_BUILD='51.36-csc-public';
+const SW_BUILD='51.37-vote-access-sync';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
