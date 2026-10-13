@@ -1,0 +1,9 @@
+.swe-king-tie-overlay{position:fixed;inset:0;z-index:11000;background:rgba(5,20,35,.6);display:grid;place-items:center;padding:18px}
+.swe-king-tie-dialog{background:#fff;color:#16283d;border-radius:18px;padding:24px;width:min(560px,100%);box-shadow:0 25px 65px #0005}
+.swe-king-tie-dialog h3{font-size:22px;margin:0 0 12px}
+.swe-king-tie-method{padding:10px 12px;background:#fff4d8;border-radius:8px;font-weight:700}
+.swe-king-tie-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}
+.swe-king-tie-team{padding:16px 8px;border:2px solid #146dd9;border-radius:12px;background:#eff6ff;color:#073778;font-size:18px;font-weight:850;cursor:pointer}
+.swe-king-tie-team:hover,.swe-king-tie-team:focus{background:#146dd9;color:#fff}
+.swe-king-tie-cancel{width:100%;border:1px solid #b3c4d6;background:#f5f7fa;border-radius:10px;padding:12px;cursor:pointer}
+@media(max-width:440px){.swe-king-tie-choices{grid-template-columns:1fr}}
