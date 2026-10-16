@@ -5,3 +5,13 @@ html.swe-player-home-active #sweProfileIdentity52 .swe-profile-preferences label
 html.swe-player-home-active #sweProfileIdentity52 .swe-profile-preferences input[type=checkbox]{appearance:auto!important;-webkit-appearance:checkbox!important;display:block!important;position:static!important;flex:0 0 21px!important;width:21px!important;height:21px!important;margin:0!important;padding:0!important;transform:none!important}
 html.swe-player-home-active #sweProfileIdentity52 .swe-profile-preferences button{display:block!important;width:100%!important;min-height:44px!important}
 html.swe-organizer-setup-active #workspaceSetup{display:block!important;visibility:visible!important;opacity:1!important}
+
+#swePlayerPreferencesTab52{grid-column:1/-1!important;min-width:0}
+#swePlayerPreferencesTab52 .swe-profile-preferences{border-top:0;margin-top:0;display:flex!important;flex-direction:column;align-items:stretch;gap:12px}
+#swePlayerPreferencesTab52 .swe-profile-preferences>label,#swePlayerPreferencesTab52 .swe-profile-theme-choices label{display:flex!important;flex-direction:row!important;justify-content:flex-start!important;align-items:center!important;gap:12px!important;min-height:48px!important}
+#swePlayerPreferencesTab52 input[type=checkbox],#swePlayerPreferencesTab52 input[type=radio]{position:static!important;appearance:auto!important;flex:0 0 20px!important;width:20px!important;height:20px!important;margin:0!important}
+#swePlayerPreferencesTab52 .swe-profile-theme-choices{width:100%;display:flex;gap:18px;flex-wrap:wrap;border:1px solid #d5e5fb;border-radius:12px;padding:12px}
+#swePlayerPreferencesTab52 .swe-profile-theme-choices legend{font-weight:700;padding:0 8px}
+#sweOrganizerOffers52{grid-column:1/-1!important;min-width:0}
+#sweOrganizerOffers52 .swe-organizer-disclaimer{font-size:.86rem;color:#475569}
+#sweOrganizerOffers52 #sweOrganizerContinue52{width:100%;min-height:48px}

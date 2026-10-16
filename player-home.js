@@ -8,8 +8,8 @@ const E=id=>document.getElementById(id);
 const state=()=>{try{return S}catch(_){return null}};
 const api=()=>{try{return sb}catch(_){return null}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const panels=['home','registrations','mine','stats','profile','discover'];
-const labels=['Accueil','Mes inscriptions','Mes SWÉs','Mes stats','Mon profil'];
+const panels=['home','registrations','mine','stats','profile','preferences','organizer','discover'];
+const labels=['Accueil','Mes inscriptions','Mes SWÉs','Mes stats','Mon profil','Mes préférences','Organiser'];
 let selected='home',timer,userId='',generation=0,loadedAt=0,busy=false,community=null,loadError=false,inviteAnchor;
 function node(tag,id,html){const n=document.createElement(tag);n.id=id;if(html)n.innerHTML=html;return n}
 function group(n,sections,order,half=false){
@@ -20,7 +20,7 @@ function group(n,sections,order,half=false){
 function shell(n){return n?.closest('.swe-profile-fold')||n}
 function card(id){return shell(E(id)?.closest('.card'))}
 function choose(panel,focus=false){
- if(!panels.includes(panel))return;selected=panel;paint();
+ if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer')window.SWEOrganizerOffers52?.mount();
  if(focus){const target=E('view-myplayer').querySelector('[data-player-sections]:not(.swe-player-filtered) h2');if(target){target.tabIndex=-1;target.focus({preventScroll:true})}}
 }
 function nativeView(view){
@@ -31,7 +31,7 @@ function creator(){if(typeof window.openSimpleSweCreator==='function')window.ope
 function openPlayerCard(){if(typeof window.SWEPlayerCard?.open==='function'){window.SWEPlayerCard.open();return}const native=E('swe4338CardBtn');if(native){native.click();return}if(typeof toast==='function')toast('Ta carte de joueur est encore en cours de chargement.')}
 function ensure(view){
  if(E('swePlayerHeader'))return;
- const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+panels.slice(0,5).map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+labels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
+ const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+panels.slice(0,7).map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+labels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
  view.prepend(header);
  header.querySelector('a').onclick=e=>{e.preventDefault();choose('home')};
  E('swePlayerLogout').onclick=()=>E('logout')?.click();
@@ -44,7 +44,7 @@ function ensure(view){
  E('swePlayerManage').onclick=()=>{creator();E('swe4351Mine')?.scrollIntoView({behavior:'smooth',block:'center'})};
  E('swePlayerMineRefresh').onclick=()=>loadCommunity(true);
  const commercial=node('section','swePlayerCommercial','<div><span class="swe-player-kicker">TON GROUPE EST DÉJÀ SUR WHATSAPP ?</span><h2>Garde la discussion. Confie l’organisation à SWÉ.</h2><p>Inscriptions, équipes, scores, classements et rappels réunis au même endroit — WhatsApp reste votre vestiaire.</p></div><button type="button" id="swePlayerOffers">Organiser mon groupe avec SWÉ →</button>');
- view.append(commercial);E('swePlayerOffers').onclick=openOffers;
+ view.append(commercial);E('swePlayerOffers').onclick=()=>choose('organizer',true);
  view.addEventListener('click',e=>{const b=e.target.closest('[data-player-panel]');if(!b||!view.contains(b))return;e.preventDefault();choose(b.dataset.playerPanel,true);closeAccount()});
  header.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAccount();E('swePlayerAccountToggle').focus()}});
  document.addEventListener('click',e=>{const account=E('swePlayerAccount');if(account&&!account.contains(e.target))closeAccount()});
