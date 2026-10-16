@@ -148,8 +148,9 @@ async function loadPublicDiscovery(){
  block.classList.toggle('swe-player-filtered',selected!=='home'&&selected!=='discover');
  const out=E('sweIndependentDiscoveryRows');
  try{
-  const {data,error}=await sb.rpc('list_swe_discovery_public',{p_limit:60});
+  const [{data,error},{data:details}] = await Promise.all([sb.rpc('list_swe_discovery_public',{p_limit:60}),sb.rpc('swe_discovery_details_v1')]);
   if(error)throw error;
+  const extra=new Map((Array.isArray(details)?details:[]).map(x=>[String(x.tournament_id),x]));
   const records=Array.isArray(data)?data:[];
   const rows=records.filter(t=>t.registration_open&&Number(t.remaining_places)>=0);
   out.replaceChildren();
@@ -157,11 +158,26 @@ async function loadPublicDiscovery(){
   for(const t of rows){
    const card=document.createElement('article');card.className='swe-player-public-row';
    const title=document.createElement('strong');title.textContent=(t.tournament_name||'SWÉ')+' · '+(t.workspace_name||'');
+   const info=extra.get(String(t.tournament_id))||{};
    const details=document.createElement('p');details.textContent=[t.tournament_date,t.start_time?String(t.start_time).slice(0,5):'',t.venue||'Lieu à confirmer',String(t.remaining_places)+' place(s) restante(s)'].filter(Boolean).join(' · ');
+   const facts=document.createElement('p');facts.className='swe-player-discovery-facts';
+   const format={classic:'Classique',conquest:'Conquête',fast_conquest:'Fast Conquête',king_of_pitch:'Roi du terrain'}[info.format]||'Tournoi';
+   const fee=Number(t.entry_fee_cents||0), onsite=Number(info.onsite_entry_fee_cents||0);
+   facts.textContent=[format,info.team_size?info.team_size+' joueurs par équipe':'',fee?'Participation : '+(fee/100).toFixed(2)+' €':'',onsite?'Sur place : '+(onsite/100).toFixed(2)+' €':'',info.match_duration_minutes?'Matchs de '+info.match_duration_minutes+' min':'',info.registration_deadline?'Fin des inscriptions : '+new Date(info.registration_deadline).toLocaleString('fr-FR'):''].filter(Boolean).join(' · ');
+   const briefing=document.createElement('p');briefing.className='swe-player-discovery-briefing';
+   briefing.textContent=info.briefing||'Les modalités seront précisées par l’organisateur.';
+   const place=document.createElement('p');place.textContent=info.venue_address?'Adresse : '+info.venue_address:'';
+   const status=document.createElement('div');status.className='swe-player-discovery-status';status.setAttribute('role','status');
+   const dashboard=state()?.playerDashboard;
+   const existing=(dashboard?.requests||[]).find(x=>String(x.tournament_id)===String(t.tournament_id));
+   const direct=t.discovery_mode==='public';
    const button=document.createElement('button');button.type='button';button.className='primary';
-   const direct=t.discovery_mode==='public';button.textContent=direct?'⚡ Je participe':'🙋 Demander à participer';
+   button.textContent=direct?'⚡ Je participe':'🙋 Demander à participer';
    button.dataset[direct?'playerDirectJoin':'playerRequestJoin']=t.tournament_id;
-   card.append(title,details,button);out.append(card);
+   if(existing?.status==='pending'){status.textContent='⏳ Demande envoyée · En attente de validation par l’organisateur';button.disabled=true;button.textContent='Demande en attente';}
+   else if(existing?.status==='approved'||existing?.status==='accepted'){status.textContent='✅ Participation acceptée';button.disabled=true;button.textContent='Acceptée';}
+   else if(!direct){const note=document.createElement('p');note.className='swe-player-discovery-note';note.textContent='Ta demande sera transmise à l’organisateur. L’inscription n’est pas encore confirmée.';card.append(note);}
+   card.append(title,details,facts,place,briefing,button,status);out.append(card);
   }
   discoveryLoadedAt=Date.now();
  }catch(e){out.textContent='Impossible de charger les SWÉs publics. Réessaie dans quelques instants.';console.warn('Public SWÉ discovery',e)}
@@ -180,6 +196,7 @@ function schedule(){syncMode();clearTimeout(timer);timer=setTimeout(paint,260)}
 document.addEventListener('swe:page-view',()=>{if(state()?.lastView==='simple-swe')loadedAt=0});
 document.addEventListener('click',e=>{if(e.target.closest?.('.tabs button,[data-swe-go]'))schedule()});
 window.addEventListener('pageshow',schedule);
+document.addEventListener('swe:discovery-updated',()=>{discoveryLoadedAt=0;loadPublicDiscovery()});
 document.addEventListener('click',e=>{if(e.target.closest?.('#cancelWorkspaceSetup')){offerMode(false);setTimeout(()=>{if(state()?.session&&typeof setView==='function')setView('myplayer')},0)}},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 setTimeout(paint,900);setTimeout(paint,2600);
