@@ -1,6 +1,6 @@
-const SW_BUILD='51.44-no-home-guest-rating';
+const SW_BUILD='52.0';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
-const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL).catch(()=>{})));
