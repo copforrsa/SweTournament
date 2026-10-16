@@ -6,7 +6,7 @@ const options=['À préciser','Débutant','En progression','Intermédiaire','Bon
 let busy=false,loaded=false;
 async function refresh(){
  const panel=document.getElementById('saGuestRatings');
- if(!panel||!window.sb||busy)return;
+ if(!panel||typeof sb==='undefined'||busy)return;
  busy=true;
  try{
   const {data,error}=await sb.rpc('super_admin_guest_ratings_v1');
