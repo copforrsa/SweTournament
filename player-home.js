@@ -148,9 +148,10 @@ async function loadPublicDiscovery(){
  block.classList.toggle('swe-player-filtered',selected!=='home'&&selected!=='discover');
  const out=E('sweIndependentDiscoveryRows');
  try{
-  const [{data,error},{data:details}] = await Promise.all([sb.rpc('list_swe_discovery_public',{p_limit:60}),sb.rpc('swe_discovery_details_v1')]);
+  const [{data,error},{data:details},{data:statuses}] = await Promise.all([sb.rpc('list_swe_discovery_public',{p_limit:60}),sb.rpc('swe_discovery_details_v1'),sb.rpc('my_swe_discovery_status_v1')]);
   if(error)throw error;
   const extra=new Map((Array.isArray(details)?details:[]).map(x=>[String(x.tournament_id),x]));
+  const saved=new Map((Array.isArray(statuses)?statuses:[]).map(x=>[String(x.tournament_id),x.status]));
   const records=Array.isArray(data)?data:[];
   const rows=records.filter(t=>t.registration_open&&Number(t.remaining_places)>=0);
   out.replaceChildren();
@@ -170,12 +171,14 @@ async function loadPublicDiscovery(){
    const status=document.createElement('div');status.className='swe-player-discovery-status';status.setAttribute('role','status');
    const dashboard=state()?.playerDashboard;
    const existing=(dashboard?.requests||[]).find(x=>String(x.tournament_id)===String(t.tournament_id));
+   const savedStatus=saved.get(String(t.tournament_id));
    const direct=t.discovery_mode==='public';
    const button=document.createElement('button');button.type='button';button.className='primary';
    button.textContent=direct?'⚡ Je participe':'🙋 Demander à participer';
    button.dataset[direct?'playerDirectJoin':'playerRequestJoin']=t.tournament_id;
-   if(existing?.status==='pending'){status.textContent='⏳ Demande envoyée · En attente de validation par l’organisateur';button.disabled=true;button.textContent='Demande en attente';}
-   else if(existing?.status==='approved'||existing?.status==='accepted'){status.textContent='✅ Participation acceptée';button.disabled=true;button.textContent='Acceptée';}
+   if(savedStatus==='requested'||existing?.status==='pending'){status.textContent='⏳ Demande envoyée · En attente de validation par l’organisateur';button.disabled=true;button.textContent='Demande en attente';}
+   else if(savedStatus==='confirmed'||existing?.status==='approved'||existing?.status==='accepted'){status.textContent='✅ Participation acceptée';button.disabled=true;button.textContent='Acceptée';}
+   else if(savedStatus==='waitlist'){status.textContent='🟠 Inscription enregistrée · En liste d’attente';button.disabled=true;button.textContent='En attente de place';}
    else if(!direct){const note=document.createElement('p');note.className='swe-player-discovery-note';note.textContent='Ta demande sera transmise à l’organisateur. L’inscription n’est pas encore confirmée.';card.append(note);}
    card.append(title,details,facts,place,briefing,button,status);out.append(card);
   }
