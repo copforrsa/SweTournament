@@ -1,4 +1,4 @@
-const SW_BUILD='52.2-discovery-state';
+const SW_BUILD='52.4-player-identity-rating-window';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
