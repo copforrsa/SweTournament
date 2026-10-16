@@ -1,6 +1,7 @@
 /* Player presentation only. Native .tab/.view routing and action handlers stay authoritative. */
 (()=>{
 'use strict';
+if(window.SWEPlayerHome)return;
 if(window.__SWE_PLAYER_HOME_R2)return;
 window.__SWE_PLAYER_HOME_R2=true;
 const E=id=>document.getElementById(id);
@@ -144,6 +145,7 @@ async function loadPublicDiscovery(){
  let block=E('sweIndependentDiscovery');
  if(!block){block=node('section','sweIndependentDiscovery','<h2>🏆 SWÉs publics à rejoindre</h2><div id="sweIndependentDiscoveryRows" aria-live="polite">Chargement…</div>');block.className='card';view.append(block);}
  group(block,'home discover',29);
+ block.classList.toggle('swe-player-filtered',selected!=='home'&&selected!=='discover');
  const out=E('sweIndependentDiscoveryRows');
  try{
   const {data,error}=await sb.rpc('list_swe_discovery_public',{p_limit:60});
