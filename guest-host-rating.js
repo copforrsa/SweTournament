@@ -6,8 +6,11 @@
  let pending=false;
  async function mount(){
   if(pending||typeof sb==='undefined')return;
+  if(document.activeElement?.closest?.('#sweGuestRating'))return;
+  const publicForm=document.getElementById('publicGuestFields');
   const home=document.getElementById('view-home');
-  if(!home)return;
+  const target=publicForm && getComputedStyle(publicForm).display!=='none' ? publicForm : home;
+  if(!target)return;
   pending=true;
   try{
    const {data:session}=await sb.auth.getSession();
@@ -17,7 +20,7 @@
    const items=Array.isArray(data)?data:[];
    let panel=document.getElementById('sweGuestRating');
    if(!items.length){panel?.remove();return}
-   if(!panel){panel=document.createElement('section');panel.id='sweGuestRating';panel.className='card';home.prepend(panel)}
+   if(!panel){panel=document.createElement('section');panel.id='sweGuestRating';panel.className='card';target===publicForm?publicForm.append(panel):home.prepend(panel)}
    panel.innerHTML='<h3>⚽ Niveau provisoire de mes invités</h3><p>Tu es le seul à pouvoir renseigner leur estimation avant le tirage. Elle sert à équilibrer les équipes.</p><div class="swe-guest-items"></div>';
    const list=panel.querySelector('.swe-guest-items');
    items.forEach(item=>{
@@ -35,6 +38,9 @@
   }catch(e){console.warn('Guest assessment unavailable',e)}finally{pending=false}
  }
  document.addEventListener('DOMContentLoaded',mount);
- document.addEventListener('swe:rendered',()=>{if(document.getElementById('sweGuestRating'))return;mount()});
+ document.addEventListener('swe:guest-added',mount);
+ document.addEventListener('change',event=>{if(event.target?.id==='publicPlayerSelect')mount()});
+ setInterval(()=>{if(document.visibilityState==='visible'&&document.getElementById('publicGuestFields'))mount()},15000);
+ document.addEventListener('swe:rendered',()=>{mount()});
  window.addEventListener('pageshow',mount);
 })();
