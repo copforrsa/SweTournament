@@ -10,9 +10,9 @@ async function inspect(){
  if(checked===session.user.id)return;
  busy=true;
  try{
-  const {data,error}=await sb.rpc('my_player_identity_form_v52');
+  let {data,error}=await sb.rpc('my_player_identity_form_v52');
   if(error){console.warn('Player identity check:',error.message);return}
-  if(!data?.exists){return}
+  if(!data?.exists){const created=await sb.rpc('ensure_my_global_player_profile',{p_display_name:null});if(created.error){console.warn('Player profile:',created.error.message);return}const current=await sb.rpc('my_player_identity_form_v52');if(current.error)return;data=current.data;}
   checked=session.user.id;
   if(data.complete){E('sweIdentity52')?.remove();return}
   state=data;open();
