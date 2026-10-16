@@ -1,6 +1,7 @@
 /* Player presentation only. Native .tab/.view routing and action handlers stay authoritative. */
 (()=>{
 'use strict';
+if(window.SWEPlayerHome)return;
 if(window.__SWE_PLAYER_HOME_R2)return;
 window.__SWE_PLAYER_HOME_R2=true;
 const E=id=>document.getElementById(id);
@@ -137,13 +138,42 @@ function syncMode(){
  if(!active&&inviteAnchor?.parentNode&&E('inviteBox')?.parentNode===E('view-myplayer'))inviteAnchor.after(E('inviteBox'));
  return active;
 }
+let discoveryLoading=false,discoveryLoadedAt=0;
+async function loadPublicDiscovery(){
+ const view=E('view-myplayer');if(!view||discoveryLoading||Date.now()-discoveryLoadedAt<30000)return;
+ discoveryLoading=true;
+ let block=E('sweIndependentDiscovery');
+ if(!block){block=node('section','sweIndependentDiscovery','<h2>🏆 SWÉs publics à rejoindre</h2><div id="sweIndependentDiscoveryRows" aria-live="polite">Chargement…</div>');block.className='card';view.append(block);}
+ group(block,'home discover',29);
+ block.classList.toggle('swe-player-filtered',selected!=='home'&&selected!=='discover');
+ const out=E('sweIndependentDiscoveryRows');
+ try{
+  const {data,error}=await sb.rpc('list_swe_discovery_public',{p_limit:60});
+  if(error)throw error;
+  const records=Array.isArray(data)?data:[];
+  const rows=records.filter(t=>t.registration_open&&Number(t.remaining_places)>=0);
+  out.replaceChildren();
+  if(!rows.length){out.textContent='Aucun SWÉ public ouvert actuellement.';return}
+  for(const t of rows){
+   const card=document.createElement('article');card.className='swe-player-public-row';
+   const title=document.createElement('strong');title.textContent=(t.tournament_name||'SWÉ')+' · '+(t.workspace_name||'');
+   const details=document.createElement('p');details.textContent=[t.tournament_date,t.start_time?String(t.start_time).slice(0,5):'',t.venue||'Lieu à confirmer',String(t.remaining_places)+' place(s) restante(s)'].filter(Boolean).join(' · ');
+   const button=document.createElement('button');button.type='button';button.className='primary';
+   const direct=t.discovery_mode==='public';button.textContent=direct?'⚡ Je participe':'🙋 Demander à participer';
+   button.dataset[direct?'playerDirectJoin':'playerRequestJoin']=t.tournament_id;
+   card.append(title,details,button);out.append(card);
+  }
+  discoveryLoadedAt=Date.now();
+ }catch(e){out.textContent='Impossible de charger les SWÉs publics. Réessaie dans quelques instants.';console.warn('Public SWÉ discovery',e)}
+ finally{discoveryLoading=false}
+}
 function paint(){
  const active=syncMode(),s=state(),view=E('view-myplayer');if(!active||!view)return;
  const uid=s.session.user.id;if(uid!==userId){userId=uid;selected='home';community=null;busy=false;loadedAt=0;generation++}
  ensure(view);updateAccount();decorate(view);if(!E('workspaceSetup')?.classList.contains('hidden'))offerMode(true);view.dataset.playerPanel=selected;
  view.querySelectorAll('[data-player-sections]').forEach(n=>n.classList.toggle('swe-player-filtered',!n.dataset.playerSections.split(' ').includes(selected)));
  view.querySelectorAll('#swePlayerNav button').forEach(b=>{const yes=b.dataset.playerPanel===selected;b.setAttribute('aria-current',yes?'page':'false')});
- renderCommunity();loadCommunity();
+ renderCommunity();loadCommunity();loadPublicDiscovery();
 }
 function schedule(){syncMode();clearTimeout(timer);timer=setTimeout(paint,260)}
 ['swe:rendered','swe:page-view','swe:player-ui-ready','swe:player-profile-updated'].forEach(e=>document.addEventListener(e,schedule));
