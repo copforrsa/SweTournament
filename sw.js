@@ -1,4 +1,4 @@
-const SW_BUILD='51.40-guest-rating-public-flow';
+const SW_BUILD='51.41-inline-guest-review';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
