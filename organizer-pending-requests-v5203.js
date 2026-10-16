@@ -34,7 +34,7 @@ async function render(force=false){
        const {data:result,error}=await sb.rpc('respond_global_player_participation_request',{p_request_id:r.request_id,p_accept:accept});
        if(error){feedback.textContent=error.message;action.querySelectorAll('button').forEach(b=>b.disabled=false);return}
        feedback.textContent=accept?(result?.payment_required?'Acceptée — paiement du joueur en attente':'Demande acceptée — inscription créée'):'Demande refusée';
-       stamp=0;await render(true);
+       stamp=0;item.remove();
       };action.append(btn);
     }
     action.append(feedback);item.append(heading,details,message,action);box.append(item);
