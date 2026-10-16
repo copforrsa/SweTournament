@@ -8,9 +8,8 @@
   if(pending||typeof sb==='undefined')return;
   if(document.activeElement?.closest?.('.swe-guest-rating-item'))return;
   const publicForm=document.getElementById('publicGuestFields');
-  const home=document.getElementById('view-home');
-  const target=publicForm && getComputedStyle(publicForm).display!=='none' ? publicForm : home;
-  if(!target)return;
+  document.getElementById('sweGuestRating')?.remove();
+  if(!publicForm || getComputedStyle(publicForm).display==='none')return;
   pending=true;
   try{
    const {data:session}=await sb.auth.getSession();
@@ -21,13 +20,7 @@
    const own=document.getElementById('publicOwnGuests');
    const inline=Boolean(own&&publicForm&&getComputedStyle(publicForm).display!=='none');
    document.getElementById('sweGuestRating')?.remove();
-   if(!inline && !home)return;
-   let panel=null,list=null;
-   if(!inline){
-     panel=document.createElement('section');panel.id='sweGuestRating';panel.className='card';
-     panel.innerHTML='<h3>⚽ Niveau provisoire de mes invités</h3><p>Estime leur niveau avant le tirage.</p><div class="swe-guest-items"></div>';
-     home.prepend(panel);list=panel.querySelector('.swe-guest-items');
-   }
+   if(!inline)return;
    items.forEach(item=>{
     const form=document.createElement('form');form.className='swe-guest-rating-item';
     form.dataset.guestId=item.guest_player_id;
@@ -47,7 +40,7 @@
      if(!error){form.querySelectorAll('select').forEach(el=>el.disabled=true);btn.remove();}
      btn.disabled=false;
     };
-    if(inline){const rows=[...own.querySelectorAll('[data-swe-guest-player-id]')];const row=rows.find(el=>el.dataset.sweGuestPlayerId===String(item.guest_player_id));if(row){row.querySelector('.swe-guest-inline')?.remove();const slot=document.createElement('div');slot.className='swe-guest-inline';slot.append(form);row.append(slot)}}else{const heading=document.createElement('strong');heading.textContent=item.guest_name+' — '+item.tournament_name;form.prepend(heading);list.append(form)}
+    if(inline){const rows=[...own.querySelectorAll('[data-swe-guest-player-id]')];const row=rows.find(el=>el.dataset.sweGuestPlayerId===String(item.guest_player_id));if(row){row.querySelector('.swe-guest-inline')?.remove();const slot=document.createElement('div');slot.className='swe-guest-inline';slot.append(form);row.append(slot)}}
    });
   }catch(e){console.warn('Guest assessment unavailable',e)}finally{pending=false}
  }
