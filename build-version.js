@@ -4,8 +4,8 @@ window.SWE_BUILD_VERSION='52.0';
 'use strict';
 const build=window.SWE_BUILD_VERSION;
 window.SWEApplyBuild=()=>{
- document.title=document.title.replace(/V\\d+\\.\\d+/g,'V'+build);
- document.querySelectorAll('h1 span').forEach(el=>{if(/^V(?:42|43)\./.test(el.textContent.trim()))el.textContent='V'+build;});
+ document.title=document.title.replace(/V\d+\.\d+/g,'V'+build);
+ document.querySelectorAll('h1 span').forEach(el=>{if(/^V\d+\.\d+/.test(el.textContent.trim()))el.textContent='V'+build;});
  document.querySelectorAll('.build-badge').forEach(el=>{el.textContent='MAJ '+build;el.title='Version chargée : '+build;});
  document.documentElement.dataset.sweVersion=build;
 };
