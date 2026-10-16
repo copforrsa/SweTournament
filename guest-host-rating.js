@@ -6,6 +6,7 @@
  let pending=false;
  async function mount(){
   if(pending||typeof sb==='undefined')return;
+  if(document.activeElement?.closest?.('#sweGuestRating'))return;
   const publicForm=document.getElementById('publicGuestFields');
   const home=document.getElementById('view-home');
   const target=publicForm && getComputedStyle(publicForm).display!=='none' ? publicForm : home;
