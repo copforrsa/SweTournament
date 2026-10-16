@@ -6338,6 +6338,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
       const hostIsRegistered=registrations.some(r=>r.tournament_id===regTour.id&&r.player_id===host&&r.present);
       guestFeedback((data?.status==='waitlist'?'🟠 Quota atteint : l’invité est inscrit comme remplaçant.':'🟢 Invité ajouté et confirmé !')+(data?.member?' Il est aussi enregistré comme membre du groupe.':'')+(!hostIsRegistered&&regTour.format!=='league'?' Tu restes non inscrit au tournoi.':'')+' • '+remaining+' invitation'+(remaining>1?'s':'')+' restante'+(remaining>1?'s':'')+'.');
       await refreshPublicRegistration();
+      document.dispatchEvent(new Event('swe:guest-added'));
       }catch(error){guestFeedback(error?.message||'Connexion interrompue. Réessaie d’ajouter ton invité.');}finally{b.disabled=false;b.textContent=originalLabel;}
     };
     if(window.__swePublicRegistrationInterval)clearInterval(window.__swePublicRegistrationInterval);
