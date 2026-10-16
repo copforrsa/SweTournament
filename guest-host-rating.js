@@ -41,7 +41,7 @@
      feedback.textContent=error?'Erreur : '+error.message:'✓ Note provisoire enregistrée';
      btn.disabled=false;
     };
-    if(inline){const rows=[...own.querySelectorAll('[data-swe-guest-player-id]')];const row=rows.find(el=>el.dataset.sweGuestPlayerId===String(item.guest_player_id));if(row){const slot=document.createElement('div');slot.className='swe-guest-inline';slot.append(form);row.append(slot)}}else{const heading=document.createElement('strong');heading.textContent=item.guest_name+' — '+item.tournament_name;form.prepend(heading);list.append(form)}
+    if(inline){const rows=[...own.querySelectorAll('[data-swe-guest-player-id]')];const row=rows.find(el=>el.dataset.sweGuestPlayerId===String(item.guest_player_id));if(row){row.querySelector('.swe-guest-inline')?.remove();const slot=document.createElement('div');slot.className='swe-guest-inline';slot.append(form);row.append(slot)}}else{const heading=document.createElement('strong');heading.textContent=item.guest_name+' — '+item.tournament_name;form.prepend(heading);list.append(form)}
    });
   }catch(e){console.warn('Guest assessment unavailable',e)}finally{pending=false}
  }
