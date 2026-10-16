@@ -67,8 +67,8 @@ function offerMode(on){
  let back=E('swePlayerOfferBack');if(!back){back=document.createElement('button');back.id='swePlayerOfferBack';back.type='button';back.textContent='← Retour à mon espace joueur';setup.prepend(back);back.onclick=closeOffers}
  window.scrollTo({top:0,behavior:'smooth'});
 }
-function openOffers(){const setup=E('workspaceSetup');if(!setup)return;E('accountOnboarding')?.classList.add('hidden');setup.classList.remove('hidden');const radio=setup.querySelector('input[name="organizerType"][value="group"]');if(radio)radio.checked=true;offerMode(true);setup.scrollIntoView({behavior:'smooth',block:'start'});setup.querySelector('#newWorkspace')?.focus({preventScroll:true})}
-function closeOffers(){E('workspaceSetup')?.classList.add('hidden');offerMode(false);if(typeof setView==='function')setView('myplayer');choose('home')}
+function openOffers(){const setup=E('workspaceSetup');if(!setup)return;E('accountOnboarding')?.classList.add('hidden');setup.classList.remove('hidden');setup.style.display='block';const radio=setup.querySelector('input[name="organizerType"][value="group"]');if(radio)radio.checked=true;offerMode(true);setup.scrollIntoView({behavior:'smooth',block:'start'});setup.querySelector('#newWorkspace')?.focus({preventScroll:true})}
+function closeOffers(){E('workspaceSetup')?.classList.add('hidden');E('workspaceSetup')?.style.removeProperty('display');offerMode(false);if(typeof setView==='function')setView('myplayer');choose('home')}
 function updateAccount(){
  const s=state(),p=s?.playerDashboard?.profile||{},name=p.nickname||p.first_name||p.display_name||'Mon compte';
  E('swePlayerName').textContent=name;E('swePlayerAvatar').textContent=name.slice(0,1).toUpperCase();
