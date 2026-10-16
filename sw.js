@@ -1,4 +1,4 @@
-const SW_BUILD='51.43-superadmin-guest-ratings';
+const SW_BUILD='51.44-no-home-guest-rating';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
