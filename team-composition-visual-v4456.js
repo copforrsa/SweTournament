@@ -24,8 +24,8 @@
       // Other presentation modules may render a second list headed
       // "Compositions des équipes"; hide only that standalone card.
       publicView.querySelectorAll('h2,h3').forEach(heading=>{
-        if(heading.textContent.trim()!=='Compositions des équipes')return;
-        const card=heading.closest('.card,.sp-card');
+        if(!heading.textContent.includes('Compositions des équipes'))return;
+        const card=heading.closest('.card,.sp-card,section,article');
         if(card&&card.id!=='swePublicCompositionVisual'){
           card.classList.toggle('swecomp-duplicate-roster',showingImage);
         }
