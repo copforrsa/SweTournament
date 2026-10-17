@@ -1,0 +1,1 @@
+(()=>{'use strict';const p=new URLSearchParams(location.search);if(p.get('start')==='player'&&!p.has('public')&&!p.has('tournament'))document.documentElement.classList.add('swe-player-login-first-paint');})();
