@@ -3,7 +3,7 @@
 <head>
 <script>
 (function(){try{
- var q=new URLSearchParams(location.search),special=['public','tournament','invite','signup','reset','recovery','coolerReturn','joinSwe','payment_desk','desk','test_tournament','coorg_session_id'].some(function(k){return q.has(k)})||location.hash.indexOf('access_token')>=0||location.hash.indexOf('type=recovery')>=0;
+ var q=new URLSearchParams(location.search),special=['public','tournament','s','pay','paydesk','paydesk_session','invite','signup','reset','recovery','coolerReturn','joinSwe','payment_desk','desk','test_tournament','coorg_session_id'].some(function(k){return q.has(k)})||location.hash.indexOf('access_token')>=0||location.hash.indexOf('type=recovery')>=0;
  if(!special&&!sessionStorage.getItem('swe_auth_app_return_v53')){location.replace('/connexion.html'+location.search+location.hash)}
 }catch(e){}})();
 </script>
