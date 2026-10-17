@@ -1,9 +1,9 @@
 /* Paint one stable player login; legacy scripts may enhance content, not move it. */
-html.swe-player-login-first-paint body{background:radial-gradient(circle at 50% 0%,#fff8e6,#eff5fd 70%)!important}
+html.swe-player-login-first-paint:has(#auth:not(.hidden)) body{background:radial-gradient(circle at 50% 0%,#fff8e6,#eff5fd 70%)!important}
 html.swe-player-login-first-paint #auth{width:min(470px,calc(100% - 28px))!important;max-width:470px!important;margin:7vh auto 0!important;min-height:0!important}
 html.swe-player-login-first-paint #auth>.top{display:none!important}
 html.swe-player-login-first-paint #auth #loginCard{background:#fff!important;border:1px solid #d8e4f3!important;border-radius:20px!important;box-shadow:0 15px 40px #0c28501b!important;padding:22px!important;margin:0 auto!important}
-html.swe-player-login-first-paint .app{max-width:600px!important;margin:auto!important;padding:16px!important}
+html.swe-player-login-first-paint:has(#auth:not(.hidden)) .app{max-width:600px!important;margin:auto!important;padding:16px!important}
 html.swe-player-login-first-paint #auth #loginCard .auth-login-brand{display:flex!important;align-items:center!important;gap:12px!important;margin:0 0 16px!important}
 html.swe-player-login-first-paint #auth #loginCard .auth-login-brand img{width:48px!important;height:48px!important;object-fit:contain!important}
 html.swe-player-login-first-paint #sweLoginOffers4252,html.swe-player-login-first-paint #sweComplexHome4281,html.swe-player-login-first-paint #swePublicTabs4310{display:none!important}
