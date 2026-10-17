@@ -1,0 +1,2 @@
+/* Legacy V43.18 login back link must never overlay an authenticated or public workspace. */
+body:has(#auth.hidden)>.swe-auth-back,body:has(#main:not(.hidden))>.swe-auth-back,body:has(#publicView:not(.hidden))>.swe-auth-back{display:none!important}
