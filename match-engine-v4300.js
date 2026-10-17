@@ -354,7 +354,13 @@ function renderStableMatches(allowHydrate=true){
     selectedMatchByTournament.set(String(t.id),selectedKey);
     const tabs=document.createElement('div');tabs.className='swe4300-pitch-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Matchs par terrain');
     const rounds=new Map();
-    current.forEach(m=>{
+    // Keep poule numbering from match_order but display each round by terrain.
+    const pitchRank=name=>({'carrefour':0,'mercedes':1,'boulogne':2})[String(name||'').trim().toLowerCase()]??3;
+    const displayedCurrent=qualificationPoules?[...current].sort((a,b)=>{
+      const roundA=Math.floor(rows.indexOf(a)/3),roundB=Math.floor(rows.indexOf(b)/3);
+      return roundA-roundB||pitchRank(a.pitch)-pitchRank(b.pitch)||rows.indexOf(a)-rows.indexOf(b);
+    }):current;
+    displayedCurrent.forEach(m=>{
       const number=rows.indexOf(m)+1,button=document.createElement('button');button.type='button';button.className='swe4300-pitch-tab'+(m.status==='finished'?' completed':'')+(String(m.id)===selectedKey?' active':'');button.setAttribute('role','tab');button.setAttribute('aria-selected',String(m.id)===selectedKey?'true':'false');
       const home=teamById(m.home_team_id),away=teamById(m.away_team_id);
       button.textContent=conquest?(m.rotation_role==='championship'?(m.pitch||m.round_label?.split(' · ')[1]||'Terrain')+' · ':'⚔️ ')+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+(m.status==='finished'?' · '+Number(m.home_score||0)+' – '+Number(m.away_score||0)+' ✓':''):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
