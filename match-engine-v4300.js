@@ -366,6 +366,7 @@ function renderStableMatches(allowHydrate=true){
       button.textContent=conquest?(m.rotation_role==='championship'?(m.pitch||m.round_label?.split(' · ')[1]||'Terrain')+' · ':'⚔️ ')+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+(m.status==='finished'?' · '+Number(m.home_score||0)+' – '+Number(m.away_score||0)+' ✓':''):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};
       const qualificationPoule=m.competition_type==='championship_qualification'&&m.format_stage==='qualification'&&rows.length===15;
+      if(qualificationPoule)button.style.order=String(pitchRank(m.pitch));
       if(qualificationPoule)button.textContent='⚽ '+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+' · 📍 '+(m.pitch||'Terrain à définir')+(m.status==='finished'?' · '+Number(m.home_score||0)+'-'+Number(m.away_score||0)+' ✓':'');
       const groupTitle=qualificationPoule?'Poule '+Math.ceil(number/3):matchSection(m);
       if(conquest&&groupTitle){
