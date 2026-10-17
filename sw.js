@@ -1,4 +1,4 @@
-const SW_BUILD='53.0-standalone-signin';
+const SW_BUILD='53.2-public-width-fix';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
