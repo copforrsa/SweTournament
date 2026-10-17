@@ -358,8 +358,11 @@ function renderStableMatches(allowHydrate=true){
       const home=teamById(m.home_team_id),away=teamById(m.away_team_id);
       button.textContent=conquest?(m.rotation_role==='championship'?(m.pitch||m.round_label?.split(' · ')[1]||'Terrain')+' · ':'⚔️ ')+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+(m.status==='finished'?' · '+Number(m.home_score||0)+' – '+Number(m.away_score||0)+' ✓':''):'⚽ '+(m.pitch||m.round_label||'Terrain')+' · Match '+number;
       button.onclick=()=>{selectedMatchByTournament.set(String(t.id),String(m.id));renderStableMatches(false)};
-      if(conquest&&matchSection(m)){
-        const round=matchSection(m);let group=rounds.get(round);
+      const qualificationPoule=m.competition_type==='championship_qualification'&&m.format_stage==='qualification'&&rows.length===15;
+      if(qualificationPoule)button.textContent='⚽ '+(home?.name||'Équipe 1')+' vs '+(away?.name||'Équipe 2')+' · 📍 '+(m.pitch||'Terrain à définir')+(m.status==='finished'?' · '+Number(m.home_score||0)+'-'+Number(m.away_score||0)+' ✓':'');
+      const groupTitle=qualificationPoule?'Poule '+Math.ceil(number/3):matchSection(m);
+      if(conquest&&groupTitle){
+        const round=groupTitle;let group=rounds.get(round);
         if(!group){const section=document.createElement('section');section.className='swe4300-round';const heading=document.createElement('h3');heading.textContent=round;group=document.createElement('div');group.className='swe4300-round-games';section.append(heading,group);tabs.appendChild(section);rounds.set(round,group)}
         group.appendChild(button);
       }else tabs.appendChild(button);
