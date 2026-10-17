@@ -1,4 +1,4 @@
-const SW_BUILD='53.5-inactive-reactivation';
+const SW_BUILD='54.0-organizer-alerts';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
@@ -37,3 +37,5 @@ self.addEventListener('fetch',event=>{
     }
   })());
 });
+
+self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async clients=>{const existing=clients.find(c=>c.url.startsWith(self.location.origin));if(existing){await existing.focus();return;}return self.clients.openWindow('/?start=home')}));});
