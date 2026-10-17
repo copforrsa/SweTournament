@@ -1,4 +1,4 @@
-const SW_BUILD='52.11-login-glaciere';
+const SW_BUILD='53.0-standalone-signin';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 

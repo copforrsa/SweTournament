@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="fr">
 <head>
+<script>
+(function(){try{
+ var q=new URLSearchParams(location.search),special=['public','tournament','invite','signup','reset','recovery','coolerReturn','joinSwe','payment_desk','desk','test_tournament','coorg_session_id'].some(function(k){return q.has(k)})||location.hash.indexOf('access_token')>=0||location.hash.indexOf('type=recovery')>=0;
+ if(!special&&!sessionStorage.getItem('swe_auth_app_return_v53')){location.replace('/connexion.html'+location.search+location.hash)}
+}catch(e){}})();
+</script>
   <script src="/auth-first-paint-v5210.js?v=5211"></script>
 <link rel="stylesheet" href="/auth-first-paint-v5210.css?v=5211">
 <script src="/build-version.js?v=5200"></script>

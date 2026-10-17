@@ -538,6 +538,7 @@ async function authState(){
   }
   const {data}=await sb.auth.getSession();
   S.session=data.session;
+  if(!S.session&&!recoveryMode&&!publicTokenFromUrl&&!paymentShortCodeFromUrl&&!inviteIdFromUrl&&!new URLSearchParams(location.search).has('signup')&&!coolerReturnFromUrl){try{sessionStorage.removeItem('swe_auth_app_return_v53')}catch(_){}location.replace('/connexion.html'+location.search);return;}
   if(S.session&&coolerTournamentFromUrl&&coolerReturnFromUrl){
     try{
       await sb.rpc('ensure_my_global_player_profile',{p_display_name:null});
