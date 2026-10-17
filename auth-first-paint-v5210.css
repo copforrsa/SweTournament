@@ -8,3 +8,10 @@ html.swe-player-login-first-paint #auth #loginCard .auth-login-brand{display:fle
 html.swe-player-login-first-paint #auth #loginCard .auth-login-brand img{width:48px!important;height:48px!important;object-fit:contain!important}
 html.swe-player-login-first-paint #sweLoginOffers4252,html.swe-player-login-first-paint #sweComplexHome4281,html.swe-player-login-first-paint #swePublicTabs4310{display:none!important}
 @media(max-width:650px){html.swe-player-login-first-paint #auth{margin:32px auto!important}}
+
+/* Keep the authentication shell visually stable while remote settings and enhancements load. */
+html.swe-player-login-first-paint #auth:not(.hidden) #loginCard{max-width:470px!important;width:100%!important;box-sizing:border-box!important}
+html.swe-player-login-first-paint #auth:not(.hidden)~#main{display:none!important}
+html.swe-player-login-first-paint #auth:not(.hidden) #sweLoginOffers4252,html.swe-player-login-first-paint #auth:not(.hidden) .auth-offers{display:none!important}
+html.swe-player-login-first-paint #auth:not(.hidden) #loginCard .auth-login-brand>img{width:48px!important;height:48px!important}
+html.swe-player-login-first-paint #auth:not(.hidden) #loginCard input{box-sizing:border-box!important;max-width:100%!important}
