@@ -334,7 +334,8 @@ function renderStableMatches(allowHydrate=true){
     // En Conquête, le championnat est préparé d'un coup : les matchs sans
     // terrain doivent tous rester accessibles, un onglet par match. Dans les
     // autres formats, on conserve un seul match courant par terrain.
-    const conquest=t.format==='fast_conquest'||/conqu[êe]te/i.test([t.name,t.format,t.reservation_reference].filter(Boolean).join(' '));
+    const qualificationPoules=rows.length===15&&rows.every(m=>m.competition_type==='championship_qualification'&&m.format_stage==='qualification');
+    const conquest=qualificationPoules||t.format==='fast_conquest'||/conqu[êe]te/i.test([t.name,t.format,t.reservation_reference].filter(Boolean).join(' '));
     let current;
     if(conquest){
       current=rows;
@@ -392,7 +393,8 @@ function renderStableMatches(allowHydrate=true){
       if(canManageDeletion())box.appendChild(deletionButton(t,selectedFinished));
     }else{
       const selected=current.find(m=>String(m.id)===selectedKey)||current[0];
-      const roundGroup=selected?rounds.get(matchSection(selected)):null;
+      const selectedGroup=selected?(qualificationPoules?'Poule '+Math.ceil((rows.indexOf(selected)+1)/3):matchSection(selected)):null;
+      const roundGroup=selectedGroup?rounds.get(selectedGroup):null;
       const detailHost=roundGroup?.parentElement||box;
       if(selected)detailHost.appendChild(buildCard(selected,rows.indexOf(selected)));
       if(selected && canManageDeletion())detailHost.appendChild(deletionButton(t,selected));
