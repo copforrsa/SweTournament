@@ -1,6 +1,29 @@
 (()=>{'use strict';
 const E=id=>document.getElementById(id);let busy=false,lastPoll=0;
 function state(){try{return S}catch(_){return null}}
+
+async function enablePush(){
+ if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw Error('Push non disponible sur cet appareil');
+ if(!state()?.session?.user?.id)throw Error('Connexion nécessaire');
+ const response=await fetch('https://fbppesfxkvledwjemwsn.supabase.co/functions/v1/swe-push');
+ if(!response.ok)throw Error('Service push indisponible');
+ const config=await response.json();
+ if(!config.enabled||!config.publicKey)throw Error('Clés push non configurées');
+ const permission=await Notification.requestPermission();
+ if(permission!=='granted')throw Error('Autorisation non accordée');
+ const reg=await navigator.serviceWorker.ready;
+ const base64=config.publicKey.replace(/-/g,'+').replace(/_/g,'/');
+ const bytes=Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length/4)*4,'=')),char=>char.charCodeAt(0));
+ let sub=await reg.pushManager.getSubscription();
+ if(sub?.options?.applicationServerKey&&String(Array.from(new Uint8Array(sub.options.applicationServerKey)))!==String(Array.from(bytes))){
+  await sub.unsubscribe();sub=null;
+ }
+ if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes});
+ const json=sub.toJSON();
+ const result=await sb.rpc('swe_save_push_subscription',{p_endpoint:json.endpoint,p_p256dh:json.keys.p256dh,p_auth:json.keys.auth});
+ if(result.error)throw Error(result.error.message);
+}
+
 async function check(){
 const s=state();if(!s?.session?.user?.id||s.publicMode||!['admin','coorganizer'].includes(s.workspace?.role)||busy)return;
 if(Date.now()-lastPoll<20000)return;busy=true;lastPoll=Date.now();
@@ -10,8 +33,8 @@ try{
  const items=Array.isArray(data)?data:[];
  const root=E('view-home');if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card';root.prepend(card)}
  let heading=card.querySelector('h2');if(!heading){heading=document.createElement('h2');heading.textContent='🔔 Notifications de mon SWÉ';card.append(heading)}
- let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{if(!('Notification'in window)){button.textContent='Notifications non prises en charge';return}const result=await Notification.requestPermission();button.textContent=result==='granted'?'✓ Notifications autorisées':'Notifications refusées';}}
- button.textContent=!('Notification'in window)?'Notifications non prises en charge':Notification.permission==='granted'?'✓ Notifications autorisées':'Autoriser les notifications sur cet appareil';
+ let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées'}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}};
+ button.textContent=!('PushManager'in window)?'Notifications push non prises en charge':Notification.permission==='granted'?'Activer les notifications push':'Autoriser les notifications sur cet appareil';
  let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
  if(items.length)for(const n of [...items].reverse()){const p=document.createElement('p');p.textContent=n.title+' — '+n.body;box.prepend(p)}
  if(!items.length&&!box.childElementCount)box.textContent='Les nouvelles inscriptions et ouvertures du salon apparaîtront ici.';
