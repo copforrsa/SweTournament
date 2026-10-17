@@ -2,7 +2,7 @@
 const E=id=>document.getElementById(id);
 const fmt=n=>(Number(n||0)/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
 async function load(force=false){
- let s;try{s=S}catch(_){return}const root=E('view-home');
+ let s;try{s=S}catch(_){return}const root=E('view-cooler');
  if(!root||s?.workspace?.role!=='admin'||!s?.workspace?.id||s.publicMode)return;
  if(loading||(!force&&when>Date.now()-20000&&workspace===s.workspace.id))return;
  loading=true;
@@ -10,7 +10,7 @@ async function load(force=false){
   const {data,error}=await sb.rpc('admin_revolut_glaciere_tournaments_v1',{p_workspace_id:s.workspace.id});
   if(error)throw error;when=Date.now();workspace=s.workspace.id;
   const items=Array.isArray(data)?data:[];
-  let box=E('sweRevolutReconcile52');if(!box){box=document.createElement('section');box.id='sweRevolutReconcile52';box.className='card';root.prepend(box)}
+  let box=E('sweRevolutReconcile52');if(!box){box=document.createElement('section');box.id='sweRevolutReconcile52';box.className='card';root.append(box)}
   box.hidden=!items.length;if(!items.length)return;
   box.innerHTML='<h2>💶 Glacière — vérifier les paiements Revolut</h2><p>Le lien Revolut personnel ne confirme pas automatiquement les transactions dans SWÉ. Vérifie d’abord le paiement dans Revolut, puis associe-le au joueur ici.</p><label>Tournoi <select id="sweRevolutTournament52"></select></label><div id="sweRevolutPlayers52" role="status"></div>';
   const select=E('sweRevolutTournament52');
