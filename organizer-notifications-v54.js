@@ -33,7 +33,7 @@ try{
  const items=Array.isArray(data)?data:[];
  const root=E('view-home');if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card';root.prepend(card)}
  let heading=card.querySelector('h2');if(!heading){heading=document.createElement('h2');heading.textContent='🔔 Notifications de mon SWÉ';card.append(heading)}
- let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées'}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}};
+ let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées'}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}};}
  button.textContent=!('PushManager'in window)?'Notifications push non prises en charge':Notification.permission==='granted'?'Activer les notifications push':'Autoriser les notifications sur cet appareil';
  let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
  if(items.length)for(const n of [...items].reverse()){const p=document.createElement('p');p.textContent=n.title+' — '+n.body;box.prepend(p)}
