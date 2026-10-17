@@ -1,4 +1,4 @@
-const SW_BUILD='54.0-organizer-alerts';
+const SW_BUILD='54.1-match-poules-pitches';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
