@@ -21,7 +21,9 @@
       old?.remove();
       return;
     }
-    const host=E('publicRegistration')||E('publicView');
+    // The solo registration form is hidden until the visitor chooses a mode.
+    // Keep the image in the public entry view, before the registration choices.
+    const host=E('publicEntryChoiceCard')||E('publicView');
     if(!host)return;
     let box=old;
     if(!box){
