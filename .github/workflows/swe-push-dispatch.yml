@@ -1,0 +1,22 @@
+name: SWÉ push dispatch
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch pending SWÉ notifications
+        env:
+          SWE_PUSH_SERVICE_ROLE: ${{ secrets.SWE_PUSH_SERVICE_ROLE }}
+        run: |
+          if [ -z "$SWE_PUSH_SERVICE_ROLE" ]; then
+            echo "Secret SWE_PUSH_SERVICE_ROLE absent: envoi désactivé."
+            exit 0
+          fi
+          curl --fail-with-body --show-error --silent \
+            -X POST "https://fbppesfxkvledwjemwsn.supabase.co/functions/v1/swe-push" \
+            -H "Authorization: Bearer $SWE_PUSH_SERVICE_ROLE" \
+            -H "Content-Type: application/json" \
+            -d '{}'
