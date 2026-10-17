@@ -21,7 +21,7 @@
     const signature=[pool,contributions.map(item=>[item.player_id,item.contribution_mode,item.contribution_amount_cents,item.contribution_item].join(':')).join('|')].join('~');
     if(signature===lastKey)return true;
     lastKey=signature;
-    const row=item=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #e4edf4"><span><b>'+esc(item.player_name||'Joueur')+'</b></span><strong style="color:#0f766e">'+(item.contribution_mode==='money'?'💶 '+money(item.contribution_amount_cents):'🎒 '+esc(labels[item.contribution_item]||'Apport matériel'))+'</strong></div>';
+    const row=item=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #e4edf4"><span><b>'+esc(item.player_name||'Joueur')+'</b></span><strong style="color:#0f766e">'+(item.contribution_mode==='money'?'💶 '+money(item.contribution_amount_cents)+' · annoncé (non confirmé)':'🎒 '+esc(labels[item.contribution_item]||'Apport matériel'))+'</strong></div>';
     const preview=contributions.slice(0,4).map(row).join('');
     const more=contributions.length>4?'<details style="margin-top:4px"><summary style="cursor:pointer;font-weight:700">Voir les '+(contributions.length-4)+' autres participations</summary><div style="margin-top:6px">'+contributions.slice(4).map(row).join('')+'</div></details>':'';
     const intro=card.querySelector('p.muted'); if(intro)intro.remove();
