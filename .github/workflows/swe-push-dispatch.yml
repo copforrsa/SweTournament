@@ -15,6 +15,7 @@ jobs:
             echo "Secret SWE_PUSH_SERVICE_ROLE absent: envoi désactivé."
             exit 0
           fi
+          echo 'Contrôle de connexion au service push SWÉ…'
           curl --fail-with-body --show-error --silent \
             -X POST "https://fbppesfxkvledwjemwsn.supabase.co/functions/v1/swe-push" \
             -H "Authorization: Bearer $SWE_PUSH_SERVICE_ROLE" \
