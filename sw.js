@@ -1,4 +1,4 @@
-const SW_BUILD='54.1-match-poules-pitches';
+const SW_BUILD='54.2-push-receiver';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
@@ -38,4 +38,15 @@ self.addEventListener('fetch',event=>{
   })());
 });
 
-self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async clients=>{const existing=clients.find(c=>c.url.startsWith(self.location.origin));if(existing){await existing.focus();return;}return self.clients.openWindow('/?start=home')}));});
+self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async clients=>{const existing=clients.find(c=>c.url.startsWith(self.location.origin));if(existing){await existing.focus();return;}return self.clients.openWindow(event.notification.data?.url||'/?start=home')}));});
+
+self.addEventListener('push',event=>{
+  let message={};
+  try{message=event.data?.json()||{}}catch(_){message={body:event.data?.text()||''}}
+  const url=typeof message.url==='string'&&message.url.startsWith('/')?message.url:'/?start=home';
+  event.waitUntil(self.registration.showNotification(String(message.title||'SWÉ Tournament'),{
+    body:String(message.body||'Nouvelle notification'),
+    icon:'/icon-192.png',badge:'/icon-192.png',
+    tag:message.id?'swe-'+message.id:undefined,data:{url}
+  }));
+});
