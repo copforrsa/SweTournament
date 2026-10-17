@@ -1,4 +1,4 @@
-const SW_BUILD='53.2-public-width-fix';
+const SW_BUILD='53.4-public-registration-access';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
