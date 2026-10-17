@@ -1,4 +1,4 @@
-const SW_BUILD='52.9-revolut-cooler';
+const SW_BUILD='52.10-auth-first-paint';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
