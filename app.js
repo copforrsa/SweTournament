@@ -25,9 +25,10 @@ function sanitizeSensitiveUrlParams(){
 }
 window.addEventListener('pageshow',()=>sanitizeSensitiveUrlParams());
 
+// A nonfatal script or resource error must not produce a global "app failed to load"
+// banner across every view. Keep diagnostics for debugging instead.
 window.addEventListener('error', (e) => {
-  const t=document.querySelector('#toast');
-  if(t){t.textContent='Erreur de chargement de l’application. Recharge la page.';t.style.display='block';}
+  console.error('[SWÉ] Erreur JavaScript ou ressource', e.error || e.message || e);
 });
 
 const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null,playerAccountAccess:false,superPlayerAccountAccess:[]};
