@@ -54,8 +54,8 @@ function mount(ctx){
  [E('publicParticipationActions'),E('publicPaymentBox'),E('publicRegStatus')].filter(Boolean).forEach(el=>attendanceStep.querySelector('.sp-flow-content').append(el));
 
  const inactive=document.createElement('details');inactive.id='registrationInactiveMembers';inactive.className='sp-inactive-members';
- inactive.innerHTML='<summary>Mon nom n’apparaît pas · Réactiver mon profil</summary><p>Connecte-toi à ton compte joueur pour réactiver ton propre profil après quatre tournois manqués. L’administrateur peut également réactiver les membres du groupe.</p><select aria-label="Joueur inactif"><option value="">Chargement…</option></select><button type="button">Réactiver mon profil</button><p role="status"></p>';
- const inactiveLogin=document.createElement('a');inactiveLogin.href=ctx.appUrl;inactiveLogin.textContent='Se connecter à mon compte joueur';inactiveLogin.style.display='block';inactiveLogin.style.margin='10px 0';inactive.append(inactiveLogin);identityContent.append(inactive);
+ inactive.innerHTML='<summary>Mon nom n’apparaît pas · Réactiver mon profil</summary><p>Connecte-toi à ton compte joueur pour réactiver ton propre profil après quatre tournois manqués. L’administrateur peut également réactiver les membres du groupe.</p><select aria-label="Joueur inactif"><option value="">Connecte-toi pour voir tes profils réactivables</option></select><button type="button">Réactiver mon profil</button><p role="status"></p>';
+ const inactiveLogin=document.createElement('a');inactiveLogin.href='/connexion.html';inactiveLogin.textContent='Se connecter à mon compte joueur';inactiveLogin.style.display='block';inactiveLogin.style.margin='10px 0';inactive.append(inactiveLogin);identityContent.append(inactive);
  let inactiveLoading=false;
  inactive.addEventListener('toggle',async()=>{
   if(!inactive.open||inactiveLoading)return;inactiveLoading=true;
@@ -65,7 +65,7 @@ function mount(ctx){
    for(const p of r.data||[]){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;pick.append(o)}
    status.textContent=r.data?.length?'':'Aucun profil réactivable. Pour une suspension manuelle, contacte l’organisateur.';
    button.disabled=!r.data?.length;
-  }catch(e){status.textContent=e.message||'Liste indisponible.'}finally{inactiveLoading=false}
+  }catch(e){pick.replaceChildren();const option=document.createElement('option');option.value='';option.textContent='Connecte-toi pour consulter les profils réactivables';pick.append(option);status.textContent=e.message||'Connecte-toi pour consulter les profils réactivables.'}finally{inactiveLoading=false}
  });
  inactive.querySelector('button').onclick=async()=>{
   const pick=inactive.querySelector('select'),button=inactive.querySelector('button'),status=inactive.querySelector('[role="status"]');
