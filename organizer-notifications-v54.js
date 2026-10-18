@@ -72,6 +72,8 @@ async function offerPushOnLogin(){
 }
 function schedulePushOffer(){offerPushOnLogin().catch(e=>console.warn('SWÉ push opt-in',e))}
 
+window.SWEEnablePushNotifications=enablePush;
+
 async function check(){
 const s=state();if(!s?.session?.user?.id||s.publicMode||!s.workspace?.id||busy)return;
 if(Date.now()-lastPoll<20000)return;busy=true;lastPoll=Date.now();
