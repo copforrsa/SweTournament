@@ -32,3 +32,10 @@
 [data-swe-theme=dark] #swePlayerPreferencesTab52 h2,[data-swe-theme=dark] #swePlayerPreferencesTab52 h3,[data-swe-theme=dark] #swePlayerPreferencesTab52 .swe-pref-setting strong{color:#f1f7ff}
 [data-swe-theme=dark] #swePlayerPreferencesTab52 .swe-pref-setting small,[data-swe-theme=dark] #swePlayerPreferencesTab52 p{color:#bacbe0}
 @media(max-width:700px){#swePlayerPreferencesTab52 .swe-profile-theme-choices{grid-template-columns:1fr}#swePlayerPreferencesTab52 .swe-pref-setting{flex-wrap:wrap}#swePlayerPreferencesTab52 .swe-pref-push-button{margin-left:0;width:100%}#swePlayerPreferencesTab52 .swe-pref-badge{width:52px;height:52px;flex-basis:52px} }
+
+/* Keep preference controls clickable despite legacy global checkbox styles. */
+#swePlayerPreferencesTab52 label.swe-pref-setting{cursor:pointer!important;pointer-events:auto!important}
+#swePlayerPreferencesTab52 label.swe-pref-setting input[type="checkbox"]{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;appearance:none!important;-webkit-appearance:none!important;width:52px!important;min-width:52px!important;height:30px!important;margin:0!important;border:0!important;border-radius:20px!important;background:#c6ced7!important;position:relative!important;z-index:1!important;cursor:pointer!important}
+#swePlayerPreferencesTab52 label.swe-pref-setting input[type="checkbox"]:checked{background:#1374ed!important}
+#swePlayerPreferencesTab52 label.swe-pref-setting input[type="checkbox"]::before{display:block!important;content:""!important;position:absolute!important;top:3px!important;left:3px!important;width:24px!important;height:24px!important;background:#fff!important;border-radius:50%!important;transform:translateX(0)!important}
+#swePlayerPreferencesTab52 label.swe-pref-setting input[type="checkbox"]:checked::before{transform:translateX(22px)!important}
