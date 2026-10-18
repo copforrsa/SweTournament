@@ -7,6 +7,8 @@ async function render(){
  try{
  const {data,error}=await sb.rpc('my_player_identity_form_v52');
  if(error||!data?.exists)return;
+ // Preserve live controls and unsaved changes when background refresh runs.
+ if(E('swePlayerPreferencesTab52')&&E('sweProfileCatalog52')&&E('sweProfileNotifications52')){stamp=Date.now();return;}
  E('swePlayerPreferencesTab52')?.remove();
  stamp=Date.now();
  let section=E('sweProfileIdentity52');if(!section){section=document.createElement('section');section.id='sweProfileIdentity52';section.className='card';view.append(section)}
