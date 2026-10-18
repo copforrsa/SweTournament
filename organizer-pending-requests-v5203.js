@@ -22,9 +22,20 @@ async function render(force=false){
   if(!rows.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucune demande en attente.';box.append(empty);return}
   for(const r of rows){
     const item=document.createElement('article');item.className='swe-organizer-request';
-    const heading=document.createElement('b');heading.textContent=r.display_name+' · Joueur extérieur';
-    const details=document.createElement('p');details.textContent=[r.tournament_name,r.tournament_date,r.start_time?String(r.start_time).slice(0,5):''].filter(Boolean).join(' · ');
-    const message=document.createElement('p');message.textContent=r.message?'Message : '+r.message:'Aucun message du joueur';
+    const top=document.createElement('div');top.className='swe-request-top';
+    const avatar=document.createElement('div');avatar.className='swe-request-avatar';avatar.textContent=String(r.display_name||'J').trim().charAt(0).toUpperCase();
+    const content=document.createElement('div');content.className='swe-request-main';
+    const headline=document.createElement('div');headline.className='swe-request-headline';
+    const heading=document.createElement('h3');heading.textContent=r.display_name||'Joueur';
+    const role=document.createElement('span');role.className='swe-request-role';role.textContent='Joueur extérieur';headline.append(heading,role);
+    const details=document.createElement('div');details.className='swe-request-meta';
+    const tour=document.createElement('p');tour.className='swe-request-tournament';tour.textContent=r.tournament_name||'Tournoi SWÉ';
+    if(r.tournament_date){const d=document.createElement('span');d.className='swe-request-chip';d.textContent='📅 '+new Date(String(r.tournament_date)+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});details.append(d)}
+    if(r.start_time){const time=document.createElement('span');time.className='swe-request-chip';time.textContent='⏰ '+String(r.start_time).slice(0,5);details.append(time)}
+    content.append(headline,tour,details);top.append(avatar,content);
+    const message=document.createElement('div');message.className='swe-request-message';
+    const messageTitle=document.createElement('strong');messageTitle.textContent='MESSAGE DU JOUEUR';
+    const messageBody=document.createElement('p');messageBody.textContent=r.message||'Aucun message du joueur';message.append(messageTitle,messageBody);
     const action=document.createElement('div');action.className='swe-organizer-request-actions';
     const feedback=document.createElement('span');feedback.setAttribute('role','status');
     for(const [accept,label] of [[true,'✅ Accepter'],[false,'Refuser']]){
