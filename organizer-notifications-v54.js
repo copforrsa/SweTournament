@@ -24,6 +24,54 @@ async function enablePush(){
  if(result.error)throw Error(result.error.message);
 }
 
+
+let promptShowing=false;
+async function offerPushOnLogin(){
+ const s=state(),uid=s?.session?.user?.id;
+ if(!uid||s.publicMode||!s.workspace?.id||promptShowing||E('swePushFirstLoginDialog'))return;
+ if(!('Notification'in window)||!('PushManager'in window)||!('serviceWorker'in navigator))return;
+ const key='swe_push_first_login_offer_20261018:'+uid;
+ if(localStorage.getItem(key))return;
+ if(Notification.permission==='denied'){localStorage.setItem(key,'blocked');return}
+ if(Notification.permission==='granted'){
+  const reg=await navigator.serviceWorker.ready.catch(()=>null);
+  const sub=await reg?.pushManager.getSubscription().catch(()=>null);
+  if(sub){localStorage.setItem(key,'already_enabled');return}
+ }
+ promptShowing=true;
+ const overlay=document.createElement('div');
+ overlay.id='swePushFirstLoginDialog';
+ overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
+ overlay.setAttribute('aria-label','Activer les notifications SWÉ');
+ overlay.style.cssText='position:fixed;inset:0;z-index:2147483600;background:rgba(4,15,29,.68);display:flex;align-items:center;justify-content:center;padding:20px';
+ const panel=document.createElement('div');
+ panel.style.cssText='background:#fff;color:#102f49;border-radius:20px;padding:24px;max-width:390px;width:100%;box-shadow:0 18px 60px #0005;font:inherit';
+ const title=document.createElement('h2');title.textContent='🔔 Activer les notifications SWÉ ?';
+ const info=document.createElement('p');info.textContent='Reçois les informations de ton équipe, tes matchs et les annonces importantes, même lorsque ton téléphone est verrouillé.';
+ const actions=document.createElement('div');actions.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin-top:20px';
+ const yes=document.createElement('button');yes.type='button';yes.textContent='Activer les notifications';yes.className='primary';
+ const later=document.createElement('button');later.type='button';later.textContent='Plus tard';
+ const feedback=document.createElement('p');feedback.style.cssText='font-size:13px;margin-top:10px';
+ const close=()=>{overlay.remove();promptShowing=false};
+ later.onclick=()=>{localStorage.setItem(key,'later');close()};
+ yes.onclick=async()=>{
+  yes.disabled=true;yes.textContent='Activation…';
+  try{
+   await enablePush();
+   localStorage.setItem('swe_push_enabled_device_v1','1');
+   localStorage.setItem(key,'enabled');
+   close();check();
+  }catch(err){
+   feedback.textContent=err?.message||'Activation impossible, réessaie depuis l’accueil.';
+   yes.disabled=false;yes.textContent='Réessayer';
+   if(Notification.permission==='denied'){localStorage.setItem(key,'blocked');yes.disabled=true}
+  }
+ };
+ actions.append(yes,later);panel.append(title,info,actions,feedback);overlay.append(panel);document.body.append(overlay);
+ yes.focus();
+}
+function schedulePushOffer(){offerPushOnLogin().catch(e=>console.warn('SWÉ push opt-in',e))}
+
 async function check(){
 const s=state();if(!s?.session?.user?.id||s.publicMode||!s.workspace?.id||busy)return;
 if(Date.now()-lastPoll<20000)return;busy=true;lastPoll=Date.now();
@@ -46,5 +94,5 @@ try{
  }}
 }catch(e){console.warn('SWÉ notifications',e)}finally{busy=false}
 }
-window.addEventListener('pageshow',check);document.addEventListener('swe:rendered',check);setInterval(()=>{if(document.visibilityState==='visible')check()},30000);
+window.addEventListener('pageshow',()=>{check();schedulePushOffer()});document.addEventListener('swe:rendered',()=>{check();schedulePushOffer()});setInterval(()=>{if(document.visibilityState==='visible')check()},30000);
 })();
