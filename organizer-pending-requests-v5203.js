@@ -48,7 +48,7 @@ async function render(force=false){
        stamp=0;item.remove();
       };action.append(btn);
     }
-    action.append(feedback);item.append(heading,details,message,action);box.append(item);
+    action.append(feedback);item.append(top,message,action);box.append(item);
   }
  }catch(e){console.warn('Organizer pending SWÉ requests',e)}
  finally{pending=false}
