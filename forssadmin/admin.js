@@ -123,7 +123,29 @@ function journalLabel(r){
 async function renderUserJournal(){
  const host=E('userJournal');if(!host)return;host.innerHTML='<div class="view-title"><div><h3>📖 Journal des utilisateurs</h3><p class="muted">Actions enregistrées en base et ouvertures de l’application. Les traces historiques reconstituées sont signalées ; un auteur absent reste inconnu.</p></div></div><form id="journalFilters" class="toolbar"><input id="journalSearch" aria-label="Utilisateur, groupe ou action" placeholder="Utilisateur, groupe ou action"><label>Du <input id="journalFrom" type="date"></label><label>Au <input id="journalTo" type="date"></label><button class="btn primary" type="submit">Rechercher / actualiser</button></form><p id="journalState" role="status"></p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Groupe</th><th>Détails</th></tr></thead><tbody id="journalRows"></tbody></table></div><button id="journalMore" class="btn ghost" hidden>Voir les actions précédentes</button>';
  let rows=[],cursor=null,sequence=0,busy=false,filters={};
- const draw=()=>{E('journalRows').innerHTML=rows.map(r=>{const d=r.details||{},source=d.source==='reconstructed'?'Reconstitué':d.source==='rating_history'?'Historique des notes':d.source==='audit_logs'?'Ancien journal':'Enregistré';return '<tr><td style="white-space:nowrap">'+esc(dt(r.at))+'</td><td>'+esc(r.actor_name)+'</td><td><b>'+esc(journalLabel(r))+'</b><br><small class="pill">'+source+'</small></td><td>'+esc(r.workspace_name)+'</td><td>'+(d.target_name?'<b>'+esc(d.target_name)+'</b>':'')+(d.quantity!=null?'<p>'+Number(d.quantity)+' élément(s)</p>':'')+'<details><summary>Voir le détail</summary><p>'+esc(d.evidence||'')+'</p>'+(d.changed_fields?'<p>Champs modifiés : '+esc(d.changed_fields.join(', '))+'</p>':'')+(d.before&&Object.keys(d.before).length?'<p>Avant</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(JSON.stringify(d.before,null,2))+'</pre>':'')+(d.after&&Object.keys(d.after).length?'<p>Après</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(JSON.stringify(d.after,null,2))+'</pre>':'')+'<small>'+esc(r.target_type||'')+' · '+esc(r.target_id||'')+'</small></details></td></tr>';}).join('')||'<tr><td colspan="5">Aucune action pour ces filtres.</td></tr>';};
+ const draw=()=>{
+  // Grouper les événements simultanés sans supprimer aucune ligne du journal.
+  const grouped=new Map();
+  rows.forEach((r,i)=>{
+   const key=[r.actor_name,r.action,r.workspace_name,String(r.at||'').slice(0,19)].join('|');
+   if(!grouped.has(key))grouped.set(key,[]);
+   grouped.get(key).push({r,i});
+  });
+  E('journalRows').innerHTML=[...grouped.values()].map(group=>{
+   const r=group[0].r,d=r.details||{};
+   const source=d.source==='reconstructed'?'Reconstitué':d.source==='rating_history'?'Historique des notes':d.source==='audit_logs'?'Ancien journal':'Enregistré';
+   const details=group.map(({r:item},idx)=>{
+    const d=item.details||{};
+    return '<details style="margin:6px 0"><summary>Événement '+(idx+1)+' — '+esc(d.target_name||item.target_id||'Détail')+'</summary>'+
+     (d.evidence?'<p>'+esc(d.evidence)+'</p>':'')+
+     (d.changed_fields?'<p>Champs : '+esc(d.changed_fields.join(', '))+'</p>':'')+
+     (d.before?'<p>Avant</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(JSON.stringify(d.before,null,2))+'</pre>':'')+
+     (d.after?'<p>Après</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(JSON.stringify(d.after,null,2))+'</pre>':'')+
+     '<small>'+esc(item.target_type||'')+' · '+esc(item.target_id||'')+' · '+esc(dt(item.at))+'</small></details>';
+   }).join('');
+   return '<tr><td style="white-space:nowrap">'+esc(dt(r.at))+'</td><td>'+esc(r.actor_name)+'</td><td><b>'+esc(journalLabel(r))+'</b> '+(group.length>1?'<b class="pill">'+group.length+' événements</b>':'')+'<br><small class="pill">'+source+'</small></td><td>'+esc(r.workspace_name)+'</td><td>'+details+'</td></tr>';
+  }).join('')||'<tr><td colspan="5">Aucune action pour ces filtres.</td></tr>';
+ };
  async function load(reset){
   if(busy&&!reset)return;const request=++sequence;busy=true;E('journalMore').disabled=true;E('journalState').textContent='Chargement…';
   if(reset){cursor=null;rows=[];const q=E('journalSearch').value.trim(),aliases={but:'goal',buts:'goal',score:'matches',inscription:'tournament_players',notes:'player_skill_rating'};filters={p_search:aliases[q.toLowerCase()]||q,p_from:E('journalFrom').value?new Date(E('journalFrom').value+'T00:00:00').toISOString():null,p_to:E('journalTo').value?new Date(E('journalTo').value+'T23:59:59.999').toISOString():null};}
