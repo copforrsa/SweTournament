@@ -96,3 +96,28 @@ html.swe-organizer-setup-active .app{width:min(1000px,calc(100% - 28px))!importa
  #swePlayerCommercial{padding:20px;flex-direction:column;align-items:stretch}
  #swePlayerCommercial h2{font-size:18px}
 }
+
+/* Organizer setup from player space: avoid desktop columns overflowing narrow windows. */
+html.swe-organizer-setup-active,
+html.swe-organizer-setup-active body{max-width:100%;overflow-x:clip}
+html.swe-organizer-setup-active .app,
+html.swe-organizer-setup-active #main,
+html.swe-organizer-setup-active #workspaceSetup{
+ box-sizing:border-box!important;min-width:0!important;max-width:100%!important;
+}
+html.swe-organizer-setup-active .app{width:min(1100px,calc(100% - 24px))!important;margin-inline:auto!important}
+html.swe-organizer-setup-active #workspaceSetup{width:100%!important}
+html.swe-organizer-setup-active #workspaceSetup input,
+html.swe-organizer-setup-active #workspaceSetup select,
+html.swe-organizer-setup-active #workspaceSetup textarea{box-sizing:border-box!important;max-width:100%!important;min-width:0!important}
+@media(max-width:900px){
+ html.swe-organizer-setup-active .app{width:calc(100% - 20px)!important;margin:0 auto!important}
+ html.swe-organizer-setup-active #main{width:100%!important;margin:0!important;padding:0!important}
+ html.swe-organizer-setup-active #workspaceSetup{padding:clamp(14px,3vw,22px)!important;margin:10px auto!important}
+ html.swe-organizer-setup-active #workspaceSetup .grid,
+ html.swe-organizer-setup-active #workspaceSetup .grid.g2,
+ html.swe-organizer-setup-active #workspaceSetup .organizer-type-grid{grid-template-columns:minmax(0,1fr)!important}
+ html.swe-organizer-setup-active #workspaceSetup .grid>*, 
+ html.swe-organizer-setup-active #workspaceSetup label{min-width:0!important;max-width:100%!important}
+ html.swe-organizer-setup-active #workspaceSetup .row{flex-wrap:wrap!important}
+}
