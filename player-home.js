@@ -173,12 +173,17 @@ async function loadPublicDiscovery(){
    const existing=(dashboard?.requests||[]).find(x=>String(x.tournament_id)===String(t.tournament_id));
    const savedStatus=saved.get(String(t.tournament_id));
    const direct=t.discovery_mode==='public';
+   const mustPay=!!info.external_payment_required;
    const button=document.createElement('button');button.type='button';button.className='primary';
-   button.textContent=direct?'⚡ Je participe':'🙋 Demander à participer';
+   button.textContent=direct?(mustPay?'💳 S’inscrire et payer':'⚡ Je participe'):'🙋 Demander à participer';
    button.dataset[direct?'playerDirectJoin':'playerRequestJoin']=t.tournament_id;
    if(savedStatus==='requested'||existing?.status==='pending'){status.textContent='⏳ Demande envoyée · En attente de validation par l’organisateur';button.disabled=true;button.textContent='Demande en attente';}
-   else if(savedStatus==='confirmed'||existing?.status==='approved'||existing?.status==='accepted'){status.textContent='✅ Participation acceptée';button.disabled=true;button.textContent='Acceptée';}
-   else if(savedStatus==='waitlist'){status.textContent='🟠 Inscription enregistrée · En liste d’attente';button.disabled=true;button.textContent='En attente de place';}
+   else if(savedStatus==='confirmed'||existing?.status==='approved'||existing?.status==='accepted'){
+    status.textContent='✅ Participation acceptée';
+    if(direct&&!info.external_payment_required){button.textContent='Se désinscrire';button.className='swe-player-leave-button';delete button.dataset.playerDirectJoin;button.dataset.playerLeavePublicSwe=t.tournament_id;}
+    else {button.disabled=true;button.textContent='Acceptée';}
+   }
+   else if(savedStatus==='waitlist'){status.textContent='🟠 Inscription enregistrée · En liste d’attente';if(direct&&!mustPay){button.textContent='Se désinscrire';button.className='swe-player-leave-button';delete button.dataset.playerDirectJoin;button.dataset.playerLeavePublicSwe=t.tournament_id;}else{button.disabled=true;button.textContent='En attente de place';}}
    else if(!direct){const note=document.createElement('p');note.className='swe-player-discovery-note';note.textContent='Ta demande sera transmise à l’organisateur. L’inscription n’est pas encore confirmée.';card.append(note);}
    card.append(title,details,facts,place,briefing,button,status);out.append(card);
   }
