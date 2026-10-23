@@ -5467,10 +5467,15 @@ async function loadPublicPage(token,bootState){
   const wantsLeagueSession=requestedView==='league-session'||(!requestedView&&requestedMode==='league_session');
   const wantsTournament=requestedView==='tournament'||(!requestedView&&requestedMode==='tournament');
   const modeMatches=t=>wantsLeagueSession?t.format==='league':(wantsTournament?t.format!=='league':true);
-  const consultationOnly=!requestedTournament&&!requestedView&&!requestedMode&&!publicParams.get('league')&&!publicParams.get('history');
+  const genericPublicEntry=!requestedTournament&&!requestedView&&!requestedMode&&!publicParams.get('league')&&!publicParams.get('history');
+  // The public home can open the registration flow when one tournament is available.
+  // When several tournaments are open, first require an explicit tournament choice.
+  const consultationOnly=genericPublicEntry&&openTours.length!==1;
   let regTour=null;
   if(requestedTournament){
     regTour=tournaments.find(t=>t.id===requestedTournament&&modeMatches(t))||null;
+  }else if(genericPublicEntry&&openTours.length===1){
+    regTour=openTours[0];
   }else if(!consultationOnly&&(wantsLeagueSession||wantsTournament)){
     regTour=openTours.find(modeMatches)||null;
   }
@@ -6375,6 +6380,20 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     entryChoiceCard?.classList.add('hidden');
     soloCard?.classList.add('hidden');
     teamCard?.classList.add('hidden');
+    // The generic public link must never show dead registration buttons.
+    if(entryChoiceCard)entryChoiceCard.style.setProperty('display','none','important');
+    if(openTours.length){
+      const links=document.createElement('section');links.className='card';links.id='swePublicSelectOpenTournament';
+      const heading=document.createElement('h2');heading.className='sectiontitle';heading.textContent='⚽ Choisir le SWÉ auquel s’inscrire';links.append(heading);
+      const description=document.createElement('p');description.textContent='Plusieurs SWÉs sont ouverts. Sélectionne celui auquel tu souhaites participer.';links.append(description);
+      for(const tour of openTours){
+        const go=document.createElement('a');go.className='primary';go.style.cssText='display:block;padding:14px;margin:10px 0;border-radius:12px;text-decoration:none';
+        const u=new URL(location.href);u.searchParams.set('tournament',tour.id);u.searchParams.set('view',tour.format==='league'?'league-session':'tournament');
+        go.href=u.toString();go.textContent=(tour.name||'SWÉ')+' · '+(tour.tournament_date||'')+(tour.start_time?' · '+String(tour.start_time).slice(0,5):'')+' →';
+        links.append(go);
+      }
+      entryChoiceCard?.before(links);
+    }
   }
   function setPublicEntryMode(mode){
     if(!entryChoiceCard||!soloCard||!teamCard)return;
