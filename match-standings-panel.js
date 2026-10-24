@@ -10,7 +10,12 @@
    if(String(m.tournament_id)!==String(t.id)||m.status!=='finished'||m.rotation_role==='conquest'||m.competition_type==='conquest_playoff')continue;
    const h=map.get(String(m.home_team_id)),a=map.get(String(m.away_team_id));if(!h||!a)continue;
    const hs=Number(m.home_score||0),as=Number(m.away_score||0);h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
-   if(hs>as)h.pts+=3;else if(as>hs)a.pts+=3;else{h.pts++;a.pts++}
+   const kingFormat=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch';
+   // Application aux nouveaux tournois uniquement : l'historique conserve son barème.
+   const newRules=kingFormat&&String(t.tournament_date||t.date||'')>='2026-10-24';
+   const onKingPitch=m.rotation_role==='king'||(t.king_pitch_id&&String(m.pitch_id)===String(t.king_pitch_id))||String(m.pitch||'').trim().toLocaleLowerCase('fr').includes('carrefour');
+   const winPoints=newRules&&onKingPitch?4:3;
+   if(hs>as)h.pts+=winPoints;else if(as>hs)a.pts+=winPoints;else{h.pts++;a.pts++}
   }
   return rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||String(a.name).localeCompare(String(b.name)));
  }
@@ -18,7 +23,7 @@
   if(!dialog?.open)return;
   const t=typeof currentTour==='function'?currentTour():null,rows=t?standings(t):[],next=JSON.stringify([t?.id,t?.name,rows]);if(next===signature)return;signature=next;content.replaceChildren();
   const title=document.createElement('h3');title.textContent=t?.name||'Choisis un tournoi';content.append(title);
-  const note=document.createElement('p');note.className='muted';note.textContent=t?.format==='fast_conquest'&&t.rotation_state?.fast_conquest?.finalRanking?'Classement final du Fast Conquête. Les statistiques affichées concernent les deux qualifications.':'Matchs terminés uniquement · 3 points par victoire, 1 par nul. Les barrages, demi-finales et finale ne modifient pas le classement.';content.append(note);
+  const note=document.createElement('p');note.className='muted';note.textContent=(t?.format==='king_of_pitch'||t?.rotation_mode==='king_of_pitch')&&String(t.tournament_date||t.date||'')>='2026-10-24'?'👑 Victoire sur Carrefour (terre du Roi) : 4 pts · autres terrains : 3 pts · nul : 1 pt.':t?.format==='fast_conquest'&&t.rotation_state?.fast_conquest?.finalRanking?'Classement final du Fast Conquête. Les statistiques affichées concernent les deux qualifications.':'Matchs terminés uniquement · 3 points par victoire, 1 par nul. Les barrages, demi-finales et finale ne modifient pas le classement.';content.append(note);
   if(!rows.length){const empty=document.createElement('p');empty.textContent='Aucune équipe disponible.';content.append(empty);return}
   const table=document.createElement('table');table.innerHTML='<thead><tr><th>Rang</th><th>Équipe</th><th>MJ</th><th>Diff.</th><th>Pts</th></tr></thead>';const body=document.createElement('tbody');
   rows.forEach((r,i)=>{const tr=document.createElement('tr');for(const value of [i+1,r.name,r.mj,(r.bp-r.bc>0?'+':'')+(r.bp-r.bc),r.pts]){const td=document.createElement('td');td.textContent=String(value);tr.append(td)}body.append(tr)});table.append(body);content.append(table);
