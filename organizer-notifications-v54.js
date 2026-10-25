@@ -75,10 +75,10 @@ function schedulePushOffer(){offerPushOnLogin().catch(e=>console.warn('SWÉ push
 
 function ensureNotificationsCenter(){
  let panel=E('sweNotificationsCenterV54');
- if(panel)return panel;
+ if(panel){const bell=E('sweNotificationsBellV54');const nav=document.querySelector('.tabs');if(nav&&bell&&bell.parentElement!==nav)nav.append(bell);return panel;}
  const style=document.createElement('style');
  style.textContent=`
- #sweNotificationsBellV54{position:fixed;right:16px;bottom:18px;z-index:2000;border:0;border-radius:28px;background:#092d48;color:#fff;padding:13px 18px;box-shadow:0 7px 25px #0004;font-weight:700;cursor:pointer}
+ #sweNotificationsBellV54{border:0;border-radius:10px;background:#123855;color:#fff;padding:12px 14px;font-weight:700;cursor:pointer;width:100%;text-align:left}
  #sweNotificationsBellV54 .swe-count{display:inline-block;background:#df3352;color:#fff;border-radius:14px;padding:2px 7px;margin-left:6px}
  #sweNotificationsCenterV54{position:fixed;inset:0;z-index:2050;background:rgba(5,22,36,.72);padding:16px;display:none;align-items:center;justify-content:center}
  #sweNotificationsCenterV54.swe-open{display:flex}
@@ -88,12 +88,12 @@ function ensureNotificationsCenter(){
  #sweOrganizerNotificationsListV54 p{margin:0;padding:10px 12px;border-radius:9px;background:#f2f6f8;border-left:3px solid #0b6693;line-height:1.45}
  `;
  document.head.append(style);
- const bell=document.createElement('button');bell.type='button';bell.id='sweNotificationsBellV54';bell.textContent='🔔 Notifications';bell.setAttribute('aria-label','Ouvrir mes notifications SWÉ');
+ const bell=document.createElement('button');bell.type='button';bell.id='sweNotificationsBellV54';bell.textContent='🔔 Profil pro · Notifications';bell.setAttribute('aria-label','Ouvrir les notifications du profil organisateur');
  panel=document.createElement('div');panel.id='sweNotificationsCenterV54';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','Mes notifications SWÉ');
  const sheet=document.createElement('div');sheet.className='swe-notif-sheet';
  const close=document.createElement('button');close.type='button';close.className='swe-notif-close';close.textContent='✕ Fermer';
  const card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card';
- sheet.append(close,card);panel.append(sheet);document.body.append(bell,panel);
+ sheet.append(close,card);panel.append(sheet);const nav=document.querySelector('.tabs');if(nav)nav.append(bell);else document.body.append(bell);document.body.append(panel);
  const shut=()=>{panel.classList.remove('swe-open');bell.focus()};
  bell.onclick=()=>{panel.classList.add('swe-open');bell.querySelector('.swe-count')?.remove();close.focus()};
  close.onclick=shut;panel.onclick=e=>{if(e.target===panel)shut()};
