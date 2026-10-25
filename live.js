@@ -127,15 +127,28 @@ function render(data){
  const matchWinnerId=m=>{if(!isFinished(m))return null;const home=Number(m.home_score||0),away=Number(m.away_score||0);return home>away?m.home_team_id:away>home?m.away_team_id:(m.tie_break_winner_team_id||null)};
  const matchLoserId=m=>{const winnerId=matchWinnerId(m);if(!winnerId)return null;return String(winnerId)===String(m.home_team_id)?m.away_team_id:m.home_team_id};
  const teamResultClass=(m,teamId)=>{const winnerId=matchWinnerId(m),loserId=matchLoserId(m);return String(teamId)===String(winnerId)?' swe-match-winner':String(teamId)===String(loserId)?' swe-match-loser':''};
- const played=championshipMatches.filter(m=>m.finished_at||m.started_at||m.status==='finished'||m.status==='started'||m.status==='live'||m.status==='in_progress'||Number(m.home_score)||Number(m.away_score));
- const rows=teams.map(t=>({id:String(t.id),name:t.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(rows.map(r=>[r.id,r]));
- played.forEach(m=>{const h=map.get(String(m.home_team_id)),a=map.get(String(m.away_team_id));if(!h||!a)return;const hs=Number(m.home_score||0),as=Number(m.away_score||0);h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;if(hs>as){h.v++;a.d++;h.pts+=3}else if(as>hs){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});
+ const played=championshipMatches.filter(isFinished);
+ const kingFormat=String(tour.format||'')==='king_of_pitch'||String(tour.rotation_mode||'')==='king_of_pitch';
+ const royalBonus=kingFormat&&String(tour.tournament_date||tour.date||'')>='2026-10-24';
+ const onKingPitch=m=>m.rotation_role==='king'||
+   (tour.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(tour.king_pitch_id))||
+   String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour';
+ const rows=teams.map(t=>({id:String(t.id),name:t.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,roi:0,pts:0})),map=new Map(rows.map(r=>[r.id,r]));
+ played.forEach(m=>{
+  const h=map.get(String(m.home_team_id)),a=map.get(String(m.away_team_id));if(!h||!a)return;
+  const hs=Number(m.home_score||0),as=Number(m.away_score||0),royal=kingFormat&&onKingPitch(m);
+  const victoryPoints=royal&&royalBonus?4:3;
+  h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
+  if(hs>as){h.v++;a.d++;h.pts+=victoryPoints;if(royal)h.roi++}
+  else if(as>hs){a.v++;h.d++;a.pts+=victoryPoints;if(royal)a.roi++}
+  else{h.n++;a.n++;h.pts++;a.pts++}
+ });
  rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
  const titles=$('#liveTournamentTitles');
  if(titles){
   const kingStats=new Map();
-  matches.filter(m=>String(m.pitch||'').trim().toLowerCase()==='carrefour'&&(m.finished_at||m.status==='finished')).forEach(m=>{
-   const add=(teamId,scored,conceded)=>{const team=teamMap.get(String(teamId));if(!team)return;const id=String(teamId),r=kingStats.get(id)||{name:team.name,played:0,wins:0,draws:0,points:0,gf:0,ga:0};r.played++;r.wins+=scored>conceded?1:0;r.draws+=scored===conceded?1:0;r.points+=(scored>conceded?3:scored===conceded?1:0);r.gf+=Number(scored||0);r.ga+=Number(conceded||0);kingStats.set(id,r)};
+  matches.filter(m=>kingFormat&&onKingPitch(m)&&isFinished(m)).forEach(m=>{
+   const add=(teamId,scored,conceded)=>{const team=teamMap.get(String(teamId));if(!team)return;const id=String(teamId),r=kingStats.get(id)||{name:team.name,played:0,wins:0,draws:0,points:0,gf:0,ga:0};r.played++;r.wins+=scored>conceded?1:0;r.draws+=scored===conceded?1:0;r.points+=(scored>conceded?(royalBonus?4:3):scored===conceded?1:0);r.gf+=Number(scored||0);r.ga+=Number(conceded||0);kingStats.set(id,r)};
    add(m.home_team_id,m.home_score,m.away_score);add(m.away_team_id,m.away_score,m.home_score);
   });
   const finalMatch=conquestMatches.find(m=>/^Conquête\s*·\s*Finale\s*$/i.test(String(m.round_label||'')))||null;
@@ -158,7 +171,11 @@ function render(data){
   titles.innerHTML=winnerCard+conquestCard+kingCard;
  }
  const rankingTitle=$('#liveRankingTitle');if(rankingTitle)rankingTitle.textContent=conquestMode?'📊 Classement du championnat qualificatif':'📊 Classement du tournoi';
- $('#liveRanking').innerHTML=rows.length?'<table class="live-table"><thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>Diff</th><th>Pts</th></tr></thead><tbody>'+rows.map((r,i)=>'<tr><td>'+(i===0?'👑':i+1)+'</td><td><b>'+esc(r.name)+'</b></td><td>'+r.mj+'</td><td>'+r.v+'</td><td>'+r.n+'</td><td>'+r.d+'</td><td>'+((r.bp-r.bc)>=0?'+':'')+(r.bp-r.bc)+'</td><td><b>'+r.pts+'</b></td></tr>').join('')+'</tbody></table>':'<p class="muted">Classement indisponible.</p>';
+ $('#liveRanking').innerHTML=rows.length?
+  '<table class="live-table" style="min-width:760px"><thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th title="Buts marqués">BP</th><th title="Buts encaissés">BC</th><th>Diff</th>'+(kingFormat?'<th title="Victoires sur Carrefour, les Terres du Roi">👑 Roi</th>':'')+'<th>Pts</th></tr></thead><tbody>'+
+  rows.map((r,i)=>'<tr><td>'+(i===0?'👑':i+1)+'</td><td><b>'+esc(r.name)+'</b></td><td>'+r.mj+'</td><td>'+r.v+'</td><td>'+r.n+'</td><td>'+r.d+'</td><td>'+r.bp+'</td><td>'+r.bc+'</td><td>'+((r.bp-r.bc)>=0?'+':'')+(r.bp-r.bc)+'</td>'+(kingFormat?'<td><b>'+r.roi+'</b></td>':'')+'<td><b>'+r.pts+'</b></td></tr>').join('')+'</tbody></table>'+
+  '<p class="muted" style="font-size:12px;margin-top:8px">BP : buts marqués · BC : buts encaissés'+(kingFormat?' · 👑 Roi : victoires à Carrefour'+(royalBonus?' (4 points chacune)':''):'')+'. Départage : points, différence de buts, puis buts marqués.</p>'
+  :'<p class="muted">Classement indisponible.</p>';
  const individual=new Map();goals.forEach(g=>{const scorerId=String(g.scorer_player_id||'');if(scorerId&&players.has(scorerId)){if(!individual.has(scorerId))individual.set(scorerId,{name:players.get(scorerId).name,g:0,a:0});individual.get(scorerId).g++}const assisterId=String(g.assister_player_id||'');if(assisterId&&players.has(assisterId)){if(!individual.has(assisterId))individual.set(assisterId,{name:players.get(assisterId).name,g:0,a:0});individual.get(assisterId).a++}});
  const playerStats=[...individual.values()];const scorers=competitionRanks(playerStats.filter(x=>x.g>0).sort((a,b)=>b.g-a.g||a.name.localeCompare(b.name,'fr')),'g');const assists=competitionRanks(playerStats.filter(x=>x.a>0).sort((a,b)=>b.a-a.a||a.name.localeCompare(b.name,'fr')),'a');$('#liveScorers').innerHTML=statRows(scorers,'g','but');$('#liveAssists').innerHTML=statRows(assists,'a','passe');
  $('#liveMatches').innerHTML=matches.length?(()=>{
