@@ -67,6 +67,55 @@ window.SWEKingResolveTie=resolveTie;
 
 const refresh=async()=>{await loadAll();renderMatches();};
 
+function mountFourTeamCircuit(current,panel){
+ const matches=(S.matches||[]).filter(m=>String(m.tournament_id)===String(current.id)).sort((a,b)=>Number(a.match_order)-Number(b.match_order));
+ const active=current.rotation_mode==='king_of_pitch'&&Number(current.rotation_state?.version)===3&&!!current.rotation_state?.initialized;
+ const round=Number(current.rotation_state?.round||1);
+ const currentRound=matches.filter(m=>Number(m.match_order)>2*(round-1)&&Number(m.match_order)<=2*round);
+ const done=currentRound.filter(m=>m.status==='finished').length;
+ const signature=JSON.stringify([current.id,active,round,current.rotation_state?.stop_after_round,matches.map(m=>[m.id,m.status,m.match_order,m.pitch]),current.reserved_pitch_ids]);
+ if(panel.dataset.signature===signature)return;
+ panel.dataset.signature=signature;panel.replaceChildren();
+ panel.append(make('h3','👑 Roi du Terrain — 4 équipes / 2 terrains'));
+ panel.append(make('p','👑 Carrefour : le gagnant conserve le terrain du Roi. ⚔️ Mercedes : le vainqueur monte défier le Roi, les autres équipes jouent sur Mercedes.'));
+ if(active){
+  const status=make('p','✅ Circuit actif · Tour '+round+' · '+done+' / 2 matchs terminés');
+  status.style.fontWeight='700';panel.append(status);
+  const next=make('p',done===2?'Deux matchs terminés : la rotation suivante doit apparaître automatiquement.':'La prochaine paire de matchs sera créée dès que les deux résultats seront validés.');
+  next.className='muted';panel.append(next);
+  for(const m of currentRound){
+   const teamName=id=>(S.teams||[]).find(x=>String(x.id)===String(id))?.name||'Équipe';
+   const entry=make('p',(m.rotation_role==='king'?'👑 ':'⚔️ ')+(m.pitch||'Terrain')+' · '+teamName(m.home_team_id)+' — '+teamName(m.away_team_id)+' · '+(m.status==='finished'?'Terminé':'À jouer'));
+   panel.append(entry);
+  }
+  return;
+ }
+ const info=make('p',matches.length+' matchs enregistrés · '+matches.filter(x=>x.status==='finished').length+' terminés');
+ info.style.fontWeight='700';panel.append(info);
+ if(matches.length!==2){panel.append(make('p','Ce circuit démarre avec exactement 2 matchs : un à Carrefour et un à Mercedes.'));return;}
+ if(!admin()){panel.append(make('p','Connexion organisateur requise pour activer la rotation.'));return;}
+ const pitches=(current.reserved_pitch_ids||[]).map(id=>(S.sportsPitches||[]).find(p=>String(p.id)===String(id))).filter(Boolean);
+ const king=pitches.find(p=>String(p.name||'').toLocaleLowerCase('fr').trim()==='carrefour');
+ const lower=pitches.find(p=>String(p.name||'').toLocaleLowerCase('fr').trim()==='mercedes');
+ if(!king||!lower){panel.append(make('p','Carrefour et Mercedes doivent être réservés pour ce tournoi.'));return;}
+ const button=make('button',matches.every(m=>m.status==='finished')?'👑 Débloquer et créer les matchs 3 et 4':'👑 Activer la rotation automatique');
+ button.type='button';button.className='primary';button.disabled=pending;
+ const feedback=make('p');feedback.className='muted';feedback.setAttribute('role','status');
+ panel.append(make('p','Les deux matchs déjà enregistrés, leurs scores et leurs buteurs seront conservés.'));panel.append(button,feedback);
+ button.onclick=async()=>{
+  if(pending)return;
+  if(!confirm('Activer le circuit Roi du Terrain à 4 équipes / 2 terrains ?\n\nLes scores existants seront conservés. Si les deux premiers matchs sont terminés, les matchs 3 et 4 seront créés automatiquement.'))return;
+  pending=true;button.disabled=true;feedback.textContent='Création des rencontres en cours…';
+  try{
+   const {data,error}=await sb.rpc('swe_king_start_four_v1',{p_tournament_id:current.id,p_king_pitch_id:king.id,p_stream_pitch_id:lower.id,p_tie_break_method:current.tie_break_method||'shifumi_1'});
+   if(error)throw error;
+   await refresh();
+   toast(data?.generated?'👑 Matchs 3 et 4 créés — Carrefour et Mercedes':'👑 Circuit activé. Prochains matchs générés après les résultats.');
+  }catch(error){feedback.textContent=error?.message||'Activation impossible';button.disabled=false;}
+  finally{pending=false;}
+ };
+}
+
 function mount(){
   const current=tour();
   let panel=document.getElementById('sweKingCircuit');
@@ -81,6 +130,8 @@ function mount(){
     panel.style.cssText='margin:10px 0 16px;padding:14px;border:2px solid #d4a64a;border-radius:14px;background:#fffcf3;';
     anchor.after(panel);
   }
+  const fourTeams=(S.teams||[]).filter(x=>String(x.tournament_id)===String(current.id)).length===4;
+  if(fourTeams&&(current.reserved_pitch_ids||[]).length===2){mountFourTeamCircuit(current,panel);return;}
   const active=current.rotation_mode==='king_of_pitch'&&!!current.rotation_state?.initialized;
   const round=Number(current.rotation_state?.round||1);
   const matches=(S.matches||[]).slice().sort((a,b)=>Number(a.match_order)-Number(b.match_order));
