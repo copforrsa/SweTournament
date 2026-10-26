@@ -78,6 +78,7 @@ function mountFourTeamCircuit(current,panel){
  panel.dataset.signature=signature;panel.replaceChildren();
  panel.append(make('h3','👑 Roi du Terrain — 4 équipes / 2 terrains'));
  panel.append(make('p','👑 Carrefour : le gagnant conserve le terrain du Roi. ⚔️ Mercedes : le vainqueur monte défier le Roi, les autres équipes jouent sur Mercedes.'));
+ if((current.reserved_pitch_ids||[]).length!==2){panel.append(make('p','⚠️ Le circuit à 4 équipes nécessite exactement 2 terrains réservés : Carrefour et Mercedes. Corrige la réservation avant de lancer les rotations.'));return;}
  if(active){
   const status=make('p','✅ Circuit actif · Tour '+round+' · '+done+' / 2 matchs terminés');
   status.style.fontWeight='700';panel.append(status);
@@ -131,7 +132,7 @@ function mount(){
     anchor.after(panel);
   }
   const fourTeams=(S.teams||[]).filter(x=>String(x.tournament_id)===String(current.id)).length===4;
-  if(fourTeams&&(current.reserved_pitch_ids||[]).length===2){mountFourTeamCircuit(current,panel);return;}
+  if(fourTeams){mountFourTeamCircuit(current,panel);return;}
   const active=current.rotation_mode==='king_of_pitch'&&!!current.rotation_state?.initialized;
   const round=Number(current.rotation_state?.round||1);
   const matches=(S.matches||[]).slice().sort((a,b)=>Number(a.match_order)-Number(b.match_order));
