@@ -130,3 +130,17 @@ html.swe-organizer-setup-active #workspaceSetup textarea{box-sizing:border-box!i
 #sweOrganizerNotificationsV54 #sweHomeLateWithdrawalsV1:not(:empty){padding:12px 16px;border:1px solid #ffdb9b;border-radius:12px;background:#fff8e9;color:#8e440e!important}
 #sweOrganizerNotificationsV54 #sweHomeLateWithdrawalsV1 p{margin:5px 0}
 @media(max-width:640px){#sweOrganizerNotificationsV54{grid-template-columns:minmax(0,1fr)}#sweOrganizerNotificationsV54 #sweEnableNotificationsV54{width:100%}}
+
+/* SWÉ player home 2026 — compact premium dashboard, mobile-first. */
+html.swe-player-home-active #swePlayerQuick{background:linear-gradient(115deg,#102e56 0%,#1567b5 65%,#00abc5 100%)!important;color:white!important;border-radius:24px!important;padding:clamp(22px,4vw,42px)!important;box-shadow:0 18px 45px rgba(11,52,108,.17)!important}
+html.swe-player-home-active #swePlayerQuick h2{color:#fff!important;letter-spacing:-.03em;font-size:clamp(26px,3.4vw,42px)}
+html.swe-player-home-active #swePlayerQuick p,html.swe-player-home-active #swePlayerQuick small{color:#e8f5ff!important}
+#swePlayerHomeOverview{background:#fff!important;border-radius:20px!important;box-shadow:0 8px 26px rgba(10,49,105,.07)!important}
+#swePlayerHomeOverview .swe-dashboard-kicker{font-size:11px;letter-spacing:.13em;color:#3773aa;font-weight:850}
+#swePlayerHomeOverview h2{font-size:clamp(20px,2.6vw,27px);color:#132f54;margin:8px 0 19px}
+#swePlayerHomeOverview .swe-dashboard-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+#swePlayerHomeOverview .swe-dashboard-actions button{min-width:0;padding:17px 12px;background:#eff6ff!important;color:#174a80!important;border:1px solid #d7e6fa!important;border-radius:14px!important;font-weight:800!important;min-height:68px;cursor:pointer;box-shadow:none!important}
+#swePlayerHomeOverview .swe-dashboard-actions button:hover{background:#dfeeff!important;border-color:#91bdeb!important}
+#swePlayerMine,#sweIndependentDiscovery{border-radius:20px!important}
+@media(max-width:800px){#swePlayerHomeOverview .swe-dashboard-actions{grid-template-columns:repeat(2,minmax(0,1fr))}#swePlayerHomeOverview .swe-dashboard-actions button{min-height:76px;font-size:13px} }
+@media(max-width:420px){#swePlayerHomeOverview .swe-dashboard-actions{gap:8px}#swePlayerHomeOverview .swe-dashboard-actions button{padding:12px 7px}}
