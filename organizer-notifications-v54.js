@@ -87,6 +87,13 @@ try{
  button.textContent=!('PushManager'in window)?'Notifications push non prises en charge':(Notification.permission==='granted'&&localStorage.getItem('swe_push_enabled_device_v1')==='1')?'✓ Notifications push activées':Notification.permission==='granted'?'Activer les notifications push':'Autoriser les notifications sur cet appareil';
  let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
  if(items.length)for(const n of [...items].reverse()){const p=document.createElement('p');p.textContent=n.title+' — '+n.body;box.prepend(p)}
+ const {data:lateAlerts,error:lateError}=await sb.from('community_swe_organizer_alerts_v1').select('id,player_name,minutes_before_start').order('id',{ascending:false}).limit(5);
+ if(!lateError&&Array.isArray(lateAlerts)){
+   let lateBox=E('sweHomeLateWithdrawalsV1');
+   if(!lateBox){lateBox=document.createElement('div');lateBox.id='sweHomeLateWithdrawalsV1';card.append(lateBox)}
+   lateBox.replaceChildren();
+   for(const item of lateAlerts){const line=document.createElement('p');line.textContent='🚨 Désistement : '+item.player_name+(item.minutes_before_start===null?'':' · '+item.minutes_before_start+' min avant le début');lateBox.append(line)}
+ }
  if(!items.length&&!box.childElementCount)box.textContent='Ici, tu retrouveras les inscriptions, les informations de tes matchs et les alertes de ton SWÉ.';
  }
  if(items.length){const high=Math.max(...items.map(n=>Number(n.id)||0));if(high>after)localStorage.setItem(key,String(high));
