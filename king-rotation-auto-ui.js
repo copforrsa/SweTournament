@@ -117,6 +117,61 @@ function mountFourTeamCircuit(current,panel){
  };
 }
 
+function mountOddTeamCircuit(current,panel,count){
+ const k=(count-1)/2;
+ const matches=(S.matches||[]).filter(m=>String(m.tournament_id)===String(current.id)).sort((a,b)=>Number(a.match_order)-Number(b.match_order));
+ const active=current.rotation_mode==='king_of_pitch'&&Number(current.rotation_state?.version)===4&&!!current.rotation_state?.initialized;
+ const round=Number(current.rotation_state?.round||1);
+ panel.replaceChildren();
+ panel.append(make('h3','👑 Roi du terrain · '+count+' équipes / '+k+' terrains'));
+ const desc=make('p','Chaque tour comporte '+k+' matchs et une équipe au repos. Les gagnants montent ou conservent leur terrain, et une équipe ayant perdu laisse sa place à celle qui était au repos.');
+ panel.append(desc);
+ if(active){
+  const currentRound=matches.filter(m=>Number(m.match_order)>k*(round-1)&&Number(m.match_order)<=k*round);
+  panel.append(make('p','✅ Circuit actif · Tour '+round+' · '+currentRound.filter(m=>m.status==='finished').length+' / '+k+' matchs terminés'));
+  const teams=S.teams||[];
+  const resting=teams.find(t=>String(t.id)===String(current.rotation_state?.bye_team_id));
+  panel.append(make('p','🪑 Équipe au repos : '+(resting?.name||'Équipe à confirmer')));
+  for(const m of currentRound){
+   const line=make('p',(m.rotation_role==='king'?'👑 ':m.rotation_role==='middle'?'⚔️ ':'🛡️ ')+(m.pitch||'Terrain')+' · '+(teams.find(t=>String(t.id)===String(m.home_team_id))?.name||'Équipe')+' contre '+(teams.find(t=>String(t.id)===String(m.away_team_id))?.name||'Équipe')+' · '+(m.status==='finished'?'✓ terminé':'À jouer'));
+   panel.append(line);
+  }
+  return;
+ }
+ if(current.rotation_mode!=='standard'){panel.append(make('p','Ce tournoi possède déjà une rotation différente.'));return;}
+ const ids=current.reserved_pitch_ids||[];
+ if(ids.length!==k){panel.append(make('p','⚠️ Réserve exactement '+k+' terrains pour lancer ce format.'));return;}
+ if(matches.length!==k){panel.append(make('p','Prépare '+k+' matchs initiaux sur les '+k+' terrains, avec '+(2*k)+' équipes différentes. La dernière équipe sera au repos.'));return;}
+ if(!admin()){panel.append(make('p','Connexion organisateur requise.'));return;}
+ const pitches=ids.map(id=>(S.sportsPitches||[]).find(p=>String(p.id)===String(id))).filter(Boolean);
+ if(pitches.length!==k){panel.append(make('p','Chargement des terrains réservés nécessaire.'));return;}
+ const roleNames=k===2?['👑 Terrain du Roi','🛡️ Terrain inférieur']:['👑 Terrain du Roi','⚔️ Terrain intermédiaire','🛡️ Terrain inférieur'];
+ const selects=[];
+ for(let i=0;i<k;i++){
+  const label=make('label',roleNames[i]);label.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0;flex-wrap:wrap;';
+  const select=make('select');select.style.cssText='min-width:180px;max-width:100%;';
+  for(const p of pitches){const o=make('option',p.name);o.value=p.id;select.append(o)}
+  select.value=pitches[i].id;label.append(select);panel.append(label);selects.push(select);
+ }
+ const notice=make('p','Les '+k+' matchs initiaux doivent être placés sur les terrains sélectionnés dans cet ordre. Les résultats déjà saisis sont conservés.');
+ notice.className='muted';panel.append(notice);
+ const button=make('button','👑 Activer le circuit à '+count+' équipes');button.type='button';button.className='primary';
+ const feedback=make('p');feedback.setAttribute('role','status');panel.append(button,feedback);
+ button.onclick=async()=>{
+  if(pending)return;
+  if(new Set(selects.map(s=>s.value)).size!==k){feedback.textContent='Choisis '+k+' terrains distincts.';return}
+  if(!confirm('Activer le circuit Roi du terrain à '+count+' équipes avec une équipe au repos à chaque tour ?'))return;
+  pending=true;button.disabled=true;feedback.textContent='Activation en cours…';
+  try{
+   const ids=selects.map(s=>s.value);
+   const {data,error}=await sb.rpc('swe_king_start_odd_v1',{p_tournament_id:current.id,p_king_pitch_id:ids[0],p_middle_pitch_id:k===3?ids[1]:null,p_stream_pitch_id:ids[k-1]});
+   if(error)throw error;
+   await refresh();toast(data?.generated?'👑 Tour suivant généré':'👑 Circuit activé. Termine les matchs pour passer au tour suivant.');
+  }catch(error){feedback.textContent=error?.message||'Activation impossible';button.disabled=false;}
+  finally{pending=false}
+ };
+}
+
 function mount(){
   const current=tour();
   let panel=document.getElementById('sweKingCircuit');
@@ -131,7 +186,9 @@ function mount(){
     panel.style.cssText='margin:10px 0 16px;padding:14px;border:2px solid #d4a64a;border-radius:14px;background:#fffcf3;';
     anchor.after(panel);
   }
-  const fourTeams=(S.teams||[]).filter(x=>String(x.tournament_id)===String(current.id)).length===4;
+  const teamCount=(S.teams||[]).filter(x=>String(x.tournament_id)===String(current.id)).length;
+  if(teamCount===5||teamCount===7){mountOddTeamCircuit(current,panel,teamCount);return;}
+  const fourTeams=teamCount===4;
   if(fourTeams){mountFourTeamCircuit(current,panel);return;}
   const active=current.rotation_mode==='king_of_pitch'&&!!current.rotation_state?.initialized;
   const round=Number(current.rotation_state?.round||1);
