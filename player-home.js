@@ -39,6 +39,10 @@ function ensure(view){
  E('swePlayerSwitchToggle').onclick=e=>{e.stopPropagation();const open=E('swePlayerProfiles').classList.toggle('hidden')===false;e.currentTarget.setAttribute('aria-expanded',String(open))};
  const hero=node('section','swePlayerQuick','<div><span class="swe-player-kicker">LE FOOT PLUS SIMPLE, ENTRE NOUS</span><h2>Un SWÉ, et c’est parti.</h2><p>Crée un match rapide ou rejoins tes amis.</p><div class="swe-player-actions"><button type="button" id="swePlayerCreateQuick">＋ Créer un SWÉ rapide</button><button type="button" data-player-panel="discover">Découvrir les SWÉs publics</button></div><small>Match rapide · Sans abonnement organisateur</small></div>');
  view.append(hero);E('swePlayerCreateQuick').onclick=creator;
+ const overview=node('section','swePlayerHomeOverview','<div class="swe-dashboard-kicker">TABLEAU DE BORD</div><h2>Tout ton SWÉ en un coup d’œil</h2><div class="swe-dashboard-actions"><button type="button" data-player-panel="registrations">📋 Mes inscriptions</button><button type="button" data-player-panel="mine">📅 Mes prochains SWÉs</button><button type="button" data-player-panel="stats">📈 Mes statistiques</button><button type="button" id="swePlayerHomeAlerts">🔔 Notifications</button></div>');
+ overview.className='card';view.append(overview);
+ E('swePlayerHomeAlerts').onclick=()=>{const notifications=E('sweOrganizerNotificationsV54');if(notifications){notifications.scrollIntoView({behavior:'smooth',block:'center'});notifications.querySelector('button')?.focus({preventScroll:true})}else{document.dispatchEvent(new Event('swe:rendered'));}};
+
  const mine=node('section','swePlayerMine','<div class="swe-player-section-head"><h2>Mes SWÉs</h2><button type="button" data-player-panel="mine">Tout voir →</button></div><div id="swePlayerMineRows" aria-live="polite"></div><div class="swe-player-actions"><button type="button" id="swePlayerManage">＋ Créer un SWÉ rapide</button><button type="button" id="swePlayerMineRefresh">Actualiser</button></div>');
  mine.className='card';view.append(mine);
  E('swePlayerManage').onclick=()=>{creator();E('swe4351Mine')?.scrollIntoView({behavior:'smooth',block:'center'})};
@@ -86,6 +90,7 @@ function more(n,panel){
 }
 function decorate(view){
  group(E('swePlayerQuick'),'home',0);
+ group(E('swePlayerHomeOverview'),'home',2);
  group(view.querySelector('.player-hub-hero'),'profile',1);
  group(E('myPlayerCreateCard'),'home profile',1);
  const stats=card('myPlayerStats');group(stats,'home stats',10);more(stats,'stats');
