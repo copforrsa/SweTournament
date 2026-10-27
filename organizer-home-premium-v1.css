@@ -1,0 +1,20 @@
+/* Organizer SWÉ home premium - preserves existing actions and rights. */
+#view-home{max-width:1250px;margin-inline:auto}
+#view-home #hostWelcomeCard{border-radius:21px!important;background:linear-gradient(115deg,#102b51,#1763ac 68%,#059cb9)!important;color:#fff!important;border:0!important;padding:clamp(19px,3.5vw,32px)!important;box-shadow:0 15px 35px #15365b25!important}
+#view-home #hostWelcomeCard .sectiontitle,#view-home #hostWelcomeCard .muted{color:#fff!important}
+#view-home #hostWelcomeCard .muted{opacity:.84}
+#view-home #hostWelcomeCard .guest-badge{background:#ffffff29!important;color:#fff!important;border-color:#ffffff66!important}
+#view-home .swe-host-shortcuts{border:1px solid #d3e4f9!important;border-radius:21px!important;padding:clamp(19px,3vw,27px)!important;background:#fff!important;box-shadow:0 8px 29px #152d5910!important}
+#view-home .swe-host-shortcuts-title>span{font-weight:800;letter-spacing:.12em;color:#3578aa;font-size:11px}
+#view-home .swe-host-shortcuts-title h2{margin:7px 0 4px!important;font-size:clamp(21px,2.5vw,28px)!important;color:#142e53!important}
+#view-home .swe-host-shortcuts-title p{margin:0 0 18px!important;color:#62738b!important}
+#view-home .swe-host-shortcuts-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#view-home .swe-host-shortcuts-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;white-space:normal;min-width:0;min-height:125px;padding:17px!important;font-size:22px;background:linear-gradient(140deg,#f4f8ff,#eaf3ff)!important;border:1px solid #d8e7fb!important;border-radius:15px!important;box-shadow:none!important;color:#183b68!important;cursor:pointer}
+#view-home .swe-host-shortcuts-grid button strong{font-size:15px;color:#173c69}
+#view-home .swe-host-shortcuts-grid button small{font-size:12px;color:#527598}
+#view-home .swe-host-shortcuts-grid button:hover{border-color:#84b3ea!important;background:#e4f0ff!important}
+#view-home .swe-host-shortcuts-grid button:focus-visible{outline:3px solid #58a3f4;outline-offset:3px}
+#view-home #homeWorkspaceStats{gap:12px!important}
+#view-home #homeWorkspaceStats>*{border-radius:14px}
+@media(max-width:830px){#view-home .swe-host-shortcuts-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:430px){#view-home .swe-host-shortcuts-grid{gap:8px}#view-home .swe-host-shortcuts-grid button{padding:13px!important;min-height:115px}}
