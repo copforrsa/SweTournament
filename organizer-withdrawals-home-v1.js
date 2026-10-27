@@ -2,7 +2,7 @@
 const E=id=>document.getElementById(id);let busy=false,last=0;
 async function refresh(force=false){
  const root=E('sweHostReliabilityRows');
- if(!root||busy||!window.sb||!window.S)return;
+ if(!root||busy||typeof sb==='undefined'||typeof S==='undefined')return;
  if(!S.session?.user?.id||!S.workspace?.id||S.publicMode)return;
  if(!force&&Date.now()-last<30000)return;
  busy=true;last=Date.now();
