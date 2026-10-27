@@ -72,6 +72,35 @@ async function offerPushOnLogin(){
 }
 function schedulePushOffer(){offerPushOnLogin().catch(e=>console.warn('SWÉ push opt-in',e))}
 
+
+function ensureNotificationsCenter(){
+ let panel=E('sweNotificationsCenterV54');
+ if(panel){const bell=E('sweNotificationsBellV54');const nav=document.querySelector('.tabs');if(nav&&bell&&bell.parentElement!==nav)nav.append(bell);return panel;}
+ const style=document.createElement('style');
+ style.textContent=`
+ #sweNotificationsBellV54{border:0;border-radius:10px;background:#123855;color:#fff;padding:12px 14px;font-weight:700;cursor:pointer;width:100%;text-align:left}
+ #sweNotificationsBellV54 .swe-count{display:inline-block;background:#df3352;color:#fff;border-radius:14px;padding:2px 7px;margin-left:6px}
+ #sweNotificationsCenterV54{position:fixed;inset:0;z-index:2050;background:rgba(5,22,36,.72);padding:16px;display:none;align-items:center;justify-content:center}
+ #sweNotificationsCenterV54.swe-open{display:flex}
+ #sweNotificationsCenterV54 .swe-notif-sheet{position:relative;background:#fff;color:#102d46;width:min(750px,100%);max-height:88dvh;overflow-y:auto;border-radius:18px;padding:24px;box-shadow:0 20px 70px #0005}
+ #sweNotificationsCenterV54 .swe-notif-close{float:right;border:0;border-radius:10px;padding:9px 13px;cursor:pointer;background:#edf2f5}
+ #sweOrganizerNotificationsListV54{display:grid;gap:9px;margin-top:14px}
+ #sweOrganizerNotificationsListV54 p{margin:0;padding:10px 12px;border-radius:9px;background:#f2f6f8;border-left:3px solid #0b6693;line-height:1.45}
+ `;
+ document.head.append(style);
+ const bell=document.createElement('button');bell.type='button';bell.id='sweNotificationsBellV54';bell.textContent='🔔 Profil pro · Notifications';bell.setAttribute('aria-label','Ouvrir les notifications du profil organisateur');
+ panel=document.createElement('div');panel.id='sweNotificationsCenterV54';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','Mes notifications SWÉ');
+ const sheet=document.createElement('div');sheet.className='swe-notif-sheet';
+ const close=document.createElement('button');close.type='button';close.className='swe-notif-close';close.textContent='✕ Fermer';
+ const card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card';
+ sheet.append(close,card);panel.append(sheet);const nav=document.querySelector('.tabs');if(nav)nav.append(bell);else document.body.append(bell);document.body.append(panel);
+ const shut=()=>{panel.classList.remove('swe-open');bell.focus()};
+ bell.onclick=()=>{panel.classList.add('swe-open');bell.querySelector('.swe-count')?.remove();close.focus()};
+ close.onclick=shut;panel.onclick=e=>{if(e.target===panel)shut()};
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&panel.classList.contains('swe-open'))shut()});
+ return panel;
+}
+
 window.SWEEnablePushNotifications=enablePush;
 
 async function check(){
@@ -81,13 +110,28 @@ try{
  const uid=s.session.user.id,key='swe_org_notification_seen_v54:'+uid,stored=localStorage.getItem(key),after=Number(stored)||0;
  const {data,error}=await sb.rpc('my_swe_organizer_notifications_v54',{p_after_id:after});if(error)throw error;
  const items=Array.isArray(data)?data:[];
- const root=E('view-home');if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card';root.prepend(card)}
- let heading=card.querySelector('h2');if(!heading){heading=document.createElement('h2');heading.textContent='🔔 Mes notifications SWÉ';card.append(heading)}
- let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées';localStorage.setItem('swe_push_enabled_device_v1','1')}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}};}
- button.textContent=!('PushManager'in window)?'Notifications push non prises en charge':(Notification.permission==='granted'&&localStorage.getItem('swe_push_enabled_device_v1')==='1')?'✓ Notifications push activées':Notification.permission==='granted'?'Activer les notifications push':'Autoriser les notifications sur cet appareil';
- let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
- if(items.length)for(const n of [...items].reverse()){const p=document.createElement('p');p.textContent=n.title+' — '+n.body;box.prepend(p)}
- if(!items.length&&!box.childElementCount)box.textContent='Les nouvelles inscriptions et ouvertures du salon apparaîtront ici.';
+ ensureNotificationsCenter();
+ const card=E('sweOrganizerNotificationsV54');
+ if(card){
+  let heading=card.querySelector('h2');if(!heading){heading=document.createElement('h2');heading.textContent='🔔 Mes notifications SWÉ';card.append(heading)}
+  let button=E('sweEnableNotificationsV54');
+  if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées';localStorage.setItem('swe_push_enabled_device_v1','1')}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}}}
+  button.textContent=!('PushManager'in window)?'Notifications push non prises en charge':(Notification.permission==='granted'&&localStorage.getItem('swe_push_enabled_device_v1')==='1')?'✓ Notifications push activées':Notification.permission==='granted'?'Activer les notifications push':'Autoriser les notifications sur cet appareil';
+  let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
+  const historyKey='swe_org_notification_history_v54:'+uid+':'+s.workspace.id;
+  let history=[];try{const saved=JSON.parse(localStorage.getItem(historyKey)||'[]');if(Array.isArray(saved))history=saved}catch(_){}
+  const known=new Map(history.map(n=>[String(n.id),n]));
+  for(const n of items)known.set(String(n.id),{id:n.id,title:String(n.title||''),body:String(n.body||'')});
+  history=[...known.values()].sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,150);
+  try{localStorage.setItem(historyKey,JSON.stringify(history))}catch(_){}
+  box.replaceChildren();
+  if(history.length)for(const n of history){const p=document.createElement('p');p.textContent=n.title+' — '+n.body;box.append(p)}
+  else box.textContent='Les nouvelles inscriptions et ouvertures du salon apparaîtront ici.';
+  const bell=E('sweNotificationsBellV54');
+  if(bell&&items.length&&!E('sweNotificationsCenterV54')?.classList.contains('swe-open')){
+   let count=bell.querySelector('.swe-count');if(!count){count=document.createElement('span');count.className='swe-count';bell.append(count)}
+   count.textContent=String(Math.min(items.length,99));
+  }
  }
  if(items.length){const high=Math.max(...items.map(n=>Number(n.id)||0));if(high>after)localStorage.setItem(key,String(high));
  if(stored&&Notification.permission==='granted'){
