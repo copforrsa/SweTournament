@@ -75,19 +75,19 @@ function schedulePushOffer(){offerPushOnLogin().catch(e=>console.warn('SWÉ push
 window.SWEEnablePushNotifications=enablePush;
 
 async function check(){
-const s=state();if(!s?.session?.user?.id||s.publicMode||!s.workspace?.id||busy)return;
+const s=state();if(!s?.session?.user?.id||s.publicMode||busy)return;
 if(Date.now()-lastPoll<20000)return;busy=true;lastPoll=Date.now();
 try{
  const uid=s.session.user.id,key='swe_org_notification_seen_v54:'+uid,stored=localStorage.getItem(key),after=Number(stored)||0;
  const {data,error}=await sb.rpc('my_swe_organizer_notifications_v54',{p_after_id:after});if(error)throw error;
  const items=Array.isArray(data)?data:[];
- const root=E('view-home');if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card';root.prepend(card)}
+ const playerHome=E('view-myplayer');const usePlayerHome=!!playerHome?.classList.contains('active')&&!E('main')?.classList.contains('hidden');const root=usePlayerHome?(E('swePlayerMine')||playerHome):E('view-home');if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card swe-notifications-home-card';root.prepend(card)}else if(card.parentElement!==root){root.prepend(card)}
  let heading=card.querySelector('h2');if(!heading){heading=document.createElement('h2');heading.textContent='🔔 Mes notifications SWÉ';card.append(heading)}
  let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées';localStorage.setItem('swe_push_enabled_device_v1','1')}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}};}
  button.textContent=!('PushManager'in window)?'Notifications push non prises en charge':(Notification.permission==='granted'&&localStorage.getItem('swe_push_enabled_device_v1')==='1')?'✓ Notifications push activées':Notification.permission==='granted'?'Activer les notifications push':'Autoriser les notifications sur cet appareil';
  let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
  if(items.length)for(const n of [...items].reverse()){const p=document.createElement('p');p.textContent=n.title+' — '+n.body;box.prepend(p)}
- if(!items.length&&!box.childElementCount)box.textContent='Les nouvelles inscriptions et ouvertures du salon apparaîtront ici.';
+ if(!items.length&&!box.childElementCount)box.textContent='Ici, tu retrouveras les inscriptions, les informations de tes matchs et les alertes de ton SWÉ.';
  }
  if(items.length){const high=Math.max(...items.map(n=>Number(n.id)||0));if(high>after)localStorage.setItem(key,String(high));
  if(stored&&Notification.permission==='granted'){
