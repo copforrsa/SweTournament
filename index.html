@@ -32,7 +32,7 @@
 <link rel="stylesheet" href="./offres.css?v=offres-r1">
 <link rel="stylesheet" href="./player-profile-compact.css?v=4399-player-r1">
 <link rel="stylesheet" href="./player-home.css?v=539-dashboard">
-<link rel="stylesheet" href="./organizer-home-premium-v1.css?v=1">
+<link rel="stylesheet" href="./organizer-home-premium-v1.css?v=2">
 <link rel="stylesheet" href="./theme-toggle.css?v=4401">
 <link rel="stylesheet" href="./fast-conquest/theme.css?v=5103-orange">
   <link rel="stylesheet" href="./format-theme-auto.css?v=20261012-existing-cards">
@@ -303,14 +303,9 @@
         <div id="homeWorkspaceStats" class="grid g2" style="margin-top:12px"></div>
         <div id="homeCoorgQuotaRequest" style="margin-top:12px"></div>
       </div>
-      <section class="card swe-host-shortcuts" id="sweHostQuickActions" aria-label="Actions rapides organisateur">
-        <div class="swe-host-shortcuts-title"><span>MON TABLEAU DE BORD</span><h2>Prêt pour ton prochain SWÉ ?</h2><p>Retrouve les actions essentielles sans chercher dans les menus.</p></div>
-        <div class="swe-host-shortcuts-grid">
-          <button type="button" data-go="tournaments">📅 <strong>Mes tournois</strong><small>Préparer et gérer</small></button>
-          <button type="button" data-go="players">👥 <strong>Mes joueurs</strong><small>Inscriptions et effectif</small></button>
-          <button type="button" data-go="teams">🟩 <strong>Mes équipes</strong><small>Créer les compositions</small></button>
-          <button type="button" data-go="matches">⚽ <strong>Mes matchs</strong><small>Terrains et résultats</small></button>
-        </div>
+      <section class="card" id="sweHostReliabilityCard">
+        <div class="row" style="justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2 class="sectiontitle">🚨 Désistements et fiabilité</h2><p class="muted">Historique enregistré pour les joueurs de ton groupe. Les remplacements ordinaires ne sont pas automatiquement des désistements de dernière minute.</p></div><button type="button" id="sweHostReliabilityRefresh">Actualiser</button></div>
+        <div id="sweHostReliabilityRows" role="status">Chargement des événements enregistrés…</div>
       </section>
       <div id="homeIdentityRequestsCard" class="card hidden">
         <h2 class="sectiontitle">🔐 Rattachements de profils à valider</h2>
@@ -1010,4 +1005,5 @@
 <script src="./player-organizer-offers-v52.js?v=5208-preferences-offers" defer></script>
 <script src="./admin-revolut-cooler-v52.js?v=5211" defer></script>
 <script src="./organizer-notifications-v54.js?v=5409-last-minute-alerts" defer></script>
+<script src="./organizer-withdrawals-home-v1.js?v=1" defer></script>
 </body></html>
