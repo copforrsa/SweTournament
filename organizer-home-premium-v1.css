@@ -18,3 +18,13 @@
 #view-home #homeWorkspaceStats>*{border-radius:14px}
 @media(max-width:830px){#view-home .swe-host-shortcuts-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){#view-home .swe-host-shortcuts-grid{gap:8px}#view-home .swe-host-shortcuts-grid button{padding:13px!important;min-height:115px}}
+
+/* Organizer home: focused reliability summary instead of a duplicate quick-action menu. */
+#view-home #sweHostReliabilityCard{border:1px solid #dfebf7!important;border-radius:20px!important;padding:clamp(17px,3vw,27px)!important;background:linear-gradient(145deg,#fff,#f5f9ff)!important;box-shadow:0 8px 26px #12366210!important}
+#sweHostReliabilityCard .sectiontitle{font-size:clamp(18px,2.5vw,24px)!important;margin:0 0 9px!important;color:#143254!important}
+#sweHostReliabilityCard .muted{font-size:13px!important;max-width:720px}
+#sweHostReliabilityRefresh{border:1px solid #c9dbf5!important;background:#e9f3ff!important;color:#17548f!important;border-radius:11px!important;padding:10px 16px!important;font-weight:750}
+#sweHostReliabilityRows{display:grid;gap:9px;min-width:0;margin-top:15px}
+#sweHostReliabilityRows .swe-withdrawal-person{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #dde9f8;border-radius:12px;padding:13px 15px}
+#sweHostReliabilityRows .swe-withdrawal-person strong{font-size:15px;color:#143254}
+#sweHostReliabilityRows .swe-withdrawal-person span{color:#93450f;background:#fff3df;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:700}
