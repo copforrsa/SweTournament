@@ -31,7 +31,7 @@ window.addEventListener('error', (e) => {
   console.error('[SWÉ] Erreur JavaScript ou ressource', e.error || e.message || e);
 });
 
-const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null,playerAccountAccess:false,superPlayerAccountAccess:[]};
+const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],playerAliases:{},contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null,playerAccountAccess:false,superPlayerAccountAccess:[]};
 
 let safeSyncTimer=null;
 let safeSyncBusy=false;
@@ -1507,10 +1507,34 @@ async function loadAll(){
     }else {S.players=[];S.contacts=[];S.teamCodes=[];}
     S.skillReviews=[];
   }
+  // Historical identity alias: preserve locked team sheets, present a single player profile.
+  S.playerAliases={};
+  if(isAdmin()||isCoorg()){
+    const aliases=await sb.rpc('get_workspace_player_identity_aliases',{p_workspace_id:w});
+    if(!aliases.error&&Array.isArray(aliases.data)){
+      for(const a of aliases.data)S.playerAliases[String(a.source_player_id)]=String(a.canonical_player_id);
+      S.players=S.players.filter(x=>!S.playerAliases[String(x.id)]);
+      S.skillReviews=S.skillReviews.map(a=>({...a,player_id:S.playerAliases[String(a.player_id)]||a.player_id}));
+      S.myRatings=S.myRatings.map(a=>({...a,player_id:S.playerAliases[String(a.player_id)]||a.player_id}));
+    }
+  }
   if(isAdmin()||isCoorg()){
     if(S.workspaceFeatures.player_ratings_enabled){
       r=await sb.rpc('get_player_skill_aggregates',{p_workspace_id:w});
       S.skillAggregates=r.error?[]:(Array.isArray(r.data)?r.data:[]);
+      const aggregateMap=new Map();
+      for(const a of S.skillAggregates){
+        const canonicalId=canonicalPlayerId(a.player_id);
+        if(!aggregateMap.has(canonicalId)){aggregateMap.set(canonicalId,{...a,player_id:canonicalId});continue}
+        const previous=aggregateMap.get(canonicalId),n1=Number(previous.voter_count||0),n2=Number(a.voter_count||0),total=n1+n2;
+        for(const field of ['avg_rating','avg_cardio','avg_dribble','avg_collectif','avg_frappe']){
+          const v1=Number(previous[field]),v2=Number(a[field]);
+          previous[field]=total&&Number.isFinite(v1)&&Number.isFinite(v2)?(v1*n1+v2*n2)/total:(Number.isFinite(v1)?v1:v2);
+        }
+        previous.voter_count=total;
+        if(n2>n1)previous.top_role=a.top_role;
+      }
+      S.skillAggregates=[...aggregateMap.values()];
     }else S.skillAggregates=[];
     r=await sb.rpc('get_my_linked_player_id',{p_workspace_id:w});
     S.myLinkedPlayerId=r.error?null:(r.data||null);
@@ -1561,7 +1585,7 @@ const THIRD_HALF_PAYMENT_MODES={
   cooler_online:'Participation en ligne à la glacière',
   cooler_cash:'Participation main à main'
 };
-function currentTour(){return S.tournaments.find(x=>x.id===S.activeTour)} function p(id){return S.players.find(x=>x.id===id)} function tm(id){return S.teams.find(x=>x.id===id)}
+function currentTour(){return S.tournaments.find(x=>x.id===S.activeTour)} function canonicalPlayerId(id){return S.playerAliases?.[String(id)]||String(id)} function p(id){return S.players.find(x=>String(x.id)===canonicalPlayerId(id))} function tm(id){return S.teams.find(x=>x.id===id)}
 
 function matchTeamPlayerIds(matchId,teamId){
   const rows=S.matchAssignments.filter(a=>String(a.match_id)===String(matchId));
@@ -4619,11 +4643,11 @@ async function renderRanking(){
   const matchMap=new Map(matches.map(m=>[m.id,m]));
   goals.forEach(g=>{
     const m=matchMap.get(g.match_id);
-    if(!g.is_own_goal&&stats.has(g.scorer_player_id)){
-      const s=stats.get(g.scorer_player_id);s.g++;s.matchIds.add(g.match_id);if(m)s.tournamentIds.add(m.tournament_id);
+    if(!g.is_own_goal&&stats.has(canonicalPlayerId(g.scorer_player_id))){
+      const s=stats.get(canonicalPlayerId(g.scorer_player_id));s.g++;s.matchIds.add(g.match_id);if(m)s.tournamentIds.add(m.tournament_id);
     }
-    if(g.assister_player_id&&stats.has(g.assister_player_id)){
-      const a=stats.get(g.assister_player_id);a.a++;a.matchIds.add(g.match_id);if(m)a.tournamentIds.add(m.tournament_id);
+    if(g.assister_player_id&&stats.has(canonicalPlayerId(g.assister_player_id))){
+      const a=stats.get(canonicalPlayerId(g.assister_player_id));a.a++;a.matchIds.add(g.match_id);if(m)a.tournamentIds.add(m.tournament_id);
     }
   });
 
@@ -4633,7 +4657,7 @@ async function renderRanking(){
     const teamIds=(teams||[]).map(x=>x.id);
     if(!teamIds.length)continue;
     const {data:tp}=await sb.from('team_players').select('*').in('team_id',teamIds);
-    const playerTeam=new Map((tp||[]).map(x=>[x.player_id,x.team_id]));
+    const playerTeam=new Map((tp||[]).map(x=>[canonicalPlayerId(x.player_id),x.team_id]));
     const tourMatches=matches.filter(m=>m.tournament_id===tour.id);
     for(const [playerId,teamId] of playerTeam.entries()){
       const s=stats.get(playerId);if(!s)continue;
@@ -4657,14 +4681,14 @@ async function renderRanking(){
     trophies:0,matchWins:0,g:0,a:0,ratingTotal:0,ratingMatches:0,avg:0
   }]));
   goals.forEach(g=>{
-    if(!g.is_own_goal&&playerSeasonStats.has(g.scorer_player_id))playerSeasonStats.get(g.scorer_player_id).g++;
-    if(g.assister_player_id&&playerSeasonStats.has(g.assister_player_id))playerSeasonStats.get(g.assister_player_id).a++;
+    if(!g.is_own_goal&&playerSeasonStats.has(canonicalPlayerId(g.scorer_player_id)))playerSeasonStats.get(canonicalPlayerId(g.scorer_player_id)).g++;
+    if(g.assister_player_id&&playerSeasonStats.has(canonicalPlayerId(g.assister_player_id)))playerSeasonStats.get(canonicalPlayerId(g.assister_player_id)).a++;
   });
 
   matches.forEach(m=>{
     const winner=m.competition_type==='fast_conquest'&&m.tie_break_winner_team_id?m.tie_break_winner_team_id:Number(m.home_score)>Number(m.away_score)?m.home_team_id:(Number(m.away_score)>Number(m.home_score)?m.away_team_id:null);
     rankingAssignments.filter(a=>a.match_id===m.id&&a.team_id).forEach(a=>{
-      const st=playerSeasonStats.get(a.player_id);if(!st)return;
+      const st=playerSeasonStats.get(canonicalPlayerId(a.player_id));if(!st)return;
       if(winner&&String(a.team_id)===String(winner))st.matchWins++;
       if(S.workspaceFeatures.player_ratings_enabled){
         const rr=ratingForMatchPlayer(m,a.player_id,a.team_id,goals);
@@ -4689,7 +4713,7 @@ async function renderRanking(){
     rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
     const champion=tour.format==='fast_conquest'?rows.find(r=>r.id===tour.rotation_state?.fast_conquest?.champion):rows[0];if(!champion)continue;
     const mids=new Set(tourMatches.map(m=>m.id));
-    const champs=new Set(rankingAssignments.filter(a=>mids.has(a.match_id)&&String(a.team_id)===String(champion.id)).map(a=>a.player_id));
+    const champs=new Set(rankingAssignments.filter(a=>mids.has(a.match_id)&&String(a.team_id)===String(champion.id)).map(a=>canonicalPlayerId(a.player_id)));
     champs.forEach(pid=>{if(playerSeasonStats.has(pid))playerSeasonStats.get(pid).trophies++;});
   }
   playerSeasonStats.forEach(s=>{s.avg=s.ratingMatches?s.ratingTotal/s.ratingMatches:0;});
