@@ -33,7 +33,29 @@ function decorateShare(){const text=E('shareText'),button=E('shareWhatsapp');if(
 async function archivedDataset(){const s=state(),c=client(),id=rankingTourId(),tour=(s?.tournaments||[]).find(t=>String(t.id)===id);if(!s||!c||!tour)return {goals:[],matches:[],tournaments:[]};const mr=await c.from('matches').select('*').eq('tournament_id',tour.id).order('match_order');const matches=mr.data||[],mids=matches.map(x=>x.id);let goals=[];if(mids.length){const gr=await c.from('goals').select('*').in('match_id',mids);goals=gr.data||[]}const tr=await c.from('teams').select('*').eq('tournament_id',tour.id).order('created_at');rankCache={id:String(tour.id),matches,teams:tr.data||[]};return {goals,matches,tournaments:[tour]}}
 
 try{const nativeDataset=rankingDataset;rankingDataset=async function(){const s=state();if(s?.rankMode==='day'&&s.rankingTournamentId)return archivedDataset();return nativeDataset()}}catch(_){ }
-try{const nativeTeams=renderTeamRanking;renderTeamRanking=function(){const s=state();if(s?.rankMode!=='day'||!rankCache||rankCache.id!==rankingTourId())return nativeTeams();const rows=rankCache.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(rows.map(x=>[String(x.id),x]));rankCache.matches.forEach(m=>{const h=map.get(String(m.home_team_id)),a=map.get(String(m.away_team_id));if(!h||!a)return;const hs=Number(m.home_score||0),as=Number(m.away_score||0);h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;if(hs>as){h.v++;a.d++;h.pts+=3}else if(as>hs){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);const box=E('teamRank');if(box)box.innerHTML=rows.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune équipe</p>'}}catch(_){ }
+try{const nativeTeams=renderTeamRanking;renderTeamRanking=function(){
+ const s=state();if(s?.rankMode!=='day'||!rankCache||rankCache.id!==rankingTourId())return nativeTeams();
+ const tour=(s.tournaments||[]).find(t=>String(t.id)===String(rankCache.id))||{};
+ const isKing=tour.format==='king_of_pitch'||tour.rotation_mode==='king_of_pitch';
+ const fourPoints=isKing&&String(tour.tournament_date||tour.date||'')>='2026-10-24';
+ const kingMatch=m=>m.rotation_role==='king'||
+   (tour.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(tour.king_pitch_id))||
+   String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour';
+ const rows=rankCache.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),
+       map=new Map(rows.map(x=>[String(x.id),x]));
+ rankCache.matches.filter(m=>m.status==='finished').forEach(m=>{
+  const h=map.get(String(m.home_team_id)),a=map.get(String(m.away_team_id));if(!h||!a)return;
+  const hs=Number(m.home_score||0),as=Number(m.away_score||0);
+  const winPts=fourPoints&&kingMatch(m)?4:3;
+  h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
+  if(hs>as){h.v++;a.d++;h.pts+=winPts}
+  else if(as>hs){a.v++;h.d++;a.pts+=winPts}
+  else{h.n++;a.n++;h.pts++;a.pts++}
+ });
+ rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
+ const box=E('teamRank');
+ if(box)box.innerHTML=rows.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune équipe</p>';
+}}catch(_){ }
 try{const nativeRanking=renderRanking;renderRanking=async function(){mountRankingPicker();const result=await nativeRanking();mountRankingPicker();limitRankings();decorateShare();return result}}catch(_){ }
 try{const nativePlayers=renderPlayers;renderPlayers=function(){const result=nativePlayers.apply(this,arguments);decoratePlayers();return result}}catch(_){ }
 
