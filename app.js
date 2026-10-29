@@ -3388,16 +3388,28 @@ async function showTournamentHistory(t){
     goals=data||[];
   }
   const teamMap=new Map((teams||[]).map(x=>[x.id,x.name]));
-  const stats=(teams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
+  // Ne jamais attribuer un point pour un match programmé (ex. 0–0 après archivage).
+  const finishedMatches=(matches||[]).filter(m=>m.status==='finished');
+  const kingFormat=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch';
+  // Le barème à 4 pts s'applique au Roi du Terrain depuis son adoption le 24/10/2026.
+  // Les éditions antérieures conservent le barème qui était en vigueur à l'époque.
+  const fourPointRule=kingFormat&&String(t.tournament_date||t.date||'')>='2026-10-24';
+  const isRoyalPitch=m=>m.rotation_role==='king'||
+    (t.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(t.king_pitch_id))||
+    String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour';
+  const stats=(teams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,roi:0,pts:0}));
   const sm=new Map(stats.map(x=>[x.id,x]));
-  (matches||[]).forEach(m=>{
+  finishedMatches.forEach(m=>{
     const h=sm.get(m.home_team_id),a=sm.get(m.away_team_id);if(!h||!a)return;
-    h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;
-    if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}
-    else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}
+    const hs=Number(m.home_score||0),as=Number(m.away_score||0);
+    const royal=kingFormat&&isRoyalPitch(m);
+    const victoryPoints=(fourPointRule&&royal)?4:3;
+    h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
+    if(hs>as){h.v++;a.d++;h.pts+=victoryPoints;if(royal)h.roi++}
+    else if(as>hs){a.v++;h.d++;a.pts+=victoryPoints;if(royal)a.roi++}
     else{h.n++;a.n++;h.pts++;a.pts++}
   });
-  stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);
+  stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
 
   const ps=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
   goals.forEach(g=>{
@@ -3411,10 +3423,10 @@ async function showTournamentHistory(t){
   const panel=$('#tournamentHistoryPage');
   if(!panel)return toast('La page des résultats est indisponible.');
 
-  const teamRows=stats.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ • '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
+  const teamRows=stats.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ • '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+' • BP '+x.bp+' / BC '+x.bc+(kingFormat?' • 👑 '+x.roi:'')+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
   const scorerRows=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('');
   const assistRows=ass.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('');
-  const matchRows=(matches||[]).map((m,i)=>{
+  const matchRows=finishedMatches.map((m,i)=>{
     const mg=goals.filter(g=>g.match_id===m.id);
     const goalLines=mg.map(g=>{
       const scorer=p(g.scorer_player_id);
@@ -3441,11 +3453,11 @@ async function showTournamentHistory(t){
     '</section>'+
     '<section class="history-summary-grid">'+
       '<article><span>🏆 VAINQUEUR</span><b>'+esc(champion)+'</b></article>'+
-      '<article><span>⚽ MATCHS JOUÉS</span><b>'+(matches||[]).length+'</b></article>'+
+      '<article><span>⚽ MATCHS JOUÉS</span><b>'+finishedMatches.length+'</b></article>'+
       '<article><span>🔥 BUTS MARQUÉS</span><b>'+goals.length+'</b></article>'+
     '</section>'+
     '<section class="history-results-grid">'+
-      '<article class="history-card history-ranking"><h2>🏆 Classement final</h2>'+(teamRows||'<p class="muted">Aucun classement.</p>')+'</article>'+
+      '<article class="history-card history-ranking"><h2>🏆 Classement final</h2>'+(teamRows||'<p class="muted">Aucun classement.</p>')+(kingFormat?'<p class="muted small">👑 Victoire à Carrefour : '+(fourPointRule?'4':'3')+' pts · autres terrains : 3 pts · match nul : 1 pt. Seuls les matchs terminés comptent.</p>':'')+'</article>'+
       '<article class="history-card"><h2>⚽ Buteurs du tournoi</h2>'+(scorerRows||'<p class="muted">Aucun buteur.</p>')+'</article>'+
       '<article class="history-card"><h2>🎯 Passeurs du tournoi</h2>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+'</article>'+
     '</section>'+
@@ -4713,7 +4725,7 @@ async function renderRanking(){
   });
 
   for(const tour of tournaments.filter(t=>t.status==='finished')){
-    const tourMatches=matches.filter(m=>m.tournament_id===tour.id);
+    const tourMatches=matches.filter(m=>m.tournament_id===tour.id&&m.status==='finished');
     if(!tourMatches.length)continue;
     const {data:tTeams}=await sb.from('teams').select('id,name').eq('tournament_id',tour.id);
     const rows=(tTeams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
@@ -4721,8 +4733,12 @@ async function renderRanking(){
     tourMatches.forEach(m=>{
       const a=sm.get(m.home_team_id),b=sm.get(m.away_team_id);if(!a||!b)return;
       a.mj++;b.mj++;a.bp+=Number(m.home_score||0);a.bc+=Number(m.away_score||0);b.bp+=Number(m.away_score||0);b.bc+=Number(m.home_score||0);
-      if(Number(m.home_score)>Number(m.away_score)){a.v++;b.d++;a.pts+=3}
-      else if(Number(m.away_score)>Number(m.home_score)){b.v++;a.d++;b.pts+=3}
+      const winPoints=(tour.format==='king_of_pitch'||tour.rotation_mode==='king_of_pitch')&&
+        String(tour.tournament_date||tour.date||'')>='2026-10-24'&&
+        (m.rotation_role==='king'||(tour.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(tour.king_pitch_id))||
+         String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour')?4:3;
+      if(Number(m.home_score)>Number(m.away_score)){a.v++;b.d++;a.pts+=winPoints}
+      else if(Number(m.away_score)>Number(m.home_score)){b.v++;a.d++;b.pts+=winPoints}
       else{a.n++;b.n++;a.pts++;b.pts++}
     });
     rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
@@ -4796,7 +4812,32 @@ async function renderRanking(){
   $('#shareText').value=txt;
 }
 
-function renderTeamRanking(){const fast=currentTour();if(fast?.format==='fast_conquest'&&fast.rotation_state?.fast_conquest&&window.SWE_FAST_ENGINE){const s=fast.rotation_state.fast_conquest,stats=window.SWE_FAST_ENGINE.standings(s),ids=s.finalRanking||s.ranking||stats.map(r=>r.id);$('#teamRank').innerHTML=ids.map((id,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(S.teams.find(t=>t.id===id)?.name||'Équipe')+'</span><b class="right">'+(s.finalRanking?(i===0?'🏆 Champion':''):(stats.find(r=>r.id===id)?.points||0)+' pts')+'</b></div>').join('');return}const r=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),map=new Map(r.map(x=>[x.id,x]));S.matches.forEach(m=>{const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}else{h.n++;a.n++;h.pts++;a.pts++}});r.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);$('#teamRank').innerHTML=r.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune équipe</p>'}
+function renderTeamRanking(){
+ const tour=currentTour();
+ if(tour?.format==='fast_conquest'&&tour.rotation_state?.fast_conquest&&window.SWE_FAST_ENGINE){
+  const state=tour.rotation_state.fast_conquest,standings=window.SWE_FAST_ENGINE.standings(state),
+    ids=state.finalRanking||state.ranking||standings.map(r=>r.id);
+  $('#teamRank').innerHTML=ids.map((id,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(S.teams.find(t=>t.id===id)?.name||'Équipe')+'</span><b class="right">'+(state.finalRanking?(i===0?'🏆 Champion':''):(standings.find(r=>r.id===id)?.points||0)+' pts')+'</b></div>').join('');
+  return;
+ }
+ const isKing=tour?.format==='king_of_pitch'||tour?.rotation_mode==='king_of_pitch';
+ const fourPoints=isKing&&String(tour.tournament_date||tour.date||'')>='2026-10-24';
+ const onKing=m=>m.rotation_role==='king'||
+   (tour?.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(tour.king_pitch_id))||
+   String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour';
+ const rows=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),
+   map=new Map(rows.map(x=>[x.id,x]));
+ S.matches.filter(m=>m.status==='finished').forEach(m=>{
+  const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;
+  const hs=Number(m.home_score||0),as=Number(m.away_score||0),winPoints=fourPoints&&onKing(m)?4:3;
+  h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
+  if(hs>as){h.v++;a.d++;h.pts+=winPoints}
+  else if(as>hs){a.v++;h.d++;a.pts+=winPoints}
+  else{h.n++;a.n++;h.pts++;a.pts++}
+ });
+ rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
+ $('#teamRank').innerHTML=rows.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ)</span></span><b class="right">'+x.pts+' pts</b></div>').join('')||'<p class="muted">Aucune équipe</p>';
+}
 document.querySelectorAll('.rankMode').forEach(b=>b.onclick=()=>{S.rankMode=b.dataset.mode;document.querySelectorAll('.rankMode').forEach(x=>x.classList.toggle('primary',x===b));renderRanking()});
 $('#shareWhatsapp').onclick=async()=>{const text=$('#shareText').value;if(navigator.share){try{await navigator.share({title:'Classement du tournoi',text});return}catch{}}await navigator.clipboard.writeText(text);toast('Résumé copié')};
 if($('#copySeasonPublicShareLink'))$('#copySeasonPublicShareLink').onclick=async()=>{const link=$('#seasonPublicShareLink').value;if(!link)return toast('Aucune saison active.');try{await navigator.clipboard.writeText(link);toast('Lien de la saison copié ✅')}catch(e){$('#seasonPublicShareLink').select();document.execCommand('copy');toast('Lien de la saison copié ✅')}};
