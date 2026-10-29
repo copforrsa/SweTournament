@@ -31,7 +31,7 @@ window.addEventListener('error', (e) => {
   console.error('[SWÉ] Erreur JavaScript ou ressource', e.error || e.message || e);
 });
 
-const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],playerAliases:{},contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null,playerAccountAccess:false,superPlayerAccountAccess:[]};
+const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],playerAliases:{},playerParticipations:{},contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null,playerAccountAccess:false,superPlayerAccountAccess:[]};
 
 let safeSyncTimer=null;
 let safeSyncBusy=false;
@@ -1518,6 +1518,19 @@ async function loadAll(){
       S.myRatings=S.myRatings.map(a=>({...a,player_id:S.playerAliases[String(a.player_id)]||a.player_id}));
     }
   }
+  // Merge historical player identities for all-time tournament participation counts.
+  S.playerParticipations={};
+  if(isAdmin()||isCoorg()){
+    const participationRes=await sb.rpc('get_workspace_player_participation_counts_v1',{p_workspace_id:w});
+    if(!participationRes.error&&Array.isArray(participationRes.data)){
+      for(const row of participationRes.data){
+        const id=canonicalPlayerId(row.player_id);
+        S.playerParticipations[id]=(S.playerParticipations[id]||0)+Number(row.participations||0);
+      }
+    }else if(participationRes.error){
+      console.warn('SWÉ participations non chargées',participationRes.error);
+    }
+  }
   if(isAdmin()||isCoorg()){
     if(S.workspaceFeatures.player_ratings_enabled){
       r=await sb.rpc('get_player_skill_aggregates',{p_workspace_id:w});
@@ -2440,6 +2453,8 @@ function renderPlayers(){
     const info=document.createElement('span');info.style.flex='1';
     const g=guestLabel(x);
     let meta=(x.active?'Actif':'Inactif')+(g?' • '+esc(g):' • Membre du groupe');
+    const participationCount=S.playerParticipations?.[canonicalPlayerId(x.id)];
+    if(Number.isFinite(participationCount))meta+=' • '+participationCount+' tournoi'+(participationCount>1?'s':'')+' joué'+(participationCount>1?'s':'');
     if(S.workspaceFeatures.player_ratings_enabled&&isAdmin()){
       const aggregate=playerSkillAggregate(x.id);
       meta+=aggregate&&Number(aggregate.voter_count)>0?' • Moyenne '+(Number(aggregate.avg_rating)*2).toFixed(1)+'/10 • '+aggregate.voter_count+' votant'+(Number(aggregate.voter_count)>1?'s':''):' • Aucun avis';
