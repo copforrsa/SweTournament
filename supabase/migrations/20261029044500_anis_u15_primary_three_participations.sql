@@ -10,8 +10,8 @@ begin
   if (select count(*) from public.players where id in (v_anis,v_u15) and workspace_id=v_ws)<>2
     then raise exception 'Les deux joueurs de Forssa sont introuvables'; end if;
   if (select count(distinct tournament_id) from public.tournament_players
-      where player_id in(v_anis,v_u15) and present and registration_status='confirmed')<>3
-    then raise exception 'Nombre de participations inattendu'; end if;
+      where player_id in(v_anis,v_u15) and present and registration_status='confirmed')<3
+    then raise exception 'Participations historiques introuvables'; end if;
   -- La migration précédente utilisait Anis comme principal. Ne retirer que cette liaison précise.
   delete from private.player_identity_aliases
     where source_player_id=v_u15 and canonical_player_id=v_anis and workspace_id=v_ws;
