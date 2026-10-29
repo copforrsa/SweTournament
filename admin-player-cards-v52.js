@@ -10,7 +10,7 @@ async function refresh(){
   const {data,error}=await sb.rpc('admin_player_identity_cards_v52',{p_workspace_id:s.workspace.id});
   if(error)throw error;seen=Date.now();
   let block=$('sweAdminPlayerIdentity52');if(!block){block=document.createElement('section');block.id='sweAdminPlayerIdentity52';block.className='card';home.append(block)}
-  const players=Array.isArray(data)?data:[];
+  const players=(Array.isArray(data)?data:[]).filter(p=>!s.playerAliases?.[String(p.player_id)]);
   block.innerHTML='<h2 class="sectiontitle">👤 Fiches des joueurs et désistements</h2><p>Informations réservées à l’administration. Désistement tardif = annulation moins de 24 h avant le tournoi.</p><input id="sweAdminPlayerSearch52" placeholder="Rechercher un joueur" aria-label="Rechercher un joueur"><div id="sweAdminPlayerRows52"></div>';
   const rows=$('sweAdminPlayerRows52'),search=$('sweAdminPlayerSearch52');
   const paint=()=>{
@@ -21,7 +21,7 @@ async function refresh(){
     const pct=p.late_withdrawal_pct==null?'Historique insuffisant':p.late_withdrawal_pct+' % ('+p.late_withdrawals+'/'+p.eligible_registrations+')';
     const kind=p.member?'Membre du groupe':p.guest_of?'Invité de '+p.guest_of:'Joueur extérieur SWÉ';
     const summary=document.createElement('summary');summary.textContent=(p.nickname||p.name||'Joueur')+' · '+kind;card.append(summary);
-    const content=document.createElement('div');content.innerHTML='<p><strong>Identité :</strong> '+safely([p.first_name,p.last_name].filter(Boolean).join(' ')||'Non renseignée')+'</p><p><strong>Surnom :</strong> '+safely(p.nickname||'Non renseigné')+'</p><p><strong>Date de naissance :</strong> '+safely(p.birth_date||'Non renseignée')+'</p><p><strong>Niveau déclaré :</strong> '+safely(p.skill_level||'Non renseigné')+'</p><p><strong>Désistements de dernière minute :</strong> '+safely(pct)+'</p>';
+    const content=document.createElement('div');const count=s.playerParticipations?.[String(p.player_id)];content.innerHTML=(Number.isFinite(count)?'<p><strong>Tournois joués :</strong> '+count+'</p>':'')+'<p><strong>Identité :</strong> '+safely([p.first_name,p.last_name].filter(Boolean).join(' ')||'Non renseignée')+'</p><p><strong>Surnom :</strong> '+safely(p.nickname||'Non renseigné')+'</p><p><strong>Date de naissance :</strong> '+safely(p.birth_date||'Non renseignée')+'</p><p><strong>Niveau déclaré :</strong> '+safely(p.skill_level||'Non renseigné')+'</p><p><strong>Désistements de dernière minute :</strong> '+safely(pct)+'</p>';
     if(p.avatar_url){const img=document.createElement('img');img.src=p.avatar_url;img.alt='Photo de '+(p.nickname||p.name);img.width=64;img.height=64;img.style.borderRadius='50%';content.prepend(img)}
     card.append(content);rows.append(card);
    }
