@@ -3388,16 +3388,28 @@ async function showTournamentHistory(t){
     goals=data||[];
   }
   const teamMap=new Map((teams||[]).map(x=>[x.id,x.name]));
-  const stats=(teams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
+  // Ne jamais attribuer un point pour un match programmé (ex. 0–0 après archivage).
+  const finishedMatches=(matches||[]).filter(m=>m.status==='finished');
+  const kingFormat=t.format==='king_of_pitch'||t.rotation_mode==='king_of_pitch';
+  // Le barème à 4 pts s'applique au Roi du Terrain depuis son adoption le 24/10/2026.
+  // Les éditions antérieures conservent le barème qui était en vigueur à l'époque.
+  const fourPointRule=kingFormat&&String(t.tournament_date||t.date||'')>='2026-10-24';
+  const isRoyalPitch=m=>m.rotation_role==='king'||
+    (t.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(t.king_pitch_id))||
+    String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour';
+  const stats=(teams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,roi:0,pts:0}));
   const sm=new Map(stats.map(x=>[x.id,x]));
-  (matches||[]).forEach(m=>{
+  finishedMatches.forEach(m=>{
     const h=sm.get(m.home_team_id),a=sm.get(m.away_team_id);if(!h||!a)return;
-    h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;
-    if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}
-    else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}
+    const hs=Number(m.home_score||0),as=Number(m.away_score||0);
+    const royal=kingFormat&&isRoyalPitch(m);
+    const victoryPoints=(fourPointRule&&royal)?4:3;
+    h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
+    if(hs>as){h.v++;a.d++;h.pts+=victoryPoints;if(royal)h.roi++}
+    else if(as>hs){a.v++;h.d++;a.pts+=victoryPoints;if(royal)a.roi++}
     else{h.n++;a.n++;h.pts++;a.pts++}
   });
-  stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp);
+  stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
 
   const ps=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,g:0,a:0}]));
   goals.forEach(g=>{
@@ -3411,10 +3423,10 @@ async function showTournamentHistory(t){
   const panel=$('#tournamentHistoryPage');
   if(!panel)return toast('La page des résultats est indisponible.');
 
-  const teamRows=stats.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ • '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
+  const teamRows=stats.map((x,i)=>'<div class="rank"><b>'+(i+1)+'</b><span>'+esc(x.name)+' <span class="muted">('+x.mj+' MJ • '+(x.bp-x.bc>=0?'+':'')+(x.bp-x.bc)+' • BP '+x.bp+' / BC '+x.bc+(kingFormat?' • 👑 '+x.roi:'')+')</span></span><b class="right">'+x.pts+' pts</b></div>').join('');
   const scorerRows=scor.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>').join('');
   const assistRows=ass.map(x=>'<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span>'+esc(x.name)+(x.is_group_member===false?' <span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>').join('');
-  const matchRows=(matches||[]).map((m,i)=>{
+  const matchRows=finishedMatches.map((m,i)=>{
     const mg=goals.filter(g=>g.match_id===m.id);
     const goalLines=mg.map(g=>{
       const scorer=p(g.scorer_player_id);
@@ -3441,11 +3453,11 @@ async function showTournamentHistory(t){
     '</section>'+
     '<section class="history-summary-grid">'+
       '<article><span>🏆 VAINQUEUR</span><b>'+esc(champion)+'</b></article>'+
-      '<article><span>⚽ MATCHS JOUÉS</span><b>'+(matches||[]).length+'</b></article>'+
+      '<article><span>⚽ MATCHS JOUÉS</span><b>'+finishedMatches.length+'</b></article>'+
       '<article><span>🔥 BUTS MARQUÉS</span><b>'+goals.length+'</b></article>'+
     '</section>'+
     '<section class="history-results-grid">'+
-      '<article class="history-card history-ranking"><h2>🏆 Classement final</h2>'+(teamRows||'<p class="muted">Aucun classement.</p>')+'</article>'+
+      '<article class="history-card history-ranking"><h2>🏆 Classement final</h2>'+(teamRows||'<p class="muted">Aucun classement.</p>')+(kingFormat?'<p class="muted small">👑 Victoire à Carrefour : '+(fourPointRule?'4':'3')+' pts · autres terrains : 3 pts · match nul : 1 pt. Seuls les matchs terminés comptent.</p>':'')+'</article>'+
       '<article class="history-card"><h2>⚽ Buteurs du tournoi</h2>'+(scorerRows||'<p class="muted">Aucun buteur.</p>')+'</article>'+
       '<article class="history-card"><h2>🎯 Passeurs du tournoi</h2>'+(assistRows||'<p class="muted">Aucun passeur.</p>')+'</article>'+
     '</section>'+
