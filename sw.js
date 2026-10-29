@@ -1,4 +1,4 @@
-const SW_BUILD='54.4-king-four-two-live';
+const SW_BUILD='54.5-anis-u15-3-participations';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
