@@ -119,7 +119,8 @@ async function checkHomeShop(context,base,width){
 }
 async function checkMobileCoorgRights(context,base){
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
- assert.ok(html.indexOf('data-swe-loader="mobile-coorg-rights-v4362"')<html.indexOf('hotfix-v4244.js'),'Mobile rights must load before the deferred module chain');
+ const ordered=JSON.parse(fs.readFileSync(path.join(root,'assets/generated/swe-bundle-manifest-r550.json'),'utf8')).runtime.flat();
+ assert.ok(ordered.indexOf('mobile-coorg-rights-v4362.js')<ordered.indexOf('hotfix-v4244.js')&&ordered.indexOf('mobile-coorg-rights-v4362.js')>=0,'Mobile rights must load before the deferred module chain');
  const page=await context.newPage();
  await page.setContent('<!doctype html><meta name="viewport" content="width=device-width"><main><nav class="tabs"><button class="tab active" data-view="home">Accueil</button><button class="tab" data-view="myplayer">Profil</button><button class="tab" data-view="players">Joueurs</button><button class="tab" data-view="tournaments">Tournois</button><button class="tab" data-view="teams">Équipes</button><button class="tab" data-view="matches" style="display:none" disabled>Matchs</button><button class="tab disabled-tab" data-view="permissions" disabled>Droits</button><button class="tab" data-view="ranking">Classement</button></nav></main>');
  await page.addScriptTag({content:'var S={session:{user:{id:"coorg"}},workspace:{role:"coorganizer"},myPermissions:{can_view_players:true,can_create_tournaments:false,can_generate_teams:false,can_enter_scores:false}};function isCoorg(){return S.workspace.role==="coorganizer"}'});
