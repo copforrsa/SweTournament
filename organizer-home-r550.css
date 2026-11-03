@@ -1,0 +1,35 @@
+/* SWÉ r55 — a calm, actionable manager homepage. Nothing is removed from existing modules. */
+#view-home .swe-home-next{
+  border:1px solid #c9dcef;background:linear-gradient(140deg,#f7fbff,#e9f4ff);
+  box-shadow:0 8px 24px rgba(12,51,92,.06);border-radius:20px;padding:23px;
+}
+#view-home .swe-home-kicker{font-size:11px;font-weight:900;letter-spacing:.13em;color:#27669c;margin-bottom:8px}
+#view-home .swe-next-tour-name{font-weight:850;color:#123654;font-size:clamp(20px,2.4vw,28px);margin:8px 0}
+#view-home .swe-home-next .muted{margin:9px 0 16px;line-height:1.5}
+#view-home .swe-home-action-center{background:#fff;border:1px solid #d9e7dc;border-radius:18px;padding:18px 20px}
+#view-home .swe-home-action-center>.sectiontitle{margin:0 0 12px}
+#view-home .swe-home-action-center>#homeActionsEmpty{margin:0;padding:6px 0;font-size:14px}
+#view-home .swe-home-action-center .card{box-shadow:none!important;border:1px solid #e0e8f0;margin:12px 0 0}
+#view-home .swe-home-shortcuts-card{border-radius:20px;box-shadow:0 7px 24px rgba(17,48,82,.05)}
+#view-home .swe-home-shortcuts-card .grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#view-home .swe-home-shortcuts-card [data-go]{min-height:64px;white-space:normal;text-align:center;font-weight:800}
+#view-home .swe-home-settings{margin:16px 0 0}
+#view-home .swe-home-settings>summary{cursor:pointer;padding:15px 18px;border-radius:14px;background:#eef4f8;font-size:14px;font-weight:800;color:#1e4262;list-style-position:inside}
+#view-home .swe-home-settings>summary:focus-visible{outline:3px solid #2a86c8;outline-offset:3px}
+#view-home .swe-home-settings>div{margin:12px 0 0}
+#view-notifications{max-width:950px;margin:0 auto}
+#view-notifications .swe-notifications-page{padding:clamp(18px,3vw,29px);border-radius:21px}
+#view-notifications .swe-notifications-content{display:grid;gap:10px;padding-top:14px}
+#view-notifications .swe-notification-entry{display:flex;flex-direction:column;gap:4px;margin:0;border:1px solid #e4edf4;background:#fafcff;border-radius:12px;padding:12px 15px}
+#view-notifications .swe-notification-entry strong{color:#153b60}
+#managementNotificationsTab #sweNotificationsUnreadBadge{background:#dc3545;color:#fff;border-radius:99px;display:inline-flex;padding:2px 6px;min-width:18px;justify-content:center;font-size:11px}
+#managementNotificationsTab #sweNotificationsUnreadBadge.hidden{display:none}
+#view-players .swe-admin-player-details{margin:15px 0;border:1px solid #dbe5ed;border-radius:16px}
+#view-players .swe-admin-player-details>summary{cursor:pointer;font-size:17px;font-weight:850;margin-bottom:0}
+#view-players .swe-admin-player-details[open]>summary{margin-bottom:15px}
+@media(max-width:720px){
+ #view-home .swe-home-next{padding:17px}
+ #view-home .swe-home-shortcuts-card .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #view-home .swe-home-action-center{padding:14px}
+ #view-home .swe-home-shortcuts-card [data-go]{min-height:58px}
+}
