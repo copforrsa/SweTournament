@@ -2203,12 +2203,12 @@ function simpleFeeCents(){
  const date=E('swe4351Date')?.value||'',time=E('swe4351Time')?.value||'';
  if(!date||!time)return 0;
  const dow=new Date(date+'T12:00:00').getDay();
- return dow===0||dow===6?500:time>='21:30'?700:0;
+ return dow===0||dow===6?500:time>='21:30'?700:1000;
 }
 function renderPrice(){
  const box=E('swe4351Tariffs'),fee=E('swe4351Fee');if(!box||!fee)return;
  const cents=simpleFeeCents();fee.value=cents?money(cents):'À confirmer';
- box.innerHTML='<b>💶 Tarif par participant (sur place)</b><div class="swe4351-tariff" style="margin-top:6px">Samedi et dimanche : <strong>5 €</strong> • Du lundi au vendredi dès 21h30 : <strong>7 €</strong></div><div class="swe4351-muted" style="margin-top:5px">Pour ce créneau : <b>'+(cents?money(cents):'tarif à confirmer (avant 21h30 en semaine)')+'</b></div>';
+ box.innerHTML='<b>💶 Tarif par participant (sur place)</b><div class="swe4351-tariff" style="margin-top:6px">Samedi et dimanche : <strong>5 €</strong> • Du lundi au vendredi avant 21h30 : <strong>10 €</strong> • À partir de 21h30 : <strong>7 €</strong></div><div class="swe4351-muted" style="margin-top:5px">Pour ce créneau : <b>'+(cents?money(cents):'10 €')+'</b></div>';
 }
 function renderThird(){const box=E('swe4351Third');if(!box)return;if(thirdIncluded){box.innerHTML='<div class="swe4351-third"><div style="display:flex;justify-content:space-between;gap:8px"><b>👑 Inclus avec l’abonnement organisateur</b><span class="swe4351-tools-tag">INCLUS</span></div><label style="display:flex;gap:8px;align-items:center;margin-top:9px"><input id="swe4351ThirdToggle" type="checkbox" style="width:auto;margin:0"><span>Activer pour ce SWÉ</span></label><ul><li>Gestion des présences</li><li>Communication 3e mi-temps</li><li>Organisation simplifiée</li></ul></div>'}else{box.innerHTML='<div class="swe4351-third upsell"><div style="display:flex;justify-content:space-between;gap:10px"><b>🛒 Option ponctuelle</b><span class="swe4351-third-price">5,99 €</span></div><div class="swe4351-muted" style="margin-top:5px">Pour ce SWÉ uniquement, sans abonnement.</div><ul><li>À la demande</li><li>Idéal pour une occasion spéciale</li><li>Active la gestion 3e mi-temps sur ce match</li></ul></div>'}}
 function renderInvites(){const box=E('swe4351InviteChips');if(!box)return;box.innerHTML=staged.length?staged.map(x=>'<span class="swe4351-chip">'+avatarHtml(x)+'<span>'+esc(x.display_name||x.public_player_id)+'</span><small>'+esc(x.public_player_id)+'</small><button type="button" data-remove-invite="'+esc(x.public_player_id)+'">×</button></span>').join(''):'<span class="swe4351-muted">Aucun joueur ajouté pour le moment.</span>';renderSummary();renderOrganizerTools()}
