@@ -488,8 +488,12 @@ function apply(){if(!ready())return;document.body.classList.toggle('swe-player-s
  if(group.dataset.signature!==signature){group.dataset.signature=signature;group.replaceChildren();for(const m of members){const option=document.createElement('option');option.value=m.workspace_id;option.textContent=(m.workspaces?.name||'Mon groupe')+' · '+(m.role==='coorganizer'?'Co-gestionnaire':'Organisateur');group.append(option)}}
  group.value=state().workspace?.id||'';group.hidden=members.length<2;
  let open=document.getElementById('sweSpaceOpenGroup');if(!open){open=document.createElement('button');open.id='sweSpaceOpenGroup';open.type='button';open.textContent='Ouvrir ce groupe';open.onclick=()=>selectGroup(group.value);bar.append(open)}open.hidden=members.length<2;
- let nav=document.getElementById('swePlayerNav');if(!nav){nav=document.createElement('nav');nav.id='swePlayerNav';nav.setAttribute('aria-label','Navigation joueur');for(const [id,label] of [['home','Accueil'],['swes','Mes SWÉ'],['profile','Mon profil'],['group','Mon groupe']]){const b=document.createElement('button');b.type='button';b.dataset.playerTab=id;b.textContent=label;b.onclick=()=>{rememberDrafts();playerTab=id;persist();apply();restoreDrafts();window.scrollTo({top:0,behavior:'instant'})};nav.append(b)}bar.after(nav)}if(nav.querySelector('[data-player-panel]')){nav.hidden=mode!=='player'}else{nav.hidden=mode!=='player';nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-current',b.dataset.playerTab===playerTab?'page':'false'))};
- const view=document.getElementById('view-myplayer');if(view&&!document.getElementById('swePlayerHeader')){const cards=[...view.querySelectorAll('.card')];for(const card of cards){const show=(groups[playerTab]||[]).some(id=>{const el=document.getElementById(id);return el&&(card.contains(el)||el===card)});card.classList.toggle('swe-space-card-hidden',mode==='player'&&!show&&card.id!=='myPlayerCreateCard'&&!card.classList.contains('player-hub-hero'));}view.querySelectorAll('.player-hub-grid').forEach(grid=>grid.classList.toggle('swe-space-card-hidden',mode==='player'&&![...grid.children].some(child=>!child.classList.contains('swe-space-card-hidden'))));}
+
+ // player-home.js owns the only player navigation and its selected panel.
+ // A former second navigation used the same id and made tabs disagree.
+ const duplicate=document.getElementById('swePlayerNav');
+ if(duplicate&&!duplicate.closest('#swePlayerHeader'))duplicate.remove();
+
  if(restoreEntry&&mode==='management'){restoreEntry=false;switching=true;try{setView(managementView)}finally{switching=false}}
 if(mode==='player'&&state().lastView!=='myplayer'&&state().playerAccountAccess){switching=true;try{setView('myplayer')}finally{switching=false}}
 }
@@ -497,7 +501,7 @@ window.SWE_SPACES={beforeView,apply,switchSpace,selectGroup,navigateGroup:url=>l
 document.addEventListener('click',e=>{const legacy=e.target.closest?.('[data-view="myplayer"],[data-go="myplayer"]');if(legacy&&e.isTrusted&&ready()){e.preventDefault();e.stopImmediatePropagation();switchSpace('player')}},true);
 document.addEventListener('change',e=>{if(e.isTrusted&&e.target.id==='sweCoorgProfileSelect'&&e.target.value==='player'){e.stopImmediatePropagation();switchSpace('player')}},true);
 document.addEventListener('swe:rendered',apply);document.addEventListener('swe:coorg-insights-ready',apply);
-const style=document.createElement('style');style.textContent='#sweSpaceBar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;margin:12px 0;background:#10243e;color:#fff;border-radius:14px}#sweSpaceGroup{background:#fff;color:#172033;width:auto;max-width:100%;min-height:44px}#sweSpaceGroup[hidden],#sweSpaceOpenGroup[hidden]{display:none!important}#sweSpaceBar button{background:#ffd365;color:#172033;font-weight:800}#swePlayerNav[hidden]{display:none!important}#swePlayerNav{display:flex;gap:8px;margin:12px 0}#swePlayerNav button{flex:1;background:#fff;color:#172033;border:1px solid #98a9bf;padding:12px 6px}#swePlayerNav button[aria-current=page]{background:#075c70;color:#fff}.swe-space-card-hidden{display:none!important}.swe-player-space .tabs,.swe-player-space aside,.swe-player-space #sweCoorgTournamentPicker,.swe-player-space #workspaceSwitcher,.swe-management-space [data-view=myplayer],.swe-management-space #workspaceSwitcher,.swe-management-space #sweCoorgTournamentPicker{display:none!important}.swe-player-space .app{padding-left:0!important}.swe-player-space .player-hub-grid{grid-template-columns:1fr!important}@media(max-width:650px){.swe-player-space{padding-bottom:76px}#swePlayerNav{position:fixed;bottom:0;left:0;right:0;z-index:10000;background:#10243e;padding:8px;margin:0;gap:4px}#swePlayerNav button{font-size:12px;min-height:46px}#sweSpaceBar{position:sticky;top:0;z-index:900}}';document.head.append(style);
+const style=document.createElement('style');style.textContent='#sweSpaceBar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;margin:12px 0;background:#10243e;color:#fff;border-radius:14px}#sweSpaceGroup{background:#fff;color:#172033;width:auto;max-width:100%;min-height:44px}#sweSpaceGroup[hidden],#sweSpaceOpenGroup[hidden]{display:none!important}#sweSpaceBar button{background:#ffd365;color:#172033;font-weight:800}#sweSpaceBar[hidden]{display:none!important}.swe-player-space .tabs,.swe-player-space aside,.swe-player-space #sweCoorgTournamentPicker,.swe-player-space #workspaceSwitcher,.swe-management-space [data-view=myplayer],.swe-management-space #workspaceSwitcher,.swe-management-space #sweCoorgTournamentPicker{display:none!important}.swe-player-space .app{padding-left:0!important}.swe-player-space .player-hub-grid{grid-template-columns:1fr!important}@media(max-width:650px){.swe-player-space{padding-bottom:76px}#swePlayerNav{position:fixed;bottom:0;left:0;right:0;z-index:10000;background:#10243e;padding:8px;margin:0;gap:4px}#swePlayerNav button{font-size:12px;min-height:46px}#sweSpaceBar{position:sticky;top:0;z-index:900}}';document.head.append(style);
 document.addEventListener('DOMContentLoaded',apply);setTimeout(apply,0);
 })();
 
@@ -515,8 +519,10 @@ const E=id=>document.getElementById(id);
 const state=()=>{try{return S}catch(_){return null}};
 const api=()=>{try{return sb}catch(_){return null}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const panels=['home','registrations','mine','stats','profile','preferences','organizer','discover'];
-const labels=['Accueil','Mes inscriptions','Mes SWÉs','Mes stats','Mon profil','Mes préférences','Organiser'];
+const panels=['home','registrations','mine','stats','group','profile','preferences','organizer','discover'];
+// One visible menu, with the group reachable directly and preferences under the account menu.
+const navPanels=['home','registrations','mine','stats','group','profile','organizer'];
+const navLabels=['Accueil','Mes inscriptions','Mes SWÉs','Mes stats','Mon groupe','Mon profil','Organiser'];
 let selected='home',timer,userId='',generation=0,loadedAt=0,busy=false,community=null,loadError=false,inviteAnchor;
 function node(tag,id,html){const n=document.createElement(tag);n.id=id;if(html)n.innerHTML=html;return n}
 function group(n,sections,order,half=false){
@@ -527,7 +533,7 @@ function group(n,sections,order,half=false){
 function shell(n){return n?.closest('.swe-profile-fold')||n}
 function card(id){return shell(E(id)?.closest('.card'))}
 function choose(panel,focus=false){
- if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer')window.SWEOrganizerOffers52?.mount();
+ if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer'){if(window.SWEOrganizerOffers52?.mount)window.SWEOrganizerOffers52.mount();else openOffers();}
  if(focus){const target=E('view-myplayer').querySelector('[data-player-sections]:not(.swe-player-filtered) h2');if(target){target.tabIndex=-1;target.focus({preventScroll:true})}}
 }
 function nativeView(view){
@@ -538,7 +544,7 @@ function creator(){if(typeof window.openSimpleSweCreator==='function')window.ope
 function openPlayerCard(){if(typeof window.SWEPlayerCard?.open==='function'){window.SWEPlayerCard.open();return}const native=E('swe4338CardBtn');if(native){native.click();return}if(typeof toast==='function')toast('Ta carte de joueur est encore en cours de chargement.')}
 function ensure(view){
  if(E('swePlayerHeader'))return;
- const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+panels.slice(0,7).map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+labels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
+ const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+navPanels.map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+navLabels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" data-player-panel="preferences">Mes préférences</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
  view.prepend(header);
  header.querySelector('a').onclick=e=>{e.preventDefault();choose('home')};
  E('swePlayerLogout').onclick=()=>E('logout')?.click();
@@ -613,7 +619,7 @@ function decorate(view){
  group(shell(view.querySelector('.swe-history-link-card')),'stats',40);
  group(card('myPlayerRequests'),'registrations',35);
  group(shell(E('sweMyReliability')),'stats',45);
- group(card('myPlayerGroups'),'profile',50);
+ group(card('myPlayerGroups'),'profile group',50);
  group(card('myPlayerInvites'),'registrations',31);
  group(E('swePlayerCommercial'),'home mine',70);
  // Keep native invitation nodes and handlers; restore their original location outside player view.
@@ -701,7 +707,11 @@ async function loadPublicDiscovery(){
   }
   discoveryLoadedAt=Date.now();
  }catch(e){out.textContent='Impossible de charger les SWÉs publics. Réessaie dans quelques instants.';console.warn('Public SWÉ discovery',e)}
- finally{discoveryLoading=false}
+ finally{
+   discoveryLoading=false;
+   // A failed or unavailable discovery request must not flood the server on every rerender.
+   discoveryLoadedAt=Date.now();
+ }
 }
 function paint(){
  const active=syncMode(),s=state(),view=E('view-myplayer');if(!active||!view)return;

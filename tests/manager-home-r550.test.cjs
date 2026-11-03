@@ -43,7 +43,7 @@ test('pending requests are rendered only when actionable',()=>{
  assert.match(app,/SWERefreshHomeActionCenter/);
 });
 test('PWA updates do not reload automatically while scoring',()=>{
- assert.match(sw,/SW_BUILD='55\.0-manager-dashboard-single-runtime'/);
+ assert.match(sw,/SW_BUILD='55\.(?:0-manager-dashboard-single-runtime|1-single-player-navigation)'/);
  assert.match(app,/sweNewVersionReady550/);
  assert.match(app,/button\.onclick=\(\)=>location\.reload\(\)/);
  assert.doesNotMatch(app,/SW_BUILD_RELOAD_5132/);

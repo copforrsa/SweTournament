@@ -150,3 +150,23 @@ html.swe-player-home-active #swePlayerQuick p,html.swe-player-home-active #swePl
 #sweOrganizerNotificationsV54 .swe-notification-entry{display:flex;flex-direction:column;gap:5px;margin:0!important;padding:12px 15px;background:#fff;border:1px solid #dce8f8;border-left:4px solid #1d8bd1;border-radius:12px;line-height:1.45}
 #sweOrganizerNotificationsV54 .swe-notification-entry strong{font-size:14px;color:#123b62}
 #sweOrganizerNotificationsV54 .swe-notification-entry span{font-size:13px;color:#526782;overflow-wrap:anywhere}
+
+/* V55.1 — a single player navigation. Mobile presents five primary destinations,
+   with Inscriptions accessible from the dashboard and Organiser from the hero. */
+html.swe-player-home-active #sweSpaceBar,
+body.swe-player-space #sweSpaceBar{display:none!important}
+@media(max-width:760px){
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav{
+   display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+   gap:0;justify-content:stretch;min-width:0;
+ }
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="registrations"],
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="organizer"]{display:none!important}
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button{min-width:0;font-size:10px;line-height:1.25}
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button:before{content:'·'}
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="home"]:before{content:'⌂'}
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="mine"]:before{content:'⚽'}
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="stats"]:before{content:'▥'}
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="group"]:before{content:'♙'}
+ html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="profile"]:before{content:'◉'}
+}

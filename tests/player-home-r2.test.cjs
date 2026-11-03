@@ -54,7 +54,7 @@ test('account uses the existing logout and workspace switch handlers; offers use
   d.dispatchEvent(new w.Event('swe:rendered'));await wait();
   d.getElementById('swePlayerAccountToggle').click();assert.equal(d.getElementById('swePlayerAccountMenu').classList.contains('hidden'),false);d.getElementById('swePlayerSwitchToggle').click();assert.equal(d.getElementById('swePlayerProfiles').classList.contains('hidden'),false);
   d.getElementById('swePlayerLogout').click();d.getElementById('swePlayerOffers').click();assert.equal(d.documentElement.classList.contains('swe-organizer-setup-active'),true);assert.equal(d.getElementById('workspaceSetup').classList.contains('hidden'),false);assert.ok(d.getElementById('swePlayerOfferBack'));d.getElementById('swePlayerOfferBack').click();assert.equal(d.documentElement.classList.contains('swe-organizer-setup-active'),false);
-  d.getElementById('swePlayerAccountToggle').click();d.getElementById('swePlayerSwitchToggle').click();d.querySelector('#swePlayerProfiles button:nth-child(3)').click();assert.equal(logout,1);assert.equal(offer,1);assert.equal(switched,'workspace-2');
+  d.getElementById('swePlayerAccountToggle').click();d.getElementById('swePlayerSwitchToggle').click();d.querySelector('#swePlayerProfiles button:nth-child(3)').click();assert.equal(logout,1);assert.equal(offer,0,'opening organizer setup must not double-trigger the legacy creation handler');assert.equal(switched,'workspace-2');
  }finally{dom.window.close()}
 });
 test('profile menus and native invitation acceptance remain clickable after layout moves',async()=>{
