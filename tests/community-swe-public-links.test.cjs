@@ -28,3 +28,4 @@ test('migration enforces rates, capacity, and anonymous role isolation',()=>{
  assert.match(sql,/revoke all on function public.public_join_community_swe_member_v1\(uuid\) from public,anon,authenticated/);
  assert.match(sql,/guest_names/);
 });
+test('weekday rates before 21:30 are 10 euros',()=>{assert.match(read('simple-swe-page-v4350.js'),/time>='21:30'\?700:1000/);assert.match(read('supabase/migrations/20261103170000_community_swe_weekday_10eur.sql'),/then 700 else 1000 end;/);});
