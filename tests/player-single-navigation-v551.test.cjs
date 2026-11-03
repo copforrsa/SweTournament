@@ -36,9 +36,9 @@ test('mobile bottom navigation is one row, with five core tabs',()=>{
  assert.match(css,/html\.swe-player-home-active #sweSpaceBar/);
 });
 test('PWA loads the new single navigation instead of stale r55 code',()=>{
- assert.match(index,/player-home\.css\?v=551-single-player-menu/);
- assert.match(index,/swe-runtime-r550-part1\.js\?v=551-player-nav-fix/);
- assert.match(sw,/SW_BUILD='55\.1-single-player-navigation'/);
+ assert.match(index,/player-home\.css\?v=552-merged-swes/);
+ assert.match(index,/swe-runtime-r550-part1\.js\?v=552-merged-swes/);
+ assert.match(sw,/SW_BUILD='55\.2-merged-player-swes'/);
  assert.ok(bundle.includes("if(duplicate&&!duplicate.closest('#swePlayerHeader'))duplicate.remove()"));
  assert.ok(bundle.includes("const navPanels=['home','mine','stats','group','profile','organizer']"));
  assert.equal([...index.matchAll(/<script\b[^>]*\bsrc=/g)].length,10);
