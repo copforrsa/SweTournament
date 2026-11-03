@@ -8,8 +8,10 @@ const E=id=>document.getElementById(id);
 const state=()=>{try{return S}catch(_){return null}};
 const api=()=>{try{return sb}catch(_){return null}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const panels=['home','registrations','mine','stats','profile','preferences','organizer','discover'];
-const labels=['Accueil','Mes inscriptions','Mes SWÉs','Mes stats','Mon profil','Mes préférences','Organiser'];
+const panels=['home','registrations','mine','stats','group','profile','preferences','organizer','discover'];
+// One visible menu, with the group reachable directly and preferences under the account menu.
+const navPanels=['home','registrations','mine','stats','group','profile','organizer'];
+const navLabels=['Accueil','Mes inscriptions','Mes SWÉs','Mes stats','Mon groupe','Mon profil','Organiser'];
 let selected='home',timer,userId='',generation=0,loadedAt=0,busy=false,community=null,loadError=false,inviteAnchor;
 function node(tag,id,html){const n=document.createElement(tag);n.id=id;if(html)n.innerHTML=html;return n}
 function group(n,sections,order,half=false){
@@ -31,7 +33,7 @@ function creator(){if(typeof window.openSimpleSweCreator==='function')window.ope
 function openPlayerCard(){if(typeof window.SWEPlayerCard?.open==='function'){window.SWEPlayerCard.open();return}const native=E('swe4338CardBtn');if(native){native.click();return}if(typeof toast==='function')toast('Ta carte de joueur est encore en cours de chargement.')}
 function ensure(view){
  if(E('swePlayerHeader'))return;
- const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+panels.slice(0,7).map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+labels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
+ const header=node('header','swePlayerHeader','<a class="swe-player-brand" href="?start=player" aria-label="Accueil joueur SWÉ"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament 5/5"><span>Mon espace joueur</span></a><nav id="swePlayerNav" aria-label="Rubriques de mon espace joueur">'+navPanels.map((p,i)=>'<button type="button" data-player-panel="'+p+'">'+navLabels[i]+'</button>').join('')+'</nav><div id="swePlayerAccount"><button type="button" id="swePlayerAccountToggle" aria-expanded="false" aria-controls="swePlayerAccountMenu"><span id="swePlayerAvatar" aria-hidden="true">●</span><span id="swePlayerName">Mon compte</span><span aria-hidden="true">⌄</span></button><div id="swePlayerAccountMenu" class="swe-player-account-menu hidden"><button type="button" data-player-panel="profile">Mon profil</button><button type="button" data-player-panel="preferences">Mes préférences</button><button type="button" id="swePlayerSwitchToggle" aria-expanded="false" aria-controls="swePlayerProfiles">⇄ Changer de profil</button><div id="swePlayerProfiles" class="hidden"></div><button type="button" id="swePlayerLogout">Se déconnecter</button></div></div>');
  view.prepend(header);
  header.querySelector('a').onclick=e=>{e.preventDefault();choose('home')};
  E('swePlayerLogout').onclick=()=>E('logout')?.click();
@@ -106,7 +108,7 @@ function decorate(view){
  group(shell(view.querySelector('.swe-history-link-card')),'stats',40);
  group(card('myPlayerRequests'),'registrations',35);
  group(shell(E('sweMyReliability')),'stats',45);
- group(card('myPlayerGroups'),'profile',50);
+ group(card('myPlayerGroups'),'profile group',50);
  group(card('myPlayerInvites'),'registrations',31);
  group(E('swePlayerCommercial'),'home mine',70);
  // Keep native invitation nodes and handlers; restore their original location outside player view.
