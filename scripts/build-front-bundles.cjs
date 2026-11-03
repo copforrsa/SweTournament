@@ -7,7 +7,7 @@ const root=path.resolve(__dirname,'..');
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'assets/generated/swe-bundle-manifest-r550.json'),'utf8'));
 const check=process.argv.includes('--check');
 const groups=[manifest.pre,...manifest.runtime];
-if(groups.length!==4 || groups.reduce((total,group)=>total+group.length,0)!==55)throw Error('Invalid SWÉ bundle manifest');
+if(groups.length!==4 || groups.reduce((total,group)=>total+group.length,0)!==57)throw Error('Invalid SWÉ bundle manifest');
 groups.forEach((group,i)=>{
  const header=i===0
   ?'/* SWÉ build 2026-11-03 — scripts pré-app regroupés dans leur ordre d\'origine. Ne pas éditer : sources préservées dans le dépôt. */\n'
