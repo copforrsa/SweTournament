@@ -29,7 +29,7 @@ function nativeView(view){
  const b=document.querySelector('.tabs .tab[data-view="'+view+'"]');
  if(b&&!b.disabled&&!b.classList.contains('disabled-tab'))b.click();
 }
-function creator(){if(typeof window.openSimpleSweCreator==='function')window.openSimpleSweCreator('private');else E('simpleSweTab')?.click();syncMode()}
+function creator(){if(typeof window.openSimpleSweCreator==='function')window.openSimpleSweCreator('public');else E('simpleSweTab')?.click();syncMode()}
 function openPlayerCard(){if(typeof window.SWEPlayerCard?.open==='function'){window.SWEPlayerCard.open();return}const native=E('swe4338CardBtn');if(native){native.click();return}if(typeof toast==='function')toast('Ta carte de joueur est encore en cours de chargement.')}
 function ensure(view){
  if(E('swePlayerHeader'))return;

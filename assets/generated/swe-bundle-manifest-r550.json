@@ -62,7 +62,9 @@
       "player-profile-identity-v52.js",
       "player-organizer-offers-v52.js",
       "admin-revolut-cooler-v52.js",
-      "organizer-notifications-v54.js"
+      "organizer-notifications-v54.js",
+      "simple-swe-page-v4350.js",
+      "simple-swe-responsive-v4353.js"
     ]
   ],
   "outputs": [
