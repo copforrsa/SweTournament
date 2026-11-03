@@ -36,6 +36,7 @@ jobs:
       - name: Browser smoke (all three roles, mocked server, no production writes)
         env:
           CODEX_PRIMARY_RUNTIME_NODE_MODULES: /tmp/swe-browser-tests/node_modules
+          SWE_R55_FAST_SMOKE: '1'
         run: |
           node tests/coorganizer-dashboard-preview.cjs
           node tests/registration-preview.cjs
