@@ -74,16 +74,28 @@ function schedulePushOffer(){offerPushOnLogin().catch(e=>console.warn('SWÉ push
 
 window.SWEEnablePushNotifications=enablePush;
 
-async function check(){
+async function check(force=false){
 const s=state();if(!s?.session?.user?.id||s.publicMode||busy)return;
-if(Date.now()-lastPoll<20000)return;busy=true;lastPoll=Date.now();
+if(!force&&Date.now()-lastPoll<20000)return;busy=true;lastPoll=Date.now();
 try{
  const uid=s.session.user.id,key='swe_org_notification_seen_v54:'+uid,stored=localStorage.getItem(key),after=Number(stored)||0;
  const {data,error}=await sb.rpc('my_swe_organizer_notifications_v54',{p_after_id:0});if(error)throw error;
  const allItems=Array.isArray(data)?data:[];
  const items=allItems.filter(n=>Number(n.id)>after);
- const playerHome=E('view-myplayer');const usePlayerHome=!!playerHome?.classList.contains('active')&&!E('main')?.classList.contains('hidden');const root=usePlayerHome?(E('swePlayerMine')||playerHome):E('view-home');if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className='card swe-notifications-home-card';root.prepend(card)}else if(card.parentElement!==root){root.prepend(card)}
- let heading=card.querySelector('h2');if(!heading){heading=document.createElement('h2');heading.textContent='🔔 Mes notifications SWÉ';card.append(heading)}
+ const manager=['admin','coorganizer'].includes(s.workspace?.role);
+ const playerHome=E('view-myplayer');
+ const usePlayerHome=!!playerHome?.classList.contains('active')&&!E('main')?.classList.contains('hidden');
+ const root=manager?E('sweNotificationsContainer'):(usePlayerHome?(E('swePlayerMine')||playerHome):null);
+ const dedicated=manager&&!!E('view-notifications')?.classList.contains('active');
+ const badge=E('sweNotificationsUnreadBadge');
+ if(badge){
+   const unseen=Math.max(0,items.length);
+   badge.textContent=unseen>99?'99+':String(unseen);
+   badge.classList.toggle('hidden',unseen===0||dedicated);
+ }
+ if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className=manager?'swe-notifications-content':'card swe-notifications-home-card';root.append(card)}else if(card.parentElement!==root){root.append(card)}
+ let heading=card.querySelector('h2');if(!heading&&!manager){heading=document.createElement('h2');heading.textContent='🔔 Mes notifications SWÉ';card.prepend(heading)}
+ if(heading&&manager)heading.remove();
  let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées';localStorage.setItem('swe_push_enabled_device_v1','1')}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}};}
  button.textContent=!('PushManager'in window)?'Notifications push non prises en charge':(Notification.permission==='granted'&&localStorage.getItem('swe_push_enabled_device_v1')==='1')?'✓ Notifications push activées':Notification.permission==='granted'?'Activer les notifications push':'Autoriser les notifications sur cet appareil';
  let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
@@ -94,12 +106,23 @@ try{
 
  if(!allItems.length)box.textContent='Aucune notification pour le moment. Les prochaines inscriptions et informations de matchs apparaîtront ici.';
  }
- if(items.length){const high=Math.max(...items.map(n=>Number(n.id)||0));if(high>after)localStorage.setItem(key,String(high));
- if(stored&&Notification.permission==='granted'){
- const reg=await navigator.serviceWorker?.ready.catch(()=>null);
- for(const item of items.slice(0,5).reverse())if(reg)await reg.showNotification(item.title,{body:item.body,tag:'swe-'+item.id,icon:'/icon-192.png',badge:'/icon-192.png',data:{url:'/?start=home'}});
- }}
+ if(dedicated&&items.length){
+   localStorage.setItem(key,String(Math.max(...items.map(n=>Number(n.id)||0))));
+   if(badge)badge.classList.add('hidden');
+ }
+ if(items.length&&stored&&typeof Notification!=='undefined'&&Notification.permission==='granted'){
+   const notifiedKey='swe_org_push_notified_v54:'+uid;
+   const notified=Number(localStorage.getItem(notifiedKey)||after);
+   const unseenPush=items.filter(n=>Number(n.id)>notified).slice(-5);
+   if(unseenPush.length){
+     const reg=await navigator.serviceWorker?.ready.catch(()=>null);
+     if(reg){
+       for(const item of unseenPush)await reg.showNotification(item.title,{body:item.body,tag:'swe-'+item.id,icon:'/icon-192.png',badge:'/icon-192.png',data:{url:'/?space=management'}});
+       localStorage.setItem(notifiedKey,String(Math.max(...unseenPush.map(n=>Number(n.id)||0))));
+     }
+   }
+ }
 }catch(e){console.warn('SWÉ notifications',e)}finally{busy=false}
 }
-window.addEventListener('pageshow',()=>{check();schedulePushOffer()});document.addEventListener('swe:rendered',()=>{check();schedulePushOffer()});setInterval(()=>{if(document.visibilityState==='visible')check()},30000);
+window.addEventListener('pageshow',()=>{check(true);schedulePushOffer()});document.addEventListener('swe:rendered',()=>{check();schedulePushOffer()});document.addEventListener('swe:page-view',()=>{if(E('view-notifications')?.classList.contains('active'))check(true)});setInterval(()=>{if(document.visibilityState==='visible')check()},30000);
 })();
