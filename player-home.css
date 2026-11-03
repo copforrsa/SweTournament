@@ -160,7 +160,6 @@ body.swe-player-space #sweSpaceBar{display:none!important}
    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
    gap:0;justify-content:stretch;min-width:0;
  }
- html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="registrations"],
  html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="organizer"]{display:none!important}
  html.swe-player-home-active #swePlayerHeader #swePlayerNav button{min-width:0;font-size:10px;line-height:1.25}
  html.swe-player-home-active #swePlayerHeader #swePlayerNav button:before{content:'·'}
@@ -187,4 +186,14 @@ html.swe-player-home-active #view-myplayer #sweEnableNotificationsV54{
 }
 html.swe-player-home-active #view-myplayer #sweOrganizerNotificationsListV54{
  grid-column:1!important;overflow-wrap:anywhere;
+}
+
+/* Unified player panel: a single card for registrations and created SWÉs. */
+html.swe-player-home-active #view-myplayer #swePlayerMine.swe-player-created-block{
+  display:block;min-width:0;margin:18px 0 0;padding:16px 0 0;
+  border-top:1px solid #dde8f6;background:transparent;box-shadow:none;
+}
+html.swe-player-home-active #view-myplayer #swePlayerMine.swe-player-filtered{display:none!important}
+html.swe-player-home-active #view-myplayer #swePlayerMine .swe-player-section-head h3{
+  margin:0;font-size:16px;color:#173657;
 }
