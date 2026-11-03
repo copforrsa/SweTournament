@@ -37,6 +37,6 @@ jobs:
         env:
           CODEX_PRIMARY_RUNTIME_NODE_MODULES: /tmp/swe-browser-tests/node_modules
         run: |
-          node tests/browser-smoke.cjs
           node tests/coorganizer-dashboard-preview.cjs
           node tests/registration-preview.cjs
+          node tests/browser-smoke.cjs
