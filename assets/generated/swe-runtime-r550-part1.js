@@ -533,15 +533,7 @@ function group(n,sections,order,half=false){
 function shell(n){return n?.closest('.swe-profile-fold')||n}
 function card(id){return shell(E(id)?.closest('.card'))}
 function choose(panel,focus=false){
- if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer'){
-   if(window.SWEOrganizerOffers52?.mount)window.SWEOrganizerOffers52.mount();
-   else {
-     // Keep the existing organizer onboarding action authoritative.
-     E('becomeOrganizer')?.click();
-     if(E('workspaceSetup')?.classList.contains('hidden'))openOffers();
-     else offerMode(true);
-   }
- }
+ if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer'){if(window.SWEOrganizerOffers52?.mount)window.SWEOrganizerOffers52.mount();else openOffers();}
  if(focus){const target=E('view-myplayer').querySelector('[data-player-sections]:not(.swe-player-filtered) h2');if(target){target.tabIndex=-1;target.focus({preventScroll:true})}}
 }
 function nativeView(view){
