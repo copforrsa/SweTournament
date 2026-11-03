@@ -1404,7 +1404,7 @@ document.addEventListener('click',async e=>{
   }
   if(intent==='organizer'){openOrganizerSetup('group');return;}
   if(e.target?.id==='becomeOrganizer'||e.target?.id==='coorgCreateOwnWorkspace'){openOrganizerSetup('group');$('#workspaceSetup')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});return;}
-  if(e.target?.id==='trialChoosePlan'){setView('home');setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'}),100);return;}
+  if(e.target?.id==='trialChoosePlan'){setView('home');const settings=$('#homeSettingsDisclosure');if(settings)settings.open=true;setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'}),100);return;}
 });
 
 async function loadInvites(){
