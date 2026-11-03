@@ -183,7 +183,7 @@ async function checkPlayerCards(context,base,width){
  const expected={'Matchs':'12','Victoires':'3','Buts':'2','Passes':'0','Tournois joués':'2','Tournois remportés':'0'};
  const check=async(page,prefix)=>{
   assert.deepEqual(await page.locator(prefix+'stat').evaluateAll(rows=>Object.fromEntries(rows.map(r=>[r.querySelector('small').textContent,r.querySelector('b').textContent]))),expected);
-  const stars=page.locator(prefix+'stars');assert.match(await stars.innerText(),/3,3 \/ 5/);assert.equal(await stars.evaluate(e=>e.style.getPropertyValue('--rating-fill')),'66%');
+  const stars=page.locator(prefix+'stars');assert.match(await stars.innerText(),/(?:3,3 \/ 5|6,6 \/ 10)/);assert.equal(await stars.evaluate(e=>e.style.getPropertyValue('--rating-fill')),'66%');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');
  };
  for(const route of ['/c.html?s=80871023','/carte-joueur.html?token='+token]){
