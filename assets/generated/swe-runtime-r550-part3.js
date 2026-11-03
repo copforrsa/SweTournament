@@ -2079,7 +2079,7 @@ try{
  const manager=['admin','coorganizer'].includes(s.workspace?.role);
  const playerHome=E('view-myplayer');
  const usePlayerHome=!!playerHome?.classList.contains('active')&&!E('main')?.classList.contains('hidden');
- const root=manager?E('sweNotificationsContainer'):(usePlayerHome?(E('swePlayerMine')||playerHome):null);
+ const root=manager?E('sweNotificationsContainer'):(usePlayerHome?playerHome:null);
  const dedicated=manager&&!!E('view-notifications')?.classList.contains('active');
  const badge=E('sweNotificationsUnreadBadge');
  if(badge){
@@ -2088,6 +2088,9 @@ try{
    badge.classList.toggle('hidden',unseen===0||dedicated);
  }
  if(root){let card=E('sweOrganizerNotificationsV54');if(!card){card=document.createElement('section');card.id='sweOrganizerNotificationsV54';card.className=manager?'swe-notifications-content':'card swe-notifications-home-card';root.append(card)}else if(card.parentElement!==root){root.append(card)}
+ // Player notifications are a separate dashboard section, never nested inside Mes SWÉs.
+ if(!manager){card.dataset.playerSections='home mine';card.style.setProperty('--player-order','24');card.classList.toggle('swe-player-filtered',playerHome?.dataset.playerPanel!=='home'&&playerHome?.dataset.playerPanel!=='mine');}
+ else{delete card.dataset.playerSections;card.style.removeProperty('--player-order');card.classList.remove('swe-player-filtered');}
  let heading=card.querySelector('h2');if(!heading&&!manager){heading=document.createElement('h2');heading.textContent='🔔 Mes notifications SWÉ';card.prepend(heading)}
  if(heading&&manager)heading.remove();
  let button=E('sweEnableNotificationsV54');if(!button){button=document.createElement('button');button.type='button';button.id='sweEnableNotificationsV54';card.append(button);button.onclick=async()=>{button.disabled=true;button.textContent='Activation…';try{await enablePush();button.textContent='✓ Notifications push activées';localStorage.setItem('swe_push_enabled_device_v1','1')}catch(e){button.textContent=e.message||'Activation impossible'}finally{button.disabled=false}};}
