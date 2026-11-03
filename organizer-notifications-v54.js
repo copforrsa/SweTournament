@@ -89,13 +89,9 @@ try{
  let box=E('sweOrganizerNotificationsListV54');if(!box){box=document.createElement('div');box.id='sweOrganizerNotificationsListV54';card.append(box)}
  box.replaceChildren();
  for(const n of allItems.slice(-12).reverse()){const p=document.createElement('p');p.className='swe-notification-entry';const title=document.createElement('strong');title.textContent=n.title||'Notification SWÉ';const body=document.createElement('span');body.textContent=n.body||'';p.append(title,body);box.append(p)}
- const {data:lateAlerts,error:lateError}=await sb.from('community_swe_organizer_alerts_v1').select('id,player_name,minutes_before_start').order('id',{ascending:false}).limit(5);
- if(!lateError&&Array.isArray(lateAlerts)){
-   let lateBox=E('sweHomeLateWithdrawalsV1');
-   if(!lateBox){lateBox=document.createElement('div');lateBox.id='sweHomeLateWithdrawalsV1';card.append(lateBox)}
-   lateBox.replaceChildren();
-   for(const item of lateAlerts){const line=document.createElement('p');line.textContent='🚨 Désistement : '+item.player_name+(item.minutes_before_start===null?'':' · '+item.minutes_before_start+' min avant le début');lateBox.append(line)}
- }
+ // Recent withdrawals are private player-management information, not homepage content.
+ E('sweHomeLateWithdrawalsV1')?.remove();
+
  if(!allItems.length)box.textContent='Aucune notification pour le moment. Les prochaines inscriptions et informations de matchs apparaîtront ici.';
  }
  if(items.length){const high=Math.max(...items.map(n=>Number(n.id)||0));if(high>after)localStorage.setItem(key,String(high));
