@@ -200,3 +200,53 @@ revoke all on function public.public_join_community_swe_member_v1(uuid) from pub
 grant execute on function public.public_community_swe_details_v1(uuid) to anon,authenticated;
 grant execute on function public.public_join_community_swe_guest_v1(uuid,text) to anon;
 grant execute on function public.public_join_community_swe_member_v1(uuid) to authenticated;
+
+-- Include guest registrations in the creator's roster and capacity display.
+CREATE OR REPLACE FUNCTION public.get_my_community_swes_v2()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare v_gp uuid;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  select id into v_gp from public.global_player_profiles where user_id=auth.uid();
+  return jsonb_build_object(
+    'created',coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id',s.id,'title',s.title,'visibility',s.visibility,'moderation_mode',s.moderation_mode,
+        'start_at',s.start_at,'status',s.status,'max_players',s.max_players,
+        'confirmed',((select count(*) from public.community_swe_participants p where p.swe_id=s.id and p.status='confirmed') + (select count(*) from public.community_swe_guest_registrations g where g.swe_id=s.id)),
+        'guest_names',coalesce((select jsonb_agg(g.display_name order by g.created_at) from public.community_swe_guest_registrations g where g.swe_id=s.id),'[]'::jsonb),
+        'invited',(select count(*) from public.community_swe_participants p where p.swe_id=s.id and p.status='invited'),
+        'requests',(select count(*) from public.community_swe_participants p where p.swe_id=s.id and p.status='requested'),
+        'venue_kind',s.venue_kind,
+        'venue_id',case when s.venue_kind='complex' then s.complex_id else s.community_venue_id end,
+        'venue_name',case when s.venue_kind='complex' then c.name else cv.name end,
+        'venue_address',case when s.venue_kind='complex' then coalesce(c.address,c.city) else cv.address end,
+        'terrain_label',s.terrain_label,
+        'reservation_reference',s.reservation_reference,
+        'onsite_entry_fee_cents',s.onsite_entry_fee_cents,
+        'third_half_active',s.third_half_active
+      ) order by s.start_at)
+      from public.community_swes s
+      left join public.sports_complexes c on c.id=s.complex_id
+      left join public.community_venues cv on cv.id=s.community_venue_id
+      where s.creator_user_id=auth.uid()
+    ),'[]'::jsonb),
+    'participations',coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id',s.id,'title',s.title,'start_at',s.start_at,'visibility',s.visibility,'status',p.status,
+        'venue_name',case when s.venue_kind='complex' then c.name else cv.name end,
+        'terrain_label',s.terrain_label
+      ) order by s.start_at)
+      from public.community_swe_participants p
+      join public.community_swes s on s.id=p.swe_id
+      left join public.sports_complexes c on c.id=s.complex_id
+      left join public.community_venues cv on cv.id=s.community_venue_id
+      where p.global_player_id=v_gp
+    ),'[]'::jsonb)
+  );
+end
+$function$;
