@@ -1,0 +1,74 @@
+{
+  "build": "r550",
+  "pre": [
+    "registration-presentation.js",
+    "public-third-half-payment-v5063.js",
+    "offres.js",
+    "tournament-pitch-roles.js"
+  ],
+  "runtime": [
+    [
+      "match-engine-v4300.js",
+      "navigation-spaces.js",
+      "player-home.js",
+      "third-half-creation-assignment-v5067.js",
+      "conquest-format-v5058.js",
+      "conquest-creation-theme-v5062.js",
+      "conquest-public-registration-v5064.js",
+      "mobile-coorg-rights-v4362.js",
+      "hotfix-v4227.js",
+      "hotfix-v4228.js",
+      "hotfix-v4229.js",
+      "hotfix-v4230.js",
+      "hotfix-v4231.js",
+      "hotfix-v4232.js",
+      "ui-stability-v4234.js",
+      "hotfix-v4235.js",
+      "hotfix-v4236.js"
+    ],
+    [
+      "hotfix-v4237.js",
+      "hotfix-v4240.js",
+      "hotfix-v4239.js",
+      "hotfix-v4244.js",
+      "match-refresh-coorg-v4458.js",
+      "public-history-views-v4363.js",
+      "team-invitation-visibility-v4435.js",
+      "team-captain-consent-v4438.js",
+      "team-proposal-action-v4441.js",
+      "third-half-action-order-v4445.js",
+      "third-half-donor-summary-v4451.js",
+      "team-draw-room-access-v4452.js",
+      "team-draw-room-v4455.js",
+      "team-composition-visual-v4456.js",
+      "team-draw-room-home-access-v5070.js",
+      "team-draw-room-presence-ui-v5072.js",
+      "player-creation-source.js"
+    ],
+    [
+      "match-standings-panel.js",
+      "fast-conquest/browser-engine.js",
+      "fast-conquest/ui.js",
+      "match-quick-csc.js",
+      "match-finish-audit-ui.js",
+      "king-rotation-auto-ui.js",
+      "format-theme-auto.js",
+      "guest-host-rating.js",
+      "super-admin-guest-ratings.js",
+      "organizer-pending-requests-v5203.js",
+      "player-identity-v52.js",
+      "admin-player-cards-v52.js",
+      "coorganizer-experience-v4402.js",
+      "player-profile-identity-v52.js",
+      "player-organizer-offers-v52.js",
+      "admin-revolut-cooler-v52.js",
+      "organizer-notifications-v54.js"
+    ]
+  ],
+  "outputs": [
+    "assets/generated/swe-preapp-r550.js",
+    "assets/generated/swe-runtime-r550-part1.js",
+    "assets/generated/swe-runtime-r550-part2.js",
+    "assets/generated/swe-runtime-r550-part3.js"
+  ]
+}
