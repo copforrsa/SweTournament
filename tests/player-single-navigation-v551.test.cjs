@@ -21,7 +21,7 @@ test('only player-home owns the player navigation; no duplicate ID from space ro
  assert.match(nav,/#sweSpaceBar\[hidden\]\{display:none!important\}/);
 });
 test('one menu exposes group, profile and all player destinations',()=>{
- assert.match(home,/const navPanels=\['home','registrations','mine','stats','group','profile','organizer'\]/);
+ assert.match(home,/const navPanels=\['home','mine','stats','group','profile','organizer'\]/);
  assert.match(home,/group\(card\('myPlayerGroups'\),'profile group',50\)/);
  assert.match(home,/data-player-panel="preferences">Mes préférences/);
  assert.match(home,/view\.dataset\.playerPanel=selected/);
