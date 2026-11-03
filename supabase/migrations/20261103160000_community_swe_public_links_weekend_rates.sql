@@ -194,9 +194,9 @@ begin
  return 'registered';
 end $fn$;
 
-revoke all on function public.public_community_swe_details_v1(uuid) from public;
-revoke all on function public.public_join_community_swe_guest_v1(uuid,text) from public;
-revoke all on function public.public_join_community_swe_member_v1(uuid) from public;
+revoke all on function public.public_community_swe_details_v1(uuid) from public,anon,authenticated;
+revoke all on function public.public_join_community_swe_guest_v1(uuid,text) from public,anon,authenticated;
+revoke all on function public.public_join_community_swe_member_v1(uuid) from public,anon,authenticated;
 grant execute on function public.public_community_swe_details_v1(uuid) to anon,authenticated;
 grant execute on function public.public_join_community_swe_guest_v1(uuid,text) to anon;
 grant execute on function public.public_join_community_swe_member_v1(uuid) to authenticated;
