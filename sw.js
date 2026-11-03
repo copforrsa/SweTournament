@@ -1,4 +1,4 @@
-const SW_BUILD='54.6-king-archive-completed-4-points';
+const SW_BUILD='54.7-organizer-home-cleanup';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
