@@ -4889,20 +4889,24 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_members'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_invites'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=5132-king-audit-final',{updateViaCache:'none'})
+  // One app build at a time. A new service worker must not interrupt a live score entry.
+  const oldController=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('./sw.js?v=550-single-runtime',{updateViaCache:'none'})
     .then(reg=>{
-      reg.update().catch(()=>{});
-      const reloadAfterWorkerUpdate=()=>{
-        if(sessionStorage.getItem('SW_BUILD_RELOAD_5132'))return;
-        sessionStorage.setItem('SW_BUILD_RELOAD_5132','1');
-        location.reload();
+      const promptRefresh=()=>{
+        if(!oldController||document.getElementById('sweNewVersionReady550'))return;
+        const bar=document.createElement('div');bar.id='sweNewVersionReady550';
+        bar.setAttribute('role','status');
+        bar.style.cssText='position:fixed;bottom:15px;left:16px;right:16px;z-index:999999;background:#0e3155;color:#fff;border:1px solid #66c4ed;border-radius:15px;padding:14px 17px;box-shadow:0 12px 32px #0003;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap';
+        const text=document.createElement('span');text.textContent='Une nouvelle version de SWÉ est prête. Termine tes saisies puis actualise.';
+        const button=document.createElement('button');button.type='button';button.textContent='Actualiser SWÉ';button.onclick=()=>location.reload();
+        bar.append(text,button);document.body.append(bar);
       };
-      navigator.serviceWorker.addEventListener('controllerchange',reloadAfterWorkerUpdate,{once:true});
-      return reg;
-    })
-    .then(reg=>reg.update())
-    .catch(()=>{});
+      navigator.serviceWorker.addEventListener('controllerchange',promptRefresh,{once:true});
+      reg.update().catch(()=>{});
+    }).catch(()=>{});
 }
+
 sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){S.session=session;showRecoveryForm();return}setTimeout(authState,0)});
 
 function latestTournamentForVisual(){
