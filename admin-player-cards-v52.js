@@ -24,7 +24,7 @@ async function refresh(){
    const replacement=document.createElement('details');
    replacement.id='sweAdminPlayerIdentity52';
    replacement.className='card swe-admin-player-details';
-   if(block)block.replaceWith(replacement);else view.append(replacement);
+   if(block)block.replaceWith(replacement);else {const listCard=$('playersList')?.closest('.card');if(listCard)listCard.before(replacement);else view.append(replacement);}
    block=replacement;
   }else if(block.parentElement!==view)view.append(block);
   const previousSearch=$('sweAdminPlayerSearch52')?.value||'';
