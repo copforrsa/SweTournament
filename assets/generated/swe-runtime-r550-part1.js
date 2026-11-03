@@ -540,7 +540,7 @@ function nativeView(view){
  const b=document.querySelector('.tabs .tab[data-view="'+view+'"]');
  if(b&&!b.disabled&&!b.classList.contains('disabled-tab'))b.click();
 }
-function creator(){if(typeof window.openSimpleSweCreator==='function')window.openSimpleSweCreator('private');else E('simpleSweTab')?.click();syncMode()}
+function creator(){if(typeof window.openSimpleSweCreator==='function')window.openSimpleSweCreator('public');else E('simpleSweTab')?.click();syncMode()}
 function openPlayerCard(){if(typeof window.SWEPlayerCard?.open==='function'){window.SWEPlayerCard.open();return}const native=E('swe4338CardBtn');if(native){native.click();return}if(typeof toast==='function')toast('Ta carte de joueur est encore en cours de chargement.')}
 function ensure(view){
  if(E('swePlayerHeader'))return;
@@ -612,7 +612,7 @@ function decorate(view){
  const regs=card('myPlayerMySwes');group(regs,'home registrations',20,true);more(regs,'registrations');
  const regTitle=regs?.querySelector('.sectiontitle');if(regTitle)regTitle.textContent='Mes inscriptions';
  group(E('swePlayerMine'),'home mine',21,true);
- const publicCard=card('myPlayerOpportunities');group(publicCard,'home discover',30);more(publicCard,'discover');
+ const publicCard=card('myPlayerOpportunities');group(publicCard,'home discover',18);more(publicCard,'discover');
  const publicTitle=publicCard?.querySelector('.sectiontitle');if(publicTitle)publicTitle.textContent='SWÉs publics à rejoindre';
  group(card('myPlayerPublic'),'profile',30);
  group(shell(E('swe4338Health')),'profile',40);
@@ -662,7 +662,7 @@ async function loadPublicDiscovery(){
  discoveryLoading=true;
  let block=E('sweIndependentDiscovery');
  if(!block){block=node('section','sweIndependentDiscovery','<h2>🏆 SWÉs publics à rejoindre</h2><div id="sweIndependentDiscoveryRows" aria-live="polite">Chargement…</div>');block.className='card';view.append(block);}
- group(block,'home discover',29);
+ group(block,'home discover',19);
  block.classList.toggle('swe-player-filtered',selected!=='home'&&selected!=='discover');
  const out=E('sweIndependentDiscoveryRows');
  try{
