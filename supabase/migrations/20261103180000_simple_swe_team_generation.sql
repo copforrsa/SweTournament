@@ -42,8 +42,8 @@ begin
    'substitutes',coalesce(jsonb_agg(player order by num) filter(where num>10),'[]'::jsonb),
    'generated_at',now()
  ) into v_teams from (
-   select value as player,row_number() over () as num
-   from jsonb_array_elements(v_roster)
+   select value as player,num
+   from jsonb_array_elements(v_roster) with ordinality as entries(value,num)
  ) ordered;
  update public.community_swes set generated_teams=v_teams where id=p_swe_id;
  return v_teams;
