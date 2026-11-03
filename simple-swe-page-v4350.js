@@ -98,7 +98,7 @@ function renderSimpleTeams(x){
  const teams=x.generated_teams;
  const hasTeams=teams&&Array.isArray(teams.a)&&Array.isArray(teams.b);
  if(x.status!=='open'&&!hasTeams)return '';
- const lists=hasTeams?'<div class="swe4351-team-lists">'+[['Équipe A',teams.a],['Équipe B',teams.b]].map(([title,players])=>'<div class="swe4351-team"><b>⚽ '+title+'</b><ol>'+players.map(p=>'<li>'+esc(p.name)+(p.type==='guest'?' <small>(invité)</small>':'')+'</li>').join('')+'</ol></div>').join('')+'</div>':'';
+ const lists=hasTeams?'<div class="swe4351-team-lists">'+[['Équipe A',teams.a],['Équipe B',teams.b],...(Array.isArray(teams.substitutes)&&teams.substitutes.length?[['Remplaçants',teams.substitutes]]:[])].map(([title,players])=>'<div class="swe4351-team"><b>⚽ '+title+'</b><ol>'+players.map(p=>'<li>'+esc(p.name)+(p.type==='guest'?' <small>(invité)</small>':'')+'</li>').join('')+'</ol></div>').join('')+'</div>':'';
  const control=x.status==='open'?(full?'<button type="button" data-simple-generate="'+esc(x.id)+'">'+(hasTeams?'🔄 Régénérer les équipes':'⚽ Générer les équipes')+'</button>':'<p class="swe4351-muted">Équipes disponibles lorsque les '+Number(x.max_players||10)+' places sont confirmées.</p>'):'';
  return '<div class="swe4351-team-panel">'+lists+control+'</div>';
 }
