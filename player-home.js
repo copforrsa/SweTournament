@@ -22,7 +22,7 @@ function group(n,sections,order,half=false){
 function shell(n){return n?.closest('.swe-profile-fold')||n}
 function card(id){return shell(E(id)?.closest('.card'))}
 function choose(panel,focus=false){
- if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer')window.SWEOrganizerOffers52?.mount();
+ if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer'){if(window.SWEOrganizerOffers52?.mount)window.SWEOrganizerOffers52.mount();else openOffers();}
  if(focus){const target=E('view-myplayer').querySelector('[data-player-sections]:not(.swe-player-filtered) h2');if(target){target.tabIndex=-1;target.focus({preventScroll:true})}}
 }
 function nativeView(view){
@@ -196,7 +196,11 @@ async function loadPublicDiscovery(){
   }
   discoveryLoadedAt=Date.now();
  }catch(e){out.textContent='Impossible de charger les SWÉs publics. Réessaie dans quelques instants.';console.warn('Public SWÉ discovery',e)}
- finally{discoveryLoading=false}
+ finally{
+   discoveryLoading=false;
+   // A failed or unavailable discovery request must not flood the server on every rerender.
+   discoveryLoadedAt=Date.now();
+ }
 }
 function paint(){
  const active=syncMode(),s=state(),view=E('view-myplayer');if(!active||!view)return;
