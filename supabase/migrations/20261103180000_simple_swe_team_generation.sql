@@ -63,3 +63,23 @@ begin
    execute source;
  end if;
 end $$;
+
+-- Team lists become invalid as soon as an invited/confirmed player changes.
+create or replace function public.invalidate_community_swe_teams_v1()
+returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+begin
+ update public.community_swes
+ set generated_teams=null
+ where id=coalesce(new.swe_id,old.swe_id) and generated_teams is not null;
+ return coalesce(new,old);
+end $$;
+
+create trigger swe_member_roster_invalidate_teams
+after insert or update or delete on public.community_swe_participants
+for each row execute function public.invalidate_community_swe_teams_v1();
+
+create trigger swe_guest_roster_invalidate_teams
+after insert or update or delete on public.community_swe_guest_registrations
+for each row execute function public.invalidate_community_swe_teams_v1();
+
+revoke all on function public.invalidate_community_swe_teams_v1() from public,anon,authenticated;
