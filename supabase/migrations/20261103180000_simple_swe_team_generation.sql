@@ -58,7 +58,7 @@ begin
  select pg_get_functiondef('public.get_my_community_swes_v2()'::regprocedure) into source;
  if position('''generated_teams'',s.generated_teams' in source)=0 then
    if position('''guest_names'',coalesce(' in source)=0 then raise exception 'Dashboard structure changed'; end if;
-   source := replace(source,'''guest_names'',coalesce(','''generated_teams'',s.generated_teams,\n        ''guest_names'',coalesce(');
+   source := replace(source,'''guest_names'',coalesce(','''generated_teams'',s.generated_teams, ''guest_names'',coalesce(');
    execute source;
  end if;
 end $$;
