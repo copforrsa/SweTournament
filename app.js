@@ -271,7 +271,7 @@ function setView(v){
   S.lastView=v;
   window.SWE_SPACES?.apply();
   if(previousView!==v)window.scrollTo({top:0,left:0,behavior:'instant'});
-  if(['home','myplayer','players','coorganizers','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
+  if(['home','notifications','myplayer','players','coorganizers','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
 }
 
 // `start` is an entry intent, not a persistent profile preference. Keeping
@@ -2108,7 +2108,48 @@ function renderEcosystemCommercial(){
 }
 
 
+function refreshOrganizerActionCenter(){
+  const center=document.getElementById('homeActionCenter');
+  if(!center)return;
+  const identity=document.getElementById('homeIdentityRequestsCard');
+  const requests=document.getElementById('sweOrganizerRequests');
+  const hasIdentity=!!identity&&!identity.classList.contains('hidden');
+  const hasRequests=!!requests&&requests.querySelectorAll('.swe-organizer-request').length>0;
+  const empty=document.getElementById('homeActionsEmpty');
+  if(empty)empty.hidden=hasIdentity||hasRequests;
+}
+window.SWERefreshHomeActionCenter=refreshOrganizerActionCenter;
+function renderHomeNextTournament(){
+  const target=document.getElementById('homeNextTournamentContent');
+  if(!target||!isAdmin())return;
+  const today=new Date();
+  const localDate=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const tournaments=(S.tournaments||[])
+    .filter(t=>t.format!=='league'&&t.status!=='finished'&&String(t.tournament_date||'')>=localDate)
+    .sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
+  const next=tournaments[0];
+  if(!next){
+    target.innerHTML='<p class="muted">Aucun tournoi à venir pour le moment.</p><button type="button" class="primary" data-go="tournaments">📅 Préparer un tournoi</button>';
+    return;
+  }
+  const date=next.tournament_date?new Date(next.tournament_date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}):'Date à définir';
+  const status=next.status==='draft'?'En préparation':next.status==='open'?'Inscriptions ouvertes':'Tournoi à venir';
+  target.innerHTML='<div class="swe-next-tour-name">'+esc(next.name||'Tournoi SWÉ')+'</div>'+
+    '<p class="muted">'+esc(date)+' · '+esc(status)+'</p>'+
+    '<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="primary" data-go="tournaments">Gérer le tournoi</button>'+
+    '<button type="button" data-go="teams">Voir les équipes</button></div>';
+}
 function renderHome(){
+  if(isAdmin()){
+    renderHomeNextTournament();
+    const center=document.getElementById('homeActionCenter');
+    const identity=document.getElementById('homeIdentityRequestsCard');
+    if(center&&identity&&identity.parentElement!==center)center.append(identity);
+    const quick=document.querySelector('#view-home .swe-home-shortcuts-card');
+    if(center&&quick&&quick.previousElementSibling!==center)center.after(quick);
+    const notes=document.getElementById('homeCoorgVotesCard'),playersView=document.getElementById('view-players');
+    if(notes&&playersView&&notes.parentElement!==playersView)playersView.append(notes);
+  }
   renderEcosystemCommercial();
   renderCoorgOrganizerCta();
   setTimeout(confirmCoorgCheckoutFromUrl,0);
@@ -2137,6 +2178,7 @@ function renderHome(){
     identityCard.classList.toggle('hidden',!rows.length);
     identityBox.innerHTML=rows.map(r=>'<div class="player identity-link-request"><div><b>'+esc(r.player_name)+'</b><div class="muted">Compte demandé : '+esc(r.display_name)+' • '+esc(r.public_player_id)+'</div></div><div class="row"><button class="primary" data-identity-approve="'+esc(r.request_id)+'">✓ Confirmer</button><button data-identity-reject="'+esc(r.request_id)+'">Refuser</button></div></div>').join('');
   }
+  if(isAdmin())refreshOrganizerActionCenter();
 }
 
 document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
