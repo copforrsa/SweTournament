@@ -271,7 +271,7 @@ function setView(v){
   S.lastView=v;
   window.SWE_SPACES?.apply();
   if(previousView!==v)window.scrollTo({top:0,left:0,behavior:'instant'});
-  if(['home','myplayer','players','coorganizers','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
+  if(['home','notifications','myplayer','players','coorganizers','permissions','tournaments','teams','matches','league','cooler','ranking','simple-swe'].includes(v)&&!S.publicMode){window.swePageViewContext={page:'app:'+v};document.dispatchEvent(new Event('swe:page-view'));}
 }
 
 // `start` is an entry intent, not a persistent profile preference. Keeping
@@ -1404,7 +1404,7 @@ document.addEventListener('click',async e=>{
   }
   if(intent==='organizer'){openOrganizerSetup('group');return;}
   if(e.target?.id==='becomeOrganizer'||e.target?.id==='coorgCreateOwnWorkspace'){openOrganizerSetup('group');$('#workspaceSetup')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'});return;}
-  if(e.target?.id==='trialChoosePlan'){setView('home');setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'}),100);return;}
+  if(e.target?.id==='trialChoosePlan'){setView('home');const settings=$('#homeSettingsDisclosure');if(settings)settings.open=true;setTimeout(()=>$('#homeEcosystemCard')?.scrollIntoView({behavior:(matchMedia('(pointer:coarse)').matches?'auto':'smooth'),block:'start'}),100);return;}
 });
 
 async function loadInvites(){
@@ -2108,7 +2108,48 @@ function renderEcosystemCommercial(){
 }
 
 
+function refreshOrganizerActionCenter(){
+  const center=document.getElementById('homeActionCenter');
+  if(!center)return;
+  const identity=document.getElementById('homeIdentityRequestsCard');
+  const requests=document.getElementById('sweOrganizerRequests');
+  const hasIdentity=!!identity&&!identity.classList.contains('hidden');
+  const hasRequests=!!requests&&requests.querySelectorAll('.swe-organizer-request').length>0;
+  const empty=document.getElementById('homeActionsEmpty');
+  if(empty)empty.hidden=hasIdentity||hasRequests;
+}
+window.SWERefreshHomeActionCenter=refreshOrganizerActionCenter;
+function renderHomeNextTournament(){
+  const target=document.getElementById('homeNextTournamentContent');
+  if(!target||!isAdmin())return;
+  const today=new Date();
+  const localDate=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const tournaments=(S.tournaments||[])
+    .filter(t=>t.format!=='league'&&t.status!=='finished'&&String(t.tournament_date||'')>=localDate)
+    .sort((a,b)=>String(a.tournament_date||'').localeCompare(String(b.tournament_date||'')));
+  const next=tournaments[0];
+  if(!next){
+    target.innerHTML='<p class="muted">Aucun tournoi à venir pour le moment.</p><button type="button" class="primary" data-go="tournaments">📅 Préparer un tournoi</button>';
+    return;
+  }
+  const date=next.tournament_date?new Date(next.tournament_date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}):'Date à définir';
+  const status=next.status==='draft'?'En préparation':next.status==='open'?'Inscriptions ouvertes':'Tournoi à venir';
+  target.innerHTML='<div class="swe-next-tour-name">'+esc(next.name||'Tournoi SWÉ')+'</div>'+
+    '<p class="muted">'+esc(date)+' · '+esc(status)+'</p>'+
+    '<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="primary" data-go="tournaments">Gérer le tournoi</button>'+
+    '<button type="button" data-go="teams">Voir les équipes</button></div>';
+}
 function renderHome(){
+  if(isAdmin()){
+    renderHomeNextTournament();
+    const center=document.getElementById('homeActionCenter');
+    const identity=document.getElementById('homeIdentityRequestsCard');
+    if(center&&identity&&identity.parentElement!==center)center.append(identity);
+    const quick=document.querySelector('#view-home .swe-home-shortcuts-card');
+    if(center&&quick&&quick.previousElementSibling!==center)center.after(quick);
+    const notes=document.getElementById('homeCoorgVotesCard'),playersView=document.getElementById('view-players');
+    if(notes&&playersView&&notes.parentElement!==playersView)playersView.append(notes);
+  }
   renderEcosystemCommercial();
   renderCoorgOrganizerCta();
   setTimeout(confirmCoorgCheckoutFromUrl,0);
@@ -2137,6 +2178,7 @@ function renderHome(){
     identityCard.classList.toggle('hidden',!rows.length);
     identityBox.innerHTML=rows.map(r=>'<div class="player identity-link-request"><div><b>'+esc(r.player_name)+'</b><div class="muted">Compte demandé : '+esc(r.display_name)+' • '+esc(r.public_player_id)+'</div></div><div class="row"><button class="primary" data-identity-approve="'+esc(r.request_id)+'">✓ Confirmer</button><button data-identity-reject="'+esc(r.request_id)+'">Refuser</button></div></div>').join('');
   }
+  if(isAdmin())refreshOrganizerActionCenter();
 }
 
 document.addEventListener('change',e=>{if(e.target?.id==='saWorkspaceFilter')renderSuperAdminWorkspaces();});
@@ -4847,20 +4889,24 @@ if($('#openSeasonPublicShareLink'))$('#openSeasonPublicShareLink').onclick=()=>{
 function subscribeRealtime(){if(S.channel)sb.removeChannel(S.channel);let timer;const reload=()=>{clearTimeout(timer);timer=setTimeout(async()=>await loadAll(),250)};S.channel=sb.channel('tournoi-manager').on('postgres_changes',{event:'*',schema:'public',table:'players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'seasons'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournaments'},reload).on('postgres_changes',{event:'*',schema:'public',table:'tournament_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_members'},reload).on('postgres_changes',{event:'*',schema:'public',table:'workspace_invites'},reload).on('postgres_changes',{event:'*',schema:'public',table:'teams'},reload).on('postgres_changes',{event:'*',schema:'public',table:'team_players'},reload).on('postgres_changes',{event:'*',schema:'public',table:'matches'},reload).on('postgres_changes',{event:'*',schema:'public',table:'goals'},reload).on('postgres_changes',{event:'*',schema:'public',table:'match_player_assignments'},reload).subscribe()}
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=5132-king-audit-final',{updateViaCache:'none'})
+  // One app build at a time. A new service worker must not interrupt a live score entry.
+  const oldController=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('./sw.js?v=550-single-runtime',{updateViaCache:'none'})
     .then(reg=>{
-      reg.update().catch(()=>{});
-      const reloadAfterWorkerUpdate=()=>{
-        if(sessionStorage.getItem('SW_BUILD_RELOAD_5132'))return;
-        sessionStorage.setItem('SW_BUILD_RELOAD_5132','1');
-        location.reload();
+      const promptRefresh=()=>{
+        if(!oldController||document.getElementById('sweNewVersionReady550'))return;
+        const bar=document.createElement('div');bar.id='sweNewVersionReady550';
+        bar.setAttribute('role','status');
+        bar.style.cssText='position:fixed;bottom:15px;left:16px;right:16px;z-index:999999;background:#0e3155;color:#fff;border:1px solid #66c4ed;border-radius:15px;padding:14px 17px;box-shadow:0 12px 32px #0003;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap';
+        const text=document.createElement('span');text.textContent='Une nouvelle version de SWÉ est prête. Termine tes saisies puis actualise.';
+        const button=document.createElement('button');button.type='button';button.textContent='Actualiser SWÉ';button.onclick=()=>location.reload();
+        bar.append(text,button);document.body.append(bar);
       };
-      navigator.serviceWorker.addEventListener('controllerchange',reloadAfterWorkerUpdate,{once:true});
-      return reg;
-    })
-    .then(reg=>reg.update())
-    .catch(()=>{});
+      navigator.serviceWorker.addEventListener('controllerchange',promptRefresh,{once:true});
+      reg.update().catch(()=>{});
+    }).catch(()=>{});
 }
+
 sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){S.session=session;showRecoveryForm();return}setTimeout(authState,0)});
 
 function latestTournamentForVisual(){

@@ -20,6 +20,18 @@ fs.mkdirSync(shots,{recursive:true});
    window.__rpc=[];window.sb={rpc:async(name,args)=>{window.__rpc.push({name,args});if(name==='get_my_coorganizer_dashboard_onboarding_v1')return {data:{should_highlight:true}};if(name==='mark_my_coorganizer_dashboard_onboarding_v1')return {data:{should_highlight:false}};const second=args.p_tournament_id===tid2;return {data:{tournament:{id:args.p_tournament_id,name:second?'Coupe du samedi':'Tournoi du dimanche'},profile:{linked_player_id:pid,name:'Alex Martin'},permissions:{can_view_players:true,can_enter_scores:!second,can_generate_teams:true,personal_instructions:'Vérifie les présences avant le coup d’envoi.'},team_action:{total:second?4:8,done:0,enabled:true,requested:true,eligible:true,status:'pending',deadline:'2026-09-15T18:00:00Z'},rating_action:{total:19,done:3,selected:true,status:'open',deadline:'2026-09-15T18:00:00Z'}}}}};
   });
   await page.addScriptTag({content:fs.readFileSync(path.join(root,'coorganizer-dashboard-v4399.js'),'utf8')});
+  if(process.env.SWE_R55_FAST_SMOKE==='1'){
+    await page.locator('#sweCoorgDashboard4399').filter({hasText:'Mes autorisations'}).waitFor({timeout:10000});
+    const content=await page.locator('#sweCoorgDashboard4399').innerText();
+    assert.match(content,/Salon de Vote et appréciations/);
+    assert.match(content,/Joueurs \/ Notes/);
+    assert.match(content,/Matchs/);
+    await page.setViewportSize({width:390,height:900});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'Co-gestionnaire sans débordement horizontal');
+    await page.screenshot({path:path.join(shots,'coorganizer-r550-mobile-smoke.png'),fullPage:true});
+    console.log('SWÉ r55 co-gestionnaire: permissions, missions and mobile: OK');
+    return;
+  }
   await page.locator('#sweCoorgDashboard4399').filter({hasText:'Actions à réaliser'}).waitFor();
   assert.match(await page.locator('#sweCoorgDashboard4399').innerText(),/0 sur 8 équipes évaluées/);
   assert.match(await page.locator('#sweCoorgDashboard4399').innerText(),/3 sur 19 joueurs notés/);

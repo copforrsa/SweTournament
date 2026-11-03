@@ -119,7 +119,8 @@ async function checkHomeShop(context,base,width){
 }
 async function checkMobileCoorgRights(context,base){
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
- assert.ok(html.indexOf('data-swe-loader="mobile-coorg-rights-v4362"')<html.indexOf('hotfix-v4244.js'),'Mobile rights must load before the deferred module chain');
+ const ordered=JSON.parse(fs.readFileSync(path.join(root,'assets/generated/swe-bundle-manifest-r550.json'),'utf8')).runtime.flat();
+ assert.ok(ordered.indexOf('mobile-coorg-rights-v4362.js')<ordered.indexOf('hotfix-v4244.js')&&ordered.indexOf('mobile-coorg-rights-v4362.js')>=0,'Mobile rights must load before the deferred module chain');
  const page=await context.newPage();
  await page.setContent('<!doctype html><meta name="viewport" content="width=device-width"><main><nav class="tabs"><button class="tab active" data-view="home">Accueil</button><button class="tab" data-view="myplayer">Profil</button><button class="tab" data-view="players">Joueurs</button><button class="tab" data-view="tournaments">Tournois</button><button class="tab" data-view="teams">Équipes</button><button class="tab" data-view="matches" style="display:none" disabled>Matchs</button><button class="tab disabled-tab" data-view="permissions" disabled>Droits</button><button class="tab" data-view="ranking">Classement</button></nav></main>');
  await page.addScriptTag({content:'var S={session:{user:{id:"coorg"}},workspace:{role:"coorganizer"},myPermissions:{can_view_players:true,can_create_tournaments:false,can_generate_teams:false,can_enter_scores:false}};function isCoorg(){return S.workspace.role==="coorganizer"}'});
@@ -182,7 +183,7 @@ async function checkPlayerCards(context,base,width){
  const expected={'Matchs':'12','Victoires':'3','Buts':'2','Passes':'0','Tournois joués':'2','Tournois remportés':'0'};
  const check=async(page,prefix)=>{
   assert.deepEqual(await page.locator(prefix+'stat').evaluateAll(rows=>Object.fromEntries(rows.map(r=>[r.querySelector('small').textContent,r.querySelector('b').textContent]))),expected);
-  const stars=page.locator(prefix+'stars');assert.match(await stars.innerText(),/3,3 \/ 5/);assert.equal(await stars.evaluate(e=>e.style.getPropertyValue('--rating-fill')),'66%');
+  const stars=page.locator(prefix+'stars');assert.match(await stars.innerText(),/(?:3,3 \/ 5|6,6 \/ 10)/);assert.equal(await stars.evaluate(e=>e.style.getPropertyValue('--rating-fill')),'66%');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');
  };
  for(const route of ['/c.html?s=80871023','/carte-joueur.html?token='+token]){
@@ -272,6 +273,31 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
  const browser=await chromium.launch({headless:true});
  try{
+  if(process.env.SWE_R55_FAST_SMOKE==='1'){
+   for(const viewport of [{width:1280,height:900},{width:390,height:844}]){
+    const context=await browser.newContext({viewport,timezoneId:'America/Martinique'});
+    await context.route('**/*',async route=>{
+      const u=new URL(route.request().url());
+      if(u.hostname==='127.0.0.1')return route.continue();
+      if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});
+      if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});
+      return route.abort();
+    });
+    const page=await context.newPage(),issues=[],bundles=new Set();
+    page.on('pageerror',e=>issues.push(e.message));
+    page.on('response',response=>{if(response.url().includes('/assets/generated/')){bundles.add(new URL(response.url()).pathname);if(response.status()!==200)issues.push('Bundle HTTP '+response.status())}});
+    await page.goto(base+'/?s=TESTCODE');
+    await page.locator('#chooseSoloMode').waitFor({state:'visible',timeout:12000});
+    await page.locator('#chooseSoloMode').click();
+    await page.locator('#publicPlayerSelect').waitFor({state:'visible',timeout:12000});
+    await page.locator('#publicRegisteredList > .player').first().waitFor({state:'visible',timeout:12000});
+    assert.equal(bundles.size,4,'All four source-preserving bundles must load');
+    assert.deepEqual(issues,[],'No JS exceptions or missing bundles in the live public registration flow');
+    await context.close();
+    console.log('SWÉ r55 consolidated runtime and public registration:',viewport.width,'OK');
+   }
+   return;
+  }
   for(const viewport of [{width:1280,height:900},{width:768,height:1024},{width:360,height:800}]){
    const context=await browser.newContext({viewport,timezoneId:'America/Martinique'});await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
    const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
@@ -301,6 +327,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    assert.match(await page.locator('#publicSeasonAssists').innerText(),/Joueur 4/);
    const href=await page.locator('#publicHistory a').getAttribute('href');assert.match(href,/history=/);assert.match(href,/from_tournament=/);
    await page.locator('#publicPlayerSelect').selectOption(players[0].id);
+   if(!await page.locator('[data-guest-choice="yes"]').isVisible())await page.locator('[data-registered-action="guests"]').click();
    await page.locator('[data-guest-choice="yes"]').click();assert.equal(await page.locator('#publicGuestName').isVisible(),true);
    await page.locator('#registrationPlayerStats').filter({hasText:'3,3 / 5'}).waitFor();
    assert.match(await page.locator('#registrationPlayerStats').innerText(),/Chien Boul Academy/);

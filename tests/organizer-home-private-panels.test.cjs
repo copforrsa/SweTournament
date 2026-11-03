@@ -28,7 +28,10 @@ test('recent withdrawal alerts are available in private player area, not homepag
  assert.match(cards,/sweAdminRecentWithdrawals52/);
  assert.match(notifications,/E\('sweHomeLateWithdrawalsV1'\)\?\.remove\(\)/);
 });
-test('PWA delivery invalidates the moved panels',()=>{
- assert.match(home,/admin-player-cards-v52\.js\?v=20261103-move-to-players/);
- assert.match(home,/organizer-notifications-v54\.js\?v=20261103-withdrawals-under-player-admin/);
+test('PWA delivery includes protected player cards and dedicated notifications in the new runtime',()=>{
+ const manifest=JSON.parse(file('assets/generated/swe-bundle-manifest-r550.json'));
+ assert.ok(manifest.runtime.flat().includes('admin-player-cards-v52.js'));
+ assert.ok(manifest.runtime.flat().includes('organizer-notifications-v54.js'));
+ assert.match(home,/swe-runtime-r550-part3\.js/);
+ assert.match(home,/id="view-notifications"/);
 });
