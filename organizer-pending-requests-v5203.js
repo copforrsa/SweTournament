@@ -15,11 +15,15 @@ async function render(force=false){
   stamp=Date.now();
   const rows=(Array.isArray(data)?data:[]).filter(x=>x.status==='pending');
   let box=document.getElementById('sweOrganizerRequests');
-  if(!box){box=document.createElement('section');box.id='sweOrganizerRequests';box.className='card';root.prepend(box)}
+  // Empty requests never take up dashboard space.
+  if(!rows.length){box?.remove();window.SWERefreshHomeActionCenter?.();return}
+  const center=document.getElementById('homeActionCenter')||root;
+  if(!box){box=document.createElement('section');box.id='sweOrganizerRequests';box.className='card';center.append(box)}
+  else if(box.parentElement!==center)center.append(box);
   box.replaceChildren();
   const title=document.createElement('h2');title.className='sectiontitle';title.textContent='🙋 Demandes de participation à valider ('+rows.length+')';box.append(title);
   const intro=document.createElement('p');intro.textContent='Joueurs SWÉ extérieurs au groupe. Une acceptation crée leur inscription au tournoi, sous réserve des règles de places et de paiement.';box.append(intro);
-  if(!rows.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Aucune demande en attente.';box.append(empty);return}
+  window.SWERefreshHomeActionCenter?.();
   for(const r of rows){
     const item=document.createElement('article');item.className='swe-organizer-request';
     const top=document.createElement('div');top.className='swe-request-top';
@@ -46,6 +50,8 @@ async function render(force=false){
        if(error){feedback.textContent=error.message;action.querySelectorAll('button').forEach(b=>b.disabled=false);return}
        feedback.textContent=accept?(result?.payment_required?'Acceptée — paiement du joueur en attente':'Demande acceptée — inscription créée'):'Demande refusée';
        stamp=0;item.remove();
+       if(!box.querySelector('.swe-organizer-request'))box.remove();
+       window.SWERefreshHomeActionCenter?.();
       };action.append(btn);
     }
     action.append(feedback);item.append(top,message,action);box.append(item);
