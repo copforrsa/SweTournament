@@ -37,8 +37,9 @@ begin
  end if;
 
  select jsonb_build_object(
-   'a',coalesce(jsonb_agg(player order by num) filter(where num%2=1),'[]'::jsonb),
-   'b',coalesce(jsonb_agg(player order by num) filter(where num%2=0),'[]'::jsonb),
+   'a',coalesce(jsonb_agg(player order by num) filter(where num<=10 and num%2=1),'[]'::jsonb),
+   'b',coalesce(jsonb_agg(player order by num) filter(where num<=10 and num%2=0),'[]'::jsonb),
+   'substitutes',coalesce(jsonb_agg(player order by num) filter(where num>10),'[]'::jsonb),
    'generated_at',now()
  ) into v_teams from (
    select value as player,row_number() over () as num
