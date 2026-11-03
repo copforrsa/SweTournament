@@ -1,4 +1,4 @@
-const SW_BUILD='54.7-organizer-home-cleanup';
+const SW_BUILD='55.0-manager-dashboard-single-runtime';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 
