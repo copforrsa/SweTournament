@@ -302,6 +302,7 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
    assert.match(await page.locator('#publicSeasonAssists').innerText(),/Joueur 4/);
    const href=await page.locator('#publicHistory a').getAttribute('href');assert.match(href,/history=/);assert.match(href,/from_tournament=/);
    await page.locator('#publicPlayerSelect').selectOption(players[0].id);
+   if(!await page.locator('[data-guest-choice="yes"]').isVisible())await page.locator('[data-registered-action="guests"]').click();
    await page.locator('[data-guest-choice="yes"]').click();assert.equal(await page.locator('#publicGuestName').isVisible(),true);
    await page.locator('#registrationPlayerStats').filter({hasText:'3,3 / 5'}).waitFor();
    assert.match(await page.locator('#registrationPlayerStats').innerText(),/Chien Boul Academy/);
