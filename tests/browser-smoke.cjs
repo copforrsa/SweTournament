@@ -273,6 +273,31 @@ const server=http.createServer((req,res)=>{let target=path.resolve(root,'.'+new 
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
  const browser=await chromium.launch({headless:true});
  try{
+  if(process.env.SWE_R55_FAST_SMOKE==='1'){
+   for(const viewport of [{width:1280,height:900},{width:390,height:844}]){
+    const context=await browser.newContext({viewport,timezoneId:'America/Martinique'});
+    await context.route('**/*',async route=>{
+      const u=new URL(route.request().url());
+      if(u.hostname==='127.0.0.1')return route.continue();
+      if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});
+      if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});
+      return route.abort();
+    });
+    const page=await context.newPage(),issues=[],bundles=new Set();
+    page.on('pageerror',e=>issues.push(e.message));
+    page.on('response',response=>{if(response.url().includes('/assets/generated/')){bundles.add(new URL(response.url()).pathname);if(response.status()!==200)issues.push('Bundle HTTP '+response.status())}});
+    await page.goto(base+'/?s=TESTCODE');
+    await page.locator('#chooseSoloMode').waitFor({state:'visible',timeout:12000});
+    await page.locator('#chooseSoloMode').click();
+    await page.locator('#publicPlayerSelect').waitFor({state:'visible',timeout:12000});
+    await page.locator('#publicRegisteredList > .player').first().waitFor({state:'visible',timeout:12000});
+    assert.equal(bundles.size,4,'All four source-preserving bundles must load');
+    assert.deepEqual(issues,[],'No JS exceptions or missing bundles in the live public registration flow');
+    await context.close();
+    console.log('SWÉ r55 consolidated runtime and public registration:',viewport.width,'OK');
+   }
+   return;
+  }
   for(const viewport of [{width:1280,height:900},{width:768,height:1024},{width:360,height:800}]){
    const context=await browser.newContext({viewport,timezoneId:'America/Martinique'});await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.hostname==='127.0.0.1')return route.continue();if(u.hostname==='cdn.jsdelivr.net')return route.fulfill({contentType:'text/javascript',body:sdk});if(u.pathname.endsWith('/record_swe_page_view'))return route.fulfill({contentType:'application/json',body:'42'});return route.abort()});
    const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
