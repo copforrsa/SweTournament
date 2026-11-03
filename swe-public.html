@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><meta name="theme-color" content="#102344">
+<title>Inscription à un SWÉ • SWÉ Tournament</title>
+<link rel="icon" href="/favicon.png"><link rel="stylesheet" href="/swe-public.css">
+</head><body><main class="wrap">
+<header><a href="/connexion.html"><img src="/assets/logo-swe-tournament.png" alt="SWÉ Tournament"></a><div><small>SWÉ TOURNAMENT 5/5</small><h1>Rejoins un SWÉ</h1><p>Inscris-toi à un match, avec ou sans compte.</p></div></header>
+<section class="card" aria-live="polite"><h2 id="title">Chargement du match…</h2><div id="details"></div><p id="feedback" role="status"></p></section>
+<section id="join" class="card hidden">
+ <h2>Je veux participer</h2>
+ <div id="member" class="hidden"><p>Tu es connecté à SWÉ. Confirme ton inscription avec ton profil joueur.</p><button id="memberJoin" class="primary">M'inscrire avec mon compte SWÉ</button></div>
+ <div id="visitor">
+  <form id="guestForm"><h3>Je n'ai pas de compte SWÉ</h3><label for="guestName">Ton nom ou pseudo *</label><input id="guestName" name="name" maxlength="80" minlength="2" autocomplete="name" required placeholder="Ex. Alex Martin"><button class="primary" type="submit">M'inscrire au match</button><p class="hint">Ton nom sert uniquement à réserver ta place dans ce match. Ne communique aucune donnée sensible.</p></form>
+  <hr>
+  <form id="loginForm"><h3>J'ai déjà un compte SWÉ</h3><label for="email">Adresse e-mail</label><input id="email" type="email" required autocomplete="email"><label for="password">Mot de passe</label><input id="password" type="password" required autocomplete="current-password"><button type="submit">Me connecter et m'inscrire</button></form>
+  <p class="hint">Pas encore de compte ? <a href="/connexion.html">Créer un compte SWÉ</a> (facultatif pour ce match).</p>
+ </div>
+</section>
+<footer>Le paiement se fait sur place. L'inscription n'entraîne aucun paiement en ligne.</footer>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script><script src="/swe-public.js" defer></script></body></html>
