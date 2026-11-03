@@ -17,7 +17,7 @@ select jsonb_build_object(
  'venues',coalesce((select jsonb_agg(jsonb_build_object(
    'id',v.id,'name',v.name,'address',v.address,'latitude',v.latitude,'longitude',v.longitude,'photo_url',v.photo_url
  ) order by v.name) from public.community_venues v where v.status='active' and v.share_on_swe=true),'[]'::jsonb)
-); $function$
+); $function$;
 
 CREATE OR REPLACE FUNCTION public.create_community_swe_v3(p_title text, p_visibility text, p_venue_kind text, p_venue_id uuid, p_start_at timestamp with time zone, p_max_players integer DEFAULT 10, p_reservation_reference text DEFAULT NULL::text, p_third_half_requested boolean DEFAULT false, p_invite_public_ids text[] DEFAULT '{}'::text[], p_terrain_label text DEFAULT NULL::text)
  RETURNS jsonb
@@ -113,7 +113,7 @@ begin
     'invite_count',v_invite_count
   );
 end
-$function$
+$function$;
 
 -- Public guest names are separate from authenticated player identities.
 create table if not exists public.community_swe_guest_registrations (
