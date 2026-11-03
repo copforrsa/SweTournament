@@ -170,3 +170,21 @@ body.swe-player-space #sweSpaceBar{display:none!important}
  html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="group"]:before{content:'♙'}
  html.swe-player-home-active #swePlayerHeader #swePlayerNav button[data-player-panel="profile"]:before{content:'◉'}
 }
+/* Player SWÉ layout: independent notifications card, with no title/button overlap. */
+html.swe-player-home-active #view-myplayer #sweOrganizerNotificationsV54{
+ box-sizing:border-box!important;display:grid!important;
+ grid-template-columns:minmax(0,1fr)!important;align-items:stretch!important;
+ gap:12px!important;margin:0!important;min-width:0!important;
+}
+html.swe-player-home-active #view-myplayer #sweOrganizerNotificationsV54 h2{
+ min-width:0!important;max-width:100%;overflow-wrap:anywhere;
+}
+html.swe-player-home-active #view-myplayer #sweEnableNotificationsV54{
+ box-sizing:border-box!important;display:block!important;position:static!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ white-space:normal!important;overflow-wrap:anywhere;text-align:center;
+ grid-column:1!important;margin:0!important;
+}
+html.swe-player-home-active #view-myplayer #sweOrganizerNotificationsListV54{
+ grid-column:1!important;overflow-wrap:anywhere;
+}
