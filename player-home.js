@@ -8,10 +8,10 @@ const E=id=>document.getElementById(id);
 const state=()=>{try{return S}catch(_){return null}};
 const api=()=>{try{return sb}catch(_){return null}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const panels=['home','registrations','mine','stats','group','profile','preferences','organizer','discover'];
+const panels=['home','mine','stats','group','profile','preferences','organizer','discover'];
 // One visible menu, with the group reachable directly and preferences under the account menu.
-const navPanels=['home','registrations','mine','stats','group','profile','organizer'];
-const navLabels=['Accueil','Mes inscriptions','Mes SWÉs','Mes stats','Mon groupe','Mon profil','Organiser'];
+const navPanels=['home','mine','stats','group','profile','organizer'];
+const navLabels=['Accueil','Mes SWÉ et inscriptions','Mes stats','Mon groupe','Mon profil','Organiser'];
 let selected='home',timer,userId='',generation=0,loadedAt=0,busy=false,community=null,loadError=false,inviteAnchor;
 function node(tag,id,html){const n=document.createElement(tag);n.id=id;if(html)n.innerHTML=html;return n}
 function group(n,sections,order,half=false){
@@ -22,6 +22,8 @@ function group(n,sections,order,half=false){
 function shell(n){return n?.closest('.swe-profile-fold')||n}
 function card(id){return shell(E(id)?.closest('.card'))}
 function choose(panel,focus=false){
+ // Ancient links to Mes inscriptions now lead to the unified Mes SWÉ view.
+ if(panel==='registrations')panel='mine';
  if(!panels.includes(panel))return;selected=panel;paint();if(panel==='organizer'){if(window.SWEOrganizerOffers52?.mount)window.SWEOrganizerOffers52.mount();else openOffers();}
  if(focus){const target=E('view-myplayer').querySelector('[data-player-sections]:not(.swe-player-filtered) h2');if(target){target.tabIndex=-1;target.focus({preventScroll:true})}}
 }
@@ -41,12 +43,12 @@ function ensure(view){
  E('swePlayerSwitchToggle').onclick=e=>{e.stopPropagation();const open=E('swePlayerProfiles').classList.toggle('hidden')===false;e.currentTarget.setAttribute('aria-expanded',String(open))};
  const hero=node('section','swePlayerQuick','<div><span class="swe-player-kicker">LE FOOT PLUS SIMPLE, ENTRE NOUS</span><h2>Un SWÉ, et c’est parti.</h2><p>Crée un match rapide ou rejoins tes amis.</p><div class="swe-player-actions"><button type="button" id="swePlayerCreateQuick">＋ Créer un SWÉ rapide</button><button type="button" data-player-panel="discover">Découvrir les SWÉs publics</button></div><small>Match rapide · Sans abonnement organisateur</small></div>');
  view.append(hero);E('swePlayerCreateQuick').onclick=creator;
- const overview=node('section','swePlayerHomeOverview','<div class="swe-dashboard-kicker">TABLEAU DE BORD</div><h2>Tout ton SWÉ en un coup d’œil</h2><div class="swe-dashboard-actions"><button type="button" data-player-panel="registrations">📋 Mes inscriptions</button><button type="button" data-player-panel="mine">📅 Mes prochains SWÉs</button><button type="button" data-player-panel="stats">📈 Mes statistiques</button><button type="button" id="swePlayerHomeAlerts">🔔 Notifications</button></div>');
+ const overview=node('section','swePlayerHomeOverview','<div class="swe-dashboard-kicker">TABLEAU DE BORD</div><h2>Tout ton SWÉ en un coup d’œil</h2><div class="swe-dashboard-actions"><button type="button" data-player-panel="mine">📋 Mes SWÉ et inscriptions</button><button type="button" data-player-panel="stats">📈 Mes statistiques</button><button type="button" id="swePlayerHomeAlerts">🔔 Notifications</button></div>');
  overview.className='card';view.append(overview);
  E('swePlayerHomeAlerts').onclick=()=>{const notifications=E('sweOrganizerNotificationsV54');if(notifications){notifications.scrollIntoView({behavior:'smooth',block:'center'});notifications.querySelector('button')?.focus({preventScroll:true})}else{document.dispatchEvent(new Event('swe:rendered'));}};
 
- const mine=node('section','swePlayerMine','<div class="swe-player-section-head"><h2>Mes SWÉs</h2><button type="button" data-player-panel="mine">Tout voir →</button></div><div id="swePlayerMineRows" aria-live="polite"></div><div class="swe-player-actions"><button type="button" id="swePlayerManage">＋ Créer un SWÉ rapide</button><button type="button" id="swePlayerMineRefresh">Actualiser</button></div>');
- mine.className='card';view.append(mine);
+ const mine=node('section','swePlayerMine','<div class="swe-player-section-head"><h3>SWÉ que j’organise</h3><button type="button" data-player-panel="mine">Tout voir →</button></div><div id="swePlayerMineRows" aria-live="polite"></div><div class="swe-player-actions"><button type="button" id="swePlayerManage">＋ Créer un SWÉ rapide</button><button type="button" id="swePlayerMineRefresh">Actualiser</button></div>');
+ mine.className='swe-player-created-block';view.append(mine);
  E('swePlayerManage').onclick=()=>{creator();E('swe4351Mine')?.scrollIntoView({behavior:'smooth',block:'center'})};
  E('swePlayerMineRefresh').onclick=()=>loadCommunity(true);
  const commercial=node('section','swePlayerCommercial','<div><span class="swe-player-kicker">TON GROUPE EST DÉJÀ SUR WHATSAPP ?</span><h2>Garde la discussion. Confie l’organisation à SWÉ.</h2><p>Inscriptions, équipes, scores, classements et rappels réunis au même endroit — WhatsApp reste votre vestiaire.</p></div><button type="button" id="swePlayerOffers">Organiser mon groupe avec SWÉ →</button>');
@@ -98,21 +100,23 @@ function decorate(view){
  const stats=card('myPlayerStats');group(stats,'home stats',10);more(stats,'stats');
  const title=stats?.querySelector('.sectiontitle');if(title)title.textContent='Mes stats';
  if(stats&&!E('swePlayerCardShortcut')){const b=document.createElement('button');b.id='swePlayerCardShortcut';b.type='button';b.textContent='⭐ Ma carte de joueur';b.onclick=openPlayerCard;(stats.querySelector('.swe4338-stats-head')||title?.parentElement||stats).appendChild(b)}
- const regs=card('myPlayerMySwes');group(regs,'home registrations',20,true);more(regs,'registrations');
- const regTitle=regs?.querySelector('.sectiontitle');if(regTitle)regTitle.textContent='Mes inscriptions';
- group(E('swePlayerMine'),'home mine',21,true);
+ const regs=card('myPlayerMySwes');group(regs,'home mine',20);more(regs,'mine');
+ const regTitle=regs?.querySelector('.sectiontitle');if(regTitle)regTitle.textContent='Mes SWÉ et inscriptions';
+ // Move the user's created SWÉs inside the native registrations card: one unified destination.
+ const created=E('swePlayerMine');if(regs&&created&&created.parentNode!==regs)regs.append(created);
+ group(created,'home mine',21);
  const publicCard=card('myPlayerOpportunities');group(publicCard,'home discover',18);more(publicCard,'discover');
  const publicTitle=publicCard?.querySelector('.sectiontitle');if(publicTitle)publicTitle.textContent='SWÉs publics à rejoindre';
  group(card('myPlayerPublic'),'profile',30);
  group(shell(E('swe4338Health')),'profile',40);
  group(shell(view.querySelector('.swe-history-link-card')),'stats',40);
- group(card('myPlayerRequests'),'registrations',35);
+ group(card('myPlayerRequests'),'home mine',35);
  group(shell(E('sweMyReliability')),'stats',45);
  group(card('myPlayerGroups'),'profile group',50);
- group(card('myPlayerInvites'),'registrations',31);
+ group(card('myPlayerInvites'),'home mine',31);
  group(E('swePlayerCommercial'),'home mine',70);
  // Keep native invitation nodes and handlers; restore their original location outside player view.
- const inv=E('inviteBox');if(inv){if(!inviteAnchor){inviteAnchor=document.createComment('player-invite-home');inv.before(inviteAnchor)}if(inv.parentNode!==view)view.append(inv);group(inv,'home registrations',-10);let refresh=E('swePlayerInviteRefresh');if(!refresh){refresh=document.createElement('button');refresh.id='swePlayerInviteRefresh';refresh.type='button';refresh.textContent='Actualiser';refresh.onclick=async()=>{refresh.disabled=true;try{if(typeof loadInvites==='function')await loadInvites()}finally{refresh.disabled=false}};inv.querySelector('.sectiontitle')?.after(refresh)}}
+ const inv=E('inviteBox');if(inv){if(!inviteAnchor){inviteAnchor=document.createComment('player-invite-home');inv.before(inviteAnchor)}if(inv.parentNode!==view)view.append(inv);group(inv,'home mine',-10);let refresh=E('swePlayerInviteRefresh');if(!refresh){refresh=document.createElement('button');refresh.id='swePlayerInviteRefresh';refresh.type='button';refresh.textContent='Actualiser';refresh.onclick=async()=>{refresh.disabled=true;try{if(typeof loadInvites==='function')await loadInvites()}finally{refresh.disabled=false}};inv.querySelector('.sectiontitle')?.after(refresh)}}
  const originalCta=shell(E('playerOrganizerCta'));if(originalCta)group(originalCta,'profile',55);
  const summary=E('swePlayerCommunityRegistrations');
  if(regs&&!summary){const n=node('div','swePlayerCommunityRegistrations');regs.append(n)}
@@ -126,7 +130,7 @@ function renderCommunity(){
  const ordered=[...all].sort((a,b)=>(a.status==='finished')-(b.status==='finished')||String(a.start_at).localeCompare(String(b.start_at)));
  const rows=selected==='home'?ordered.slice(0,2):ordered;
  out.innerHTML=rows.length?rows.map(x=>'<article class="swe-player-match"><div><b>'+esc(x.title||'SWÉ rapide')+'</b><div class="muted">'+esc(formatDate(x.start_at))+' · '+esc(x.venue_name||'Lieu à confirmer')+'</div></div><span class="swe-player-pill">'+(x.status==='finished'?'Terminé':esc(Number(x.confirmed||0))+' / '+esc(Number(x.max_players||10))+' joueurs')+'</span></article>').join(''):'<p class="muted">Tu n’as pas encore créé de SWÉ rapide. Lance ton premier match !</p>';
- const regs=E('swePlayerCommunityRegistrations');if(regs){const joins=(Array.isArray(community.participations)?community.participations:[]).filter(x=>!all.some(c=>c.id===x.id));const visible=selected==='home'?joins.slice(0,2):joins;regs.innerHTML=visible.length?'<h3 class="swe-player-small-title">Mes matchs rapides</h3>'+visible.map(x=>'<article class="swe-player-match"><div><b>'+esc(x.title||'SWÉ rapide')+'</b><div class="muted">'+esc(formatDate(x.start_at))+' · '+esc(x.venue_name||'Lieu à confirmer')+'</div></div><span class="swe-player-pill">'+esc(({confirmed:'Inscrit',invited:'Invité',requested:'En attente',declined:'Refusé',cancelled:'Annulé'})[x.status]||x.status||'À confirmer')+'</span></article>').join(''):''}
+ const regs=E('swePlayerCommunityRegistrations');if(regs){const joins=(Array.isArray(community.participations)?community.participations:[]).filter(x=>!all.some(c=>c.id===x.id));const visible=selected==='home'?joins.slice(0,2):joins;regs.innerHTML=visible.length?'<h3 class="swe-player-small-title">SWÉ auxquels je participe</h3>'+visible.map(x=>'<article class="swe-player-match"><div><b>'+esc(x.title||'SWÉ rapide')+'</b><div class="muted">'+esc(formatDate(x.start_at))+' · '+esc(x.venue_name||'Lieu à confirmer')+'</div></div><span class="swe-player-pill">'+esc(({confirmed:'Inscrit',invited:'Invité',requested:'En attente',declined:'Refusé',cancelled:'Annulé'})[x.status]||x.status||'À confirmer')+'</span></article>').join(''):''}
 }
 function formatDate(date){if(!date)return 'Date à préciser';const d=new Date(date);return Number.isFinite(d.getTime())?d.toLocaleString('fr-FR',{timeZone:'America/Martinique',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Date à préciser'}
 async function loadCommunity(force=false){
