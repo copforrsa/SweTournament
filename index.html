@@ -287,6 +287,15 @@
         </div>
         <div id="coorgMyRights" class="hidden" style="margin-top:12px"></div>
       </div>
+      <section id="homeNextTournamentCard" class="card swe-home-next" aria-labelledby="homeNextTournamentTitle">
+        <div class="swe-home-kicker">PROCHAIN RENDEZ-VOUS</div>
+        <h2 id="homeNextTournamentTitle" class="sectiontitle">⚽ Mon prochain SWÉ</h2>
+        <div id="homeNextTournamentContent" role="status" aria-live="polite">Chargement du prochain tournoi…</div>
+      </section>
+      <section id="homeActionCenter" class="swe-home-action-center" aria-label="Actions à traiter">
+        <h2 class="sectiontitle">📌 À traiter</h2>
+        <p id="homeActionsEmpty" class="muted">Aucune action urgente pour le moment.</p>
+      </section>
       <div id="coorgOrganizerCta" class="card hidden coorg-organizer-cta"><div><span>👀</span><div><b>Ça serait pas mal dans ton groupe aussi, non ?</b><p>Tu connais déjà SWÉ. Crée ton propre espace organisateur et teste toutes les fonctions pendant 2 mois.</p></div></div><button id="coorgCreateOwnWorkspace" class="primary">Créer mon espace organisateur →</button></div>
       <div class="card hidden" id="homeStripeWarning" style="border:2px solid #e58a00;background:#fff4dc;box-shadow:0 8px 24px rgba(166,92,0,.12)">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
@@ -308,7 +317,7 @@
         <p class="muted">Ces joueurs ont créé leur compte depuis une mission Glacière. Vérifie leur identité avant d’autoriser la configuration du lien de paiement.</p>
         <div id="homeIdentityRequests" style="margin-top:12px"></div>
       </div>
-      <div class="card" id="homeEcosystemCard" style="border:2px solid #d9eadf;background:linear-gradient(180deg,#fbfffc 0%,#f7fbf8 100%)">
+      <details id="homeSettingsDisclosure" class="swe-home-settings"><summary>⚙️ Mon abonnement et mes options</summary><div class="card" id="homeEcosystemCard" style="border:2px solid #d9eadf;background:linear-gradient(180deg,#fbfffc 0%,#f7fbf8 100%)">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
           <div><h2 class="sectiontitle" style="margin-bottom:4px">💎 Mon espace SWÉ & options</h2><div class="muted">Ton espace évolue avec ton groupe, sans alourdir l’organisation.</div></div>
           <span id="homePlanBadge" class="guest-badge">FREE</span>
@@ -363,8 +372,9 @@
 
         <div class="muted" style="margin-top:10px;font-size:12px">Les paiements des joueurs via Stripe restent distincts des options et formules de l’organisateur.</div>
       </div>
-      <div class="card">
-        <h2 class="sectiontitle">Actions rapides</h2>
+      </details>
+      <div class="card swe-home-shortcuts-card">
+        <h2 class="sectiontitle">Accès rapides</h2>
         <div class="grid g2">
           <button data-go="players">👥 Gérer les joueurs</button>
           <button data-go="tournaments">📅 Nouveau tournoi</button>
@@ -402,6 +412,16 @@
           </div>
         </div>
         <div id="homeCoorgVotes" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div id="view-notifications" class="view">
+      <div class="card swe-notifications-page">
+        <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
+          <div><h2 class="sectiontitle">🔔 Mes notifications SWÉ</h2><p class="muted">Inscription, organisation et messages de ton groupe, réunis au même endroit.</p></div>
+          <button type="button" id="sweNotificationsBackHome" data-go="home">← Retour à l'accueil</button>
+        </div>
+        <div id="sweNotificationsContainer"><p class="muted">Les notifications apparaîtront ici après connexion.</p></div>
       </div>
     </div>
 
@@ -838,6 +858,7 @@
 
     <nav class="tabs">
       <button class="tab active" data-view="home">Accueil</button>
+      <button class="tab" data-view="notifications" id="managementNotificationsTab">🔔 Notifications <span id="sweNotificationsUnreadBadge" class="hidden" aria-label="Nouvelles notifications"></span></button>
       <button class="tab" data-view="myplayer">Mon profil joueur</button>
       <button class="tab" data-view="players" id="playersTabLabel">Joueurs</button>
       <button class="tab admin-coorg-tab hidden" data-view="coorganizers">Co-gestionnaires <span id="coorgAcceptedBadge" class="hidden" aria-label="Nouvelles invitations acceptées"></span></button>
