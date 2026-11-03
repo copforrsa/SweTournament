@@ -29,3 +29,26 @@ test('migration enforces rates, capacity, and anonymous role isolation',()=>{
  assert.match(sql,/guest_names/);
 });
 test('weekday rates before 21:30 are 10 euros',()=>{assert.match(read('simple-swe-page-v4350.js'),/time>='21:30'\?700:1000/);assert.match(read('supabase/migrations/20261103170000_community_swe_weekday_10eur.sql'),/then 700 else 1000 end;/);});
+
+test('create action is visible after invitation stage and supports WhatsApp',()=>{
+ const page=read('simple-swe-page-v4350.js');
+ const stage=page.indexOf('id="swe4351OrganizerSection"');
+ const action=page.indexOf('id="swe4351ActionStep"');
+ const mine=page.indexOf('id="swe4351Mine"');
+ assert.ok(stage>=0&&action>stage&&mine>action);
+ assert.match(page,/id="swe4351CreatePrimary"/);
+ assert.match(page,/data-simple-whatsapp/);
+ assert.match(page,/https:\/\/wa\.me\/\?text=/);
+ const bundle=read('assets/generated/swe-runtime-r550-part3.js');
+ assert.match(bundle,/id="swe4351CreatePrimary"/);
+});
+test('team generation requires complete roster and limits play to 5 against 5',()=>{
+ const page=read('simple-swe-page-v4350.js');
+ const sql=read('supabase/migrations/20261103180000_simple_swe_team_generation.sql');
+ assert.match(page,/generate_community_swe_teams_v1/);
+ assert.match(sql,/v_count<>v_swe.max_players/);
+ assert.match(sql,/where num<=10 and num%2=1/);
+ assert.match(sql,/where num<=10 and num%2=0/);
+ assert.match(sql,/where num>10/);
+ assert.match(sql,/swe_guest_roster_invalidate_teams/);
+});
