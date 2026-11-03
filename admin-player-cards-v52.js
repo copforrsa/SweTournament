@@ -48,6 +48,19 @@ async function refresh(){
    }
   };
   search.oninput=paint;paint();
+  // Keep the last withdrawal alerts in the protected admin directory, not on the homepage.
+  const {data:lateAlerts,error:lateError}=await sb.from('community_swe_organizer_alerts_v1')
+    .select('id,player_name,minutes_before_start').order('id',{ascending:false}).limit(5);
+  if(!lateError&&Array.isArray(lateAlerts)&&lateAlerts.length){
+    const recent=document.createElement('section');recent.id='sweAdminRecentWithdrawals52';
+    const title=document.createElement('h3');title.textContent='🚨 Désistements récents';recent.append(title);
+    for(const item of lateAlerts){
+      const line=document.createElement('p');line.textContent=String(item.player_name||'Joueur')+
+        (item.minutes_before_start===null?'':' · '+String(item.minutes_before_start)+' min avant le début');
+      recent.append(line);
+    }
+    search.before(recent);
+  }
  }catch(e){console.warn('Admin player identities',e)}finally{busy=false}
 }
 document.addEventListener('swe:rendered',refresh);document.addEventListener('swe:page-view',refresh);window.addEventListener('pageshow',()=>{seen=0;refresh()});setInterval(()=>{if(document.visibilityState==='visible')refresh()},30000);
