@@ -10,9 +10,9 @@ test('the old startup loader never repeats a bundled module or the same file twi
  const manifest=JSON.parse(read('assets/generated/swe-bundle-manifest-r550.json'));
  const bundled=new Set([...manifest.pre,...manifest.runtime.flat()]);
  const loader=read('hotfix-v4244.js');
- const loads=[...loader.matchAll(/await load\('([^']+)','([^']+)'\)/g)]
+ const loads=[...loader.matchAll(/queue\('([^']+)','([^']+)'\)/g)]
   .map(m=>({path:m[1].split('?')[0].replace(/^\//,''),key:m[2]}));
- assert.equal(loads.length,74,'only additional, required modules should load');
+ assert.equal(loads.length,73,'only additional, required modules should load');
  assert.equal(new Set(loads.map(x=>x.path)).size,loads.length,'duplicate dynamic scripts');
  assert.deepEqual(loads.filter(x=>bundled.has(x.path)),[],'bundle modules must not reload');
  assert.ok(bundled.has('player-home.js'));
@@ -26,4 +26,17 @@ test('the startup loader in the production bundle matches the maintained source'
  assert.ok(bundle.includes('/* SOURCE hotfix-v4244.js */\n'+source));
  const main=read('index.html');
  assert.equal([...main.matchAll(/<script\b[^>]*\bsrc=/g)].length,10);
+});
+
+test('homepage scripts download concurrently but execute in their original order',()=>{
+ const loader=read('hotfix-v4244.js');
+ assert.match(loader,/const queue=\(src,key\)=>\{pending.push\(load\(src,key\)\);\}/);
+ assert.match(loader,/s\.async=false/);
+ assert.match(loader,/await Promise\.all\(pending\)/);
+ assert.doesNotMatch(loader,/await load\('/);
+ assert.doesNotMatch(loader,/queue\('\/simple-swe-launcher-v4350\.js/);
+ assert.match(loader,/get\('start'\).*?'player'\)queue\('\/hotfix-v4281-complex-home\.js/);
+ const home=read('player-home.js');
+ assert.match(home,/id="swePlayerCreateQuick"/);
+ assert.match(home,/openSimpleSweCreator\('public'\)/);
 });
