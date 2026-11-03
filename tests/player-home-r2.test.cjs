@@ -23,7 +23,7 @@ test('player rubrics preserve native routes, buttons, form values and disclosure
   const tabs=[...d.querySelectorAll('.tabs .tab')],attrs=tabs.map(b=>b.outerHTML),input=d.getElementById('swe4321Nick');input.value='Brouillon';
   const details=d.getElementById('sweCompact-identity');details.open=true;
   let join=0;const joinButton=d.createElement('button');joinButton.dataset.playerDirectJoin='real-tournament';joinButton.onclick=()=>join++;d.getElementById('myPlayerOpportunities').append(joinButton);
-  for(const panel of ['profile','stats','registrations','mine','home']){d.querySelector('#swePlayerNav [data-player-panel="'+panel+'"]').click();assert.equal(w.S.lastView,'myplayer');assert.equal(d.querySelector('.view.active').id,'view-myplayer')}
+  for(const panel of ['profile','stats','mine','home']){d.querySelector('#swePlayerNav [data-player-panel="'+panel+'"]').click();assert.equal(w.S.lastView,'myplayer');assert.equal(d.querySelector('.view.active').id,'view-myplayer')}
   assert.deepEqual(tabs.map(b=>b.outerHTML),attrs);assert.equal(d.getElementById('swe4321Nick'),input);assert.equal(input.value,'Brouillon');assert.equal(details.open,true);
   d.querySelector('#swePlayerQuick [data-player-panel=discover]').click();joinButton.click();assert.equal(join,1);assert.equal(d.getElementById('myPlayerOpportunities').contains(joinButton),true);
   d.dispatchEvent(new w.Event('swe:rendered'));await wait();assert.equal(input.value,'Brouillon');assert.equal(d.querySelectorAll('#swePlayerNav').length,1);
@@ -60,7 +60,7 @@ test('account uses the existing logout and workspace switch handlers; offers use
 test('profile menus and native invitation acceptance remain clickable after layout moves',async()=>{
  const {w,d,dom}=await setup();try{
   const fold=d.getElementById('sweCompact-identity'),summary=fold.querySelector('summary');assert.equal(fold.open,false);summary.click();assert.equal(fold.open,true);summary.click();assert.equal(fold.open,false);
-  let accepted=0;const button=d.createElement('button');button.textContent='Accepter';button.onclick=()=>accepted++;d.getElementById('inviteList').append(button);d.querySelector('#swePlayerNav [data-player-panel="registrations"]').click();button.click();assert.equal(accepted,1);assert.equal(d.getElementById('inviteBox').parentElement.id,'view-myplayer');
+  let accepted=0;const button=d.createElement('button');button.textContent='Accepter';button.onclick=()=>accepted++;d.getElementById('inviteList').append(button);d.querySelector('#swePlayerNav [data-player-panel="mine"]').click();button.click();assert.equal(accepted,1);assert.equal(d.getElementById('inviteBox').parentElement.id,'view-myplayer');
   assert.equal(d.getElementById('inviteBox').style.getPropertyValue('--player-order'),'-10');
   assert.equal(d.getElementById('swePlayerManage').textContent,'＋ Créer un SWÉ rapide');const shortcut=d.getElementById('swePlayerCardShortcut');assert.ok(shortcut);shortcut.click();assert.equal(w.__cardOpens,1);
  }finally{dom.window.close()}
@@ -78,5 +78,21 @@ test('community rows are user scoped, escaped, and errors are distinguished from
  const {w,d,dom,calls}=await setup(null,()=>({data:{created:[{id:'a',title:'<img src=x onerror=bad()>',confirmed:3,max_players:10}],participations:[]}}));try{
   assert.equal(d.querySelector('#swePlayerMineRows img'),null);assert.match(d.getElementById('swePlayerMineRows').textContent,/3 \/ 10/);const before=calls();for(let i=0;i<3;i++){d.dispatchEvent(new w.Event('swe:rendered'));await wait()}assert.equal(calls(),before);
   w.S.session.user.id='player-2';w.sb.rpc=async()=>({error:{message:'failure'}});d.dispatchEvent(new w.Event('swe:rendered'));await wait();assert.match(d.getElementById('swePlayerMineRows').textContent,/pas disponibles/);assert.doesNotMatch(d.getElementById('swePlayerMineRows').textContent,/onerror/);
+ }finally{dom.window.close()}
+});
+
+test('Mes SWÉ combines native registrations, invitations and created matches in one card',async()=>{
+ const {w,d,dom}=await setup();try{
+  const nav=[...d.querySelectorAll('#swePlayerNav [data-player-panel]')];
+  assert.equal(nav.filter(b=>b.dataset.playerPanel==='mine').length,1);
+  assert.equal(nav.some(b=>b.dataset.playerPanel==='registrations'),false);
+  assert.match(nav.find(b=>b.dataset.playerPanel==='mine').textContent,/Mes SWÉ et inscriptions/);
+  const native=d.getElementById('myPlayerMySwes');
+  const created=d.getElementById('swePlayerMine');
+  assert.ok(native.contains(created),'created matches must be inside the registration card');
+  d.querySelector('#swePlayerNav [data-player-panel="mine"]').click();
+  assert.equal(native.closest('.swe-player-filtered'),null);
+  assert.equal(created.classList.contains('swe-player-filtered'),false);
+  assert.equal(d.getElementById('myPlayerInvites').closest('.swe-player-filtered'),null);
  }finally{dom.window.close()}
 });
