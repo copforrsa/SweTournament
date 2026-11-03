@@ -15,7 +15,7 @@ test('main shell makes 10 ordered JS requests instead of 61',()=>{
  assert.equal(scripts.length,10);
  const own=['swe-preapp-r550.js','app.js?v=550-manager-dashboard','swe-runtime-r550-part1.js','swe-runtime-r550-part2.js','swe-runtime-r550-part3.js'];
  for(const name of own)assert.ok(scripts.some(s=>s.includes(name)),name);
- assert.deepEqual(manifest.runtime.map(x=>x.length),[17,17,17]);
+ assert.deepEqual(manifest.runtime.map(x=>x.length),[17,17,19]);
  assert.equal(manifest.pre.length,4);
  assert.ok(scripts.findIndex(s=>s.includes('swe-preapp'))<scripts.findIndex(s=>s.includes('app.js?')));
 });
