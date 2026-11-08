@@ -113,18 +113,8 @@ try{
    localStorage.setItem(key,String(Math.max(...items.map(n=>Number(n.id)||0))));
    if(badge)badge.classList.add('hidden');
  }
- if(items.length&&stored&&typeof Notification!=='undefined'&&Notification.permission==='granted'){
-   const notifiedKey='swe_org_push_notified_v54:'+uid;
-   const notified=Number(localStorage.getItem(notifiedKey)||after);
-   const unseenPush=items.filter(n=>Number(n.id)>notified).slice(-5);
-   if(unseenPush.length){
-     const reg=await navigator.serviceWorker?.ready.catch(()=>null);
-     if(reg){
-       for(const item of unseenPush)await reg.showNotification(item.title,{body:item.body,tag:'swe-'+item.id,icon:'/icon-192.png',badge:'/icon-192.png',data:{url:'/?space=management'}});
-       localStorage.setItem(notifiedKey,String(Math.max(...unseenPush.map(n=>Number(n.id)||0))));
-     }
-   }
- }
+ // Browser notifications are exclusively sent by swe-push and received by sw.js.
+ // Replaying history here caused duplicate/late alerts when revisiting the app.
 }catch(e){console.warn('SWÉ notifications',e)}finally{busy=false}
 }
 window.addEventListener('pageshow',()=>{check(true);schedulePushOffer()});document.addEventListener('swe:rendered',()=>{check();schedulePushOffer()});document.addEventListener('swe:page-view',()=>{if(E('view-notifications')?.classList.contains('active'))check(true)});setInterval(()=>{if(document.visibilityState==='visible')check()},30000);

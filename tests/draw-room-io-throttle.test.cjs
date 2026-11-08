@@ -43,5 +43,5 @@ test('the production bundle and browser cache include the corrected presence mod
  }
  assert.match(read('index.html'),/swe-runtime-r550-part2\.js\?v=5601-io-fix/);
  assert.match(read('team-draw-room-v4455.js'),/team-draw-room-salon-v5037\.js\?v=5601-io-fix/);
- assert.match(read('sw.js'),/SW_BUILD='56\.1-draw-room-io-fix'/);
+ assert.match(read('sw.js'),/SW_BUILD='56\.2-push-dedup'/);
 });
