@@ -13,7 +13,7 @@ const manifest=JSON.parse(read('assets/generated/swe-bundle-manifest-r550.json')
 test('main shell makes 10 ordered JS requests instead of 61',()=>{
  const scripts=[...index.matchAll(/<script\b[^>]*\bsrc=(["'])(.*?)\1[^>]*><\/script>/g)].map(m=>m[2]);
  assert.equal(scripts.length,10);
- const own=['swe-preapp-r550.js','app.js?v=550-manager-dashboard','swe-runtime-r550-part1.js','swe-runtime-r550-part2.js','swe-runtime-r550-part3.js'];
+ const own=['swe-preapp-r550.js','app.js?v=560-io-throttle','swe-runtime-r550-part1.js','swe-runtime-r550-part2.js','swe-runtime-r550-part3.js'];
  for(const name of own)assert.ok(scripts.some(s=>s.includes(name)),name);
  assert.deepEqual(manifest.runtime.map(x=>x.length),[17,17,19]);
  assert.equal(manifest.pre.length,4);
@@ -43,7 +43,7 @@ test('pending requests are rendered only when actionable',()=>{
  assert.match(app,/SWERefreshHomeActionCenter/);
 });
 test('PWA updates do not reload automatically while scoring',()=>{
- assert.match(sw,/SW_BUILD='55\.(?:0-manager-dashboard-single-runtime|1-single-player-navigation|2-merged-player-swes)'/);
+ assert.match(sw,/SW_BUILD='(?:55\.(?:0-manager-dashboard-single-runtime|1-single-player-navigation|2-merged-player-swes)|56\.0-public-io-throttle)'/);
  assert.match(app,/sweNewVersionReady550/);
  assert.match(app,/button\.onclick=\(\)=>location\.reload\(\)/);
  assert.doesNotMatch(app,/SW_BUILD_RELOAD_5132/);
