@@ -1,4 +1,4 @@
-const SW_BUILD='55.2-merged-player-swes';
+const SW_BUILD='56.0-public-io-throttle';
 const CACHE_NAME='swe-pwa-'+SW_BUILD;
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./favicon.png'];
 

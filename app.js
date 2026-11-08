@@ -6347,6 +6347,8 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     };
 
     let publicRefreshSeq=0;
+    let publicRefreshBusy=false;
+    let publicLastRefreshAt=0;
     let publicSnapshotSignature='';
     const publicSnapshotFingerprint=snapshot=>{
       const currentTeams=(snapshot.teams||[]).filter(t=>String(t.tournament_id)===String(regTour?.id));
@@ -6364,6 +6366,10 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
     };
     publicSnapshotSignature=publicSnapshotFingerprint({tournaments,players,tournament_players:registrations,teams,team_players:teamPlayers,team_player_invitations:teamInvitations,match_player_assignments:matchAssignments,tournament_group_levels:tournamentGroupLevels});
     async function refreshPublicRegistration(){
+      // Only one full public workspace snapshot at a time; slow responses must not stack.
+      if(publicRefreshBusy)return;
+      publicRefreshBusy=true;
+      publicLastRefreshAt=Date.now();
       const seq=++publicRefreshSeq;
       try{
         const {data,error}=await sb.rpc('get_public_workspace_snapshot_v2',{p_token:token});
@@ -6403,7 +6409,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
         refreshSeasonRankings();
         registrationPresentation?.update();
         updateTournamentCountdowns();
-      }catch(e){}
+      }catch(e){}finally{publicRefreshBusy=false;}
     }
 
     bootState.refresh=refreshPublicRegistration;
@@ -6488,11 +6494,18 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
       }catch(error){guestFeedback(error?.message||'Connexion interrompue. Réessaie d’ajouter ton invité.');}finally{b.disabled=false;b.textContent=originalLabel;}
     };
     if(window.__swePublicRegistrationInterval)clearInterval(window.__swePublicRegistrationInterval);
+    // Full-workspace snapshots are expensive. Refresh periodically only while visible;
+    // mutations still call refreshPublicRegistration() immediately.
     window.__swePublicRegistrationInterval=window.setInterval(()=>{
-      // Inutile d'actualiser un onglet masqué. La comparaison ci-dessus évite
-      // toute reconstruction visuelle lorsque les données sont inchangées.
-      if(document.visibilityState==='visible')refreshPublicRegistration();
-    },30000);
+      if(document.visibilityState==='visible'&&navigator.onLine)refreshPublicRegistration();
+    },120000);
+    if(window.__swePublicRegistrationVisibilityHandler){
+      document.removeEventListener('visibilitychange',window.__swePublicRegistrationVisibilityHandler);
+    }
+    window.__swePublicRegistrationVisibilityHandler=()=>{
+      if(document.visibilityState==='visible'&&navigator.onLine&&Date.now()-publicLastRefreshAt>=30000)refreshPublicRegistration();
+    };
+    document.addEventListener('visibilitychange',window.__swePublicRegistrationVisibilityHandler);
   }else{
     regBox.innerHTML=consultationOnly
       ? '<div class="readonly-note"><b>👁️ Consultation uniquement</b><div class="muted" style="margin-top:5px">Ce lien affiche les résultats, classements et informations publiques du groupe. Pour s’inscrire à un Swé, utilise le lien d’inscription propre au tournoi.</div></div>'
