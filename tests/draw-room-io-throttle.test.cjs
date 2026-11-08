@@ -41,7 +41,7 @@ test('the production bundle and browser cache include the corrected presence mod
   const s=read(name);
   assert.ok(bundle.includes('/* SOURCE '+name+' */\n'+s),name+' bundle source is stale');
  }
- assert.match(read('index.html'),/swe-runtime-r550-part2\.js\?v=5601-io-fix/);
+ assert.match(read('index.html'),/swe-runtime-r550-part2\.js\?v=5605-king-custom-ties/);
  assert.match(read('team-draw-room-v4455.js'),/team-draw-room-salon-v5037\.js\?v=5601-io-fix/);
  assert.match(read('sw.js'),/SW_BUILD='56\.3-king-custom-3pts'/);
 });
