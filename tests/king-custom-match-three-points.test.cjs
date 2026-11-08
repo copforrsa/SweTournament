@@ -32,7 +32,7 @@ test('after launch creation and edits explicitly warn Carrefour is 3 rather than
  assert.match(h.prompts[0],/Carrefour/);
  assert.match(h.prompts[0],/3 points/);
  assert.match(h.prompts[0],/4 pour un match officiel/);
- assert.match(h.prompts[1],/rotation automatique/);
+ assert.match(h.prompts[1],/circuit automatique/);
  const cancel=warning(false);
  assert.equal(cancel.confirmKingMatchChange(king,'modifier'),false);
 });
