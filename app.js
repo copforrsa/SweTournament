@@ -3447,8 +3447,10 @@ async function showTournamentHistory(t){
     const royal=kingFormat&&isRoyalPitch(m);
     const victoryPoints=(fourPointRule&&royal)?4:3;
     h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
-    if(hs>as){h.v++;a.d++;h.pts+=victoryPoints;if(royal)h.roi++}
-    else if(as>hs){a.v++;h.d++;a.pts+=victoryPoints;if(royal)a.roi++}
+    const winner=hs>as?m.home_team_id:as>hs?m.away_team_id:
+      kingFormat&&[m.home_team_id,m.away_team_id].includes(m.tie_break_winner_team_id)?m.tie_break_winner_team_id:null;
+    if(winner===m.home_team_id){h.v++;a.d++;h.pts+=victoryPoints;if(royal)h.roi++}
+    else if(winner===m.away_team_id){a.v++;h.d++;a.pts+=victoryPoints;if(royal)a.roi++}
     else{h.n++;a.n++;h.pts++;a.pts++}
   });
   stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
@@ -4138,7 +4140,7 @@ function renderMatches(){
       saveScore.textContent='💾 Enregistrer le score';
       saveScore.onclick=async()=>{saveScore.disabled=true;const {error}=await sb.from('matches').update({home_score:Math.max(0,Number(hs.value)||0),away_score:Math.max(0,Number(ascore.value)||0)}).eq('id',m.id);if(error){saveScore.disabled=false;return toast(error.message)}await loadTournament();renderMatches();toast('Score enregistré. Termine le match quand il est fini.');};
       finishMatch.textContent='✅ Terminer le match';finishMatch.className='primary';
-      finishMatch.onclick=async()=>{const homeScore=Math.max(0,Number(hs.value)||0),awayScore=Math.max(0,Number(ascore.value)||0);finishMatch.disabled=true;const scoreUpdate=await sb.from('matches').update({home_score:homeScore,away_score:awayScore}).eq('id',m.id);if(scoreUpdate.error){finishMatch.disabled=false;return toast(scoreUpdate.error.message);}let error=null;if(current?.format==='conquest'&&m.competition_type==='conquest_playoff'){let winner=null;if(homeScore===awayScore){winner=confirm('Match nul : '+home.name+' a gagné aux tirs au but ?\nOK = '+home.name+' • Annuler = '+away.name)?m.home_team_id:m.away_team_id;}const out=await sb.rpc('conquest_finish_match_v2',{p_match_id:m.id,p_tie_break_winner_team_id:winner});error=out.error;}else{const fields={status:'finished',finished_at:new Date().toISOString()};if(current?.format==='king_of_pitch'){if(typeof window.SWEKingResolveTie!=='function'){finishMatch.disabled=false;return toast('Actualise la page pour charger les règles du Roi.');}const decision=window.SWEKingResolveTie(m,home.name,away.name,homeScore,awayScore);if(!decision){finishMatch.disabled=false;return;}Object.assign(fields,decision);}const out=await sb.from('matches').update(fields).eq('id',m.id);error=out.error;}if(error){finishMatch.disabled=false;return toast(error.message);}await loadAll();toast('Match terminé ✅');};
+      finishMatch.onclick=async()=>{const homeScore=Math.max(0,Number(hs.value)||0),awayScore=Math.max(0,Number(ascore.value)||0);finishMatch.disabled=true;const scoreUpdate=await sb.from('matches').update({home_score:homeScore,away_score:awayScore}).eq('id',m.id);if(scoreUpdate.error){finishMatch.disabled=false;return toast(scoreUpdate.error.message);}let error=null;if(current?.format==='conquest'&&m.competition_type==='conquest_playoff'){let winner=null;if(homeScore===awayScore){winner=confirm('Match nul : '+home.name+' a gagné aux tirs au but ?\nOK = '+home.name+' • Annuler = '+away.name)?m.home_team_id:m.away_team_id;}const out=await sb.rpc('conquest_finish_match_v2',{p_match_id:m.id,p_tie_break_winner_team_id:winner});error=out.error;}else{const fields={status:'finished',finished_at:new Date().toISOString()};if(current?.format==='king_of_pitch'){if(typeof window.SWEKingResolveTie!=='function'){finishMatch.disabled=false;return toast('Actualise la page pour charger les règles du Roi.');}const decision=await window.SWEKingResolveTie(m,home.name,away.name,homeScore,awayScore);if(!decision){finishMatch.disabled=false;return;}Object.assign(fields,decision);}const out=await sb.from('matches').update(fields).eq('id',m.id);error=out.error;}if(error){finishMatch.disabled=false;return toast(error.message);}await loadAll();toast('Match terminé ✅');};
       scoreEdit.append(hs,ascore,saveScore,finishMatch);d.appendChild(scoreEdit);
     }
     d.appendChild(buildMatchPlayerManager(m,home,away));
@@ -4281,7 +4283,7 @@ $('#addMatch').onclick=async()=>{
     if(!confirmKingMatchChange(t,'créer'))return;
   }
   if(t.format==='league'&&!pitch)return toast('Pour un match de Ligue, indique obligatoirement le terrain.');
-  const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:Math.max(0,...S.matches.map(m=>Number(m.match_order)||0))+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null,...(kingCircuitStarted(t)?{king_custom_match:true}:{})});
+  const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:kingCircuitStarted(t)?Math.max(9999,...S.matches.map(m=>Number(m.match_order)||0))+1:Math.max(0,...S.matches.map(m=>Number(m.match_order)||0))+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null,...(kingCircuitStarted(t)?{king_custom_match:true}:{})});
   if(error)toast(error.message);else{$('#pitch').value='';$('#roundLabel').value=''}
 };
 $('#roundRobin').onclick=async()=>{const t=currentTour();if(t?.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized)return toast('Le circuit est actif. Termine les matchs en cours pour créer la suite automatiquement.');if(!t||S.teams.length<2)return toast('Crée les équipes d’abord');if(t.format==='league')return toast('En Ligue, crée les matchs un par un afin d’indiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent déjà');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs générés')};
@@ -4898,8 +4900,10 @@ function renderTeamRanking(){
   const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;
   const hs=Number(m.home_score||0),as=Number(m.away_score||0),winPoints=fourPoints&&onKing(m)?4:3;
   h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
-  if(hs>as){h.v++;a.d++;h.pts+=winPoints}
-  else if(as>hs){a.v++;h.d++;a.pts+=winPoints}
+  const winner=hs>as?m.home_team_id:as>hs?m.away_team_id:
+    isKing&&[m.home_team_id,m.away_team_id].includes(m.tie_break_winner_team_id)?m.tie_break_winner_team_id:null;
+  if(winner===m.home_team_id){h.v++;a.d++;h.pts+=winPoints}
+  else if(winner===m.away_team_id){a.v++;h.d++;a.pts+=winPoints}
   else{h.n++;a.n++;h.pts++;a.pts++}
  });
  rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
@@ -7124,8 +7128,10 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
       const h=trm.get(m.home_team_id),a=trm.get(m.away_team_id);if(!h||!a)return;
       const winPoints=publicKingFourPoints&&publicKingOfficialCarrefour(m)?4:3;
       h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;
-      if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=winPoints}
-      else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=winPoints}
+      const winner=m.home_score>m.away_score?m.home_team_id:m.away_score>m.home_score?m.away_team_id:
+        publicKingFormat&&[m.home_team_id,m.away_team_id].includes(m.tie_break_winner_team_id)?m.tie_break_winner_team_id:null;
+      if(winner===m.home_team_id){h.v++;a.d++;h.pts+=winPoints}
+      else if(winner===m.away_team_id){a.v++;h.d++;a.pts+=winPoints}
       else{h.n++;a.n++;h.pts++;a.pts++}
     });
     trs.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
