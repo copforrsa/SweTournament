@@ -13,7 +13,7 @@ const manifest=JSON.parse(read('assets/generated/swe-bundle-manifest-r550.json')
 test('main shell makes 10 ordered JS requests instead of 61',()=>{
  const scripts=[...index.matchAll(/<script\b[^>]*\bsrc=(["'])(.*?)\1[^>]*><\/script>/g)].map(m=>m[2]);
  assert.equal(scripts.length,10);
- const own=['swe-preapp-r550.js','app.js?v=560-io-throttle','swe-runtime-r550-part1.js','swe-runtime-r550-part2.js','swe-runtime-r550-part3.js'];
+ const own=['swe-preapp-r550.js','app.js?v=5604-king-custom-3pts','swe-runtime-r550-part1.js','swe-runtime-r550-part2.js','swe-runtime-r550-part3.js'];
  for(const name of own)assert.ok(scripts.some(s=>s.includes(name)),name);
  assert.deepEqual(manifest.runtime.map(x=>x.length),[17,17,19]);
  assert.equal(manifest.pre.length,4);
