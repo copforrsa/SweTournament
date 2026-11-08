@@ -9,7 +9,7 @@
   const client=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
   const isCoorg=()=>{try{return typeof isCoorganizer==='function'&&isCoorganizer()}catch(_){return false}};
   const isAdmin=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
-  let refreshTimer=0;
+  let refreshTimer=0, refreshBusy=false, lastRefreshAt=0;
 
   function activeTournament(){
     const s=state();
@@ -72,10 +72,15 @@
     return error||!Array.isArray(data)?null:(data[0]||null);
   }
   async function refreshDashboard(){
+    if(refreshBusy||document.visibilityState==='hidden'||!navigator.onLine)return;
+    if(Date.now()-lastRefreshAt<60000)return;
     // Le tableau n’existe que pour les co-gestionnaires. Ne pas dépendre ici
     // d’un helper global qui peut être chargé après le tableau PWA.
     const actions=getActionContainer();
     if(!actions)return; // Le volet permanent du tableau remplace cette carte.
+    refreshBusy=true;
+    lastRefreshAt=Date.now();
+    try{
     const t=(await serverOpenRoom())||activeTournament();
     if(!actions||!t)return;
     style();
@@ -87,6 +92,7 @@
       if(node)node.outerHTML=html; else actions.insertAdjacentHTML('afterbegin',html);
     }
     updateCountdowns();
+    }finally{refreshBusy=false;}
   }
   function updateCountdowns(){document.querySelectorAll('[data-swe-room-countdown]').forEach(node=>node.textContent=roomCountdown(node.dataset.sweRoomCountdown));}
   async function openRoom(id){
@@ -112,5 +118,9 @@
   window.addEventListener('pageshow',schedule);
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
   [250,900,2200,4200].forEach(delay=>setTimeout(schedule,delay));
-  setInterval(()=>{updateCountdowns();refreshDashboard().catch(()=>{});publicAccess();},15000);
+  // Countdowns stay local. Recheck permissions at most once per minute, only when visible.
+  setInterval(()=>{updateCountdowns();if(document.visibilityState==='visible')refreshDashboard().catch(()=>{});},60000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')refreshDashboard().catch(()=>{});
+  });
 })();
