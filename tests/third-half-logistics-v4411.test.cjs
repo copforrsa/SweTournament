@@ -18,7 +18,7 @@ test('public refresh avoids rebuilding unchanged registration blocks',()=>{
   assert.match(app,/setStableHtml\(box,thirdHalfHtml\)/);
   assert.match(app,/let publicSnapshotSignature=''/);
   assert.match(app,/if\(nextSignature===publicSnapshotSignature\)/);
-  assert.match(app,/\},30000\);/);
+  assert.match(app,/\},120000\);/);
 });
 
 test('render notifications do not restart the interface after every click',()=>{
