@@ -5,6 +5,10 @@ on:
   workflow_dispatch:
 jobs:
   dispatch:
+    # Prevent manual and scheduled deliveries from racing each other.
+    concurrency:
+      group: swe-push-dispatch
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch pending SWÉ notifications
