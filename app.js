@@ -4179,8 +4179,9 @@ function renderMatches(){
       del.onclick=async()=>{
         const goalCount=S.goals.filter(g=>g.match_id===m.id).length;
         const msg=goalCount?'Supprimer ce match ? Les '+goalCount+' but(s) liés seront aussi supprimés.':'Supprimer ce match ?';
-        if(!confirm(msg))return;
-        if(!confirmKingMatchChange(current,'supprimer',m))return;
+        if(kingCircuitStarted(current)){
+          if(!confirmKingMatchChange(current,'supprimer',m))return;
+        }else if(!confirm(msg))return;
         del.disabled=true;
         const {error}=await sb.rpc('admin_delete_tournament_match_v1',{p_match_id:m.id});
         del.disabled=false;
@@ -4264,7 +4265,7 @@ function confirmKingMatchChange(t,action,match){
   if(!kingCircuitStarted(t))return true;
   const deleting=action==='supprimer';
   const body=deleting?
-    'Cette suppression peut modifier la rotation des équipes et le classement.':
+    'Cette suppression peut supprimer les buts liés et modifier la rotation des équipes ainsi que le classement.':
     'Une rencontre créée ou modifiée pendant le circuit devient un match personnalisé : une victoire rapporte 3 points, même sur Carrefour (au lieu de 4 pour un match officiel non modifié).';
   const rotation=match?.rotation_generated?
     '\n\nAttention : cette rencontre participe au circuit automatique. Modifier ses équipes ou la supprimer peut perturber les rotations suivantes.':'';
