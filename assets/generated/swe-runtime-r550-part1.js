@@ -387,7 +387,7 @@ function renderStableMatches(allowHydrate=true){
     const label=document.createElement('p');label.textContent='Administration des matchs — '+(t.name||t.tournament_date||'Tournoi');
     controls.append(label,deletionButton(t));box.appendChild(controls);
   }
-  if(!rows.length){box.style.minHeight=minHeightBefore;box.style.overflowAnchor=anchorBefore;box.innerHTML='<div class="card"><p class="muted">Aucun match enregistré pour ce tournoi. Le compteur des matchs de départ est à 0.</p></div>';if(allowHydrate)hydrate(t.id);else document.dispatchEvent(new Event('swe:rendered'));return}
+  if(!rows.length){box.style.minHeight=minHeightBefore;box.style.overflowAnchor=anchorBefore;box.innerHTML='<div class="card"><p class="muted">Aucun match enregistré pour ce tournoi. Le compteur des matchs de départ est à 0.</p></div>';if(allowHydrate)hydrate(t.id);return}
   if(rows.length){
     const finished=rows.filter(m=>String(m.status)==='finished');
     const active=rows.filter(m=>String(m.status)!=='finished');
