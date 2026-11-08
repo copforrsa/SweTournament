@@ -26,7 +26,7 @@ test('live polling updates active matches without repeatedly fetching finished t
 });
 
 test('HTML and service worker invalidate old script caches',()=>{
- assert.match(read('index.html'),/app\.js\?v=560-io-throttle/);
+ assert.match(read('index.html'),/app\.js\?v=5604-king-custom-3pts/);
  assert.match(read('live.html'),/live\.js\?v=20261108-io-throttle/);
  assert.match(read('sw.js'),/SW_BUILD='56\.3-king-custom-3pts'/);
 });
