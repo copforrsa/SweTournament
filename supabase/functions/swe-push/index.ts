@@ -28,24 +28,43 @@ Deno.serve(async request=>{
  const {data:events,error}=await db.from("swe_organizer_notifications_v54").select("id,recipient_user_id,title,body,created_at").gte("created_at",cutoff).order("id",{ascending:false}).limit(500);
  if(error)return reply({error:error.message},500);
  let sent=0,expired=0,failed=0,maxId=0;
+ // Fetch subscriptions once instead of issuing a database query for every event.
+ const {data:subscriptions,error:subscriptionsError}=await db.from("swe_push_subscriptions").select("user_id,endpoint,p256dh,auth_key").limit(1000);
+ if(subscriptionsError)return reply({error:subscriptionsError.message},500);
+ const subscriptionsByUser=new Map();
+ for(const sub of subscriptions||[]){
+  const key=String(sub.user_id),list=subscriptionsByUser.get(key)||[];
+  list.push(sub);subscriptionsByUser.set(key,list);
+ }
  const eventIds=(events||[]).map(e=>e.id);
- const {data:deliveryRows,error:deliveryError}=eventIds.length?await db.from('swe_push_deliveries').select('notification_id,endpoint').in('notification_id',eventIds):{data:[],error:null};
- if(deliveryError)return reply({error:deliveryError.message},500);
- const delivered=new Set((deliveryRows||[]).map(row=>row.notification_id+'|'+row.endpoint));
+ const delivered=new Set();
+ // PostgREST caps response rows; avoid missing old delivery marks in large bursts.
+ for(let offset=0;offset<eventIds.length;offset+=100){
+  const group=eventIds.slice(offset,offset+100);
+  const {data:rows,error:deliveryError}=await db.from("swe_push_deliveries").select("notification_id,endpoint").in("notification_id",group).limit(1000);
+  if(deliveryError)return reply({error:deliveryError.message},500);
+  for(const row of rows||[])delivered.add(row.notification_id+'|'+row.endpoint);
+ }
  for(const event of events||[]){
   maxId=Math.max(maxId,event.id);
-  const {data:subs,error:subError}=await db.from("swe_push_subscriptions").select("endpoint,p256dh,auth_key").eq("user_id",event.recipient_user_id);
-  if(subError){failed++;continue;}
-  for(const sub of subs||[]){
+  for(const sub of subscriptionsByUser.get(String(event.recipient_user_id))||[]){
    const key=event.id+'|'+sub.endpoint;
    if(delivered.has(key))continue;
+   // Claim the (event, device) pair before the network call. Concurrent scheduled
+   // dispatchers cannot send the same message twice (unique database constraint).
+   const {error:claimError}=await db.from("swe_push_deliveries").insert({notification_id:event.id,endpoint:sub.endpoint});
+   if(claimError){
+    if(claimError.code==='23505'){delivered.add(key);continue;}
+    failed++;continue;
+   }
    try{
     await webpush.sendNotification({endpoint:sub.endpoint,keys:{p256dh:sub.p256dh,auth:sub.auth_key}},
       JSON.stringify({title:event.title,body:event.body,url:"/?start=home",id:event.id}),{TTL:300});
     sent++;
-    const {error:markError}=await db.from('swe_push_deliveries').upsert({notification_id:event.id,endpoint:sub.endpoint},{onConflict:'notification_id,endpoint'});
-    if(markError)failed++;else delivered.add(key);
+    delivered.add(key);
    }catch(err){
+    // Release our claim on failure so a later dispatcher can retry while fresh.
+    await db.from("swe_push_deliveries").delete().eq("notification_id",event.id).eq("endpoint",sub.endpoint);
     if(err.statusCode===404||err.statusCode===410){
      await db.from("swe_push_subscriptions").delete().eq("endpoint",sub.endpoint);
      expired++;
