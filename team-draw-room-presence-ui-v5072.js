@@ -3,7 +3,7 @@
   'use strict';
   if(window.__SWEDrawRoomPresence5072)return;
   window.__SWEDrawRoomPresence5072=true;
-  let tournamentId=null, timer=0, mounting=false, lastSignature='';
+  let tournamentId=null, lastSignature='';
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const api=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
   const room=()=>document.getElementById('sweDrawRoomV2');
@@ -44,24 +44,24 @@
       node.textContent=node.closest('.leader')?'✓ Proposition en tête du vote':'Proposition disponible';
     });
   }
-  async function refresh(){
-    if(!tournamentId||!room()||mounting)return;
-    const client=api();if(!client)return;
-    mounting=true;
-    try{
-      const {data,error}=await client.rpc('team_draw_room_state_v2',{p_tournament_id:tournamentId});
-      if(error||!data)return;
-      addStyle();updateClock(data);renderAdmin(data);hideCountsForVoter(data);
-    }finally{mounting=false;}
-  }
-  function hook(){
-    const original=window.SWETeamDrawSalonV2?.open;
-    if(!original||original.__swePresence5072)return false;
-    const wrapped=id=>{tournamentId=id;lastSignature='';const result=original(id);setTimeout(refresh,250);return result;};
-    wrapped.__swePresence5072=true;window.SWETeamDrawSalonV2.open=wrapped;return true;
-  }
-  function schedule(){clearTimeout(timer);timer=setTimeout(()=>{hook();refresh();},80);}
-  new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
-  [200,800,1800,3500].forEach(delay=>setTimeout(schedule,delay));
-  setInterval(()=>{room()?.querySelectorAll('[data-swe-deadline]').forEach(node=>node.textContent=formatTime(node.dataset.sweDeadline));refresh();},1000);
+  // The room already loads this server state. Reuse it instead of an extra RPC every second.
+  document.addEventListener('swe:draw-room-state',event=>{
+    const data=event.detail;
+    if(!data||!room())return;
+    if(String(tournamentId)!==String(data.tournament_id)){
+      tournamentId=data.tournament_id;
+      lastSignature='';
+    }
+    addStyle();
+    updateClock(data);
+    renderAdmin(data);
+    hideCountsForVoter(data);
+  });
+  // The countdown is a local clock and never touches Supabase.
+  setInterval(()=>{
+    if(document.visibilityState!=='visible'||!room())return;
+    room().querySelectorAll('[data-swe-deadline]').forEach(node=>{
+      node.textContent=formatTime(node.dataset.sweDeadline);
+    });
+  },1000);
 })();
