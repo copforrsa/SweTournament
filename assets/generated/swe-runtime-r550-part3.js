@@ -1111,7 +1111,7 @@ function resolveTie(match,home,away,homeScore,awayScore){
     return {tie_break_winner_team_id:null,tie_break_method_used:null};
   const t=tour();
   if(t?.format!=='king_of_pitch')return null;
-  const role=match.rotation_role||
+  const role=match.king_custom_match&&!match.rotation_generated?'custom':match.rotation_role||
     (String(match.pitch||'').toLocaleLowerCase('fr').includes('carrefour')?'king':
      String(match.pitch||'').toLocaleLowerCase('fr').includes('mercedes')?'middle':
      String(match.pitch||'').toLocaleLowerCase('fr').includes('boulogne')?'stream':

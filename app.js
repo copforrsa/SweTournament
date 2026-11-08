@@ -3436,9 +3436,9 @@ async function showTournamentHistory(t){
   // Le barème à 4 pts s'applique au Roi du Terrain depuis son adoption le 24/10/2026.
   // Les éditions antérieures conservent le barème qui était en vigueur à l'époque.
   const fourPointRule=kingFormat&&String(t.tournament_date||t.date||'')>='2026-10-24';
-  const isRoyalPitch=m=>m.rotation_role==='king'||
+  const isRoyalPitch=m=>!m.king_custom_match&&(m.rotation_role==='king'||
     (t.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(t.king_pitch_id))||
-    String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour';
+    String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour');
   const stats=(teams||[]).map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,roi:0,pts:0}));
   const sm=new Map(stats.map(x=>[x.id,x]));
   finishedMatches.forEach(m=>{
@@ -3447,8 +3447,10 @@ async function showTournamentHistory(t){
     const royal=kingFormat&&isRoyalPitch(m);
     const victoryPoints=(fourPointRule&&royal)?4:3;
     h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
-    if(hs>as){h.v++;a.d++;h.pts+=victoryPoints;if(royal)h.roi++}
-    else if(as>hs){a.v++;h.d++;a.pts+=victoryPoints;if(royal)a.roi++}
+    const winner=hs>as?m.home_team_id:as>hs?m.away_team_id:
+      kingFormat&&[m.home_team_id,m.away_team_id].includes(m.tie_break_winner_team_id)?m.tie_break_winner_team_id:null;
+    if(winner===m.home_team_id){h.v++;a.d++;h.pts+=victoryPoints;if(royal)h.roi++}
+    else if(winner===m.away_team_id){a.v++;h.d++;a.pts+=victoryPoints;if(royal)a.roi++}
     else{h.n++;a.n++;h.pts++;a.pts++}
   });
   stats.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
@@ -4138,7 +4140,7 @@ function renderMatches(){
       saveScore.textContent='💾 Enregistrer le score';
       saveScore.onclick=async()=>{saveScore.disabled=true;const {error}=await sb.from('matches').update({home_score:Math.max(0,Number(hs.value)||0),away_score:Math.max(0,Number(ascore.value)||0)}).eq('id',m.id);if(error){saveScore.disabled=false;return toast(error.message)}await loadTournament();renderMatches();toast('Score enregistré. Termine le match quand il est fini.');};
       finishMatch.textContent='✅ Terminer le match';finishMatch.className='primary';
-      finishMatch.onclick=async()=>{const homeScore=Math.max(0,Number(hs.value)||0),awayScore=Math.max(0,Number(ascore.value)||0);finishMatch.disabled=true;const scoreUpdate=await sb.from('matches').update({home_score:homeScore,away_score:awayScore}).eq('id',m.id);if(scoreUpdate.error){finishMatch.disabled=false;return toast(scoreUpdate.error.message);}let error=null;if(current?.format==='conquest'&&m.competition_type==='conquest_playoff'){let winner=null;if(homeScore===awayScore){winner=confirm('Match nul : '+home.name+' a gagné aux tirs au but ?\nOK = '+home.name+' • Annuler = '+away.name)?m.home_team_id:m.away_team_id;}const out=await sb.rpc('conquest_finish_match_v2',{p_match_id:m.id,p_tie_break_winner_team_id:winner});error=out.error;}else{const fields={status:'finished',finished_at:new Date().toISOString()};if(current?.format==='king_of_pitch'){if(typeof window.SWEKingResolveTie!=='function'){finishMatch.disabled=false;return toast('Actualise la page pour charger les règles du Roi.');}const decision=window.SWEKingResolveTie(m,home.name,away.name,homeScore,awayScore);if(!decision){finishMatch.disabled=false;return;}Object.assign(fields,decision);}const out=await sb.from('matches').update(fields).eq('id',m.id);error=out.error;}if(error){finishMatch.disabled=false;return toast(error.message);}await loadAll();toast('Match terminé ✅');};
+      finishMatch.onclick=async()=>{const homeScore=Math.max(0,Number(hs.value)||0),awayScore=Math.max(0,Number(ascore.value)||0);finishMatch.disabled=true;const scoreUpdate=await sb.from('matches').update({home_score:homeScore,away_score:awayScore}).eq('id',m.id);if(scoreUpdate.error){finishMatch.disabled=false;return toast(scoreUpdate.error.message);}let error=null;if(current?.format==='conquest'&&m.competition_type==='conquest_playoff'){let winner=null;if(homeScore===awayScore){winner=confirm('Match nul : '+home.name+' a gagné aux tirs au but ?\nOK = '+home.name+' • Annuler = '+away.name)?m.home_team_id:m.away_team_id;}const out=await sb.rpc('conquest_finish_match_v2',{p_match_id:m.id,p_tie_break_winner_team_id:winner});error=out.error;}else{const fields={status:'finished',finished_at:new Date().toISOString()};if(current?.format==='king_of_pitch'){if(typeof window.SWEKingResolveTie!=='function'){finishMatch.disabled=false;return toast('Actualise la page pour charger les règles du Roi.');}const decision=await window.SWEKingResolveTie(m,home.name,away.name,homeScore,awayScore);if(!decision){finishMatch.disabled=false;return;}Object.assign(fields,decision);}const out=await sb.from('matches').update(fields).eq('id',m.id);error=out.error;}if(error){finishMatch.disabled=false;return toast(error.message);}await loadAll();toast('Match terminé ✅');};
       scoreEdit.append(hs,ascore,saveScore,finishMatch);d.appendChild(scoreEdit);
     }
     d.appendChild(buildMatchPlayerManager(m,home,away));
@@ -4163,8 +4165,14 @@ function renderMatches(){
         cancel.onclick=()=>{editor.remove();edit.disabled=false};
         save.onclick=async()=>{
           if(hs.value===as2.value)return toast('Choisis deux équipes différentes');
+          const changes=hs.value!==String(m.home_team_id)||as2.value!==String(m.away_team_id)||
+            (ps.value||'')!==(m.pitch||'')||rl.value.trim()!==(m.round_label||'');
+          if(!changes){editor.remove();edit.disabled=false;return;}
+          if(!confirmKingMatchChange(current,'modifier',m))return;
           save.disabled=true;
-          const {error}=await sb.from('matches').update({home_team_id:hs.value,away_team_id:as2.value,pitch:ps.value||null,round_label:rl.value.trim()||null}).eq('id',m.id);
+          const payload={home_team_id:hs.value,away_team_id:as2.value,pitch:ps.value||null,round_label:rl.value.trim()||null};
+          if(kingCircuitStarted(current))payload.king_custom_match=true;
+          const {error}=await sb.from('matches').update(payload).eq('id',m.id);
           if(error){save.disabled=false;return toast(error.message)}
           await loadTournament();renderAll();toast('Match modifié ✅');
         };
@@ -4173,7 +4181,9 @@ function renderMatches(){
       del.onclick=async()=>{
         const goalCount=S.goals.filter(g=>g.match_id===m.id).length;
         const msg=goalCount?'Supprimer ce match ? Les '+goalCount+' but(s) liés seront aussi supprimés.':'Supprimer ce match ?';
-        if(!confirm(msg))return;
+        if(kingCircuitStarted(current)){
+          if(!confirmKingMatchChange(current,'supprimer',m))return;
+        }else if(!confirm(msg))return;
         del.disabled=true;
         const {error}=await sb.rpc('admin_delete_tournament_match_v1',{p_match_id:m.id});
         del.disabled=false;
@@ -4250,13 +4260,30 @@ function renderMatches(){
   }
 }
 
+function kingCircuitStarted(t){
+  return !!t&&t.format==='king_of_pitch'&&t.rotation_mode==='king_of_pitch'&&!!t.rotation_state?.initialized;
+}
+function confirmKingMatchChange(t,action,match){
+  if(!kingCircuitStarted(t))return true;
+  const deleting=action==='supprimer';
+  const body=deleting?
+    'Cette suppression peut supprimer les buts liés et modifier la rotation des équipes ainsi que le classement.':
+    'Une rencontre créée ou modifiée pendant le circuit devient un match personnalisé : une victoire rapporte 3 points, même sur Carrefour (au lieu de 4 pour un match officiel non modifié).';
+  const rotation=match?.rotation_generated?
+    '\n\nAttention : cette rencontre participe au circuit automatique. Modifier ses équipes ou la supprimer peut perturber les rotations suivantes.':'';
+  return confirm('⚠️ Roi du terrain déjà lancé\n\n'+body+rotation+'\n\nConfirmer la modification ?');
+}
+
 $('#addMatch').onclick=async()=>{
   if(isCoorg()&&!hasTemporaryAdmin()&&!S.myPermissions.can_enter_scores)return toast('Tu n’es pas autorisé à saisir les scores.');
   const t=currentTour(),home=$('#homeTeam').value,away=$('#awayTeam').value,pitch=$('#pitch').value;
   if(!t||!home||!away||home===away)return toast('Choisis deux équipes différentes');
-  if(t.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized)return toast('Le circuit est actif. Termine les matchs en cours pour créer la suite automatiquement.');
+  if(kingCircuitStarted(t)){
+    if(!pitch)return toast('Choisis le terrain pour cette rencontre personnalisée.');
+    if(!confirmKingMatchChange(t,'créer'))return;
+  }
   if(t.format==='league'&&!pitch)return toast('Pour un match de Ligue, indique obligatoirement le terrain.');
-  const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:S.matches.length+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null});
+  const {error}=await sb.from('matches').insert({tournament_id:t.id,home_team_id:home,away_team_id:away,match_order:kingCircuitStarted(t)?Math.max(9999,...S.matches.map(m=>Number(m.match_order)||0))+1:Math.max(0,...S.matches.map(m=>Number(m.match_order)||0))+1,pitch:pitch||null,round_label:$('#roundLabel').value.trim()||null,...(kingCircuitStarted(t)?{king_custom_match:true}:{})});
   if(error)toast(error.message);else{$('#pitch').value='';$('#roundLabel').value=''}
 };
 $('#roundRobin').onclick=async()=>{const t=currentTour();if(t?.rotation_mode==='king_of_pitch'&&t.rotation_state?.initialized)return toast('Le circuit est actif. Termine les matchs en cours pour créer la suite automatiquement.');if(!t||S.teams.length<2)return toast('Crée les équipes d’abord');if(t.format==='league')return toast('En Ligue, crée les matchs un par un afin d’indiquer le terrain de chaque match.');const existing=new Set(S.matches.map(m=>[m.home_team_id,m.away_team_id].sort().join('|'))),rows=[];let n=S.matches.length+1;for(let i=0;i<S.teams.length;i++)for(let j=i+1;j<S.teams.length;j++){const key=[S.teams[i].id,S.teams[j].id].sort().join('|');if(!existing.has(key))rows.push({tournament_id:t.id,home_team_id:S.teams[i].id,away_team_id:S.teams[j].id,match_order:n++})}if(!rows.length)return toast('Tous les matchs existent déjà');const {error}=await sb.from('matches').insert(rows);error?toast(error.message):toast(rows.length+' matchs générés')};
@@ -4864,17 +4891,19 @@ function renderTeamRanking(){
  }
  const isKing=tour?.format==='king_of_pitch'||tour?.rotation_mode==='king_of_pitch';
  const fourPoints=isKing&&String(tour.tournament_date||tour.date||'')>='2026-10-24';
- const onKing=m=>m.rotation_role==='king'||
+ const onKing=m=>!m.king_custom_match&&(m.rotation_role==='king'||
    (tour?.king_pitch_id&&m.pitch_id&&String(m.pitch_id)===String(tour.king_pitch_id))||
-   String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour';
+   String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour');
  const rows=S.teams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0})),
    map=new Map(rows.map(x=>[x.id,x]));
  S.matches.filter(m=>m.status==='finished').forEach(m=>{
   const h=map.get(m.home_team_id),a=map.get(m.away_team_id);if(!h||!a)return;
   const hs=Number(m.home_score||0),as=Number(m.away_score||0),winPoints=fourPoints&&onKing(m)?4:3;
   h.mj++;a.mj++;h.bp+=hs;h.bc+=as;a.bp+=as;a.bc+=hs;
-  if(hs>as){h.v++;a.d++;h.pts+=winPoints}
-  else if(as>hs){a.v++;h.d++;a.pts+=winPoints}
+  const winner=hs>as?m.home_team_id:as>hs?m.away_team_id:
+    isKing&&[m.home_team_id,m.away_team_id].includes(m.tie_break_winner_team_id)?m.tie_break_winner_team_id:null;
+  if(winner===m.home_team_id){h.v++;a.d++;h.pts+=winPoints}
+  else if(winner===m.away_team_id){a.v++;h.d++;a.pts+=winPoints}
   else{h.n++;a.n++;h.pts++;a.pts++}
  });
  rows.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name,'fr'));
@@ -7089,13 +7118,20 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
       renderTournamentTop();
       if(btnTop)btnTop.onclick=()=>{publicTournamentTopExpanded=!publicTournamentTopExpanded;renderTournamentTop();};
     }
+    const publicKingFormat=latest.format==='king_of_pitch'||latest.rotation_mode==='king_of_pitch';
+    const publicKingFourPoints=publicKingFormat&&String(latest.tournament_date||latest.date||'')>='2026-10-24';
+    const publicKingOfficialCarrefour=m=>!m.king_custom_match&&
+      (m.rotation_role==='king'||String(m.pitch||'').trim().toLocaleLowerCase('fr')==='carrefour');
     const trs=lteams.map(x=>({id:x.id,name:x.name,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}));
     const trm=new Map(trs.map(x=>[x.id,x]));
-    lm.forEach(m=>{
+    lm.filter(m=>m.status==='finished').forEach(m=>{
       const h=trm.get(m.home_team_id),a=trm.get(m.away_team_id);if(!h||!a)return;
+      const winPoints=publicKingFourPoints&&publicKingOfficialCarrefour(m)?4:3;
       h.mj++;a.mj++;h.bp+=m.home_score;h.bc+=m.away_score;a.bp+=m.away_score;a.bc+=m.home_score;
-      if(m.home_score>m.away_score){h.v++;a.d++;h.pts+=3}
-      else if(m.away_score>m.home_score){a.v++;h.d++;a.pts+=3}
+      const winner=m.home_score>m.away_score?m.home_team_id:m.away_score>m.home_score?m.away_team_id:
+        publicKingFormat&&[m.home_team_id,m.away_team_id].includes(m.tie_break_winner_team_id)?m.tie_break_winner_team_id:null;
+      if(winner===m.home_team_id){h.v++;a.d++;h.pts+=winPoints}
+      else if(winner===m.away_team_id){a.v++;h.d++;a.pts+=winPoints}
       else{h.n++;a.n++;h.pts++;a.pts++}
     });
     trs.sort((a,b)=>b.pts-a.pts||(b.bp-b.bc)-(a.bp-a.bc)||b.bp-a.bp||a.name.localeCompare(b.name));
