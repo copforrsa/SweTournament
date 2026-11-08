@@ -691,7 +691,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   'use strict';
   if(window.SWETeamDrawSalonV2||document.querySelector('script[data-swe-team-draw-v2]'))return;
   const script=document.createElement('script');
-  script.src='./team-draw-room-salon-v5037.js?v=5078-vote-panel';
+  script.src='./team-draw-room-salon-v5037.js?v=5601-io-fix';
   script.async=false;
   script.defer=true;
   script.dataset.sweTeamDrawV2='true';
@@ -775,7 +775,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   const client=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
   const isCoorg=()=>{try{return typeof isCoorganizer==='function'&&isCoorganizer()}catch(_){return false}};
   const isAdmin=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
-  let refreshTimer=0;
+  let refreshTimer=0, refreshBusy=false, lastRefreshAt=0;
 
   function activeTournament(){
     const s=state();
@@ -838,10 +838,15 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     return error||!Array.isArray(data)?null:(data[0]||null);
   }
   async function refreshDashboard(){
+    if(refreshBusy||document.visibilityState==='hidden'||!navigator.onLine)return;
+    if(Date.now()-lastRefreshAt<60000)return;
     // Le tableau n’existe que pour les co-gestionnaires. Ne pas dépendre ici
     // d’un helper global qui peut être chargé après le tableau PWA.
     const actions=getActionContainer();
     if(!actions)return; // Le volet permanent du tableau remplace cette carte.
+    refreshBusy=true;
+    lastRefreshAt=Date.now();
+    try{
     const t=(await serverOpenRoom())||activeTournament();
     if(!actions||!t)return;
     style();
@@ -853,6 +858,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       if(node)node.outerHTML=html; else actions.insertAdjacentHTML('afterbegin',html);
     }
     updateCountdowns();
+    }finally{refreshBusy=false;}
   }
   function updateCountdowns(){document.querySelectorAll('[data-swe-room-countdown]').forEach(node=>node.textContent=roomCountdown(node.dataset.sweRoomCountdown));}
   async function openRoom(id){
@@ -878,7 +884,11 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   window.addEventListener('pageshow',schedule);
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
   [250,900,2200,4200].forEach(delay=>setTimeout(schedule,delay));
-  setInterval(()=>{updateCountdowns();refreshDashboard().catch(()=>{});publicAccess();},15000);
+  // Countdowns stay local. Recheck permissions at most once per minute, only when visible.
+  setInterval(()=>{updateCountdowns();if(document.visibilityState==='visible')refreshDashboard().catch(()=>{});},60000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')refreshDashboard().catch(()=>{});
+  });
 })();
 
 ;
@@ -890,7 +900,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   'use strict';
   if(window.__SWEDrawRoomPresence5072)return;
   window.__SWEDrawRoomPresence5072=true;
-  let tournamentId=null, timer=0, mounting=false, lastSignature='';
+  let tournamentId=null, lastSignature='';
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const api=()=>{try{return typeof sb!=='undefined'?sb:null}catch(_){return null}};
   const room=()=>document.getElementById('sweDrawRoomV2');
@@ -931,26 +941,26 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       node.textContent=node.closest('.leader')?'✓ Proposition en tête du vote':'Proposition disponible';
     });
   }
-  async function refresh(){
-    if(!tournamentId||!room()||mounting)return;
-    const client=api();if(!client)return;
-    mounting=true;
-    try{
-      const {data,error}=await client.rpc('team_draw_room_state_v2',{p_tournament_id:tournamentId});
-      if(error||!data)return;
-      addStyle();updateClock(data);renderAdmin(data);hideCountsForVoter(data);
-    }finally{mounting=false;}
-  }
-  function hook(){
-    const original=window.SWETeamDrawSalonV2?.open;
-    if(!original||original.__swePresence5072)return false;
-    const wrapped=id=>{tournamentId=id;lastSignature='';const result=original(id);setTimeout(refresh,250);return result;};
-    wrapped.__swePresence5072=true;window.SWETeamDrawSalonV2.open=wrapped;return true;
-  }
-  function schedule(){clearTimeout(timer);timer=setTimeout(()=>{hook();refresh();},80);}
-  new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
-  [200,800,1800,3500].forEach(delay=>setTimeout(schedule,delay));
-  setInterval(()=>{room()?.querySelectorAll('[data-swe-deadline]').forEach(node=>node.textContent=formatTime(node.dataset.sweDeadline));refresh();},1000);
+  // The room already loads this server state. Reuse it instead of an extra RPC every second.
+  document.addEventListener('swe:draw-room-state',event=>{
+    const data=event.detail;
+    if(!data||!room())return;
+    if(String(tournamentId)!==String(data.tournament_id)){
+      tournamentId=data.tournament_id;
+      lastSignature='';
+    }
+    addStyle();
+    updateClock(data);
+    renderAdmin(data);
+    hideCountsForVoter(data);
+  });
+  // The countdown is a local clock and never touches Supabase.
+  setInterval(()=>{
+    if(document.visibilityState!=='visible'||!room())return;
+    room().querySelectorAll('[data-swe-deadline]').forEach(node=>{
+      node.textContent=formatTime(node.dataset.sweDeadline);
+    });
+  },1000);
 })();
 
 ;
