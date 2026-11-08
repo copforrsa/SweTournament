@@ -268,6 +268,61 @@ function canManageDeletion(){
   return !context && !state.publicMode && !!state.session &&
     (adminUser() || (typeof hasTemporaryAdmin==='function' && hasTemporaryAdmin()));
 }
+function editMatchTeamsButton(t,m){
+  const wrapper=document.createElement('div');
+  wrapper.style.cssText='margin:10px 0;display:grid;gap:9px;';
+  if(String(m.status)==='finished'||t.status==='finished')return wrapper;
+  const trigger=document.createElement('button');
+  trigger.type='button';trigger.className='secondary';
+  trigger.textContent='✏️ Modifier les équipes de ce match';
+  wrapper.append(trigger);
+  trigger.onclick=()=>{
+    if(wrapper.querySelector('[data-swe-team-editor]'))return;
+    const editor=document.createElement('div');
+    editor.dataset.sweTeamEditor='';
+    editor.className='card';
+    editor.style.cssText='display:grid;gap:10px;padding:12px;';
+    const intro=document.createElement('strong');intro.textContent='Modifier les équipes sans supprimer le match';
+    const note=document.createElement('p');note.className='muted';
+    note.textContent='Les équipes et affectations de joueurs de ce match seront mises à jour. Impossible si des scores ou des buts ont déjà été saisis.';
+    const makeSelect=(label,value)=>{
+      const field=document.createElement('label');
+      field.style.cssText='display:grid;gap:4px;font-weight:700;';
+      const title=document.createElement('span');title.textContent=label;
+      const select=document.createElement('select');
+      for(const team of state.teams||[]){
+        if(String(team.tournament_id)!==String(t.id))continue;
+        const opt=document.createElement('option');opt.value=team.id;opt.textContent=team.name;select.append(opt);
+      }
+      select.value=String(value);field.append(title,select);return {field,select};
+    };
+    const home=makeSelect('Équipe domicile',m.home_team_id);
+    const away=makeSelect('Équipe extérieure',m.away_team_id);
+    const actions=document.createElement('div');actions.className='row';
+    const save=document.createElement('button');save.type='button';save.className='primary';save.textContent='Enregistrer les équipes';
+    const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Annuler';
+    cancel.onclick=()=>{editor.remove();trigger.disabled=false};
+    save.onclick=async()=>{
+      if(!home.select.value||!away.select.value||home.select.value===away.select.value)return notify('Choisis deux équipes différentes.');
+      if(home.select.value===String(m.home_team_id)&&away.select.value===String(m.away_team_id)){cancel.click();return}
+      const kingStarted=t.format==='king_of_pitch'&&t.rotation_mode==='king_of_pitch'&&!!t.rotation_state?.initialized;
+      if(kingStarted&&!confirm('⚠️ Tournoi Roi du Terrain déjà lancé. Ce match modifié devient personnalisé : une victoire sur Carrefour rapportera 3 points au lieu de 4. Confirmer ?'))return;
+      save.disabled=true;cancel.disabled=true;
+      try{
+        const result=await sb.rpc('admin_update_match_teams_v1',{p_match_id:m.id,p_home_team_id:home.select.value,p_away_team_id:away.select.value});
+        if(result.error)throw result.error;
+        await loadTournament();
+        renderStableMatches(false);
+        document.dispatchEvent(new Event('swe:rendered'));
+        notify('Équipes du match modifiées ✅');
+      }catch(error){notify(error.message||'Modification impossible');save.disabled=false;cancel.disabled=false}
+    };
+    actions.append(save,cancel);
+    editor.append(intro,note,home.field,away.field,actions);
+    wrapper.append(editor);trigger.disabled=true;
+  };
+  return wrapper;
+}
 function deletionButton(t,m=null){
   const button=document.createElement('button');button.type='button';button.className='danger';
   button.dataset.sweMatchDelete=m?'single':'all';
@@ -289,6 +344,7 @@ function deletionButton(t,m=null){
         if(saved)saved.rotation_state={};
       }
       await loadTournament();renderStableMatches(false);
+      document.dispatchEvent(new Event('swe:rendered'));
       if(!m)document.dispatchEvent(new CustomEvent('swe:rotation-updated',{detail:{tournamentId:t.id,state:{}}}));
       notify(m?'Match supprimé.':'Matchs supprimés ; équipes et inscriptions conservées.');
     }catch(error){notify(error.message||'Suppression impossible.');}
@@ -331,7 +387,7 @@ function renderStableMatches(allowHydrate=true){
     const label=document.createElement('p');label.textContent='Administration des matchs — '+(t.name||t.tournament_date||'Tournoi');
     controls.append(label,deletionButton(t));box.appendChild(controls);
   }
-  if(!rows.length){box.style.minHeight=minHeightBefore;box.style.overflowAnchor=anchorBefore;box.innerHTML='<div class="card"><p class="muted">Chargement des matchs…</p></div>';if(allowHydrate)hydrate(t.id);return}
+  if(!rows.length){box.style.minHeight=minHeightBefore;box.style.overflowAnchor=anchorBefore;box.innerHTML='<div class="card"><p class="muted">Aucun match enregistré pour ce tournoi. Le compteur des matchs de départ est à 0.</p></div>';if(allowHydrate)hydrate(t.id);else document.dispatchEvent(new Event('swe:rendered'));return}
   if(rows.length){
     const finished=rows.filter(m=>String(m.status)==='finished');
     const active=rows.filter(m=>String(m.status)!=='finished');
@@ -408,7 +464,7 @@ function renderStableMatches(allowHydrate=true){
       const roundGroup=selectedGroup?rounds.get(selectedGroup):null;
       const detailHost=roundGroup?.parentElement||box;
       if(selected)detailHost.appendChild(buildCard(selected,rows.indexOf(selected)));
-      if(selected && canManageDeletion())detailHost.appendChild(deletionButton(t,selected));
+      if(selected && canManageDeletion()){detailHost.appendChild(editMatchTeamsButton(t,selected));detailHost.appendChild(deletionButton(t,selected));}
     }
   }
   box.__sweMatchSignature=JSON.stringify([t,rows,state.teams,state.teamPlayers,state.matchAssignments,state.goals,state.players,state.tPlayers,state.sportsPitches,canEditScores(),adminUser(),canManageDeletion(),selectedMatchByTournament.get(String(t.id)),selectedFinishedMatchByTournament.get(String(t.id)),window.SWE_QUICK_MATCH_UI?.getRevision?.(),window.SWE_FAST_CONQUEST_CONTEXT?.version]);
