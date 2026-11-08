@@ -19,3 +19,5 @@ jobs:
           python-version: '3.12'
       - name: Check referenced assets and JavaScript syntax
         run: python scripts/verify_static_integrity.py
+      - name: Test Service Worker offline and upgrade contract
+        run: node --test tests/service-worker.test.cjs
