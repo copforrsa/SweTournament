@@ -4735,15 +4735,20 @@ async function renderRanking(){
   const seasonShareCard=$('#seasonPublicShareCard'),seasonShareInput=$('#seasonPublicShareLink');
   if(seasonShareCard)seasonShareCard.classList.toggle('hidden',!isAdmin());
   if(seasonShareInput)seasonShareInput.value=seasonPublicRankingLink();
-  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,guest_of_player_id:x.guest_of_player_id,g:0,a:0,matchIds:new Set(),tournamentIds:new Set()}]));
+  // Daily contribution is based on the tournament's local date, not the goal's
+  // insertion timestamp (a goal can be corrected after the tournament).
+  const now=new Date();
+  const todayKey=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+  const todayTournamentIds=new Set(tournaments.filter(t=>String(t.tournament_date||'').slice(0,10)===todayKey).map(t=>String(t.id)));
+  const stats=new Map(S.players.map(x=>[x.id,{id:x.id,name:x.name,is_group_member:x.is_group_member,guest_of_player_id:x.guest_of_player_id,g:0,a:0,todayG:0,todayA:0,matchIds:new Set(),tournamentIds:new Set()}]));
   const matchMap=new Map(matches.map(m=>[m.id,m]));
   goals.forEach(g=>{
     const m=matchMap.get(g.match_id);
     if(!g.is_own_goal&&stats.has(canonicalPlayerId(g.scorer_player_id))){
-      const s=stats.get(canonicalPlayerId(g.scorer_player_id));s.g++;s.matchIds.add(g.match_id);if(m)s.tournamentIds.add(m.tournament_id);
+      const s=stats.get(canonicalPlayerId(g.scorer_player_id));s.g++;if(m&&todayTournamentIds.has(String(m.tournament_id)))s.todayG++;s.matchIds.add(g.match_id);if(m)s.tournamentIds.add(m.tournament_id);
     }
     if(g.assister_player_id&&stats.has(canonicalPlayerId(g.assister_player_id))){
-      const a=stats.get(canonicalPlayerId(g.assister_player_id));a.a++;a.matchIds.add(g.match_id);if(m)a.tournamentIds.add(m.tournament_id);
+      const a=stats.get(canonicalPlayerId(g.assister_player_id));a.a++;if(m&&todayTournamentIds.has(String(m.tournament_id)))a.todayA++;a.matchIds.add(g.match_id);if(m)a.tournamentIds.add(m.tournament_id);
     }
   });
 
@@ -4859,11 +4864,11 @@ async function renderRanking(){
   scor=competitionRanks(scor,'g');ass=competitionRanks(ass,'a');
 
   $('#scorerRank').innerHTML=scor.map(x=>
-    '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span><b>'+esc(x.name)+'</b>'+(x.is_group_member===false?'<span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'<div class="muted">'+x.tournamentIds.size+' tournoi'+(x.tournamentIds.size>1?'s':'')+' • '+x.matchIds.size+' match'+(x.matchIds.size>1?'s':'')+'</div></span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+'</b></div>'
+    '<div class="rank '+(x.is_group_member===false?'guest-row':'')+'"><b>'+x.rank+'</b><span><b>'+esc(x.name)+'</b>'+(x.is_group_member===false?'<span class="guest-badge">'+esc(guestLabel(p(x.id)))+'</span>':'')+'<div class="muted">'+x.tournamentIds.size+' tournoi'+(x.tournamentIds.size>1?'s':'')+' • '+x.matchIds.size+' match'+(x.matchIds.size>1?'s':'')+'</div></span><b class="right">'+x.g+' but'+(x.g>1?'s':'')+(x.todayG?' <small style="display:block;color:#087849;font-size:11px;font-weight:800">+'+x.todayG+' aujourd’hui</small>':'')+'</b></div>'
   ).join('')||'<p class="muted">Aucune donnée</p>';
 
   $('#assistRank').innerHTML=ass.map(x=>
-    '<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+'</b></div>'
+    '<div class="rank"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><b class="right">'+x.a+' passe'+(x.a>1?'s':'')+(x.todayA?' <small style="display:block;color:#087849;font-size:11px;font-weight:800">+'+x.todayA+' aujourd’hui</small>':'')+'</b></div>'
   ).join('')||'<p class="muted">Aucune donnée</p>';
 
   renderTeamRanking();
