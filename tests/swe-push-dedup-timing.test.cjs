@@ -42,5 +42,5 @@ test('dispatchers are serialized and browser caches refresh',()=>{
  const bundle=read('assets/generated/swe-runtime-r550-part3.js');
  assert.ok(bundle.includes('/* SOURCE organizer-notifications-v54.js */\n'+read('organizer-notifications-v54.js')));
  assert.match(read('index.html'),/swe-runtime-r550-part3\.js\?v=5602-push-dedup/);
- assert.match(read('sw.js'),/SW_BUILD='56\.2-push-dedup'/);
+ assert.match(read('sw.js'),/SW_BUILD='56\.3-king-custom-3pts'/);
 });
