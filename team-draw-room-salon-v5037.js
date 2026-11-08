@@ -140,8 +140,10 @@
     const voters=list(data.voters).map(voter=>'<div class="swe-v2-voter"><span>'+esc(voter.name)+'</span><b>'+(voter.final_choice?'Proposition '+esc(byId(voter.final_choice)):'En attente')+'</b></div>').join('')||'<p class="muted">Mode solo : aucun votant sélectionné.</p>';
     const sideTitle=data.can_admin?'Votants sélectionnés':'Ton accès au salon';
     const phaseText=data.can_admin?'<div class="swe-v2-note"><b>Décision du pro :</b> génère librement jusqu’à cinq propositions, sélectionne celle que tu veux, puis publie-la. Le vert indique seulement la recommandation des co-gestionnaires.</div>':'';
-    root.innerHTML='<section class="swe-v2-shell"><div class="swe-v2-head"><div><div class="swe-v2-kicker">SALON DE VALIDATION DES ÉQUIPES</div><h2>🗳️ '+esc(data.tournament_name||'Composition des équipes')+'</h2>'+progress+'</div><button class="swe-v2-close" type="button" data-swe-v2-close aria-label="Fermer">×</button></div><div class="swe-v2-live '+(newDraw?'new-draw':'')+'" role="status" aria-live="polite"><div><b>🎲 '+esc(data.proposal_count)+' tirage'+(Number(data.proposal_count)>1?'s':'')+' réalisé'+(Number(data.proposal_count)>1?'s':'')+' sur 5'+(newDraw?' · nouvelle proposition disponible !':'')+'</b><small>Actualisation automatique toutes les 15 secondes. Tu peux aussi actualiser maintenant.</small></div><button type="button" data-swe-v2-refresh>↻ Actualiser</button></div>'+(message?'<div class="swe-v2-note '+(isError?'error':'success')+'">'+esc(message)+'</div>':'')+deadlineLine+phaseText+'<div class="swe-v2-grid"><div>'+cards+feedbackActions+'<div class="swe-v2-actions">'+adminActions+'</div></div><aside class="swe-v2-side"><b>'+esc(sideTitle)+'</b><p class="muted">Les votes sont une recommandation. Le pro choisit et publie librement.</p>'+voters+'</aside></div></section>';
+    root.innerHTML='<section class="swe-v2-shell"><div class="swe-v2-head"><div><div class="swe-v2-kicker">SALON DE VALIDATION DES ÉQUIPES</div><h2>🗳️ '+esc(data.tournament_name||'Composition des équipes')+'</h2>'+progress+'</div><button class="swe-v2-close" type="button" data-swe-v2-close aria-label="Fermer">×</button></div><div class="swe-v2-live '+(newDraw?'new-draw':'')+'" role="status" aria-live="polite"><div><b>🎲 '+esc(data.proposal_count)+' tirage'+(Number(data.proposal_count)>1?'s':'')+' réalisé'+(Number(data.proposal_count)>1?'s':'')+' sur 5'+(newDraw?' · nouvelle proposition disponible !':'')+'</b><small>Actualisation automatique toutes les 30 secondes. Tu peux aussi actualiser maintenant.</small></div><button type="button" data-swe-v2-refresh>↻ Actualiser</button></div>'+(message?'<div class="swe-v2-note '+(isError?'error':'success')+'">'+esc(message)+'</div>':'')+deadlineLine+phaseText+'<div class="swe-v2-grid"><div>'+cards+feedbackActions+'<div class="swe-v2-actions">'+adminActions+'</div></div><aside class="swe-v2-side"><b>'+esc(sideTitle)+'</b><p class="muted">Les votes sont une recommandation. Le pro choisit et publie librement.</p>'+voters+'</aside></div></section>';
     root.querySelector('.swe-v2-shell').scrollTop=previousScroll;
+    // Share fresh state with the presence/countdown enhancement, without another RPC.
+    document.dispatchEvent(new CustomEvent('swe:draw-room-state',{detail:data}));
     scheduleRefresh();
   }
 
@@ -158,7 +160,7 @@
 
   function scheduleRefresh(){
     clearTimeout(refreshTimer);
-    refreshTimer=setTimeout(()=>{if(E('sweDrawRoomV2')&&!busy&&latest?.tournament_id)refreshRoom();},15000);
+    refreshTimer=setTimeout(()=>{if(document.visibilityState==='visible'&&navigator.onLine&&E('sweDrawRoomV2')&&!busy&&latest?.tournament_id)refreshRoom();},30000);
   }
 
   async function openRoom(tournamentId){
@@ -330,6 +332,13 @@
     handleAction(target);
   },true);
 
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&navigator.onLine&&E('sweDrawRoomV2')&&latest?.tournament_id&&!busy){
+      // Resume the salon after a background pause rather than leaving it stale.
+      clearTimeout(refreshTimer);
+      refreshRoom();
+    }
+  });
   ['DOMContentLoaded','swe:rendered','swe:page-view','swe:dashboard-ready'].forEach(name=>document.addEventListener(name,scheduleMount));
   window.addEventListener('pageshow',scheduleMount);
   if(document.body)new MutationObserver(scheduleMount).observe(document.body,{childList:true,subtree:true});
