@@ -64,6 +64,6 @@ test('the active pitch roles and tie-break UI remain aligned with tournament rul
  assert.match(rotation,/q\(s,'middle_losers'\)\.shift\(\),q\(s,'stream_losers'\)\.shift\(\)/);
  assert.match(extras,/3 tireurs obligatoires pour désigner le premier Roi/);
  assert.match(extras,/KING_FIRST_PENALTIES_REQUIRED/);
- assert.match(loader,/match-rotation-v4306\.js\?v=5605-king-custom-ties/);
- assert.match(loader,/match-extras-v4306\.js\?v=5603-king-opening-penalties/);
+ assert.match(loader,/match-rotation-v4306\.js\?v=5603-king-opening-penalties/);
+ assert.match(loader,/match-extras-v4306\.js\?v=5605-king-custom-ties/);
 });
