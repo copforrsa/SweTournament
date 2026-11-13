@@ -33,6 +33,20 @@ window.addEventListener('error', (e) => {
 
 const S={session:null,adminProfile:null,isSuperAdmin:false,superWorkspaces:[],workspace:null,members:[],coorgs:[],coorgCount:0,workspaceFeatures:{max_coorganizers:3,max_coorganizers_cap:100,rankings_enabled:true,league_enabled:true,tournaments_enabled:true,third_half_enabled:false,player_ratings_enabled:false,max_players_cap:35,payments_enabled:true,top_player_enabled:false,match_ratings_enabled:false,team_review_enabled:false},commercialAccess:{subscription_plan:'free',special_access_enabled:false,upgrade_requested_at:null},billingStatus:null,coorgPurchaseConfirming:false,myPermissions:{can_invite_coorganizers:false,can_enter_scores:false,can_add_members:false,can_delete_members:false,can_create_tournaments:false,can_view_players:true,can_generate_teams:false,temporary_admin_until:null},myRatings:[],lastCreatedInvite:null,invites:[],players:[],playerAliases:{},playerParticipations:{},contacts:[],skillReviews:[],skillAggregates:[],teamCodes:[],seasons:[],leagues:[],leaguePlayers:[],activeLeague:null,tournaments:[],activeTour:null,tPlayers:[],teams:[],teamPlayers:[],matchAssignments:[],matches:[],goals:[],teamBalanceScores:[],rankMode:'season',channel:null,goalTeamSelections:{},sportsComplexes:[],sportsPitches:[],publicMode:false,publicToken:null,tournamentCreateOpen:false,seasonAdminOpen:false,editingTournamentId:null,teamCompetitionId:null,lastView:null,coorgQuotaRequest:null,superCoorgQuotaRequests:[],myLinkedPlayerId:null,playerDashboard:null,playerDirectory:[],organizerSettings:null,playerRequests:[],identityLinkRequests:[],platformSettings:{consent_gate_enabled:false},thirdHalfFunds:[],thirdHalfPackages:[],thirdHalfAssignments:[],teamReviewState:null,onboardingStatus:null,memberships:[],organizerAccess:null,playerAccountAccess:false,superPlayerAccountAccess:[]};
 
+function workspaceTournamentPlayerCap(){
+  const raw=Number(S.workspaceFeatures?.max_players_cap);
+  // La capacité provient toujours des droits Supabase de l'espace connecté.
+  return Math.max(10,Math.min(35,Number.isFinite(raw)?Math.floor(raw):10));
+}
+function syncTournamentPlayerCapControl(){
+  const input=$('#tourMaxPlayers'),hint=$('#tourMaxPlayersLimit');
+  if(!input)return;
+  const cap=workspaceTournamentPlayerCap();
+  input.max=String(cap);
+  if(!input.value||Number(input.value)>cap)input.value=String(cap);
+  if(hint)hint.textContent='Limite de joueurs autorisée pour cet espace : '+cap;
+}
+
 let safeSyncTimer=null;
 let safeSyncBusy=false;
 let lastUserInteractionAt=0;
@@ -1942,6 +1956,7 @@ function renderPermissions(){
   });
 }
 function renderAll(){
+  syncTournamentPlayerCapControl();
   renderHostWelcome();
   renderHome();
   renderRegisteredPlayersAdmin().catch(e=>console.error('registered players',e));
@@ -3008,11 +3023,11 @@ function renderTournaments(){
       const confirmed=S.activeTour===t.id?S.tPlayers.filter(x=>x.registration_status!=='waitlist'&&x.present).length:null;
       reg.innerHTML='<div class="tournament-action-heading"><span class="tournament-step-number">1</span><div><h3>👥 Inscriptions</h3><p>Capacité, accès et visibilité</p></div></div><div class="row"><span style="flex:1"><b>Inscriptions : '+(t.registration_open?'🟢 ouvertes':'🔴 fermées')+'</b><div class="muted">Maximum '+(t.max_players||20)+' joueurs'+(confirmed!==null?' • '+confirmed+' confirmé'+(confirmed>1?'s':''):'')+'</div></span></div>';
       const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
-      const max=document.createElement('input');max.type='number';max.min='10';max.max='35';max.value=t.max_players||35;max.style.maxWidth='105px';
+      const max=document.createElement('input');max.type='number';max.min='10';max.max=String(workspaceTournamentPlayerCap());max.value=Math.min(workspaceTournamentPlayerCap(),Number(t.max_players)||workspaceTournamentPlayerCap());max.style.maxWidth='105px';
       const toggle=document.createElement('button');toggle.textContent=t.registration_open?'Fermer les inscriptions':'Ouvrir les inscriptions';toggle.className=t.registration_open?'danger':'primary';
       const saveMax=document.createElement('button');saveMax.textContent='Modifier places';
       toggle.onclick=async()=>{const {error}=await sb.from('tournaments').update({registration_open:!t.registration_open}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast(!t.registration_open?'Inscriptions ouvertes ✅':'Inscriptions fermées')};
-      saveMax.onclick=async()=>{const n=Math.max(10,Math.min(35,Number(max.value)||35));const {error}=await sb.from('tournaments').update({max_players:n}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast('Nombre de places mis à jour ✅')};
+      saveMax.onclick=async()=>{const n=Math.max(10,Math.min(workspaceTournamentPlayerCap(),Number(max.value)||workspaceTournamentPlayerCap()));const {error}=await sb.from('tournaments').update({max_players:n}).eq('id',t.id);if(error)return toast(error.message);await loadAll();toast('Nombre de places mis à jour ✅')};
       row.append(max,saveMax,toggle);
       if(t.format!=='league'&&Number(t.registration_extension_hours||0)<3){
         const extend=document.createElement('button');
@@ -3572,7 +3587,7 @@ $('#createTournament').onclick=async()=>{
       format:$('#tourFormat').value,
       fast_team_mode:$('#tourFormat').value==='fast_conquest'?$('#tourTeamCompositionMode input:checked')?.value:null,
       status:'draft',
-      max_players:Math.max(10,Math.min(35,Number($('#tourMaxPlayers').value)||35)),
+      max_players:Math.max(10,Math.min(workspaceTournamentPlayerCap(),Number($('#tourMaxPlayers').value)||workspaceTournamentPlayerCap())),
       registration_open:$('#tourRegistrationOpen').checked,
       registration_deadline:registrationDeadline,
       complex_id:complexId,
