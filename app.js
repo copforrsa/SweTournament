@@ -7086,7 +7086,8 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
 
   const historySeason=regTour?.season_id||seasons.find(s=>s.is_active)?.id||null;
   const finishedHistory=tournaments.filter(t=>t.status==='finished'&&t.format!=='league'&&(!historySeason||t.season_id===historySeason));
-  // Sur un lien d’inscription, la composition à afficher est celle du tournoi ouvert, jamais celle d’un ancien tournoi terminé.\n  const latest=regTour||finishedHistory[0]||null;
+  // Sur un lien d’inscription, la composition à afficher est celle du tournoi ouvert, jamais celle d’un ancien tournoi terminé.
+  const latest=regTour||finishedHistory[0]||null;
   if(latest){
     const lteams=teams.filter(x=>x.tournament_id===latest.id);
     const lm=matches.filter(m=>m.tournament_id===latest.id).sort((a,b)=>(a.match_order||0)-(b.match_order||0));
