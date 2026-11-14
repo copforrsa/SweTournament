@@ -1,0 +1,440 @@
+/* SWÉ build 2026-11-03 — scripts pré-app regroupés dans leur ordre d'origine. Ne pas éditer : sources préservées dans le dépôt. */
+
+;
+/* SOURCE registration-presentation.js */
+/* One presentation layer, called by app.js after loading the existing public snapshot. */
+(()=>{
+'use strict';
+document.addEventListener('click',event=>{if(!event.target.closest('#publicSaveThirdHalfPreference'))return;const box=document.getElementById('publicThirdHalfRegistration');if(!box)return;const done=new MutationObserver(()=>{const save=document.getElementById('publicSaveThirdHalfPreference');if(!save||!/^Mettre à jour/.test(save.textContent||''))return;done.disconnect();const flow=document.getElementById('registrationFlow');if(!flow||document.getElementById('registrationComplete'))return;const complete=document.createElement('section');complete.id='registrationComplete';complete.className='sp-registration-complete';complete.innerHTML='<b>✓ Merci, ton inscription est complète.</b><span>Ta réponse pour la 3e mi-temps est bien enregistrée.</span><button type="button">Modifier mes choix</button>';complete.querySelector('button').onclick=()=>{complete.remove();flow.hidden=false;};flow.before(complete);flow.hidden=true;});done.observe(box,{childList:true,subtree:true});setTimeout(()=>done.disconnect(),10000);});
+const E=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dayKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+const date=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return '';if(v===dayKey(new Date()))return 'Aujourd’hui';const d=new Date(v+'T12:00:00Z');return Number.isFinite(d.getTime())?d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}):''};
+const dateTime=v=>{const d=new Date(v);if(!v||!Number.isFinite(d.getTime()))return '';return dayKey(d)===dayKey(new Date())?'Aujourd’hui à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});};
+const closed=t=>t.status==='finished'||t.registration_open===false||!!(t.registration_deadline&&Date.parse(t.registration_deadline)<=Date.now());
+const started=m=>['live','playing','finished'].includes(m.status)||!!m.started_at||Number(m.home_score)>0||Number(m.away_score)>0;
+function setHtml(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html;}
+function mount(ctx){
+ const root=E('publicView'),initial=ctx.data();if(!root||!initial.tournament||initial.tournament.format==='league')return null;
+ if(root.__registrationPresentation&&E('registrationProgress')&&E('registrationFlow')){root.__registrationPresentation.setContext(ctx);return root.__registrationPresentation;}
+ root.classList.add('swe-premium');document.body.classList.add('swe-premium-page');
+ const header=root.querySelector(':scope > header');header.className='sp-hero';header.id='registrationHero';
+ header.innerHTML='<div class="sp-brand">SWÉ <small>TOURNAMENT</small></div><div class="sp-pitch" aria-hidden="true"></div><div id="registrationState"></div><div id="registrationFormat" class="sp-eyebrow"></div><h1 id="publicWorkspaceName"></h1><p>Un terrain. Des équipes. Un moment à partager.</p><div id="registrationMeta" class="sp-meta"></div>';
+ const progress=document.createElement('nav');progress.id='registrationProgress';progress.className='sp-progress';progress.setAttribute('aria-label','Progression du tournoi');header.after(progress);
+ const body=document.createElement('div');body.className='sp-body';body.innerHTML='<main class="sp-main"><div id="registrationPhaseCard"></div><section id="registrationFormArea" class="sp-form-area"></section><section id="registrationTeams"></section><section id="registrationPeople" class="sp-card sp-people-card"><div class="sp-eyebrow">LE GROUPE PREND FORME</div><h2>Les inscrits</h2></section><section id="registrationSeasonRankings" class="sp-season-rankings"></section></main><aside class="sp-aside"><section id="registrationSummary" class="sp-card"></section><section id="registrationGeneral"></section><details id="registrationParticipationRules" class="sp-card sp-participation-rules"><summary>Règles d’inscription</summary><div></div></details><details id="registrationRules" class="sp-card sp-rules"><summary>Règles du tournoi</summary><div></div></details><div id="registrationHistoryArea"></div></aside>';
+ progress.after(body);
+ const form=E('registrationFormArea');['publicEntryChoiceCard','publicRegistrationCard','publicTeamBuilderCard'].forEach(id=>{const el=E(id);if(el)form.append(el)});
+ const entry=E('publicEntryChoiceCard');entry.className='sp-tabs';
+ const soloButton=E('chooseSoloMode'),teamButton=E('chooseTeamMode');
+ soloButton.textContent='Moi & mes invités';teamButton.textContent='Je viens en équipe';
+ soloButton.removeAttribute('style');teamButton.removeAttribute('style');entry.replaceChildren(soloButton,teamButton);
+ ['publicRegistrationCard','publicTeamBuilderCard'].forEach(id=>{const card=E(id);card?.classList.add('sp-card');const title=card?.querySelector('h2');if(title)title.textContent=id==='publicRegistrationCard'?'À toi de jouer.':'Ton équipe, ton groupe.';});
+ const select=E('publicPlayerSelect');
+ if(select){let node=E('publicRegistration').firstElementChild;while(node&&node!==select){node.classList.add('sp-legacy-intro');node=node.nextElementSibling}const label=document.createElement('label');label.htmlFor=select.id;label.className='sp-name-label';label.textContent='Ton nom';select.before(label);const lock=document.createElement('div');lock.id='registrationSelectionLock';lock.className='sp-selection-lock';lock.hidden=true;select.after(lock);select.addEventListener('change',()=>{E('registrationIdentityStep')?.classList.remove('is-editing');updateMissions();loadSelectedRating();queueMicrotask(updateFlow);});}
+ const guest=E('publicGuestFields');if(guest){const preceding=guest.previousElementSibling;if(preceding?.textContent.includes('Tu ne participes pas mais'))guest.append(preceding);}
+ const status=E('publicRegStatus');if(status){status.textContent='';status.setAttribute('role','status');status.classList.add('sp-feedback');}
+ const people=E('registrationPeople'),list=E('publicRegisteredList');if(list){if(list.previousElementSibling?.tagName==='H3')list.previousElementSibling.remove();people.append(list)}if(E('publicWaitWrap'))people.append(E('publicWaitWrap'));
+ const historyArea=E('registrationHistoryArea'),last=E('publicLastTournamentDetails')?.parentElement,history=E('publicHistory')?.closest('.card');
+ if(last){last.classList.add('sp-history');historyArea.append(last)}
+ if(history){const disclosure=document.createElement('details');disclosure.className='sp-card sp-history';disclosure.innerHTML='<summary>Historique des tournois</summary>';history.querySelector('h2')?.remove();disclosure.append(history);historyArea.append(disclosure);}
+ ['publicSeasonScorers','publicSeasonAssists','publicTournamentTopFive'].forEach(id=>{const card=E(id)?.closest('.card');if(card){card.classList.add('sp-card');E('registrationSeasonRankings').append(card)}});
+ body.append(E('registrationSeasonRankings'));
+ const competitionTeams=E('registrationTeams');if(competitionTeams)body.insertBefore(competitionTeams,E('registrationSeasonRankings'));
+ // La présentation premium possède son propre grand tableau des équipes.
+ // On retire l’ancien petit encart pour ne jamais afficher les compositions deux fois.
+ E('publicTeams')?.closest('.card')?.remove();
+ E('publicSeasonTopPlayers')?.closest('.card')?.classList.add('hidden');
+ root.querySelectorAll(':scope > .grid').forEach(el=>{if(!el.querySelector('.card:not(.hidden)'))el.classList.add('hidden')});
+ const donor=E('publicThirdHalfDonorCard');if(donor)body.querySelector('.sp-main').append(donor);
+ const registration=E('publicRegistration'),mission=document.createElement('section');mission.id='registrationMissions';mission.className='sp-missions';mission.hidden=true;
+ const playerPanel=document.createElement('section');playerPanel.id='registrationPlayerStats';playerPanel.className='sp-player-stats';playerPanel.hidden=true;
+ const flow=document.createElement('div');flow.id='registrationFlow';flow.className='sp-registration-flow';
+ const makeStep=(id,number,title,description)=>{const section=document.createElement('section');section.id=id;section.className='sp-flow-step';section.innerHTML='<header><span>'+number+'</span><div><h3>'+title+'</h3><p>'+description+'</p></div><button class="sp-step-edit" type="button" hidden>Modifier</button></header><div class="sp-flow-content"></div>';return section;};
+ const identityStep=makeStep('registrationIdentityStep','1','Qui es-tu ?','Sélectionne ton nom dans la liste du groupe.');
+ const attendanceStep=makeStep('registrationAttendanceStep','2','Participes-tu au tournoi ?','Confirme ta présence en un geste.');
+ const guestsStep=makeStep('registrationGuestsStep','3','Viens-tu avec des invités ?','Ajoute-les maintenant pour réserver leur place.');
+ const thirdHalfStep=makeStep('registrationThirdHalfStep','4','La 3e mi-temps','Dis si tu restes et choisis ta participation.');
+ const identityContent=identityStep.querySelector('.sp-flow-content'),selectedStatus=E('publicSelectedStatus'),selectionHint=selectedStatus?.nextElementSibling;
+ [registration?.querySelector('.sp-name-label'),select,E('registrationSelectionLock'),selectedStatus,selectionHint?.classList.contains('muted')?selectionHint:null,E('publicTeamInvitationDecision')].filter(Boolean).forEach(el=>identityContent.append(el));
+ [E('publicParticipationActions'),E('publicPaymentBox'),E('publicRegStatus')].filter(Boolean).forEach(el=>attendanceStep.querySelector('.sp-flow-content').append(el));
+
+ const inactive=document.createElement('details');inactive.id='registrationInactiveMembers';inactive.className='sp-inactive-members';
+ inactive.innerHTML='<summary>Mon nom n’apparaît pas · Réactiver mon profil</summary><p>Connecte-toi à ton compte joueur pour réactiver ton propre profil après quatre tournois manqués. L’administrateur peut également réactiver les membres du groupe.</p><select aria-label="Joueur inactif"><option value="">Connecte-toi pour voir tes profils réactivables</option></select><button type="button">Réactiver mon profil</button><p role="status"></p>';
+ const inactiveLogin=document.createElement('a');inactiveLogin.href='/connexion.html';inactiveLogin.textContent='Se connecter à mon compte joueur';inactiveLogin.style.display='block';inactiveLogin.style.margin='10px 0';inactive.append(inactiveLogin);identityContent.append(inactive);
+ let inactiveLoading=false;
+ inactive.addEventListener('toggle',async()=>{
+  if(!inactive.open||inactiveLoading)return;inactiveLoading=true;
+  const pick=inactive.querySelector('select'),button=inactive.querySelector('button'),status=inactive.querySelector('[role="status"]');button.disabled=true;
+  try{const r=await sb.rpc('public_reactivate_inactive_member',{p_token:ctx.token,p_tournament_id:ctx.data().tournament.id});if(r.error)throw r.error;
+   pick.replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent='Choisis ton nom';pick.append(empty);
+   for(const p of r.data||[]){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;pick.append(o)}
+   status.textContent=r.data?.length?'':'Aucun profil réactivable. Pour une suspension manuelle, contacte l’organisateur.';
+   button.disabled=!r.data?.length;
+  }catch(e){pick.replaceChildren();const option=document.createElement('option');option.value='';option.textContent='Connecte-toi pour consulter les profils réactivables';pick.append(option);status.textContent=e.message||'Connecte-toi pour consulter les profils réactivables.'}finally{inactiveLoading=false}
+ });
+ inactive.querySelector('button').onclick=async()=>{
+  const pick=inactive.querySelector('select'),button=inactive.querySelector('button'),status=inactive.querySelector('[role="status"]');
+  if(!pick.value){status.textContent='Choisis ton nom.';return}button.disabled=true;
+  try{const r=await sb.rpc('public_reactivate_inactive_member',{p_token:ctx.token,p_tournament_id:ctx.data().tournament.id,p_player_id:pick.value});if(r.error)throw r.error;
+   status.textContent='Profil réactivé. Tu peux maintenant choisir ton nom et t’inscrire.';window.location.reload();
+  }catch(e){status.textContent=e.message||'Réactivation impossible.';button.disabled=false}
+ };
+ const guestChoice=document.createElement('div');guestChoice.id='registrationGuestChoice';guestChoice.className='sp-binary-choice';guestChoice.innerHTML='<button type="button" data-guest-choice="yes">Oui, j’ai des invités</button><button type="button" data-guest-choice="no">Non, je viens seul</button>';
+ const registeredActions=document.createElement('div');registeredActions.id='registrationRegisteredActions';registeredActions.className='sp-registered-actions';registeredActions.innerHTML='<p><b>Tu es déjà inscrit.</b> Que veux-tu faire ?</p><div><button type="button" data-registered-action="cooler">🧊 Ma 3e mi-temps</button><button type="button" data-registered-action="guests">👤 J’ai des invités</button><button type="button" data-registered-action="team">⚽ Voir ma proposition d’équipe</button><button type="button" data-registered-action="leave" class="danger">Je me désinscris</button></div><section data-leave-reason hidden><label>Motif de désinscription<select><option value="">Choisir un motif…</option><option>Empêchement personnel</option><option>Blessure ou problème de santé</option><option>Changement professionnel</option><option>Transport / disponibilité</option><option>Autre motif</option></select></label><button type="button" data-confirm-leave>Confirmer ma désinscription</button></section>';
+ guestsStep.querySelector('.sp-flow-content').append(registeredActions);
+ guestsStep.querySelector('.sp-flow-content').append(guestChoice);if(guest)guestsStep.querySelector('.sp-flow-content').append(guest);
+ const guestContinue=document.createElement('button');guestContinue.id='registrationGuestContinue';guestContinue.className='sp-guest-continue';guestContinue.type='button';guestContinue.textContent='J’ai terminé d’ajouter mes invités →';guestContinue.hidden=true;guestsStep.querySelector('.sp-flow-content').append(guestContinue);
+ if(E('publicThirdHalfRegistration'))thirdHalfStep.querySelector('.sp-flow-content').append(E('publicThirdHalfRegistration'));
+ flow.append(identityStep,attendanceStep,guestsStep,thirdHalfStep);registration?.append(playerPanel,flow,mission);
+ const guestChoices=new Map(),guestCompleted=new Map(),registeredAction=new Map();
+ registeredActions.addEventListener('click',event=>{const action=event.target.closest('[data-registered-action]')?.dataset.registeredAction,pid=select?.value;if(!action||!pid)return;registeredAction.set(pid,action);registeredActions.querySelector('[data-leave-reason]').hidden=action!=='leave';if(action==='leave')return;updateFlow();});
+ registeredActions.querySelector('[data-confirm-leave]').addEventListener('click',()=>{const reason=registeredActions.querySelector('select').value;if(!reason)return;E('publicRegStatus').textContent='Désinscription : '+reason+'.';E('publicLeave')?.click();});
+ guestChoice.addEventListener('click',event=>{const button=event.target.closest('[data-guest-choice]'),pid=select?.value;if(!button||!pid)return;event.stopPropagation();const yes=button.dataset.guestChoice==='yes';guestChoices.set(pid,yes);guestCompleted.set(pid,!yes);guestsStep.classList.remove('is-editing');if(guest){guest.open=yes;if(yes)queueMicrotask(()=>E('publicGuestName')?.focus());}updateFlow();},true);
+ guestContinue.addEventListener('click',()=>{const pid=select?.value;if(!pid)return;guestCompleted.set(pid,true);guestsStep.classList.remove('is-editing');updateFlow();});
+ [identityStep,attendanceStep,guestsStep].forEach(step=>step.querySelector('.sp-step-edit').addEventListener('click',()=>{const pid=select?.value;if(!pid)return;if(step===guestsStep)guestCompleted.set(pid,false);step.classList.add('is-editing');updateFlow();}));
+ function updateFlow(){
+  const d=ctx.data(),pid=select?.value||'',reg=d.registrations.find(r=>r.tournament_id===d.tournament.id&&String(r.player_id)===String(pid)&&r.present&&r.registration_status!=='cancelled');
+  const usedGuests=pid?d.registrations.some(r=>r.tournament_id===d.tournament.id&&String(r.registered_by_player_id||'')===String(pid)):false;
+  if(usedGuests&&!guestChoices.has(pid))guestChoices.set(pid,true);
+  const guestAnswer=guestChoices.get(pid);
+  const action=registeredAction.get(pid)||'';
+  const actionTitle=guestsStep.querySelector('header h3'),actionDescription=guestsStep.querySelector('header p');
+  if(reg){actionTitle.textContent=action==='guests'?'Ajouter des invités':action==='cooler'?'Ta participation à la 3e mi-temps':action==='team'?'Ta proposition d’équipe':action==='leave'?'Te désinscrire':'Que veux-tu modifier ?';actionDescription.textContent=action?'Tu peux revenir à tes autres choix en sélectionnant à nouveau ton nom.':'Gère tes invités, la glacière, ton équipe ou ton inscription.';}else{actionTitle.textContent='Viens-tu avec des invités ?';actionDescription.textContent='Ajoute-les maintenant pour réserver leur place.';}
+  identityStep.classList.toggle('is-complete',!!pid&&!identityStep.classList.contains('is-editing'));identityStep.classList.toggle('is-current',!pid||identityStep.classList.contains('is-editing'));
+  attendanceStep.hidden=!pid;attendanceStep.classList.toggle('is-complete',!!reg&&!attendanceStep.classList.contains('is-editing'));attendanceStep.classList.toggle('is-current',!!pid&&(!reg||attendanceStep.classList.contains('is-editing')));
+  const guestsDone=guestAnswer===false||(guestAnswer===true&&guestCompleted.get(pid)===true);
+  guestsStep.hidden=!pid||action==='cooler';guestsStep.classList.toggle('is-complete',false);guestsStep.classList.toggle('is-current',!!reg&&!guestsStep.hidden);
+  guestChoice.querySelectorAll('button').forEach(button=>{const selected=guestAnswer!==undefined&&((button.dataset.guestChoice==='yes')===guestAnswer);button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
+  registeredActions.hidden=!reg||!!action;guestChoice.hidden=!!reg&&action!=='guests';
+  if(guest){guest.hidden=(!!reg&&action!=='guests')||guestAnswer!==true;if((!!reg&&action!=='guests')||guestAnswer!==true)guest.open=false;}
+  guestContinue.hidden=(!!reg&&action!=='guests')||guestAnswer!==true;
+  const teamDecision=E('publicTeamInvitationDecision');if(teamDecision){teamDecision.hidden=action!=='team';if(action==='team')guestsStep.querySelector('.sp-flow-content').append(teamDecision);}
+  const thirdBox=E('publicThirdHalfRegistration'),thirdEnabled=!!reg&&action==='cooler'&&thirdBox&&!thirdBox.classList.contains('hidden');thirdHalfStep.hidden=!thirdEnabled;
+  thirdHalfStep.classList.toggle('is-current',thirdEnabled&&guestsDone);playerPanel.hidden=!pid;
+  [identityStep,attendanceStep,guestsStep].forEach(step=>{const edit=step.querySelector('.sp-step-edit');edit.hidden=!step.classList.contains('is-complete');});
+ }
+ let ratingResult=null,ratingPlayer=null,ratingState='',ratingSequence=0;
+ async function loadSelectedRating(){
+  const pid=select?.value,sequence=++ratingSequence;ratingResult=null;ratingPlayer=pid;ratingState=pid?'loading':'';updatePlayerStats();
+  if(!pid||!ctx.loadRating){ratingState='';return updatePlayerStats()}
+  try{const value=await ctx.loadRating(pid);if(sequence!==ratingSequence)return;ratingResult=value;ratingState=value?'ready':'unavailable';}
+  catch(_){if(sequence!==ratingSequence)return;ratingState='unavailable';}
+  updatePlayerStats();
+ }
+ function updatePlayerStats(pid=select?.value,panel=playerPanel,loadedRating=undefined,loadState=ratingState){
+  const d=ctx.data();panel.hidden=!pid;if(!pid){panel.replaceChildren();return;}
+  const season=(d.seasons||[]).find(x=>x.id===d.tournament.season_id)||(d.seasons||[]).find(x=>x.is_active);
+  const tours=d.tournaments.filter(t=>t.format!=='league'&&season&&(t.season_id===season.id||(!t.season_id&&(!season.starts_on||t.tournament_date>=season.starts_on)&&(!season.ends_on||t.tournament_date<=season.ends_on))));
+  const seasonIds=new Set(tours.map(t=>t.id));
+  const stats={matches:0,wins:0,goals:0,assists:0,tournamentsWon:0},ratings=[],matchRatingHistory=[],playedTeams=new Map();
+  const seasonMatches=(d.matches||[]).filter(m=>seasonIds.has(m.tournament_id));
+  const matchIds=new Set(seasonMatches.map(m=>m.id));
+  for(const g of (d.goals||[]).filter(g=>matchIds.has(g.match_id)&&!g.is_own_goal)){if(g.scorer_player_id===pid)stats.goals++;if(g.assister_player_id===pid)stats.assists++;}
+
+  for(const m of seasonMatches){
+   const tour=d.tournaments.find(t=>t.id===m.tournament_id);
+   const archived=tour?.status==='finished'&&m.status==='scheduled'&&!m.started_at&&!m.finished_at;
+   if(!started(m)&&!archived)continue;
+   const assignments=(d.matchAssignments||[]).filter(a=>a.match_id===m.id),own=assignments.find(a=>a.player_id===pid);
+   const team=own?own.team_id:(!assignments.length||archived)?d.teamPlayers.find(tp=>tp.player_id===pid&&[m.home_team_id,m.away_team_id].includes(tp.team_id))?.team_id:null;
+   if(!team||![m.home_team_id,m.away_team_id].includes(team))continue;
+   const final=m.status==='finished'||archived;
+   if(final){const r=ctx.rateMatch?.(m,pid,team,d.goals||[]);if(r&&Number.isFinite(r.rating)){ratings.push(r.rating);matchRatingHistory.push({rating:r.rating,tournamentId:m.tournament_id})}}
+   if(!playedTeams.has(m.tournament_id))playedTeams.set(m.tournament_id,new Set());playedTeams.get(m.tournament_id).add(team);
+   stats.matches++;
+   if(final&&((team===m.home_team_id&&Number(m.home_score)>Number(m.away_score))||(team===m.away_team_id&&Number(m.away_score)>Number(m.home_score))))stats.wins++;
+  }
+  for(const tour of tours.filter(t=>t.status==='finished')){
+   const champion=ctx.standings?.(tour.id)?.[0];
+   if(champion&&playedTeams.get(tour.id)?.has(champion.id))stats.tournamentsWon++;
+  }
+  const format=(n,scale)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' / '+scale;
+  const academy=loadedRating!==undefined?loadedRating:(ratingPlayer===pid?ratingResult:null),group=academy?.rating_group_name||d.ratingGroupName||'Groupe de notation';
+  const delta=academy?.rating_delta==null?'':(Number(academy.rating_delta)>0?'+':'')+(Number(academy.rating_delta)*2).toLocaleString('fr-FR',{maximumFractionDigits:2})+' d’évolution cumulée';
+  const ratingCaption=academy?.rating_frozen?'Note figée pour cette équipe':delta||'Évaluation du groupe · sur 10';
+  const note=loadState=== 'loading'?'Chargement…':loadState=== 'unavailable'?'Note indisponible':academy?.avg_rating!=null?format(Number(academy.avg_rating)*2,10):'Non noté';
+  const player=d.players.find(p=>p.id===pid),matchAverage=ratings.length?ratings.reduce((sum,n)=>sum+n,0)/ratings.length:null;
+  const ratedTours=tours.filter(t=>matchRatingHistory.some(r=>r.tournamentId===t.id)).sort((a,b)=>String(b.tournament_date||'').localeCompare(String(a.tournament_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))||String(b.id).localeCompare(String(a.id)));
+  const latestMatchTour=ratedTours[0],previousMatchRatings=matchRatingHistory.filter(r=>r.tournamentId!==latestMatchTour?.id);
+  const previousMatchAverage=previousMatchRatings.length?previousMatchRatings.reduce((sum,r)=>sum+r.rating,0)/previousMatchRatings.length:null;
+  const matchChange=matchAverage!==null&&previousMatchAverage!==null?(Math.round((matchAverage-previousMatchAverage)*100)/100||0):null;
+  const scoreCard=(label,value,scale,caption,tone,challenge)=>{
+   const valid=value!==null&&value!==undefined&&Number.isFinite(Number(value)),percentage=valid?Math.max(0,Math.min(100,Number(value)/scale*100)):0;
+   const change=Number(academy?.last_tournament_delta??academy?.rating_delta)*2;
+   const matchEvolution=valid&&tone==='sp-match-rating'&&matchChange!==null?'<sup class="sp-rating-change '+(matchChange>0?'up':matchChange<0?'down':'stable')+'" aria-label="Évolution de la Note Match après le dernier tournoi : '+esc(matchChange.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}))+'" title="Moyenne avant et après les notes du dernier tournoi">'+(matchChange>0?'↑ +':matchChange<0?'↓ ':'→ ')+esc(matchChange.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}))+' <small>dernier tournoi</small></sup>':'';
+   const evolution=valid&&tone==='sp-academy'&&!academy?.rating_is_estimate&&academy?.rating_delta!=null&&Number.isFinite(change)?'<sup class="sp-rating-change '+(change>0?'up':change<0?'down':'stable')+'" aria-label="Progression : '+esc('Dernière progression : '+change.toLocaleString('fr-FR'))+'" title="'+esc(academy?.last_tournament_delta!=null?'Dernier tournoi':'Évolution cumulée')+'">'+(change>0?'↑ +':change<0?'↓ ':'→ ')+esc(change.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}))+(academy?.last_tournament_delta!=null?' <small>dernier tournoi</small>':'')+'</sup>':'';
+   return '<div class="sp-score-card '+tone+'"><span class="sp-score-label">'+esc(label)+'</span><div class="sp-score-value'+(valid?'':' sp-score-empty')+'">'+(valid?esc(Number(value).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1}))+evolution+matchEvolution+' <small>/ '+scale+'</small>':esc(caption))+'</div><div class="sp-score-track" aria-hidden="true"><i style="width:'+percentage+'%"></i></div><p>'+esc(valid?caption:label==='Note Match'?'Les notes apparaîtront après tes matchs.':'Ta note apparaîtra une fois disponible.')+'</p>'+(challenge?'<div class="sp-rating-challenge">'+esc(challenge)+'</div>':'')+'</div>';
+  };
+  setHtml(panel,'<div class="sp-player-heading"><div><div class="sp-eyebrow">MON PROFIL JOUEUR</div><h3>'+esc(player?.name||'Mon profil')+'</h3></div><span class="sp-season-tag">'+esc(season?.name||'Aucune saison active')+'</span></div><div class="sp-rating-grid">'+scoreCard(academy?.rating_is_estimate?'Estimation invité':'Note '+group,academy?.rating_is_estimate?Number(academy.balancing_estimate)*2:loadState=== 'ready'&&academy?.avg_rating!=null?Number(academy.avg_rating)*2:null,10,academy?.rating_is_estimate?'Pour équilibrer les équipes · aucune note membre':note==='Chargement…'||note==='Note indisponible'||note==='Non noté'?note:ratingCaption,'sp-academy','Tu penses qu’ils ont raison ?')+scoreCard('Note Match',matchAverage,10,ratings.length?'Moyenne de '+ratings.length+' match'+(ratings.length>1?'s':'')+' noté'+(ratings.length>1?'s':''):'Non noté','sp-match-rating','Prouve-le sur le terrain !')+'</div><div class="sp-season-heading">Mes résultats de la saison</div><div class="sp-player-numbers">'+[['Matchs',stats.matches],['Victoires',stats.wins],['Buts',stats.goals],['Passes',stats.assists],['Tournois remportés',stats.tournamentsWon]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</div>');
+ }
+ function updateMissions(){
+  const d=ctx.data(),t=d.tournament,b=t.registration_briefing||{},pid=select?.value;
+  const co=d.isCoorganizer===true||(d.coorganizers||[]).includes(pid);const items=[];
+  const organizerUrl=(()=>{try{const u=new URL(ctx.appUrl,location.href);if(t.workspace_id)u.searchParams.set('workspace',t.workspace_id);u.searchParams.set('start','home');return u.toString()}catch(_){return ctx.appUrl}})();
+  const drawRoomUrl=(()=>{try{const u=new URL(organizerUrl,location.href);u.searchParams.set('draw_room',t.id);return u.toString()}catch(_){return organizerUrl}})();
+  // Les consignes n'apparaissent que pour le co-gestionnaire concerné.
+  if(!co){mission.hidden=true;mission.replaceChildren();return;}
+  if(co){
+   if(t.status!=='finished')items.push('Avant le match, repère les nouveaux joueurs et ceux qui ne sont pas encore notés. Observe-les pour pouvoir leur donner une note.');
+   if(String(d.personalInstruction||'').trim())items.push('Consigne personnalisée : '+String(d.personalInstruction).trim());
+   if(b.evening===true)items.push(t.team_review_status==='approved'?'La composition des équipes est validée.':t.team_review_status==='pending'?'Ton avis est demandé sur la composition proposée. Connecte-toi à ton espace pour participer à la validation.':'Ton avis sera demandé dans la soirée pour valider la composition des équipes.');
+   if(b.rating===true){const w=d.ratingWindows?.find(w=>w.tournament_id===t.id),expired=w&&(w.status==='closed'||Date.parse(w.closes_at)<=Date.now());items.push(expired?'La période de notation de 48 h est terminée.':t.status==='finished'&&w?'Pense à te connecter pour noter les joueurs. La notation est ouverte jusqu’au '+dateTime(w.closes_at)+'.':'Pense à te connecter pour noter les joueurs à la fin du tournoi. Le lien sera valable 48 h après sa clôture officielle.');}
+  }
+  if(!items.length){mission.hidden=true;mission.replaceChildren();return;}
+  mission.hidden=false;
+  const storageKey='swe-coorg-instructions-'+t.id;let open=true;try{open=localStorage.getItem(storageKey)!=='closed'}catch(_){}
+  setHtml(mission,'<details class="sp-coorg-instructions" '+(open?'open':'')+'><summary>📣 Tes consignes de co-gestionnaire</summary><div class="sp-coorg-instructions-body"><ul>'+items.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul>'+(t.draw_room_first_enabled&&t.team_review_status==='pending'?'<a class="sp-button" style="margin-right:8px" href="'+esc(drawRoomUrl)+'">🗳️ Ouvrir le salon de validation →</a>':'')+'<a class="sp-button sp-secondary" href="'+esc(organizerUrl)+'">Ouvrir mon espace organisateur →</a></div></details>');
+  const details=mission.querySelector('.sp-coorg-instructions');if(details&&!details.dataset.wired){details.dataset.wired='1';details.addEventListener('toggle',()=>{try{localStorage.setItem(storageKey,details.open?'open':'closed')}catch(_){}});}
+ }
+ let kingRules=null,ruleKey='',ruleAt=0,ruleSequence=0;
+ function refreshRules(d){
+  if(!ctx.loadRules)return;
+  const t=d.tournament,n=d.registrations.filter(r=>r.tournament_id===t.id&&r.present&&r.registration_status!=='waitlist').length,key=t.id+'|'+n;
+  if(ruleKey===key&&Date.now()-ruleAt<30000)return;
+  if(ruleKey!==key)kingRules=null;ruleKey=key;ruleAt=Date.now();const sequence=++ruleSequence;
+  ctx.loadRules().then(value=>{if(sequence!==ruleSequence)return;kingRules=value;update();}).catch(()=>{});
+ }
+ const paragraphs=text=>String(text||'').split('\n').filter(Boolean).map(line=>'<p>'+esc(line)+'</p>').join('');
+ const isConquest=t=>{
+  const value=[t?.format,t?.name,t?.reservation_reference,t?.registration_briefing?.general].filter(Boolean).join(' ');
+  return /conqu[êe]te(?:\s+du\s+terrain)?/i.test(value);
+ };
+ function conquestRules(t,confirmed){
+  const size=Math.max(1,Number(t.team_size)||5),playing=confirmed.filter(r=>!r.is_substitute).length,teams=Math.floor(playing/size);
+  const intro='<p><b>'+playing+' inscrit'+(playing>1?'s':'')+' pris en compte · '+teams+' équipe'+(teams>1?'s':'')+' complète'+(teams>1?'s':'')+' possible'+(teams>1?'s':'')+'</b></p><h3>Phase 1 · Championnat</h3><p>Toutes les équipes se rencontrent pour établir le classement : <b>3 points</b> pour une victoire, <b>1 point</b> pour un nul, <b>0 point</b> pour une défaite.</p><h3>Phase 2 · Conquête</h3>';
+  const scenarios={
+   4:'<p><b>Tableau adapté : 4 équipes.</b></p><ol><li><b>Demi-finales :</b> 1er contre 3e, puis 2e contre 4e.</li><li><b>Finale :</b> les deux vainqueurs des demi-finales se rencontrent.</li></ol>',
+   5:'<p><b>Tableau adapté : 5 équipes.</b></p><ol><li><b>Barrage :</b> 4e contre 5e.</li><li><b>Demi-finales :</b> 1er contre le vainqueur du barrage, puis 2e contre 3e.</li><li><b>Finale :</b> les deux vainqueurs des demi-finales se rencontrent.</li></ol>',
+   6:'<p><b>Tableau adapté : 6 équipes.</b></p><ol><li><b>Barrages :</b> 3e contre 6e et 4e contre 5e.</li><li><b>Demi-finales :</b> 1er contre le vainqueur de 4e/5e, puis 2e contre le vainqueur de 3e/6e.</li><li><b>Finale :</b> les deux vainqueurs des demi-finales se rencontrent.</li></ol>'
+  };
+  const active=scenarios[teams],notice=active?'':teams<4?'<p>Le tableau Conquête sera affiché dès que l’effectif permettra de former au moins <b>4 équipes complètes</b>.</p>':'<p>La configuration actuelle permet '+teams+' équipes complètes. Le tableau Conquête est prévu pour 4, 5 ou 6 équipes ; l’organisation annoncera l’adaptation avant le début des matchs.</p>';
+  return intro+(active||notice)+'<p><b>Élimination :</b> en phase Conquête, une défaite met fin au parcours. À <b>3 buts d’écart</b>, l’équipe perdante est éliminée de la Conquête.</p><p>Les équipes éliminées peuvent encourager les finalistes ou continuer à jouer sur les autres terrains.</p>';
+ }
+ function update(){
+  const d=ctx.data(),t=d.tournament;if(!t)return;
+  const tm=d.matches.filter(m=>m.tournament_id===t.id),begun=tm.some(started),finished=t.status==='finished';
+  // Once teams exist, keep them visible: the public link remains the reference
+  // for the group, including while co-managers discuss the composition.
+  const visibleTeams=d.teams.filter(x=>x.tournament_id===t.id);
+  const regs=d.registrations.filter(r=>r.tournament_id===t.id&&r.present),confirmed=regs.filter(r=>r.registration_status!=='waitlist'),substitutesEnabled=confirmed.length>10,subs=substitutesEnabled?confirmed.filter(r=>r.is_substitute).length:0,waiting=regs.length-confirmed.length,max=Number(t.max_players||35),isFull=max>0&&regs.length>=max,isClosed=closed(t)||isFull;
+  const stage=finished?3:begun?2:isClosed||t.team_review_status==='pending'||t.team_review_status==='approved'?1:0;
+  const label=finished?'Tournoi terminé':begun?'Matchs en direct':t.team_review_status==='pending'?'Équipes en validation':t.team_review_status==='approved'?'Équipes validées':isFull?'Effectif complet':isClosed?'Inscriptions closes':'Inscriptions ouvertes';
+  const tone=['green','blue','orange','purple'][stage];root.dataset.stage=tone;
+  setHtml(E('registrationState'),'<span class="sp-state '+tone+'">● '+label+'</span>');E('publicWorkspaceName').textContent=t.name||'Tournoi SWÉ';
+  const fast=t.format==='fast_conquest',king=!fast&&t.format==='king_of_pitch',conquest=!fast&&!king&&t.format==='conquest',format=fast?'⚡ FAST CONQUÊTE':king?'👑 ROI DU TERRAIN':conquest?'⚔️ CONQUÊTE':'TOURNOI CLASSIQUE',formatEl=E('registrationFormat');
+  root.classList.toggle('sp-conquest',conquest);root.classList.toggle('sp-fast-conquest',fast);root.dataset.tournamentFormat=t.format||'classic';header.querySelector(':scope > p').textContent=fast?'Deux matchs de qualification, puis la conquête des trois terrains.':'Un terrain. Des équipes. Un moment à partager.';
+  formatEl.textContent=format+(king?' · Terres du Roi : Carrefour':'')+' · '+(t.team_size||5)+' contre '+(t.team_size||5);formatEl.classList.toggle('sp-king-format',king);
+  const pitches=(t.reserved_pitch_ids||[]).map(id=>d.pitches?.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
+  const venueRaw=t.venue||'';
+  const venueLabel=king?'Arena':(venueRaw.split(/\\s*[—-]\\s*/)[0]||venueRaw||'');
+  const terrainLabel=king?'Carrefour, Mercedes, Boulogne':(pitches||venueRaw.split(/\\s*[—-]\\s*/).slice(1).join(', ')||'');
+  const fee=Number(t.entry_fee_cents||0)/100,fields=[['Date',date(t.tournament_date)],['Heure',t.start_time?String(t.start_time).slice(0,5):''],['Lieu',venueLabel],['Terrains',terrainLabel],['Participation',fee.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})]];
+  setHtml(E('registrationMeta'),fields.filter(x=>x[1]).map(([label,value])=>'<span><b>'+label+'</b>'+esc(value)+'</span>').join(''));
+  setHtml(progress,['Inscriptions','Équipes','Matchs en direct','Résultats'].map((s,i)=>'<span class="'+(i<stage?'done':i===stage?'current':'')+'"'+(i===stage?' aria-current="step"':'')+'><i>'+(i<stage?'✓':i+1)+'</i>'+s+'</span>').join(''));
+  const remaining=Math.max(0,max-regs.length);
+  const rows=[['Format',format],['Durée des matchs',t.match_duration_minutes?t.match_duration_minutes+' min':''],['Terrains',terrainLabel],['Réservation',t.reservation_reference]];
+  const level=d.groupLevels?.find(g=>g.tournament_id===t.id)?.avg_rating;if(level!==null&&level!==undefined)rows.push(['Niveau du groupe',(Number(level)*2).toFixed(1).replace('.',',')+' / 10']);
+  setHtml(E('registrationSummary'),'<div class="sp-eyebrow">'+(isClosed?'LES PARTICIPANTS':'REJOINS LE GROUPE')+'</div><div class="sp-count"><strong>'+regs.length+' <small>/ '+max+'</small></strong><span>'+(!isClosed?remaining+' places restantes':'inscrits')+'</span></div><div class="sp-meter"><i style="width:'+Math.min(100,100*confirmed.length/max)+'%"></i></div><p class="sp-subtext">'+confirmed.length+' confirmé'+(confirmed.length>1?'s':'')+(subs?' · '+subs+' remplaçant'+(subs>1?'s':''):'')+(waiting?' · '+waiting+' en attente':'')+'</p>'+(!isClosed&&t.registration_deadline?'<div class="sp-split"><span>Fin des inscriptions</span><b>'+esc(dateTime(t.registration_deadline))+'</b></div><div class="sp-countdown" data-registration-deadline="'+esc(t.registration_deadline)+'"></div>':'')+rows.filter(x=>x[1]).map(([label,value])=>'<div class="sp-split"><span>'+label+'</span><b>'+esc(value)+'</b></div>').join(''));
+  const general=String(t.registration_briefing?.general||'').trim(),note=E('registrationGeneral');note.hidden=!general;note.className='sp-card sp-general';setHtml(note,general?'<div class="sp-eyebrow">UN MOT DE L’ADMINISTRATEUR</div><h2>Les consignes du tournoi.</h2><p>'+esc(general)+'</p>':'');
+  const size=Number(t.team_size||5);
+  setHtml(E('registrationParticipationRules').querySelector('div'),'<h3>Les remplaçants</h3><p>'+(fast?'Les remplaçants sont communs aux six équipes et tournent selon les besoins, sauf refus d’une équipe.':'Les remplaçants ne sont pris en compte qu’à partir du 11e joueur inscrit. Jusqu’à 10 joueurs, le tournoi peut encore être annulé ou réorganisé par l’organisation.')+'</p><h3>Les invitations</h3><p>Un membre du groupe peut inviter jusqu’à 5 personnes, même s’il ne participe pas. Choisis ton nom, puis retrouve un ancien invité ou ajoute une nouvelle personne dans « Mes invités ». Une personne déjà inscrite n’a pas besoin d’être ajoutée à nouveau.</p><h3>Le désistement de dernière minute</h3><p>Préviens le groupe et utilise « Je ne participe pas » pour signaler ton absence. En cas de désistement de dernière minute, tu paies ta tournée au groupe à la prochaine édition.</p>');
+  const rules=E('registrationRules');rules.querySelector('summary').textContent='Règles · '+format;
+  if(fast){
+   setHtml(rules.querySelector('div'),'<p><b>6 équipes · 3 terrains · 14 matchs</b></p><h3>Qualifications</h3><p>Deux tours de trois matchs. Les adversaires sont choisis pour limiter les écarts de niveau entre les équipes validées. Chaque équipe joue deux adversaires différents et change de terrain. Les nuls sont autorisés, sans tirs au but. Classement : victoire 3 points, nul 1, défaite 0 ; puis différence de buts et buts marqués. Une égalité parfaite est départagée par un tirage au sort validé par l’organisateur.</p><h3>Conquête 1</h3><p><b>Carrefour :</b> 1er contre 2e.<br><b>Mercedes :</b> 3e contre 4e.<br><b>Boulogne :</b> 5e contre 6e.</p><h3>Conquête 2</h3><p><b>Carrefour :</b> vainqueur Carrefour contre vainqueur Mercedes — demi-finale 1.<br><b>Mercedes :</b> perdant Carrefour contre vainqueur Boulogne — demi-finale 2.<br><b>Boulogne :</b> perdant Mercedes contre perdant Boulogne — 5e et 6e places. Ces équipes ne jouent plus ensuite.</p><h3>Finales</h3><p><b>Carrefour :</b> les vainqueurs des demi-finales jouent la finale.<br><b>Mercedes :</b> les perdants jouent la petite finale pour la 3e place.<br><b>Boulogne :</b> aucun match.<br>Le vainqueur de la finale est Champion du tournoi et Roi du terrain.</p><h3>Tirs au but et progression</h3><p>Aucun nul après les qualifications : trois tireurs par équipe, puis mort subite si nécessaire. Chaque phase attend la fin de tous ses matchs obligatoires. Les quatre demi-finalistes disputent cinq matchs ; les équipes 5e et 6e en disputent quatre.</p><h3>Règles communes</h3><p>Les têtes sont autorisées uniquement dans la surface. Les buteurs et passeurs sont validés en fin de match par le capitaine de chaque équipe. Les remplaçants tournent entre les équipes, sauf refus d’une équipe. Les votes, notes et commentaires des co-gestionnaires restent confidentiels.</p>'+(t.match_duration_minutes?'<p>Durée prévue : <b>'+Number(t.match_duration_minutes)+' min</b> par match.</p>':''));
+  }else if(king){
+   refreshRules(d);
+   const kingPoints=(String(t.tournament_date||t.date||'')>='2026-10-24')?'<section class="sp-king-points" style="margin:12px 0;padding:13px;border-radius:13px;border:2px solid #d4a434;background:#fff9e9;color:#17324d"><h3 style="margin:0 0 9px;color:#7c5100">👑 Barème des points — Roi du Terrain</h3><p style="margin:4px 0"><b>Carrefour (Terres du Roi) : victoire = 4 points.</b></p><p style="margin:4px 0">Mercedes et Boulogne : victoire = 3 points.</p><p style="margin:4px 0">Match nul : 1 point par équipe · Défaite : 0 point.</p></section>':'';
+   setHtml(rules.querySelector('div'),kingPoints+(kingRules?'<p><b>'+Number(kingRules.player_count)+' inscrits confirmés · '+Number(kingRules.team_count)+' équipes complètes'+(kingRules.substitutes?' · '+Number(kingRules.substitutes)+' remplaçant(s)':'')+'</b></p>'+(kingRules.body?'<h3>'+esc(kingRules.title)+'</h3>'+paragraphs(kingRules.body):'<p>Le règlement spécifique sera affiché lorsque l’effectif permettra de constituer entre 3 et 7 équipes de 5. L’organisateur précisera l’organisation si le format est différent.</p>')+'<p>Les compositions seront disponibles lorsque les équipes auront été composées par l’organisation.</p><h3>'+esc(kingRules.common_title)+'</h3>'+paragraphs(kingRules.common_body):'<p>Chargement des règles adaptées aux inscriptions…</p>'));
+  }else if(conquest){
+   setHtml(rules.querySelector('div'),conquestRules(t,confirmed));
+  }else{
+  setHtml(rules.querySelector('div'),'<p>'+ (king?'Le vainqueur reste sur le terrain du Roi ; les équipes tournent selon l’ordre organisé.':'Les équipes se rencontrent selon le calendrier du tournoi. Le classement est calculé aux points : 3 pour une victoire, 1 pour un nul, 0 pour une défaite.')+'</p>'+(t.match_duration_minutes?'<p>Durée prévue : <b>'+Number(t.match_duration_minutes)+' min</b> par match.</p>':'')+(t.odd_team_rotation_rule?'<p>Avec une équipe en attente : rotation à 2 buts d’écart, ou au terme de la durée du match.</p>':'')+'<p>Les compositions seront disponibles lorsque les équipes auront été composées par l’organisation.</p><p>Respectez les horaires, les décisions de l’organisation et les autres joueurs.</p>');
+  }
+  const live=ctx.appUrl+'live.html?'+new URLSearchParams({public:ctx.token,tournament:t.id}).toString();
+  const now=tm.find(m=>['live','playing'].includes(m.status))||tm.filter(started).slice(-1)[0];
+  const score=now?esc(d.teams.find(x=>x.id===now.home_team_id)?.name||'Équipe A')+' '+Number(now.home_score||0)+' – '+Number(now.away_score||0)+' '+esc(d.teams.find(x=>x.id===now.away_team_id)?.name||'Équipe B'):'';
+  const salonUrl=ctx.appUrl+'?draw_room='+encodeURIComponent(t.id);
+  const proSalon=t.draw_room_first_enabled&&t.team_review_status==='pending'?'<div class="sp-team-draw-access" style="margin-top:12px;padding:12px;border:1px solid rgba(255,255,255,.34);border-radius:14px;background:rgba(255,255,255,.12)"><b>🔒 Accès co-gestionnaires</b><span style="display:block;margin-top:4px;font-size:.9em">Connexion obligatoire : le salon est réservé aux co-gestionnaires sélectionnés pour le vote.</span><a class="sp-team-jump" style="display:inline-block;margin-top:9px" href="'+esc(salonUrl)+'">Ouvrir le salon →</a></div>':'';
+  setHtml(E('registrationPhaseCard'),begun||finished?'<section class="sp-live sp-'+tone+'"><div><div class="sp-eyebrow">'+(finished?'LE BILAN DU TOURNOI':'LE TERRAIN EN DIRECT')+'</div><h2>'+(finished?'Tous les résultats.':'Ne manque aucun but.')+'</h2><p>'+score+'</p></div><a id="registrationLiveLink" href="'+esc(live)+'" target="_blank" rel="noopener">'+(finished?'Voir les résultats ↗':'Suivre le direct ↗')+'</a></section>':isClosed?'<section class="sp-card sp-next sp-team-callout"><div class="sp-team-callout-icon" aria-hidden="true">⚔️</div><div class="sp-eyebrow">LE TIRAGE EST LANCÉ</div><h2>Place aux équipes</h2><p>'+ (t.team_review_status==='pending'?'Les co-gestionnaires autorisés peuvent donner leur avis depuis leur espace.':'Les inscriptions sont closes. Il est temps de découvrir les forces en présence.')+'</p>'+(t.composition_display_mode==='image'&&t.composition_image_url?'<a class="sp-team-jump" href="#swePublicCompositionVisual">Voir les compositions ↓</a>':visibleTeams.length?'<a class="sp-team-jump" href="#registrationTeamGrid">Voir les compositions ↓</a>':'<span class="sp-team-pending">Compositions en préparation…</span>')+proSalon+'</section>':proSalon);
+  const teamsBox=E('registrationTeams');teamsBox.hidden=!visibleTeams.length;teamsBox.className='sp-card sp-teams';
+  const startValue=t.tournament_date?(t.tournament_date+'T'+(t.start_time?String(t.start_time).slice(0,5):'00:00')+':00'):'';
+  const assignedIds=new Set(d.teamPlayers.filter(tp=>visibleTeams.some(team=>team.id===tp.team_id)).map(tp=>String(tp.player_id)));
+  const unassignedConfirmed=confirmed.filter(r=>!assignedIds.has(String(r.player_id)));
+  const publicSubs=substitutesEnabled?unassignedConfirmed.filter(r=>r.is_substitute):[];
+  const buildingPlayers=!substitutesEnabled&&unassignedConfirmed.length&&unassignedConfirmed.length<size?unassignedConfirmed:[];
+  const hasBuildingTeam=buildingPlayers.length>0;
+  const displayedTeamCount=visibleTeams.length+(hasBuildingTeam?1:0);
+  const teamPlayerCount=assignedIds.size;
+  const completeLabel=visibleTeams.length+' complète'+(visibleTeams.length>1?'s':'');
+  const buildingLabel=hasBuildingTeam?' · 1 en création ('+buildingPlayers.length+' / '+size+')':'';
+  const substitutePanel=publicSubs.length?'<aside class="sp-royal-subs"><div><span class="sp-royal-subs-kicker">🟠 LES JOKERS DU TOURNOI</span><h3>Remplaçants de la cour</h3><p>Prêts à entrer dans n’importe quelle équipe.</p></div><ul>'+publicSubs.map(r=>'<li>'+esc(d.players.find(p=>p.id===r.player_id)?.name||'Joueur')+'</li>').join('')+'</ul></aside>':'';
+  const buildingCard=hasBuildingTeam?'<article class="sp-team sp-team-building" style="--shirt:#f59e0b"><div class="sp-team-top"><span class="sp-team-seed">Équipe '+String(displayedTeamCount).padStart(2,'0')+' · En création</span><span class="sp-team-shirt" aria-hidden="true">◇</span></div><h3>Prochaine équipe</h3><ol>'+buildingPlayers.map(r=>'<li><span>'+esc(d.players.find(p=>p.id===r.player_id)?.name||'Joueur')+'</span></li>').join('')+'</ol><strong class="sp-team-strength">'+buildingPlayers.length+' / '+size+' joueurs · encore '+(size-buildingPlayers.length)+' joueur'+(size-buildingPlayers.length>1?'s':'')+'</strong></article>':'';
+  setHtml(teamsBox,visibleTeams.length?'<div class="sp-royal-head">'+(startValue?'<div class="sp-royal-countdown" data-tournament-start="'+esc(startValue)+'">⏱️ Calcul du coup d’envoi…</div>':'')+'<div class="sp-royal-format">'+(king?'👑 Roi du Terrain <small>(Format Royal)</small>':'⚽ Tournoi SWÉ')+'</div><h2>'+(king?'Les prétendants à la couronne':'Les équipes en lice')+'</h2><p>'+displayedTeamCount+' équipe'+(displayedTeamCount>1?'s':'')+' · '+completeLabel+buildingLabel+(publicSubs.length?' · '+publicSubs.length+' remplaçant'+(publicSubs.length>1?'s':''):'')+'</p></div><div id="registrationTeamGrid" class="sp-team-grid">'+visibleTeams.map((team,index)=>{const roster=d.teamPlayers.filter(tp=>tp.team_id===team.id);return '<article class="sp-team" style="--shirt:'+(/^#[0-9a-f]{6}$/i.test(team.color||'')?team.color:'#2563eb')+'"><div class="sp-team-top"><span class="sp-team-seed">Équipe '+String(index+1).padStart(2,'0')+'</span><span class="sp-team-shirt" aria-hidden="true">◆</span></div><h3>'+esc(team.name)+'</h3><ol>'+roster.map(tp=>'<li><span>'+esc(d.players.find(p=>p.id===tp.player_id)?.name||'Joueur')+'</span></li>').join('')+'</ol><strong class="sp-team-strength">'+roster.length+' / '+Number(t.team_size||5)+' joueurs</strong></article>'}).join('')+buildingCard+'</div>'+substitutePanel:'');
+  E('registrationPeople').hidden=!regs.length;
+  // Reuse the real form and callbacks. Only presentation and closure states change.
+  ['publicJoin','publicAddGuest','publicCreateTeam','publicValidateTeamCode'].forEach(id=>{const el=E(id);if(el)el.disabled=isClosed});
+  if(select)select.disabled=isClosed;
+  const selectionLock=E('registrationSelectionLock');if(selectionLock){selectionLock.hidden=!isClosed;selectionLock.textContent=isFull?'🔒 Effectif complet : la sélection des joueurs est fermée.':'🔒 Inscriptions clôturées : la sélection des joueurs est fermée.';}
+  if(isClosed&&!E('publicTeamBuilderCard').classList.contains('hidden'))ctx.setEntryMode('solo');
+  if(isClosed){E('publicGuestFields')?.classList.add('hidden');if(E('publicJoin'))E('publicJoin').hidden=true;E('chooseTeamMode').disabled=true;}else{E('publicGuestFields')?.classList.remove('hidden');if(E('publicJoin'))E('publicJoin').hidden=false;E('chooseTeamMode').disabled=false;}
+  if(E('publicLeave'))E('publicLeave').hidden=finished;
+  if(finished)E('publicPaymentBox')?.classList.add('hidden');
+  const hasHistory=d.tournaments.some(x=>x.format!=='league'&&x.status==='finished'&&d.matches.some(m=>m.tournament_id===x.id));historyArea.hidden=!hasHistory;
+  updateMissions();updatePlayerStats();updateFlow();
+ }
+ let teamRatingKey='',teamRatingSequence=0;
+ async function updateTeamIdentity(){
+  const creator=E('publicTeamCreator');if(!creator)return;
+  if(!creator.dataset.ratingBound){creator.dataset.ratingBound='1';creator.addEventListener('change',updateTeamIdentity)}
+  let panel=E('registrationTeamPlayerStats');
+  if(!panel){panel=document.createElement('section');panel.id='registrationTeamPlayerStats';panel.className='sp-player-stats';panel.hidden=true;creator.after(panel);teamRatingKey=''}
+  const pid=creator.value,key=ctx.data().tournament.id+':'+pid;
+  if(key===teamRatingKey)return;teamRatingKey=key;const seq=++teamRatingSequence;
+  updatePlayerStats(pid,panel,null,pid?'loading':'');if(!pid||!ctx.loadRating)return;
+  try{const rating=await ctx.loadRating(pid);if(seq!==teamRatingSequence||creator.value!==pid)return;updatePlayerStats(pid,panel,rating,rating?'ready':'unavailable')}
+  catch(_){if(seq===teamRatingSequence)updatePlayerStats(pid,panel,null,'unavailable')}
+ }
+ const teamHost=E('publicTeamBuilderCard');
+ if(teamHost)new MutationObserver(updateTeamIdentity).observe(teamHost,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+ updateTeamIdentity();
+ const controller={update,updateFlow,updateMissions,setContext:next=>{ctx=next;update();updateTeamIdentity();}};root.__registrationPresentation=controller;
+ ctx.setEntryMode('solo');update();if(select?.value)loadSelectedRating();return controller;
+}
+function briefingEditor(container,t,context){
+ const b=t.registration_briefing||{},details=document.createElement('details');details.className='sp-admin-briefing';
+ details.innerHTML='<summary>📣 Consignes et groupe de notation</summary><label>Nom du groupe de notation<input data-rating-group maxlength="120" placeholder="Ex. Chien Boul Academy" value="'+esc(context.ratingGroupName||'')+'"></label><button type="button" data-save-rating-group>Enregistrer le nom du groupe</button><p data-rating-feedback role="status"></p><p>Les encarts sans consigne restent masqués sur le lien d’inscription.</p><label>Message pour tous les inscrits<textarea data-general maxlength="2000" rows="4" placeholder="Rendez-vous, équipement, organisation…">'+esc(b.general||'')+'</textarea></label><details><summary>Consignes des co-gestionnaires</summary>'+[['observe','Surveillez les nouveaux joueurs pour leur donner une note.'],['evening','Ton avis sera demandé dans la soirée pour valider la composition des équipes.'],['rating','Pense à te connecter pour noter les joueurs à la fin du tournoi — lien valable 48 h.']].map(([k,label])=>'<label class="sp-admin-check"><input type="checkbox" data-briefing="'+k+'" '+(b[k]===true?'checked':'')+'>'+label+'</label>').join('')+'</details><button type="button" data-save-briefing class="primary">Enregistrer les consignes</button><p role="status" data-feedback></p>';
+ let dirty=false,groupDirty=false;details.addEventListener('input',e=>{if(e.target.matches('[data-rating-group]'))groupDirty=true;else dirty=true;context.editing(true)});details.addEventListener('toggle',()=>{if(!details.open&&!dirty&&!groupDirty)context.editing(false)});
+ details.querySelector('[data-save-briefing]').onclick=async()=>{const button=details.querySelector('[data-save-briefing]'),feedback=details.querySelector('[data-feedback]');button.disabled=true;feedback.textContent='Enregistrement…';const briefing={general:details.querySelector('[data-general]').value.trim()};details.querySelectorAll('[data-briefing]').forEach(cb=>briefing[cb.dataset.briefing]=cb.checked);try{await context.save(briefing);t.registration_briefing=briefing;dirty=false;context.editing(groupDirty);feedback.textContent='Consignes enregistrées sur le lien d’inscription.'}catch(e){feedback.textContent=e.message||'Enregistrement impossible.'}finally{button.disabled=false}};
+ details.querySelector('[data-save-rating-group]').onclick=async e=>{const button=e.currentTarget,feedback=details.querySelector('[data-rating-feedback]');button.disabled=true;try{await context.saveRatingGroupName(details.querySelector('[data-rating-group]').value.trim());feedback.textContent='Nom du groupe enregistré.';groupDirty=false;context.editing(dirty);}catch(error){feedback.textContent=error.message||'Enregistrement impossible.';}finally{button.disabled=false;}};
+ container.append(details);
+}
+window.SWERegistrationPresentation={mount,briefingEditor};
+})();
+
+;
+
+;
+/* SOURCE public-third-half-payment-v5063.js */
+(()=>{
+'use strict';
+if(window.__SWE_PUBLIC_THIRD_HALF_PAYMENT_5063)return;
+window.__SWE_PUBLIC_THIRD_HALF_PAYMENT_5063=true;
+
+const E=id=>document.getElementById(id);
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[char]));
+
+function context(){return window.swePageViewContext||null;}
+function client(){try{return typeof sb!=='undefined'?sb:null;}catch(_){return null;}}
+function remove(){E('publicThirdHalfPaymentLink5063')?.remove();}
+function insertCard(data){
+  remove();
+  if(!data?.payment_link_ready||!data?.payment_link)return;
+  const target=E('publicPaymentBox')||E('publicParticipationActions')||E('publicRegistration');
+  if(!target)return;
+  const provider=String(data.provider||'Paiement').trim();
+  const amount=Number(data.suggested_amount_cents||0);
+  const amountText=amount>0?'Participation conseillée : <b>'+esc((amount/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'}))+'</b>.':'Participation libre.';
+  const card=document.createElement('section');
+  card.id='publicThirdHalfPaymentLink5063';
+  card.className='player swe-third-half-payment-card';
+  card.style.cssText='margin-top:12px;background:linear-gradient(135deg,#ecfdf5,#eff6ff);border:1px solid #86efac;padding:14px;border-radius:14px';
+  card.innerHTML='<div style="display:flex;gap:10px;align-items:flex-start"><span aria-hidden="true" style="font-size:24px">🧊</span><div style="min-width:0;flex:1"><b>Participation à la Glacière</b><div class="muted" style="margin-top:4px;line-height:1.55">'+esc(provider)+' · '+amountText+'</div><a href="'+esc(data.payment_link)+'" target="_blank" rel="noopener noreferrer" class="primary" style="display:inline-block;margin-top:10px;text-decoration:none">Ouvrir le lien '+esc(provider)+' ↗</a></div></div>';
+  target.after(card);
+}
+async function refresh(){
+  const page=context(),api=client();
+  if(!page||page.page!=='registration'||!page.token||!page.id||!api?.rpc){remove();return;}
+  try{
+    const {data,error}=await api.rpc('get_public_third_half_registration_v2',{p_token:page.token,p_tournament_id:page.id});
+    if(error)throw error;
+    insertCard(data);
+  }catch(_){remove();}
+}
+function queueRefresh(){[0,180,700,1400].forEach(delay=>setTimeout(refresh,delay));}
+document.addEventListener('swe:page-view',queueRefresh);
+document.addEventListener('change',event=>{if(event.target?.id==='publicPlayerSelect')queueRefresh();});
+document.addEventListener('click',event=>{if(event.target?.closest?.('#publicJoin,#publicLeave,#publicAddGuest'))setTimeout(queueRefresh,80);},true);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',queueRefresh,{once:true});else queueRefresh();
+})();
+
+;
+
+;
+/* SOURCE offres.js */
+(()=>{
+'use strict';
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const endpoint='https://fbppesfxkvledwjemwsn.supabase.co/rest/v1/rpc/get_public_sales_catalog_v1';
+const key='sb_publishable_Kl3HDD4S08YC1EB-cWJKaQ_e9gCbygp';
+const features=[['tournaments_enabled','Tournois','Crée et organise tes tournois.'],['league_enabled','Ligues','Retrouve ton groupe au fil des rencontres.'],['rankings_enabled','Classements','Suis les résultats de la saison.'],['player_ratings_enabled','Notes joueurs','Évalue les joueurs avec tes co-gestionnaires.'],['team_review_enabled','Validation des équipes','Recueille les avis avant de valider les équipes.'],['payments_enabled','Suivi des paiements','Suis les participations et les règlements.'],['top_player_enabled','Top Player','Mets en lumière les performances de ton groupe.'],['match_ratings_enabled','Notes de match','Retrouve les évaluations après chaque rencontre.'],['third_half_enabled','3e mi-temps / Glacière','Organise le moment convivial après le match.']];
+const money=n=>(Number(n)/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+let catalog=null,inflight=null;
+async function load(force=false){if(catalog&&!force)return catalog;if(inflight)return inflight;inflight=(async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const r=await fetch(endpoint,{method:'POST',headers:{apikey:key,'Content-Type':'application/json'},body:'{}',signal:controller.signal,cache:'no-store'});if(!r.ok)throw new Error('Catalogue indisponible');const data=await r.json();if(!Array.isArray(data.plans)||!Array.isArray(data.modules))throw new Error('Catalogue invalide');catalog=data;return data}finally{clearTimeout(timer);inflight=null}})();return inflight}
+function plans(){return (catalog?.plans||[]).filter(p=>['player','standard','pro'].includes(p.code)&&p.active!==false)}
+function price(p,annual){return p.is_free?'Gratuit':money(annual?p.annual_price_cents:p.monthly_price_cents)+' / '+(annual?'an':'mois')}
+function highlights(p){if(p.code==='player')return ['Rejoins des tournois','Retrouve ton ID SWÉ','Suis ton évolution','Vis ta communauté'];return [`Jusqu’à ${p.max_players} joueurs`,`${p.max_coorganizers} co-gestionnaires`].concat(features.filter(([k])=>p[k]).slice(0,3).map(([,label])=>label))}
+function details(code,trigger){document.getElementById('offerDetails')?.remove();const dialog=document.createElement('dialog');dialog.id='offerDetails';dialog.className='offer-dialog';const selected=code?plans().filter(p=>p.code===code):plans().filter(p=>p.code!=='player');dialog.setAttribute('aria-labelledby','offerDetailTitle');const rows=code==='player'?[['Profil joueur','Inclus'],['Rejoindre des tournois','Inclus'],['Statistiques personnelles','Inclus']]:[['Joueurs maximum',...selected.map(p=>p.max_players)],['Co-gestionnaires',...selected.map(p=>p.max_coorganizers)],...features.map(([k,l])=>[l,...selected.map(p=>p[k]?'Inclus':'Non inclus')])];dialog.innerHTML=`<header><h2 id="offerDetailTitle">${code?esc(selected[0]?.name||'La formule'):'Compare les options et modules'}</h2><button class="offer-more" type="button" data-close aria-label="Fermer le détail">✕</button></header><div class="offer-table"><table><thead><tr><th scope="col">Option</th>${selected.map(p=>`<th scope="col">${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr><th scope="row">${esc(row[0])}</th>${row.slice(1).map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${code==='player'?'':`<h3>À quoi servent les modules ?</h3>${features.filter(([k])=>['top_player_enabled','match_ratings_enabled','third_half_enabled','team_review_enabled'].includes(k)).map(([,label,description])=>`<div class="offer-module"><b>${esc(label)}</b><br>${esc(description)}</div>`).join('')}<h3>Options vendues séparément</h3>${catalog.modules.length?catalog.modules.map(m=>`<div class="offer-module"><b>${esc(m.name)}</b> · ${money(m.price_cents)}${m.billing_mode==='monthly'?' / mois':m.billing_mode==='annual'?' / an':' à l’unité'}<br>${esc(m.description||'')}</div>`).join(''):'<p>Aucune offre additionnelle publiée pour le moment.</p>'}`}`;document.body.append(dialog);dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>{dialog.remove();trigger?.focus()},{once:true});dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});dialog.showModal()}
+function mount(host,{organizer=false,onSelect}={}){if(!host||host.dataset.offerMounted)return;host.dataset.offerMounted='1';host.classList.add('swe-offers');let annual=new URLSearchParams(location.search).get('billing')==='annual',selected='standard';try{annual=annual||localStorage.getItem('swe_selected_billing')==='annual';selected=new URLSearchParams(location.search).get('offer')||localStorage.getItem('swe_selected_offer')||'standard'}catch(_){}let first=true;
+ async function render(force=false){host.setAttribute('aria-busy','true');try{await load(force);const entries=plans().filter(p=>!organizer||p.code!=='player');if(!entries.length)throw new Error('Aucune formule disponible');if(!entries.some(p=>p.code===selected))selected=entries[0].code;const current=entries.find(p=>p.code===selected);host.dataset.amount=String(annual?current.annual_price_cents:current.monthly_price_cents);host.innerHTML=`<div class="offer-toolbar"><div class="offer-billing" role="group" aria-label="Période de facturation"><label><input type="radio" name="${organizer?'swe4337Billing':'offerBilling'}" value="monthly" ${annual?'':'checked'}> Mensuel</label><label><input type="radio" name="${organizer?'swe4337Billing':'offerBilling'}" value="annual" ${annual?'checked':''}> Annuel</label></div><button type="button" class="offer-more" data-details="">Détail des options et modules ＋</button></div><div class="offer-grid ${organizer?'organizer':''}">${entries.map(p=>`<article class="offer-card ${p.code==='standard'?'featured':''} ${organizer&&p.code===selected?'selected':''}">${p.code==='standard'?'<span class="offer-badge">★ POUR TON GROUPE</span>':''}<div class="offer-icon" aria-hidden="true">${p.code==='player'?'⚽':p.code==='standard'?'📅':'👑'}</div><h2>${esc(p.name)}</h2><span class="offer-price">${price(p,annual)}</span><p>${esc(p.description||'')}</p><ul>${highlights(p).map(s=>`<li>${esc(s)}</li>`).join('')}</ul>${organizer?`<input type="radio" hidden name="swe4337Plan" value="${esc(p.code)}" ${p.code===selected?'checked':''}>`:''}<button type="button" class="offer-cta" data-choose="${esc(p.code)}" ${organizer?`aria-pressed="${p.code===selected}"`:''}>${organizer&&p.code===selected?'✓ Formule sélectionnée':p.code==='player'?'Je m’inscris →':'Je choisis '+esc(p.name)+' →'}</button><button type="button" class="offer-more" data-details="${esc(p.code)}">Voir tout ce qui est inclus</button></article>`).join('')}</div>${organizer?'<div class="offer-note"><b>60 jours offerts.</b> Carte bancaire demandée, aucun prélèvement aujourd’hui. Sauf résiliation avant la fin de l’essai, la formule choisie démarre automatiquement au 61e jour au tarif affiché.</div>':''}`;
+ host.querySelectorAll('[data-details]').forEach(b=>b.onclick=()=>details(b.dataset.details,b));host.querySelectorAll('.offer-billing input').forEach(r=>r.onchange=()=>{annual=r.value==='annual';render()});host.querySelectorAll('[data-choose]').forEach(b=>b.onclick=()=>{selected=b.dataset.choose;if(organizer){onSelect?.(selected,annual);render();return}if(selected==='player'){location.assign('https://www.swetournament.fr/?signup=1');return}try{localStorage.setItem('swe_selected_offer',selected);localStorage.setItem('swe_offer_setup','1');localStorage.setItem('swe_selected_billing',annual?'annual':'monthly')}catch(_){}location.assign('/?start=player&organizer_setup=1&offer='+encodeURIComponent(selected)+'&billing='+(annual?'annual':'monthly'))});onSelect?.(selected,annual)
+ }catch(_){host.innerHTML='<div class="offer-error" role="alert">Les formules sont momentanément indisponibles. <button class="offer-more" type="button">Réessayer</button></div>';host.querySelector('button').onclick=()=>render(true);onSelect?.(null,annual)}finally{host.setAttribute('aria-busy','false')}}render();}
+window.SWEOffers={load,mount,details,features};if(document.getElementById('publicOffers'))mount(document.getElementById('publicOffers'));
+})();
+
+;
+
+;
+/* SOURCE tournament-pitch-roles.js */
+(()=>{
+'use strict';
+const roles=[['king_pitch_id','👑 Terrain du Roi'],['middle_pitch_id','⚔ Terrain des Conquérants'],['stream_pitch_id','🛡 Terres des Bannis']];
+function validate(t,ids,values){
+ const selected=roles.map(([key])=>values[key]).filter(Boolean);
+ if(!values.king_pitch_id)throw Error('Choisis le terrain du Roi.');
+ if(ids.length>=2&&!values.stream_pitch_id)throw Error('Choisis les Terres des Bannis.');
+ if(ids.length===3&&!values.middle_pitch_id)throw Error('Choisis le terrain des Conquérants.');
+ if(selected.length!==ids.length||new Set(selected).size!==selected.length||selected.some(id=>!ids.includes(id)))throw Error('Chaque terrain réservé doit avoir un rôle différent.');
+ if(t.rotation_state?.initialized&&roles.some(([key])=>!!t[key]!==!!values[key]))throw Error('Le circuit est lancé : conserve le même nombre de rôles pour préserver les rotations en attente.');
+ return Object.fromEntries(roles.map(([key])=>[key,values[key]||null]));
+}
+function editor(t,getIds){
+ const node=document.createElement('fieldset');node.className='player';node.style.marginTop='10px';
+ const legend=document.createElement('legend');legend.textContent='Rôles des terrains — Roi du terrain';node.append(legend);
+ const fields={};
+ for(const [key,label] of roles){const wrap=document.createElement('label'),text=document.createElement('span'),select=document.createElement('select');text.textContent=label;wrap.append(text,select);node.append(wrap);fields[key]=select;}
+ const missing=document.createElement('p');missing.className='muted';missing.setAttribute('role','status');node.append(missing);
+ const note=document.createElement('p');note.className='muted';note.textContent='Les matchs avec un rôle déjà enregistré le conservent. Les nouveaux matchs suivent cette configuration. Équipes et résultats conservés.';node.append(note);
+ let initial=true;
+ function refresh(){const ids=getIds();missing.textContent=ids.length?'':'Aucun terrain réservé : ouvre Modifier le tournoi et sélectionne le complexe et ses terrains.';for(const [key] of roles){const select=fields[key],keep=initial?t[key]:select.value;select.replaceChildren(new Option('Choisir', ''));for(const id of ids){const pitch=(S.sportsPitches||[]).find(p=>String(p.id)===String(id));select.add(new Option(pitch?.name||'Terrain indisponible',id));}select.value=ids.includes(keep)?keep:'';select.disabled=!ids.length;select.parentElement.hidden=ids.length>0&&(key==='middle_pitch_id'?ids.length<3:key==='stream_pitch_id'?ids.length<2:false);}for(const [key] of roles)if(fields[key].parentElement.hidden)fields[key].value='';initial=false;}
+ refresh();return {node,refresh,patch:()=>validate(t,getIds(),Object.fromEntries(roles.map(([key])=>[key,fields[key].value])))};
+}
+async function update(t,patch){
+ let query=sb.from('tournaments').update(patch).eq('id',t.id);
+ for(const [key] of roles)query=t[key]?query.eq(key,t[key]):query.is(key,null);
+ query=t.rotation_state==null?query.is('rotation_state',null):query.eq('rotation_state',JSON.stringify(t.rotation_state));
+ const result=await query.select('id').maybeSingle();
+ if(!result.error&&!result.data)return {error:Error('Le tournoi a changé. Ferme ce réglage et actualise les données avant de réessayer.')};
+ return result;
+}
+function mountMatches(t){
+ const old=document.getElementById('matchPitchRoleSettings');
+ if(old&&old.dataset.tournamentId===String(t?.id)&&old.open)return;
+ old?.remove();
+ if(!t||t.rotation_mode!=='king_of_pitch'||S.publicMode||!hasAdminOps())return;
+ const anchor=document.getElementById('matchCompetitionStatus');if(!anchor)return;
+ const box=document.createElement('details');box.id='matchPitchRoleSettings';box.dataset.tournamentId=t.id;box.className='player';
+ const summary=document.createElement('summary');summary.textContent='⚙ Vérifier / modifier les rôles des terrains';box.append(summary);
+ const form=editor(t,()=>t.reserved_pitch_ids||[]);box.append(form.node);
+ const status=document.createElement('p');status.setAttribute('role','status');
+ const save=document.createElement('button');save.type='button';save.className='primary';save.textContent='Enregistrer les rôles';box.append(save,status);
+ save.onclick=async()=>{save.disabled=true;status.textContent='';try{
+  if(!navigator.onLine)throw Error('Reconnecte-toi pour enregistrer les rôles.');
+  const patch=form.patch();
+  const {error}=await update(t,patch);if(error)throw error;
+  Object.assign(t,patch);status.textContent='Rôles enregistrés. Équipes et résultats conservés.';
+ }catch(error){status.textContent=error.message;}finally{save.disabled=false;}};
+ anchor.after(box);
+}
+window.SWEPitchRoles={editor,mountMatches,validate,update};
+})();
