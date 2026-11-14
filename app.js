@@ -3772,6 +3772,22 @@ function renderTeams(){
 
   if(controls)controls.classList.toggle('hidden',!canGenerate);
   const genBtn=$('#smartAutoTeams');if(genBtn&&t.format!=='league'&&S.workspaceFeatures.team_review_enabled&&hasGeneratedTournamentTeams()){genBtn.disabled=true;genBtn.title='Le tirage initial existe déjà. Utilise la validation collaborative ou annule la création.';}else if(genBtn){genBtn.disabled=false;genBtn.title='';}
+  const publishBtn=$('#publishTeamsOnline');
+  if(publishBtn){
+    const canPublish=canFullEdit&&t.format!=='league'&&(S.teams||[]).length>0;
+    publishBtn.disabled=!canPublish;
+    publishBtn.title=canPublish?'Rendre la composition actuelle visible immédiatement sur le lien d’inscription.':'Crée d’abord au moins une équipe pour cette compétition.';
+    publishBtn.onclick=async()=>{
+      if(!canPublish)return;
+      if(!confirm('Publier la composition actuelle sur le lien d’inscription ?\\n\\nLes joueurs verront immédiatement les équipes ci-dessous.'))return;
+      publishBtn.disabled=true;
+      const {data,error}=await sb.rpc('admin_set_tournament_composition_visual_v1',{p_tournament_id:t.id,p_mode:'site',p_image_url:null});
+      if(error){publishBtn.disabled=false;return toast(error.message||'Publication impossible.');}
+      t.composition_display_mode=data?.mode||'site';
+      await loadTournament();renderTeams();
+      toast('Équipes publiées sur le lien d’inscription ✅');
+    };
+  }
 
   if(!canFullEdit){
     att.innerHTML='<div class="readonly-note">Tu peux consulter les joueurs inscrits et les équipes de cette compétition. La modification manuelle des présences reste réservée à l’administrateur.</div>';
@@ -7070,7 +7086,7 @@ const contributionLabels={cooler:'Une glacière',ice:'Des glaçons',beers_3:'3 b
 
   const historySeason=regTour?.season_id||seasons.find(s=>s.is_active)?.id||null;
   const finishedHistory=tournaments.filter(t=>t.status==='finished'&&t.format!=='league'&&(!historySeason||t.season_id===historySeason));
-  const latest=finishedHistory[0]||null;
+  // Sur un lien d’inscription, la composition à afficher est celle du tournoi ouvert, jamais celle d’un ancien tournoi terminé.\n  const latest=regTour||finishedHistory[0]||null;
   if(latest){
     const lteams=teams.filter(x=>x.tournament_id===latest.id);
     const lm=matches.filter(m=>m.tournament_id===latest.id).sort((a,b)=>(a.match_order||0)-(b.match_order||0));
