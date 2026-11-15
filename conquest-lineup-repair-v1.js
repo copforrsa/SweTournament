@@ -4,6 +4,9 @@
   'use strict';
   let syncing=false,stored=false;
   const eq=(a,b)=>String(a)===String(b);
+  const appState=()=>{try{return typeof S!=='undefined'?S:window.S}catch(_){return window.S}};
+  const appClient=()=>{try{return typeof sb!=='undefined'?sb:window.sb}catch(_){return window.sb}};
+  const hasAdminAccess=()=>{try{return typeof isAdmin==='function'&&isAdmin()}catch(_){return false}};
   const same=(left,right)=>{
     const a=[...new Set(left.map(String))].sort(),b=[...new Set(right.map(String))].sort();
     return a.length===b.length&&a.every((value,index)=>value===b[index]);
@@ -45,8 +48,8 @@
   }
   async function persist(repairs){
     if(stored||syncing||!repairs.length)return;
-    const client=window.sb||(typeof sb!=='undefined'?sb:null);
-    const allowed=typeof isAdmin==='function'&&isAdmin();
+    const client=appClient();
+    const allowed=hasAdminAccess();
     if(!client||!allowed)return;
     syncing=true;
     try{
@@ -65,7 +68,7 @@
     }finally{syncing=false;}
   }
   function reconcile(){
-    const state=window.S;
+    const state=appState();
     if(!state)return;
     const repairs=collect(state);
     if(!repairs.length)return;
