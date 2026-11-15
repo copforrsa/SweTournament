@@ -37,7 +37,7 @@ function setup(){
  return {w,dom};
 }
 
-test('standings sidebar adds the live link, tournament scorers/passers and all fifteen qualification fixtures',()=>{
+test('standings sidebar adds the live link and tournament scorers/passers without changing the standings view',()=>{
  const {w,dom}=setup();
  w.document.getElementById('sweMatchStandingsButton').click();
  const panel=w.document.getElementById('sweStandingsDialog');
@@ -49,11 +49,6 @@ test('standings sidebar adds the live link, tournament scorers/passers and all f
  assert.match(panel.textContent,/2 passes décisives/);
  const live=panel.querySelector('.swe-standings-live');
  assert.equal(live.href,'https://app.swetournament.fr/live.html?s=CONQ15');
- assert.equal(panel.querySelectorAll('.swe-standings-pool').length,5);
- assert.equal(panel.querySelectorAll('.swe-standings-fixture').length,15);
- assert.match(panel.querySelector('.swe-standings-pool').textContent,/Family.*Noirs/);
- assert.match(panel.textContent,/Carrefour/);
- assert.match(panel.textContent,/Mercedes/);
- assert.match(panel.textContent,/Boulogne/);
+ assert.equal(panel.querySelectorAll('.swe-standings-fixtures').length,0);
  dom.window.close();
 });

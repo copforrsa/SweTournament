@@ -31,16 +31,6 @@
   const token=state().workspace?.public_token;
   return token&&t?.id?'https://app.swetournament.fr/live.html?'+new URLSearchParams({public:token,tournament:t.id}).toString():'';
  }
- function qualificationPools(t){
-  const pitchRank=name=>{const value=String(name||'').toLocaleLowerCase('fr');return value.includes('carrefour')?0:value.includes('mercedes')?1:value.includes('boulogne')?2:9};
-  const fixtures=tournamentMatches(t).filter(m=>m.competition_type==='championship_qualification'&&m.format_stage==='qualification').sort((a,b)=>Number(a.match_order||0)-Number(b.match_order||0));
-  const pools=new Map();
-  fixtures.forEach((m,index)=>{
-   const found=String(m.round_label||'').match(/poule\s*(\d+)/i),number=found?Number(found[1]):Math.floor(index/3)+1;
-   if(!pools.has(number))pools.set(number,[]);pools.get(number).push(m);
-  });
-  return [...pools.entries()].sort((a,b)=>a[0]-b[0]).map(([number,matches])=>({number,matches:matches.sort((a,b)=>pitchRank(a.pitch)-pitchRank(b.pitch)||Number(a.match_order||0)-Number(b.match_order||0))}));
- }
  function appendRanking(title,icon,entries,singular,plural){
   const section=document.createElement('section');section.className='swe-standings-ranking';
   const heading=document.createElement('h4');heading.textContent=icon+' '+title;section.append(heading);
@@ -48,26 +38,6 @@
   const list=document.createElement('ol');
   entries.forEach((entry,index)=>{const item=document.createElement('li'),name=document.createElement('span'),score=document.createElement('b');name.textContent=(index+1)+'. '+entry.name;score.textContent=entry.total+' '+(entry.total>1?plural:singular);item.append(name,score);list.append(item)});
   section.append(list);return section;
- }
- function appendQualificationVisual(t){
-  const pools=qualificationPools(t);if(!pools.length)return;
-  const s=state(),teams=new Map((s.teams||[]).map(team=>[String(team.id),team]));
-  const section=document.createElement('section');section.className='swe-standings-fixtures';
-  const heading=document.createElement('h4');heading.textContent='🗺️ Qualifications · 15 matchs';
-  const intro=document.createElement('p');intro.className='muted';intro.textContent='Chaque poule lance trois affiches simultanées : Carrefour, Mercedes et Boulogne.';section.append(heading,intro);
-  const poolList=document.createElement('div');poolList.className='swe-standings-pools';
-  pools.forEach(pool=>{
-   const card=document.createElement('article');card.className='swe-standings-pool';
-   const title=document.createElement('h5');title.textContent='Poule '+pool.number;card.append(title);
-   pool.matches.forEach(match=>{
-    const fixture=document.createElement('div');fixture.className='swe-standings-fixture';
-    const pitch=document.createElement('small');pitch.textContent='📍 '+label(match.pitch,'Terrain');
-    const versus=document.createElement('strong'),home=teams.get(String(match.home_team_id)),away=teams.get(String(match.away_team_id));
-    versus.textContent=label(home?.name,'Équipe 1')+'  ·  '+label(away?.name,'Équipe 2');fixture.append(pitch,versus);card.append(fixture);
-   });
-   poolList.append(card);
-  });
-  section.append(poolList);content.append(section);
  }
  function standings(t){
   if(t.format==='fast_conquest'&&t.rotation_state?.fast_conquest&&window.SWE_FAST_ENGINE){const s=t.rotation_state.fast_conquest,rows=window.SWE_FAST_ENGINE.standings(s),order=s.finalRanking||s.ranking||rows.map(r=>r.id);return order.map(id=>{const r=rows.find(x=>x.id===id);return {...r,name:(S.teams||[]).find(x=>x.id===id)?.name||'Équipe',mj:r.played,pts:r.points,bp:r.for,bc:r.against}})}
@@ -96,12 +66,11 @@
   }
   const live=liveUrl(t);if(live){const link=document.createElement('a');link.className='swe-standings-live';link.href=live;link.target='_blank';link.rel='noopener noreferrer';link.textContent='🔴 Suivre le Live du tournoi ↗';content.append(link)}
   const rankings=document.createElement('div');rankings.className='swe-standings-rankings';rankings.append(appendRanking('Buteurs du tournoi','⚽',stats.scorers,'but','buts'),appendRanking('Passeurs du tournoi','🎯',stats.assisters,'passe décisive','passes décisives'));content.append(rankings);
-  appendQualificationVisual(t);
  }
  function mount(){
   const select=E('matchCompetitionSelect');if(!select)return;
   if(!dialog){
-   const style=document.createElement('style');style.textContent='#sweStandingsDialog{box-sizing:border-box;position:fixed;inset:0 0 0 auto;margin:0;width:min(480px,100vw);height:100dvh;max-height:100dvh;max-width:100vw;border:0;border-radius:16px 0 0 16px;padding:22px;background:#fff;color:#17324d;overflow:auto;box-shadow:-8px 0 35px #0003}#sweStandingsDialog::backdrop{background:#071d3166}#sweStandingsDialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}#sweStandingsDialog h2{font-size:21px;margin:0}#sweStandingsDialog h3{margin:20px 0 8px;font-size:18px}#sweStandingsDialog h4{margin:0 0 8px;font-size:16px;color:#092d53}#sweStandingsDialog table{width:100%;border-collapse:collapse;font-size:14px}#sweStandingsDialog th,#sweStandingsDialog td{padding:12px 5px;border-bottom:1px solid #dfe7ef;text-align:center}#sweStandingsDialog th:nth-child(2),#sweStandingsDialog td:nth-child(2){text-align:left}#sweStandingsDialog td:last-child{font-weight:900}#sweStandingsDialog .muted{font-size:13px;line-height:1.5}.swe-standings-live{display:flex;align-items:center;justify-content:center;margin:16px 0;padding:12px 14px;border-radius:12px;background:linear-gradient(115deg,#063970,#00b9d3);color:#fff!important;font-weight:900;text-decoration:none;box-shadow:0 8px 18px #00a9c426}.swe-standings-rankings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.swe-standings-ranking{border:1px solid #d6e6f1;border-radius:14px;padding:12px;background:linear-gradient(145deg,#f5fbff,#fff)}.swe-standings-ranking ol{list-style:none;margin:0;padding:0}.swe-standings-ranking li{display:flex;justify-content:space-between;gap:7px;padding:7px 0;border-top:1px solid #e3edf4;font-size:13px}.swe-standings-ranking li b{color:#087f9d;white-space:nowrap}.swe-standings-ranking .muted{margin:0}.swe-standings-fixtures{margin:20px 0 6px;padding:14px;border-radius:16px;border:1px solid #b6d9f1;background:linear-gradient(145deg,#edf8ff,#f9fcff)}.swe-standings-fixtures>.muted{margin-top:0}.swe-standings-pools{display:grid;gap:10px}.swe-standings-pool{border:1px solid #cfdfeb;border-radius:12px;background:#fff;padding:10px}.swe-standings-pool h5{margin:0 0 8px;color:#056f93;font-size:14px;text-transform:uppercase;letter-spacing:.05em}.swe-standings-fixture{display:grid;grid-template-columns:108px minmax(0,1fr);gap:8px;align-items:center;padding:8px 0;border-top:1px solid #e7eff5}.swe-standings-fixture:first-of-type{border-top:0}.swe-standings-fixture small{font-weight:800;color:#6b5a15}.swe-standings-fixture strong{font-size:13px;color:#153450;overflow-wrap:anywhere}#sweMatchStandingsButton{margin:8px 0;min-height:44px}#sweStandingsDialog button{min-height:44px}@media(max-width:650px){#sweStandingsDialog{inset:auto 0 0;margin:0;width:100%;height:auto;max-height:82dvh;border-radius:18px 18px 0 0;padding:18px}.swe-standings-rankings{grid-template-columns:1fr}.swe-standings-fixture{grid-template-columns:1fr}.swe-standings-fixture small{font-size:12px}}';document.head.append(style);
+   const style=document.createElement('style');style.textContent='#sweStandingsDialog{box-sizing:border-box;position:fixed;inset:0 0 0 auto;margin:0;width:min(480px,100vw);height:100dvh;max-height:100dvh;max-width:100vw;border:0;border-radius:16px 0 0 16px;padding:22px;background:#fff;color:#17324d;overflow:auto;box-shadow:-8px 0 35px #0003}#sweStandingsDialog::backdrop{background:#071d3166}#sweStandingsDialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}#sweStandingsDialog h2{font-size:21px;margin:0}#sweStandingsDialog h3{margin:20px 0 8px;font-size:18px}#sweStandingsDialog h4{margin:0 0 8px;font-size:16px;color:#092d53}#sweStandingsDialog table{width:100%;border-collapse:collapse;font-size:14px}#sweStandingsDialog th,#sweStandingsDialog td{padding:12px 5px;border-bottom:1px solid #dfe7ef;text-align:center}#sweStandingsDialog th:nth-child(2),#sweStandingsDialog td:nth-child(2){text-align:left}#sweStandingsDialog td:last-child{font-weight:900}#sweStandingsDialog .muted{font-size:13px;line-height:1.5}.swe-standings-live{display:flex;align-items:center;justify-content:center;margin:16px 0;padding:12px 14px;border-radius:12px;background:linear-gradient(115deg,#063970,#00b9d3);color:#fff!important;font-weight:900;text-decoration:none;box-shadow:0 8px 18px #00a9c426}.swe-standings-rankings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}.swe-standings-ranking{border:1px solid #d6e6f1;border-radius:14px;padding:12px;background:linear-gradient(145deg,#f5fbff,#fff)}.swe-standings-ranking ol{list-style:none;margin:0;padding:0}.swe-standings-ranking li{display:flex;justify-content:space-between;gap:7px;padding:7px 0;border-top:1px solid #e3edf4;font-size:13px}.swe-standings-ranking li b{color:#087f9d;white-space:nowrap}.swe-standings-ranking .muted{margin:0}#sweMatchStandingsButton{margin:8px 0;min-height:44px}#sweStandingsDialog button{min-height:44px}@media(max-width:650px){#sweStandingsDialog{inset:auto 0 0;margin:0;width:100%;height:auto;max-height:82dvh;border-radius:18px 18px 0 0;padding:18px}.swe-standings-rankings{grid-template-columns:1fr}}';document.head.append(style);
    dialog=document.createElement('dialog');dialog.id='sweStandingsDialog';dialog.setAttribute('aria-labelledby','sweStandingsTitle');dialog.innerHTML='<header><h2 id="sweStandingsTitle">📊 Classement</h2><button type="button" aria-label="Fermer le classement">✕ Fermer</button></header>';dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclick=e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}};content=document.createElement('div');dialog.append(content);document.body.append(dialog);
   }
   if(!E('sweMatchStandingsButton')){const button=document.createElement('button');button.id='sweMatchStandingsButton';button.type='button';button.textContent='📊 Classement';button.onclick=()=>{signature='';dialog.showModal();update()};select.insertAdjacentElement('afterend',button)}
