@@ -7,6 +7,7 @@ let revision=0;
 const key=(m,suffix)=>String(m.id)+':'+suffix;
 const draft=(m,suffix,initial)=>{const k=key(m,suffix);if(!drafts.has(k))drafts.set(k,{...initial});return drafts.get(k)};
 const eq=(a,b)=>String(a)===String(b);
+const sameRoster=(left,right)=>{const a=[...new Set((left||[]).map(String))].sort(),b=[...new Set((right||[]).map(String))].sort();return a.length===b.length&&a.every((id,index)=>id===b[index])};
 const player=id=>(S.players||[]).find(p=>eq(p.id,id));
 const name=id=>player(id)?.name||'Joueur';
 const teamName=id=>(S.teams||[]).find(t=>eq(t.id,id))?.name||'Équipe';
@@ -47,7 +48,14 @@ function finishControl(m,can,busy){
 }
 function roster(m,tid,history=false){
   const assignments=(S.matchAssignments||[]).filter(a=>eq(a.match_id,m.id));
-  let ids=(assignments.length?assignments:S.teamPlayers||[]).filter(a=>eq(a.team_id,tid)).map(a=>a.player_id);
+  const official=(S.teamPlayers||[]).filter(a=>eq(a.team_id,tid)).map(a=>a.player_id);
+  const scheduledQualification=m.competition_type==='championship_qualification'&&m.format_stage==='qualification'&&m.status==='scheduled';
+  const assignmentsMatchOfficial=scheduledQualification&&[m.home_team_id,m.away_team_id].every(sideId=>sameRoster(
+    assignments.filter(a=>eq(a.team_id,sideId)).map(a=>a.player_id),
+    (S.teamPlayers||[]).filter(a=>eq(a.team_id,sideId)).map(a=>a.player_id)
+  ));
+  // Do not let stale pre-calendar assignments hide a side of an upcoming qualification match.
+  let ids=scheduledQualification&&!assignmentsMatchOfficial?official:(assignments.length?assignments.filter(a=>eq(a.team_id,tid)).map(a=>a.player_id):official);
   if(history){ids.push(...(S.teamPlayers||[]).filter(a=>eq(a.team_id,tid)).map(a=>a.player_id));for(const r of m.substitutions||[])if(eq(r.team_id,tid))ids.push(r.in_id,r.out_id)}
   return [...new Set(ids)].filter(id=>player(id));
 }

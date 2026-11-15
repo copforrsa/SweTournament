@@ -16,9 +16,21 @@ const notify=message=>{if(context)context.notify(message);else if(typeof toast==
 
 function teamById(id){return (state.teams||[]).find(t=>String(t.id)===String(id))||null}
 function playerById(id){return (state.players||[]).find(p=>String(p.id)===String(id))||null}
+function sameRoster(left,right){
+  const a=[...new Set((left||[]).map(String))].sort(),b=[...new Set((right||[]).map(String))].sort();
+  return a.length===b.length&&a.every((id,index)=>id===b[index]);
+}
 function playersForTeam(teamId,matchId=null){
-  const assignments=context?(state.matchAssignments||[]).filter(a=>String(a.match_id)===String(matchId||state.matches[0]?.id)):[];
-  const ids=(assignments.length?assignments:state.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(teamId)).map(tp=>tp.player_id);
+  const targetMatchId=matchId||state.matches[0]?.id;
+  const match=(state.matches||[]).find(row=>String(row.id)===String(targetMatchId));
+  const assignments=context?(state.matchAssignments||[]).filter(a=>String(a.match_id)===String(targetMatchId)):[];
+  const official=(state.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(teamId)).map(tp=>tp.player_id);
+  const scheduledQualification=!!match&&match.competition_type==='championship_qualification'&&match.format_stage==='qualification'&&match.status==='scheduled';
+  const assignmentsMatchOfficial=scheduledQualification&&[match.home_team_id,match.away_team_id].every(sideId=>sameRoster(
+    assignments.filter(a=>String(a.team_id)===String(sideId)).map(a=>a.player_id),
+    (state.teamPlayers||[]).filter(tp=>String(tp.team_id)===String(sideId)).map(tp=>tp.player_id)
+  ));
+  const ids=scheduledQualification&&!assignmentsMatchOfficial?official:(assignments.length?assignments:official);
   return ids.map(playerById).filter(Boolean).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
 }
 function canEditScores(){if(context)return !!context.canEditScores();try{return typeof canEditCurrentMatches==='function'?!!canEditCurrentMatches():false}catch(_){return false}}

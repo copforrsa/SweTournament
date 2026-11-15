@@ -1614,10 +1614,28 @@ const THIRD_HALF_PAYMENT_MODES={
 };
 function currentTour(){return S.tournaments.find(x=>x.id===S.activeTour)} function canonicalPlayerId(id){return S.playerAliases?.[String(id)]||String(id)} function p(id){return S.players.find(x=>String(x.id)===canonicalPlayerId(id))} function tm(id){return S.teams.find(x=>x.id===id)}
 
+function samePlayerRoster(left,right){
+  const a=[...new Set((left||[]).map(String))].sort();
+  const b=[...new Set((right||[]).map(String))].sort();
+  return a.length===b.length&&a.every((id,index)=>id===b[index]);
+}
 function matchTeamPlayerIds(matchId,teamId){
+  const match=S.matches.find(m=>String(m.id)===String(matchId));
   const rows=S.matchAssignments.filter(a=>String(a.match_id)===String(matchId));
+  const officialRoster=teamPlayerIds(teamId);
+  const isScheduledQualification=!!match&&match.competition_type==='championship_qualification'&&match.format_stage==='qualification'&&match.status==='scheduled';
+  if(isScheduledQualification){
+    const sides=[match.home_team_id,match.away_team_id].filter(Boolean);
+    const assignmentsMatchOfficial=sides.length===2&&sides.every(sideId=>samePlayerRoster(
+      rows.filter(a=>String(a.team_id||'')===String(sideId)).map(a=>a.player_id),
+      teamPlayerIds(sideId)
+    ));
+    // A calendar correction must never make a scheduled Conquête lose a whole side.
+    // Until the stored sheet is reconciled, the confirmed team composition is authoritative.
+    if(!assignmentsMatchOfficial)return officialRoster;
+  }
   if(rows.length)return rows.filter(a=>String(a.team_id||'')===String(teamId||'')).map(a=>a.player_id);
-  return teamPlayerIds(teamId);
+  return officialRoster;
 }
 function ratingForMatchPlayer(match,playerId,teamId,goalRows=S.goals){
   if(!match||!teamId)return null;

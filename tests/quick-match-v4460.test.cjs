@@ -111,6 +111,36 @@ test('championship keeps fifteen matches in five rounds, completed scores and se
  w.document.querySelector('.swe4300-round [role=tab]').click();assert.match(w.document.querySelector('.swe4300-match').className,/finished/);assert.ok(w.document.querySelector('.swe4300-round').querySelector('.swe4300-match'));assert.ok(w.document.querySelector('.swe4300-round [role=tab]').classList.contains('completed'));dom.window.close();
 });
 
+test('every scheduled qualification match keeps both five-player teams visible when old assignments are stale',()=>{
+ const {w,dom}=setup();
+ const teams=['Family','Verts','Rouges','Bleus','Blancs','Noirs'].map((name,index)=>({id:'t'+index,name}));
+ const players=teams.flatMap((team,index)=>Array.from({length:5},(_,slot)=>({id:team.id+'p'+slot,name:team.name+' '+(slot+1)})));
+ const teamPlayers=teams.flatMap(team=>players.filter(player=>player.id.startsWith(team.id+'p')).map(player=>({team_id:team.id,player_id:player.id})));
+ const matches=[];
+ for(let home=0;home<teams.length-1;home++)for(let away=home+1;away<teams.length;away++){
+   const index=matches.length;
+   matches.push({id:'q'+index,tournament_id:'t',home_team_id:teams[home].id,away_team_id:teams[away].id,match_order:index+1,
+     competition_type:'championship_qualification',format_stage:'qualification',rotation_role:'championship',round_label:'Poule '+(Math.floor(index/3)+1),pitch:['Carrefour','Mercedes','Boulogne'][index%3],status:'scheduled',home_score:0,away_score:0,substitutions:[]});
+ }
+ w.S.tournaments[0].name='Conquête';w.S.teams=teams;w.S.players=players;w.S.teamPlayers=teamPlayers;w.S.matches=matches;
+ // Simulates the old schedule's rows: all 15 match sheets are deliberately wrong.
+ w.S.matchAssignments=matches.flatMap(match=>{
+   const stale=teams.find(team=>team.id!==match.home_team_id&&team.id!==match.away_team_id);
+   return teamPlayers.filter(row=>row.team_id===stale.id).map(row=>({match_id:match.id,player_id:row.player_id,team_id:row.team_id}));
+ });
+ w.SWE_RENDER_MATCHES_4302(false);
+ assert.equal(w.document.querySelectorAll('.swe4300-pitch-tab').length,15);
+ for(const match of matches){
+   const home=teams.find(team=>team.id===match.home_team_id),away=teams.find(team=>team.id===match.away_team_id);
+   const tab=[...w.document.querySelectorAll('.swe4300-pitch-tab')].find(button=>button.textContent.includes(home.name+' vs '+away.name));
+   assert.ok(tab,'onglet manquant pour '+home.name+' / '+away.name);
+   tab.click();
+   const visible=[...w.document.querySelectorAll('.swe4460-scorer')].map(button=>button.textContent.replace(/^⚽\s*/,''));
+   for(const team of [home,away])for(let slot=1;slot<=5;slot++)assert.ok(visible.includes(team.name+' '+slot),match.id+' doit afficher '+team.name+' '+slot);
+ }
+ dom.window.close();
+});
+
 test('finished matches are locked for co-managers and editable by admin or super admin',()=>{
  const {w,dom}=setup();w.isAdmin=()=>false;w.SWE_RENDER_MATCHES_4302(false);assert.equal(w.document.querySelectorAll('.swe4460 button,.swe4460 select,.swe4460 input').length,0);
  w.isAdmin=()=>true;w.SWE_RENDER_MATCHES_4302(false);assert.ok(w.document.querySelector('.swe4460 button'));
